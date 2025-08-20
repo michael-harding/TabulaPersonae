@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import type { Character, Equipment } from "@/lib/character-types"
 import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -39,7 +39,6 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Equipment | null>(null)
-  const [formData, setFormData] = useState<EquipmentFormData>(defaultEquipmentForm)
 
   const safeEquipment = character.equipment || []
 
@@ -52,7 +51,7 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
   const totalWeight = safeEquipment.reduce((total, item) => total + (item.weight || 0) * item.quantity, 0)
   const equippedItems = safeEquipment.filter((item) => item.equipped)
 
-  const handleAddItem = () => {
+  const handleAddItem = (formData: EquipmentFormData) => {
     if (!formData.name.trim()) return
 
     const newItem: Equipment = {
@@ -71,23 +70,15 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
     }
     onUpdate(updated)
     saveCharacter(updated)
-
-    setFormData(defaultEquipmentForm)
     setIsAddDialogOpen(false)
   }
 
   const handleEditItem = (item: Equipment) => {
     setEditingItem(item)
-    setFormData({
-      name: item.name,
-      quantity: item.quantity,
-      weight: item.weight || 0,
-      description: item.description || "",
-      equipped: item.equipped || false,
-    })
+    setIsAddDialogOpen(true)
   }
 
-  const handleUpdateItem = () => {
+  const handleUpdateItem = (formData: EquipmentFormData) => {
     if (!editingItem || !formData.name.trim()) return
 
     const updatedItem: Equipment = {
@@ -106,9 +97,8 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
     }
     onUpdate(updated)
     saveCharacter(updated)
-
     setEditingItem(null)
-    setFormData(defaultEquipmentForm)
+    setIsAddDialogOpen(false)
   }
 
   const handleDeleteItem = (itemId: string) => {
@@ -140,7 +130,27 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
     saveCharacter(updated)
   }
 
-  const EquipmentForm = () => (
+
+
+function EquipmentForm({
+  initialData,
+  onSubmit,
+  onCancel,
+  editing
+}: {
+  initialData: EquipmentFormData,
+  onSubmit: (data: EquipmentFormData) => void,
+  onCancel: () => void,
+  editing: boolean
+}) {
+  const [formData, setFormData] = useState<EquipmentFormData>(initialData)
+
+  // Reset formData when initialData changes (e.g. switching between add/edit)
+  React.useEffect(() => {
+    setFormData(initialData)
+  }, [initialData])
+
+  return (
     <div className="space-y-4">
       <div>
         <Label htmlFor="item-name">Item Name</Label>
@@ -197,23 +207,20 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
       </div>
 
       <div className="flex gap-2 pt-4">
-        <Button onClick={editingItem ? handleUpdateItem : handleAddItem} className="gap-2">
+        <Button onClick={() => onSubmit(formData)} className="gap-2">
           <Save className="h-4 w-4" />
-          {editingItem ? "Update Item" : "Add Item"}
+          {editing ? "Update Item" : "Add Item"}
         </Button>
         <Button
           variant="outline"
-          onClick={() => {
-            setEditingItem(null)
-            setFormData(defaultEquipmentForm)
-            setIsAddDialogOpen(false)
-          }}
+          onClick={onCancel}
         >
           Cancel
         </Button>
       </div>
     </div>
   )
+}
 
   return (
     <Card>
@@ -239,7 +246,21 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
                 <DialogHeader>
                   <DialogTitle>Add New Item</DialogTitle>
                 </DialogHeader>
-                <EquipmentForm />
+                <EquipmentForm
+                  initialData={editingItem ? {
+                    name: editingItem.name,
+                    quantity: editingItem.quantity,
+                    weight: editingItem.weight || 0,
+                    description: editingItem.description || "",
+                    equipped: editingItem.equipped || false,
+                  } : defaultEquipmentForm}
+                  onSubmit={editingItem ? handleUpdateItem : handleAddItem}
+                  onCancel={() => {
+                    setEditingItem(null)
+                    setIsAddDialogOpen(false)
+                  }}
+                  editing={!!editingItem}
+                />
               </DialogContent>
             </Dialog>
           </div>
@@ -353,7 +374,21 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
             <DialogHeader>
               <DialogTitle>Edit Item</DialogTitle>
             </DialogHeader>
-            <EquipmentForm />
+            <EquipmentForm
+              initialData={editingItem ? {
+                name: editingItem.name,
+                quantity: editingItem.quantity,
+                weight: editingItem.weight || 0,
+                description: editingItem.description || "",
+                equipped: editingItem.equipped || false,
+              } : defaultEquipmentForm}
+              onSubmit={editingItem ? handleUpdateItem : handleAddItem}
+              onCancel={() => {
+                setEditingItem(null)
+                setIsAddDialogOpen(false)
+              }}
+              editing={!!editingItem}
+            />
           </DialogContent>
         </Dialog>
       </CardContent>

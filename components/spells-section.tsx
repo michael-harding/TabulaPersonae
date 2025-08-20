@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import type { Character, Spell } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
 import { saveCharacter } from "@/lib/character-storage"
@@ -73,7 +73,7 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingSpell, setEditingSpell] = useState<Spell | null>(null)
-  const [formData, setFormData] = useState<SpellFormData>(defaultSpellForm)
+  // Remove formData and setFormData from parent; move to SpellForm
   const [expandedLevels, setExpandedLevels] = useState<Set<number>>(new Set([0]))
 
   const safeSpells = character.spells || []
@@ -97,7 +97,7 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
   const spellSaveDC = getSpellSaveDC(character)
   const spellAttackBonus = getSpellAttackBonus(character)
 
-  const handleAddSpell = () => {
+  const handleAddSpell = (formData: SpellFormData) => {
     if (!formData.name.trim()) return
 
     const newSpell: Spell = {
@@ -119,27 +119,15 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
     }
     onUpdate(updated)
     saveCharacter(updated)
-
-    setFormData(defaultSpellForm)
     setIsAddDialogOpen(false)
   }
 
   const handleEditSpell = (spell: Spell) => {
     setEditingSpell(spell)
-    setFormData({
-      name: spell.name,
-      level: spell.level,
-      school: spell.school,
-      castingTime: spell.castingTime,
-      range: spell.range,
-      components: spell.components,
-      duration: spell.duration,
-      description: spell.description,
-      prepared: spell.prepared || false,
-    })
+    setIsAddDialogOpen(false)
   }
 
-  const handleUpdateSpell = () => {
+  const handleUpdateSpell = (formData: SpellFormData) => {
     if (!editingSpell || !formData.name.trim()) return
 
     const updatedSpell: Spell = {
@@ -161,9 +149,7 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
     }
     onUpdate(updated)
     saveCharacter(updated)
-
     setEditingSpell(null)
-    setFormData(defaultSpellForm)
   }
 
   const handleDeleteSpell = (spellId: string) => {
@@ -196,7 +182,25 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
     })
   }
 
-  const SpellForm = () => (
+
+function SpellForm({
+  initialData,
+  onSubmit,
+  onCancel,
+  editing
+}: {
+  initialData: SpellFormData,
+  onSubmit: (data: SpellFormData) => void,
+  onCancel: () => void,
+  editing: boolean
+}) {
+  const [formData, setFormData] = React.useState<SpellFormData>(initialData)
+
+  React.useEffect(() => {
+    setFormData(initialData)
+  }, [initialData])
+
+  return (
     <div className="space-y-4">
       <div>
         <Label htmlFor="spell-name">Spell Name</Label>
@@ -312,23 +316,20 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       )}
 
       <div className="flex gap-2 pt-4">
-        <Button onClick={editingSpell ? handleUpdateSpell : handleAddSpell} className="gap-2">
+        <Button onClick={() => onSubmit(formData)} className="gap-2">
           <Save className="h-4 w-4" />
-          {editingSpell ? "Update Spell" : "Add Spell"}
+          {editing ? "Update Spell" : "Add Spell"}
         </Button>
         <Button
           variant="outline"
-          onClick={() => {
-            setEditingSpell(null)
-            setFormData(defaultSpellForm)
-            setIsAddDialogOpen(false)
-          }}
+          onClick={onCancel}
         >
           Cancel
         </Button>
       </div>
     </div>
   )
+}
 
   return (
     <Card>
@@ -349,7 +350,12 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
               <DialogHeader>
                 <DialogTitle>Add New Spell</DialogTitle>
               </DialogHeader>
-              <SpellForm />
+              <SpellForm
+                initialData={defaultSpellForm}
+                onSubmit={handleAddSpell}
+                onCancel={() => setIsAddDialogOpen(false)}
+                editing={false}
+              />
             </DialogContent>
           </Dialog>
         </CardTitle>
@@ -490,7 +496,22 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
             <DialogHeader>
               <DialogTitle>Edit Spell</DialogTitle>
             </DialogHeader>
-            <SpellForm />
+            <SpellForm
+              initialData={editingSpell ? {
+                name: editingSpell.name,
+                level: editingSpell.level,
+                school: editingSpell.school,
+                castingTime: editingSpell.castingTime,
+                range: editingSpell.range,
+                components: editingSpell.components,
+                duration: editingSpell.duration,
+                description: editingSpell.description,
+                prepared: editingSpell.prepared || false,
+              } : defaultSpellForm}
+              onSubmit={handleUpdateSpell}
+              onCancel={() => setEditingSpell(null)}
+              editing={!!editingSpell}
+            />
           </DialogContent>
         </Dialog>
       </CardContent>
