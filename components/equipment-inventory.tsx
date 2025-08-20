@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import { Package, Plus, Edit, Trash2, Save, Search, Weight } from "lucide-react"
+import { Package, Plus, Edit, Trash2, Save, Search, Scale } from "lucide-react"
 
 interface EquipmentInventoryProps {
   character: Character
@@ -212,7 +212,7 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1">
-              <Weight className="h-3 w-3" />
+              <Scale className="h-3 w-3" />
               {totalWeight} lbs
             </Badge>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

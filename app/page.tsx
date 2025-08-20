@@ -2,10 +2,16 @@
 
 import { useState, useEffect } from "react"
 import { type Character, createDefaultCharacter } from "@/lib/character-types"
-import { loadCharacters, saveCharacter, getActiveCharacter, setActiveCharacter } from "@/lib/character-storage"
+import {
+  loadCharacters,
+  saveCharacter,
+  getActiveCharacter,
+  setActiveCharacter,
+  deleteCharacter,
+} from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Scroll, Sword } from "lucide-react"
+import { Plus, Scroll, Sword, Trash2 } from "lucide-react"
 import { CharacterBasicInfo } from "@/components/character-basic-info"
 import { AbilityScores } from "@/components/ability-scores"
 import { CombatStats } from "@/components/combat-stats"
@@ -85,6 +91,27 @@ export default function CharacterSheetApp() {
     }
   }
 
+  const handleDeleteCharacter = (characterId: string, characterName: string) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${characterName || "Unnamed Character"}"? This action cannot be undone.`,
+    )
+
+    if (confirmDelete) {
+      // Delete from storage
+      deleteCharacter(characterId)
+
+      // Update local state
+      const updatedCharacters = characters.filter((c) => c.id !== characterId)
+      setCharacters(updatedCharacters)
+
+      // If the deleted character was active, clear active character
+      if (activeCharacter?.id === characterId) {
+        setActiveCharacterState(null)
+        localStorage.removeItem("dnd-active-character")
+      }
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -130,26 +157,39 @@ export default function CharacterSheetApp() {
                   {characters.map((character) => (
                     <Card
                       key={character.id}
-                      className="cursor-pointer hover:shadow-lg transition-shadow"
-                      onClick={() => selectCharacter(character)}
+                      className="cursor-pointer hover:shadow-lg transition-shadow relative group"
                     >
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Sword className="h-5 w-5 text-primary" />
-                          {character.name || "Unnamed Character"}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2 text-sm text-muted-foreground">
-                          <p>
-                            Level {character.level} {character.race} {character.class}
-                          </p>
-                          <p>
-                            HP: {character.currentHitPoints}/{character.hitPointMaximum}
-                          </p>
-                          <p>AC: {character.armorClass}</p>
-                        </div>
-                      </CardContent>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10 z-10"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteCharacter(character.id, character.name)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+
+                      <div onClick={() => selectCharacter(character)}>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2 pr-8">
+                            <Sword className="h-5 w-5 text-primary" />
+                            {character.name || "Unnamed Character"}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <p>
+                              Level {character.level} {character.race} {character.class}
+                            </p>
+                            <p>
+                              HP: {character.currentHitPoints}/{character.hitPointMaximum}
+                            </p>
+                            <p>AC: {character.armorClass}</p>
+                          </div>
+                        </CardContent>
+                      </div>
                     </Card>
                   ))}
                 </div>
