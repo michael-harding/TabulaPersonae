@@ -16,7 +16,16 @@ interface CombatStatsProps {
 
 export function CombatStats({ character, onUpdate }: CombatStatsProps) {
   const [isEditing, setIsEditing] = useState(false)
-  const [editedCharacter, setEditedCharacter] = useState(character)
+  const [editedCharacter, setEditedCharacter] = useState({
+    ...character,
+    currentHitPoints: character.currentHitPoints || 0,
+    hitPointMaximum: character.hitPointMaximum || 1,
+    temporaryHitPoints: character.temporaryHitPoints || 0,
+    armorClass: character.armorClass || 10,
+    initiative: character.initiative || 0,
+    speed: character.speed || 30,
+    proficiencyBonus: character.proficiencyBonus || 2,
+  })
 
   const handleSave = () => {
     onUpdate(editedCharacter)
@@ -24,7 +33,16 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
   }
 
   const handleCancel = () => {
-    setEditedCharacter(character)
+    setEditedCharacter({
+      ...character,
+      currentHitPoints: character.currentHitPoints || 0,
+      hitPointMaximum: character.hitPointMaximum || 1,
+      temporaryHitPoints: character.temporaryHitPoints || 0,
+      armorClass: character.armorClass || 10,
+      initiative: character.initiative || 0,
+      speed: character.speed || 30,
+      proficiencyBonus: character.proficiencyBonus || 2,
+    })
     setIsEditing(false)
   }
 
@@ -33,14 +51,18 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
   }
 
   const adjustHitPoints = (amount: number) => {
-    const newHP = Math.max(
-      0,
-      Math.min(character.hitPointMaximum + character.temporaryHitPoints, character.currentHitPoints + amount),
-    )
+    const currentHP = character.currentHitPoints || 0
+    const maxHP = character.hitPointMaximum || 1
+    const tempHP = character.temporaryHitPoints || 0
+
+    const newHP = Math.max(0, Math.min(maxHP + tempHP, currentHP + amount))
     onUpdate({ ...character, currentHitPoints: newHP })
   }
 
-  const hpPercentage = (character.currentHitPoints / character.hitPointMaximum) * 100
+  const currentHP = character.currentHitPoints || 0
+  const maxHP = character.hitPointMaximum || 1
+  const tempHP = character.temporaryHitPoints || 0
+  const hpPercentage = (currentHP / maxHP) * 100
 
   return (
     <Card>
@@ -65,20 +87,10 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
             </Label>
             {!isEditing && (
               <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => adjustHitPoints(-1)}
-                  disabled={character.currentHitPoints <= 0}
-                >
+                <Button size="sm" variant="outline" onClick={() => adjustHitPoints(-1)} disabled={currentHP <= 0}>
                   <Minus className="h-3 w-3" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => adjustHitPoints(1)}
-                  disabled={character.currentHitPoints >= character.hitPointMaximum}
-                >
+                <Button size="sm" variant="outline" onClick={() => adjustHitPoints(1)} disabled={currentHP >= maxHP}>
                   <Plus className="h-3 w-3" />
                 </Button>
               </div>
@@ -92,7 +104,7 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
                 <Input
                   type="number"
                   min="0"
-                  value={editedCharacter.currentHitPoints}
+                  value={editedCharacter.currentHitPoints || 0}
                   onChange={(e) => updateField("currentHitPoints", Number.parseInt(e.target.value) || 0)}
                 />
               </div>
@@ -101,7 +113,7 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
                 <Input
                   type="number"
                   min="1"
-                  value={editedCharacter.hitPointMaximum}
+                  value={editedCharacter.hitPointMaximum || 1}
                   onChange={(e) => updateField("hitPointMaximum", Number.parseInt(e.target.value) || 1)}
                 />
               </div>
@@ -110,7 +122,7 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
                 <Input
                   type="number"
                   min="0"
-                  value={editedCharacter.temporaryHitPoints}
+                  value={editedCharacter.temporaryHitPoints || 0}
                   onChange={(e) => updateField("temporaryHitPoints", Number.parseInt(e.target.value) || 0)}
                 />
               </div>
@@ -119,11 +131,9 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-2xl font-bold">
-                  {character.currentHitPoints}
-                  {character.temporaryHitPoints > 0 && (
-                    <span className="text-accent">+{character.temporaryHitPoints}</span>
-                  )}
-                  <span className="text-muted-foreground">/{character.hitPointMaximum}</span>
+                  {currentHP}
+                  {tempHP > 0 && <span className="text-accent">+{tempHP}</span>}
+                  <span className="text-muted-foreground">/{maxHP}</span>
                 </span>
                 <span className="text-sm text-muted-foreground">{Math.round(hpPercentage)}%</span>
               </div>
@@ -140,12 +150,12 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
               <Input
                 type="number"
                 min="1"
-                value={editedCharacter.armorClass}
+                value={editedCharacter.armorClass || 10}
                 onChange={(e) => updateField("armorClass", Number.parseInt(e.target.value) || 10)}
                 className="text-center text-xl font-bold mt-1"
               />
             ) : (
-              <div className="text-2xl font-bold text-primary mt-1">{character.armorClass}</div>
+              <div className="text-2xl font-bold text-primary mt-1">{character.armorClass || 10}</div>
             )}
           </div>
 
@@ -154,14 +164,14 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
             {isEditing ? (
               <Input
                 type="number"
-                value={editedCharacter.initiative}
+                value={editedCharacter.initiative || 0}
                 onChange={(e) => updateField("initiative", Number.parseInt(e.target.value) || 0)}
                 className="text-center text-xl font-bold mt-1"
               />
             ) : (
               <div className="text-2xl font-bold text-primary mt-1">
-                {character.initiative >= 0 ? "+" : ""}
-                {character.initiative}
+                {(character.initiative || 0) >= 0 ? "+" : ""}
+                {character.initiative || 0}
               </div>
             )}
           </div>
@@ -172,12 +182,12 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
               <Input
                 type="number"
                 min="0"
-                value={editedCharacter.speed}
+                value={editedCharacter.speed || 30}
                 onChange={(e) => updateField("speed", Number.parseInt(e.target.value) || 30)}
                 className="text-center text-xl font-bold mt-1"
               />
             ) : (
-              <div className="text-2xl font-bold text-primary mt-1">{character.speed} ft</div>
+              <div className="text-2xl font-bold text-primary mt-1">{character.speed || 30} ft</div>
             )}
           </div>
 
@@ -187,12 +197,12 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
               <Input
                 type="number"
                 min="1"
-                value={editedCharacter.proficiencyBonus}
+                value={editedCharacter.proficiencyBonus || 2}
                 onChange={(e) => updateField("proficiencyBonus", Number.parseInt(e.target.value) || 2)}
                 className="text-center text-xl font-bold mt-1"
               />
             ) : (
-              <div className="text-2xl font-bold text-primary mt-1">+{character.proficiencyBonus}</div>
+              <div className="text-2xl font-bold text-primary mt-1">+{character.proficiencyBonus || 2}</div>
             )}
           </div>
         </div>

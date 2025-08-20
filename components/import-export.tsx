@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Download, Upload, FileText } from "lucide-react"
 import type { Character } from "@/lib/character-types"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
 
 interface ImportExportProps {
   characters: Character[]
@@ -18,6 +18,7 @@ interface ImportExportProps {
 export function ImportExport({ characters, onImportCharacter, onImportMultiple }: ImportExportProps) {
   const [isImportOpen, setIsImportOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
 
   const exportCharacter = (character: Character) => {
     try {
@@ -33,9 +34,16 @@ export function ImportExport({ characters, onImportCharacter, onImportMultiple }
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      toast.success(`Exported ${character.name || "character"} successfully!`)
+      toast({
+        title: "Export Successful",
+        description: `Exported ${character.name || "character"} successfully!`,
+      })
     } catch (error) {
-      toast.error("Failed to export character")
+      toast({
+        title: "Export Failed",
+        description: "Failed to export character",
+        variant: "destructive",
+      })
       console.error("Export error:", error)
     }
   }
@@ -54,9 +62,16 @@ export function ImportExport({ characters, onImportCharacter, onImportMultiple }
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      toast.success(`Exported ${characters.length} characters successfully!`)
+      toast({
+        title: "Export Successful",
+        description: `Exported ${characters.length} characters successfully!`,
+      })
     } catch (error) {
-      toast.error("Failed to export characters")
+      toast({
+        title: "Export Failed",
+        description: "Failed to export characters",
+        variant: "destructive",
+      })
       console.error("Export error:", error)
     }
   }
@@ -79,23 +94,41 @@ export function ImportExport({ characters, onImportCharacter, onImportMultiple }
           )
 
           if (validCharacters.length === 0) {
-            toast.error("No valid characters found in file")
+            toast({
+              title: "Import Failed",
+              description: "No valid characters found in file",
+              variant: "destructive",
+            })
             return
           }
 
           onImportMultiple(validCharacters)
-          toast.success(`Imported ${validCharacters.length} characters successfully!`)
+          toast({
+            title: "Import Successful",
+            description: `Imported ${validCharacters.length} characters successfully!`,
+          })
         } else if (data && typeof data === "object" && data.id) {
           // Single character
           onImportCharacter(data)
-          toast.success(`Imported ${data.name || "character"} successfully!`)
+          toast({
+            title: "Import Successful",
+            description: `Imported ${data.name || "character"} successfully!`,
+          })
         } else {
-          toast.error("Invalid character file format")
+          toast({
+            title: "Import Failed",
+            description: "Invalid character file format",
+            variant: "destructive",
+          })
         }
 
         setIsImportOpen(false)
       } catch (error) {
-        toast.error("Failed to parse character file")
+        toast({
+          title: "Import Failed",
+          description: "Failed to parse character file",
+          variant: "destructive",
+        })
         console.error("Import error:", error)
       }
     }

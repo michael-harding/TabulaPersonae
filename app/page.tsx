@@ -21,6 +21,8 @@ import { SpellsSection } from "@/components/spells-section"
 import { CharacterNotes } from "@/components/character-notes"
 import { ModeToggle } from "@/components/mode-toggle"
 import { ImportExport } from "@/components/import-export"
+import { HeaderMenu } from "@/components/header-menu"
+import { HpProgressBar } from "@/components/hp-progress-bar"
 
 export default function CharacterSheetApp() {
   const [characters, setCharacters] = useState<Character[]>([])
@@ -208,6 +210,8 @@ export default function CharacterSheetApp() {
 
   return (
     <div className="min-h-screen bg-background">
+      {activeCharacter && <HpProgressBar character={activeCharacter} />}
+
       <header className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -221,21 +225,13 @@ export default function CharacterSheetApp() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <ImportExport
-                characters={characters}
-                onImportCharacter={handleImportCharacter}
-                onImportMultiple={handleImportMultiple}
-              />
-              <ModeToggle />
-              <Button variant="outline" size="sm" onClick={() => setActiveCharacterState(null)}>
-                All Characters
-              </Button>
-              <Button variant="outline" size="sm" onClick={createNewCharacter} className="gap-2 bg-transparent">
-                <Plus className="h-4 w-4" />
-                New
-              </Button>
-            </div>
+            <HeaderMenu
+              characters={characters}
+              onImportCharacter={handleImportCharacter}
+              onImportMultiple={handleImportMultiple}
+              onAllCharacters={() => setActiveCharacterState(null)}
+              onNewCharacter={createNewCharacter}
+            />
           </div>
         </div>
       </header>
