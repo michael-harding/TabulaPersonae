@@ -62,7 +62,15 @@ const ALIGNMENTS = [
 
 export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoProps) {
   const [isEditing, setIsEditing] = useState(false)
-  const [editedCharacter, setEditedCharacter] = useState(character)
+  const [editedCharacter, setEditedCharacter] = useState({
+    ...character,
+    name: character.name || "",
+    race: character.race || "",
+    class: character.class || "",
+    background: character.background || "",
+    alignment: character.alignment || "",
+    experiencePoints: character.experiencePoints || 0,
+  })
 
   const handleSave = () => {
     onUpdate(editedCharacter)
@@ -70,7 +78,15 @@ export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoPr
   }
 
   const handleCancel = () => {
-    setEditedCharacter(character)
+    setEditedCharacter({
+      ...character,
+      name: character.name || "",
+      race: character.race || "",
+      class: character.class || "",
+      background: character.background || "",
+      alignment: character.alignment || "",
+      experiencePoints: character.experiencePoints || 0,
+    })
     setIsEditing(false)
   }
 
@@ -142,7 +158,7 @@ export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoPr
             <Label htmlFor="name">Character Name</Label>
             <Input
               id="name"
-              value={editedCharacter.name}
+              value={editedCharacter.name || ""}
               onChange={(e) => updateField("name", e.target.value)}
               placeholder="Enter character name"
             />
@@ -154,13 +170,13 @@ export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoPr
               type="number"
               min="1"
               max="20"
-              value={editedCharacter.level}
+              value={editedCharacter.level || 1}
               onChange={(e) => updateField("level", Number.parseInt(e.target.value) || 1)}
             />
           </div>
           <div>
             <Label htmlFor="race">Race</Label>
-            <Select value={editedCharacter.race} onValueChange={(value) => updateField("race", value)}>
+            <Select value={editedCharacter.race || ""} onValueChange={(value) => updateField("race", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select race" />
               </SelectTrigger>
@@ -175,7 +191,7 @@ export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoPr
           </div>
           <div>
             <Label htmlFor="class">Class</Label>
-            <Select value={editedCharacter.class} onValueChange={(value) => updateField("class", value)}>
+            <Select value={editedCharacter.class || ""} onValueChange={(value) => updateField("class", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select class" />
               </SelectTrigger>
@@ -192,14 +208,14 @@ export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoPr
             <Label htmlFor="background">Background</Label>
             <Input
               id="background"
-              value={editedCharacter.background}
+              value={editedCharacter.background || ""}
               onChange={(e) => updateField("background", e.target.value)}
               placeholder="Enter background"
             />
           </div>
           <div>
             <Label htmlFor="alignment">Alignment</Label>
-            <Select value={editedCharacter.alignment} onValueChange={(value) => updateField("alignment", value)}>
+            <Select value={editedCharacter.alignment || ""} onValueChange={(value) => updateField("alignment", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select alignment" />
               </SelectTrigger>
@@ -219,7 +235,7 @@ export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoPr
             id="xp"
             type="number"
             min="0"
-            value={editedCharacter.experiencePoints}
+            value={editedCharacter.experiencePoints || 0}
             onChange={(e) => updateField("experiencePoints", Number.parseInt(e.target.value) || 0)}
           />
         </div>

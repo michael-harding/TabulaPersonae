@@ -14,6 +14,7 @@ import { EquipmentInventory } from "@/components/equipment-inventory"
 import { SpellsSection } from "@/components/spells-section"
 import { CharacterNotes } from "@/components/character-notes"
 import { ModeToggle } from "@/components/mode-toggle"
+import { ImportExport } from "@/components/import-export"
 
 export default function CharacterSheetApp() {
   const [characters, setCharacters] = useState<Character[]>([])
@@ -53,6 +54,37 @@ export default function CharacterSheetApp() {
     setCharacters((prev) => prev.map((c) => (c.id === updatedCharacter.id ? updatedCharacter : c)))
   }
 
+  const handleImportCharacter = (character: Character) => {
+    // Generate new ID to avoid conflicts
+    const importedCharacter = { ...character, id: crypto.randomUUID() }
+    const updatedCharacters = [...characters, importedCharacter]
+
+    setCharacters(updatedCharacters)
+    setActiveCharacterState(importedCharacter)
+    setActiveCharacter(importedCharacter.id)
+    saveCharacter(importedCharacter)
+  }
+
+  const handleImportMultiple = (importedCharacters: Character[]) => {
+    // Generate new IDs to avoid conflicts
+    const charactersWithNewIds = importedCharacters.map((char) => ({
+      ...char,
+      id: crypto.randomUUID(),
+    }))
+
+    const updatedCharacters = [...characters, ...charactersWithNewIds]
+    setCharacters(updatedCharacters)
+
+    // Save all imported characters
+    charactersWithNewIds.forEach((char) => saveCharacter(char))
+
+    // Set the first imported character as active
+    if (charactersWithNewIds.length > 0) {
+      setActiveCharacterState(charactersWithNewIds[0])
+      setActiveCharacter(charactersWithNewIds[0].id)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -68,7 +100,12 @@ export default function CharacterSheetApp() {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-between items-center mb-4">
+            <ImportExport
+              characters={characters}
+              onImportCharacter={handleImportCharacter}
+              onImportMultiple={handleImportMultiple}
+            />
             <ModeToggle />
           </div>
 
@@ -145,6 +182,11 @@ export default function CharacterSheetApp() {
             </div>
 
             <div className="flex items-center gap-2">
+              <ImportExport
+                characters={characters}
+                onImportCharacter={handleImportCharacter}
+                onImportMultiple={handleImportMultiple}
+              />
               <ModeToggle />
               <Button variant="outline" size="sm" onClick={() => setActiveCharacterState(null)}>
                 All Characters

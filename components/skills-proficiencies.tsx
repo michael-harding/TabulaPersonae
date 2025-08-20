@@ -34,6 +34,48 @@ const ABILITY_ABBREVIATIONS: { [K in keyof Character["abilityScores"]]: string }
   charisma: "Cha",
 }
 
+const SKILL_ABILITY_MAP: { [K in keyof Character["skills"]]: keyof Character["abilityScores"] } = {
+  acrobatics: "dexterity",
+  animalHandling: "wisdom",
+  arcana: "intelligence",
+  athletics: "strength",
+  deception: "charisma",
+  history: "intelligence",
+  insight: "wisdom",
+  intimidation: "charisma",
+  investigation: "intelligence",
+  medicine: "wisdom",
+  nature: "intelligence",
+  perception: "wisdom",
+  performance: "charisma",
+  persuasion: "charisma",
+  religion: "intelligence",
+  sleightOfHand: "dexterity",
+  stealth: "dexterity",
+  survival: "wisdom",
+}
+
+const SKILL_DISPLAY_NAMES: { [K in keyof Character["skills"]]: string } = {
+  acrobatics: "Acrobatics",
+  animalHandling: "Animal Handling",
+  arcana: "Arcana",
+  athletics: "Athletics",
+  deception: "Deception",
+  history: "History",
+  insight: "Insight",
+  intimidation: "Intimidation",
+  investigation: "Investigation",
+  medicine: "Medicine",
+  nature: "Nature",
+  perception: "Perception",
+  performance: "Performance",
+  persuasion: "Persuasion",
+  religion: "Religion",
+  sleightOfHand: "Sleight of Hand",
+  stealth: "Stealth",
+  survival: "Survival",
+}
+
 export function SkillsProficiencies({ character, onUpdate }: SkillsProficienciesProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedCharacter, setEditedCharacter] = useState(character)
@@ -52,25 +94,31 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
     setNewProficiency("")
   }
 
-  const toggleSkillProficiency = (skillName: string) => {
+  const toggleSkillProficiency = (skillName: keyof Character["skills"]) => {
     setEditedCharacter((prev) => ({
       ...prev,
-      skills: (prev.skills || []).map((skill) =>
-        skill.name === skillName
-          ? { ...skill, proficient: !skill.proficient, expertise: skill.proficient ? false : skill.expertise }
-          : skill,
-      ),
+      skills: {
+        ...prev.skills,
+        [skillName]: {
+          ...prev.skills?.[skillName],
+          proficient: !prev.skills?.[skillName]?.proficient,
+          expertise: prev.skills?.[skillName]?.proficient ? false : prev.skills?.[skillName]?.expertise || false,
+        },
+      },
     }))
   }
 
-  const toggleSkillExpertise = (skillName: string) => {
+  const toggleSkillExpertise = (skillName: keyof Character["skills"]) => {
     setEditedCharacter((prev) => ({
       ...prev,
-      skills: (prev.skills || []).map((skill) =>
-        skill.name === skillName
-          ? { ...skill, expertise: !skill.expertise, proficient: skill.expertise ? skill.proficient : true }
-          : skill,
-      ),
+      skills: {
+        ...prev.skills,
+        [skillName]: {
+          ...prev.skills?.[skillName],
+          expertise: !prev.skills?.[skillName]?.expertise,
+          proficient: prev.skills?.[skillName]?.expertise ? prev.skills?.[skillName]?.proficient || false : true,
+        },
+      },
     }))
   }
 
@@ -105,7 +153,7 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
     if (newProficiency.trim()) {
       setEditedCharacter((prev) => ({
         ...prev,
-        proficiencies: [...(prev.proficiencies || []), newProficiency.trim()],
+        otherProficiencies: [...(prev.otherProficiencies || []), newProficiency.trim()],
       }))
       setNewProficiency("")
     }
@@ -114,7 +162,7 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
   const removeProficiency = (proficiency: string) => {
     setEditedCharacter((prev) => ({
       ...prev,
-      proficiencies: (prev.proficiencies || []).filter((p) => p !== proficiency),
+      otherProficiencies: (prev.otherProficiencies || []).filter((p) => p !== proficiency),
     }))
   }
 
@@ -168,22 +216,24 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
         <div>
           <h3 className="font-semibold mb-3">Skills</h3>
           <div className="space-y-1">
-            {(currentCharacter.skills || []).map((skill) => {
-              const modifier = getSkillModifier(currentCharacter, skill.name, skill.ability)
+            {(Object.keys(SKILL_DISPLAY_NAMES) as Array<keyof Character["skills"]>).map((skillKey) => {
+              const skill = currentCharacter.skills?.[skillKey] || { proficient: false, expertise: false }
+              const ability = SKILL_ABILITY_MAP[skillKey]
+              const modifier = getSkillModifier(currentCharacter, SKILL_DISPLAY_NAMES[skillKey], ability)
 
               return (
-                <div key={skill.name} className="flex items-center justify-between p-2 rounded hover:bg-muted/50">
+                <div key={skillKey} className="flex items-center justify-between p-2 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-3">
                     {isEditing && (
                       <div className="flex gap-1">
                         <Checkbox
                           checked={skill.proficient}
-                          onCheckedChange={() => toggleSkillProficiency(skill.name)}
+                          onCheckedChange={() => toggleSkillProficiency(skillKey)}
                           title="Proficient"
                         />
                         <Checkbox
                           checked={skill.expertise}
-                          onCheckedChange={() => toggleSkillExpertise(skill.name)}
+                          onCheckedChange={() => toggleSkillExpertise(skillKey)}
                           title="Expertise"
                           className="border-secondary data-[state=checked]:bg-secondary"
                         />
@@ -191,8 +241,8 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
                     )}
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{skill.name}</span>
-                        <span className="text-xs text-muted-foreground">({ABILITY_ABBREVIATIONS[skill.ability]})</span>
+                        <span className="font-medium">{SKILL_DISPLAY_NAMES[skillKey]}</span>
+                        <span className="text-xs text-muted-foreground">({ABILITY_ABBREVIATIONS[ability]})</span>
                         {!isEditing && (
                           <div className="flex gap-1">
                             {skill.proficient && (
@@ -261,7 +311,7 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
         <div>
           <h3 className="font-semibold mb-3">Other Proficiencies</h3>
           <div className="flex flex-wrap gap-2 mb-3">
-            {(currentCharacter.proficiencies || []).map((proficiency) => (
+            {(currentCharacter.otherProficiencies || []).map((proficiency) => (
               <Badge key={proficiency} variant="outline" className="gap-1">
                 {proficiency}
                 {isEditing && (
@@ -276,7 +326,7 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
                 )}
               </Badge>
             ))}
-            {(currentCharacter.proficiencies || []).length === 0 && (
+            {(currentCharacter.otherProficiencies || []).length === 0 && (
               <span className="text-muted-foreground text-sm">No additional proficiencies</span>
             )}
           </div>
