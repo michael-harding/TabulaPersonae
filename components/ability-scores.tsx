@@ -3,6 +3,7 @@
 import { useState } from "react"
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
+import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -46,10 +47,12 @@ export function AbilityScores({ character, onUpdate }: AbilityScoresProps) {
   const [editedScores, setEditedScores] = useState(safeAbilityScores)
 
   const handleSave = () => {
-    onUpdate({
+    const updated = {
       ...character,
       abilityScores: editedScores,
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
     setIsEditing(false)
   }
 

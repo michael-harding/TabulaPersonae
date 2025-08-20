@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import type { Character, Equipment } from "@/lib/character-types"
+import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -63,10 +64,12 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
       equipped: formData.equipped,
     }
 
-    onUpdate({
+    const updated = {
       ...character,
       equipment: [...safeEquipment, newItem],
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
 
     setFormData(defaultEquipmentForm)
     setIsAddDialogOpen(false)
@@ -95,36 +98,44 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
       equipped: formData.equipped,
     }
 
-    onUpdate({
+    const updated = {
       ...character,
       equipment: safeEquipment.map((item) => (item.id === editingItem.id ? updatedItem : item)),
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
 
     setEditingItem(null)
     setFormData(defaultEquipmentForm)
   }
 
   const handleDeleteItem = (itemId: string) => {
-    onUpdate({
+    const updated = {
       ...character,
       equipment: safeEquipment.filter((item) => item.id !== itemId),
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
   }
 
   const toggleEquipped = (itemId: string) => {
-    onUpdate({
+    const updated = {
       ...character,
       equipment: safeEquipment.map((item) => (item.id === itemId ? { ...item, equipped: !item.equipped } : item)),
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
   }
 
   const updateQuantity = (itemId: string, quantity: number) => {
     if (quantity < 1) return
 
-    onUpdate({
+    const updated = {
       ...character,
       equipment: safeEquipment.map((item) => (item.id === itemId ? { ...item, quantity } : item)),
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
   }
 
   const EquipmentForm = () => (

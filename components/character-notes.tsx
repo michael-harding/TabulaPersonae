@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { saveCharacter } from "@/lib/character-storage"
 import type { Character } from "@/lib/character-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,7 @@ export function CharacterNotes({ character, onUpdate }: CharacterNotesProps) {
 
   const handleSave = () => {
     onUpdate(editedCharacter)
+    saveCharacter(editedCharacter)
     setIsEditing(false)
   }
 

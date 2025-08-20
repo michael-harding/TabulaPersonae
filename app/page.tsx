@@ -30,12 +30,16 @@ export default function CharacterSheetApp() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Load characters and active character on mount
+    // Load characters and restore the previously open character by ID
     const loadedCharacters = loadCharacters()
-    const active = getActiveCharacter()
-
+    const activeId = getActiveCharacter()
     setCharacters(loadedCharacters)
-    setActiveCharacterState(active)
+    if (activeId) {
+      const found = loadedCharacters.find((c) => c.id === activeId)
+      setActiveCharacterState(found || null)
+    } else {
+      setActiveCharacterState(null)
+    }
     setIsLoading(false)
   }, [])
 

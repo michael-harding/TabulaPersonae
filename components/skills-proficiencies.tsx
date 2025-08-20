@@ -3,6 +3,7 @@
 import { useState } from "react"
 import type { Character } from "@/lib/character-types"
 import { getSkillModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
+import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -84,6 +85,7 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
 
   const handleSave = () => {
     onUpdate(editedCharacter)
+    saveCharacter(editedCharacter)
     setIsEditing(false)
   }
 

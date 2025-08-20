@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import type { Character } from "@/lib/character-types"
+import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,6 +30,7 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
 
   const handleSave = () => {
     onUpdate(editedCharacter)
+    saveCharacter(editedCharacter)
     setIsEditing(false)
   }
 
@@ -56,7 +58,9 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
     const tempHP = character.temporaryHitPoints || 0
 
     const newHP = Math.max(0, Math.min(maxHP + tempHP, currentHP + amount))
-    onUpdate({ ...character, currentHitPoints: newHP })
+    const updated = { ...character, currentHitPoints: newHP }
+    onUpdate(updated)
+    saveCharacter(updated)
   }
 
   const currentHP = character.currentHitPoints || 0

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import type { Character, Spell } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
+import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -112,10 +113,12 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       prepared: formData.prepared,
     }
 
-    onUpdate({
+    const updated = {
       ...character,
       spells: [...safeSpells, newSpell],
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
 
     setFormData(defaultSpellForm)
     setIsAddDialogOpen(false)
@@ -152,27 +155,33 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       prepared: formData.prepared,
     }
 
-    onUpdate({
+    const updated = {
       ...character,
       spells: safeSpells.map((spell) => (spell.id === editingSpell.id ? updatedSpell : spell)),
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
 
     setEditingSpell(null)
     setFormData(defaultSpellForm)
   }
 
   const handleDeleteSpell = (spellId: string) => {
-    onUpdate({
+    const updated = {
       ...character,
       spells: safeSpells.filter((spell) => spell.id !== spellId),
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
   }
 
   const togglePrepared = (spellId: string) => {
-    onUpdate({
+    const updated = {
       ...character,
       spells: safeSpells.map((spell) => (spell.id === spellId ? { ...spell, prepared: !spell.prepared } : spell)),
-    })
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
   }
 
   const toggleLevelExpanded = (level: number) => {
