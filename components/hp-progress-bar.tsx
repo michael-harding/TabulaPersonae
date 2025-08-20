@@ -6,9 +6,9 @@ interface HpProgressBarProps {
 }
 
 export function HpProgressBar({ character }: HpProgressBarProps) {
-  const currentHp = character.currentHitPoints ?? 0
-  const maxHp = character.hitPointMaximum ?? 1
-  const hpPercentage = Math.max(0, Math.min(100, (currentHp / maxHp) * 100))
+  const currentHp = character.hitPoints?.current ?? 0
+  const maxHp = character.hitPoints?.maximum ?? 1
+  const hpPercentage = Math.max(0, Math.min(100, (maxHp > 0 ? (currentHp / maxHp) * 100 : 0)))
 
   return (
     <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">

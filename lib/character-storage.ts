@@ -12,7 +12,7 @@ export function saveCharacter(character: Character): void {
   } else {
     characters.push(character)
   }
-  console.log("here");
+
   localStorage.setItem(STORAGE_KEY, JSON.stringify(characters))
 }
 

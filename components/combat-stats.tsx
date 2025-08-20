@@ -19,9 +19,11 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedCharacter, setEditedCharacter] = useState({
     ...character,
-    currentHitPoints: character.currentHitPoints || 0,
-    hitPointMaximum: character.hitPointMaximum || 1,
-    temporaryHitPoints: character.temporaryHitPoints || 0,
+    hitPoints: {
+      current: character.hitPoints?.current ?? 0,
+      maximum: character.hitPoints?.maximum ?? 1,
+      temporary: character.hitPoints?.temporary ?? 0,
+    },
     armorClass: character.armorClass || 10,
     initiative: character.initiative || 0,
     speed: character.speed || 30,
@@ -37,9 +39,11 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
   const handleCancel = () => {
     setEditedCharacter({
       ...character,
-      currentHitPoints: character.currentHitPoints || 0,
-      hitPointMaximum: character.hitPointMaximum || 1,
-      temporaryHitPoints: character.temporaryHitPoints || 0,
+      hitPoints: {
+        current: character.hitPoints?.current ?? 0,
+        maximum: character.hitPoints?.maximum ?? 1,
+        temporary: character.hitPoints?.temporary ?? 0,
+      },
       armorClass: character.armorClass || 10,
       initiative: character.initiative || 0,
       speed: character.speed || 30,
@@ -48,25 +52,41 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
     setIsEditing(false)
   }
 
-  const updateField = (field: keyof Character, value: any) => {
-    setEditedCharacter((prev) => ({ ...prev, [field]: value }))
+  const updateField = (field: keyof Character | keyof typeof editedCharacter.hitPoints, value: any) => {
+    if (field === "current" || field === "maximum" || field === "temporary") {
+      setEditedCharacter((prev) => ({
+        ...prev,
+        hitPoints: {
+          ...prev.hitPoints,
+          [field]: value,
+        },
+      }))
+    } else {
+      setEditedCharacter((prev) => ({ ...prev, [field]: value }))
+    }
   }
 
   const adjustHitPoints = (amount: number) => {
-    const currentHP = character.currentHitPoints || 0
-    const maxHP = character.hitPointMaximum || 1
-    const tempHP = character.temporaryHitPoints || 0
+    const currentHP = character.hitPoints?.current ?? 0
+    const maxHP = character.hitPoints?.maximum ?? 1
+    const tempHP = character.hitPoints?.temporary ?? 0
 
     const newHP = Math.max(0, Math.min(maxHP + tempHP, currentHP + amount))
-    const updated = { ...character, currentHitPoints: newHP }
+    const updated = {
+      ...character,
+      hitPoints: {
+        ...character.hitPoints,
+        current: newHP,
+      },
+    }
     onUpdate(updated)
     saveCharacter(updated)
   }
 
-  const currentHP = character.currentHitPoints || 0
-  const maxHP = character.hitPointMaximum || 1
-  const tempHP = character.temporaryHitPoints || 0
-  const hpPercentage = (currentHP / maxHP) * 100
+  const currentHP = character.hitPoints?.current ?? 0
+  const maxHP = character.hitPoints?.maximum ?? 1
+  const tempHP = character.hitPoints?.temporary ?? 0
+  const hpPercentage = (maxHP > 0 ? (currentHP / maxHP) * 100 : 0)
 
   return (
     <Card>
@@ -108,8 +128,8 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
                 <Input
                   type="number"
                   min="0"
-                  value={editedCharacter.currentHitPoints || 0}
-                  onChange={(e) => updateField("currentHitPoints", Number.parseInt(e.target.value) || 0)}
+                  value={editedCharacter.hitPoints?.current ?? 0}
+                  onChange={(e) => updateField("current", Number.parseInt(e.target.value) || 0)}
                 />
               </div>
               <div>
@@ -117,8 +137,8 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
                 <Input
                   type="number"
                   min="1"
-                  value={editedCharacter.hitPointMaximum || 1}
-                  onChange={(e) => updateField("hitPointMaximum", Number.parseInt(e.target.value) || 1)}
+                  value={editedCharacter.hitPoints?.maximum ?? 1}
+                  onChange={(e) => updateField("maximum", Number.parseInt(e.target.value) || 1)}
                 />
               </div>
               <div>
@@ -126,8 +146,8 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
                 <Input
                   type="number"
                   min="0"
-                  value={editedCharacter.temporaryHitPoints || 0}
-                  onChange={(e) => updateField("temporaryHitPoints", Number.parseInt(e.target.value) || 0)}
+                  value={editedCharacter.hitPoints?.temporary ?? 0}
+                  onChange={(e) => updateField("temporary", Number.parseInt(e.target.value) || 0)}
                 />
               </div>
             </div>

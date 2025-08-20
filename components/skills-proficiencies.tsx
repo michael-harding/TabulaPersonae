@@ -189,8 +189,13 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
           <h3 className="font-semibold mb-3">Saving Throws</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {(Object.keys(ABILITY_NAMES) as Array<keyof Character["abilityScores"]>).map((ability) => {
-              const modifier = getSavingThrowModifier(currentCharacter, ability)
+              const abilityScore = currentCharacter.abilityScores[ability]
               const isProficient = currentCharacter.savingThrows?.[ability] || false
+              const modifier = getSavingThrowModifier(
+                abilityScore,
+                currentCharacter.proficiencyBonus,
+                isProficient
+              )
 
               return (
                 <div key={ability} className="flex items-center justify-between p-2 rounded border">
@@ -219,9 +224,15 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
           <h3 className="font-semibold mb-3">Skills</h3>
           <div className="space-y-1">
             {(Object.keys(SKILL_DISPLAY_NAMES) as Array<keyof Character["skills"]>).map((skillKey) => {
-              const skill = currentCharacter.skills?.[skillKey] || { proficient: false, expertise: false }
               const ability = SKILL_ABILITY_MAP[skillKey]
-              const modifier = getSkillModifier(currentCharacter, SKILL_DISPLAY_NAMES[skillKey], ability)
+              const abilityScore = currentCharacter.abilityScores[ability]
+              const skill = currentCharacter.skills?.[skillKey] || { proficient: false, expertise: false }
+              const modifier = getSkillModifier(
+                abilityScore,
+                currentCharacter.proficiencyBonus,
+                skill.proficient,
+                skill.expertise
+              )
 
               return (
                 <div key={skillKey} className="flex items-center justify-between p-2 rounded hover:bg-muted/50">

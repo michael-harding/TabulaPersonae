@@ -60,8 +60,9 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
       name: formData.name.trim(),
       quantity: formData.quantity,
       weight: formData.weight,
-      description: formData.description.trim() || undefined,
+      description: formData.description.trim(),
       equipped: formData.equipped,
+      type: "other"
     }
 
     const updated = {
@@ -94,8 +95,9 @@ export function EquipmentInventory({ character, onUpdate }: EquipmentInventoryPr
       name: formData.name.trim(),
       quantity: formData.quantity,
       weight: formData.weight,
-      description: formData.description.trim() || undefined,
+      description: formData.description.trim(),
       equipped: formData.equipped,
+      type: editingItem.type || "other"
     }
 
     const updated = {

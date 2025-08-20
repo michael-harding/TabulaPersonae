@@ -190,7 +190,7 @@ export default function CharacterSheetApp() {
                               Level {character.level} {character.race} {character.class}
                             </p>
                             <p>
-                              HP: {character.currentHitPoints}/{character.hitPointMaximum}
+                              HP: {character.hitPoints?.current ?? 0}/{character.hitPoints?.maximum ?? 0}
                             </p>
                             <p>AC: {character.armorClass}</p>
                           </div>

@@ -86,7 +86,13 @@ export function AbilityScores({ character, onUpdate }: AbilityScoresProps) {
           {(Object.keys(ABILITY_NAMES) as Array<keyof Character["abilityScores"]>).map((ability) => {
             const score = isEditing ? editedScores[ability] : safeAbilityScores[ability]
             const modifier = getAbilityModifier(score)
-            const savingThrowModifier = getSavingThrowModifier(character, ability)
+            const abilityScore = character.abilityScores[ability]
+            const isProficient = character.savingThrows?.[ability] || false
+            const savingThrowModifier = getSavingThrowModifier(
+              abilityScore,
+              character.proficiencyBonus,
+              isProficient
+            )
             const isProficientSave = character.savingThrows?.[ability] || false
 
             return (
