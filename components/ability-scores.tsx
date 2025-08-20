@@ -109,14 +109,14 @@ export function AbilityScores({ character, onUpdate }: AbilityScoresProps) {
                     className="text-center text-2xl font-bold h-16"
                   />
                 ) : (
-                  <div className="bg-muted rounded-lg p-3">
+                  <div className="ring-1 rounded-lg p-3">
                     <div className="text-2xl font-bold text-primary">{score}</div>
                     <div className="text-lg font-semibold text-foreground">{formatModifier(modifier)}</div>
                   </div>
                 )}
 
                 <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">Saving Throw</div>
+                  <div className="text-xs">Saving Throw</div>
                   <div className="flex items-center justify-center gap-1">
                     <span className="font-medium">{formatModifier(savingThrowModifier)}</span>
                     {isProficientSave && (
