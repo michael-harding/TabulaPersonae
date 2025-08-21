@@ -17,3 +17,10 @@ const customRender = (ui: ReactElement, options?: Omit<RenderOptions, "wrapper">
 
 export * from "@testing-library/react"
 export { customRender as render }
+
+// Empty test to prevent Jest warning
+describe("test-utils", () => {
+  it("should export testing utilities", () => {
+    expect(customRender).toBeDefined()
+  })
+})

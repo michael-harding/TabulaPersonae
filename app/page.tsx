@@ -49,8 +49,12 @@ export default function CharacterSheetApp() {
 
     setCharacters(updatedCharacters)
     setActiveCharacterState(newCharacter)
-    setActiveCharacter(newCharacter.id)
-    saveCharacter(newCharacter)
+    const activeSet = setActiveCharacter(newCharacter.id)
+    const saved = saveCharacter(newCharacter)
+    
+    if (!saved || !activeSet) {
+      alert("Failed to save character. Please check your browser storage settings.")
+    }
   }
 
   const selectCharacter = (character: Character) => {
@@ -60,7 +64,13 @@ export default function CharacterSheetApp() {
 
   const updateCharacter = (updatedCharacter: Character) => {
     setActiveCharacterState(updatedCharacter)
-    saveCharacter(updatedCharacter)
+    const saved = saveCharacter(updatedCharacter)
+    
+    if (!saved) {
+      // Show error message to user
+      alert("Failed to save character. Please check your browser storage settings.")
+      return
+    }
 
     // Update characters list
     setCharacters((prev) => prev.map((c) => (c.id === updatedCharacter.id ? updatedCharacter : c)))

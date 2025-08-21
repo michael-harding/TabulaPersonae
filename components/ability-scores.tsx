@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
-import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -46,13 +45,25 @@ export function AbilityScores({ character, onUpdate }: AbilityScoresProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedScores, setEditedScores] = useState(safeAbilityScores)
 
+  // Update edited scores when character prop changes
+  useEffect(() => {
+    const newSafeAbilityScores = character.abilityScores || {
+      strength: 10,
+      dexterity: 10,
+      constitution: 10,
+      intelligence: 10,
+      wisdom: 10,
+      charisma: 10,
+    }
+    setEditedScores(newSafeAbilityScores)
+  }, [character.id])
+
   const handleSave = () => {
     const updated = {
       ...character,
       abilityScores: editedScores,
     }
     onUpdate(updated)
-    saveCharacter(updated)
     setIsEditing(false)
   }
 

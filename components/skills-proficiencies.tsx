@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { Character } from "@/lib/character-types"
 import { getSkillModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
-import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -83,9 +82,13 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
   const [newLanguage, setNewLanguage] = useState("")
   const [newProficiency, setNewProficiency] = useState("")
 
+  // Update edited character when character prop changes
+  useEffect(() => {
+    setEditedCharacter(character)
+  }, [character.id])
+
   const handleSave = () => {
     onUpdate(editedCharacter)
-    saveCharacter(editedCharacter)
     setIsEditing(false)
   }
 

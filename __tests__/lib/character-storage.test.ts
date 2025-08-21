@@ -32,6 +32,13 @@ Object.defineProperty(window, "localStorage", {
   value: localStorageMock,
 })
 
+// Mock crypto.randomUUID
+Object.defineProperty(global, "crypto", {
+  value: {
+    randomUUID: jest.fn(() => "test-uuid-" + Math.random().toString(36).substr(2, 9)),
+  },
+})
+
 describe("Character Storage", () => {
   beforeEach(() => {
     localStorageMock.clear()
@@ -43,8 +50,9 @@ describe("Character Storage", () => {
       const character = createDefaultCharacter()
       character.name = "Test Character"
 
-      saveCharacter(character)
+      const result = saveCharacter(character)
 
+      expect(result).toBe(true)
       expect(localStorageMock.setItem).toHaveBeenCalledWith("dnd-characters", JSON.stringify([character]))
     })
 

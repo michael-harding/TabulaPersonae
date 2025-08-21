@@ -42,3 +42,10 @@ jest.mock("next-themes", () => ({
   }),
   ThemeProvider: ({ children }) => children,
 }))
+
+// Mock crypto.randomUUID globally
+Object.defineProperty(global, "crypto", {
+  value: {
+    randomUUID: jest.fn(() => "test-uuid-" + Math.random().toString(36).substr(2, 9)),
+  },
+})

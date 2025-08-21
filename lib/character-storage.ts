@@ -3,17 +3,23 @@ import type { Character } from "./character-types"
 const STORAGE_KEY = "dnd-characters"
 const ACTIVE_CHARACTER_KEY = "dnd-active-character"
 
-export function saveCharacter(character: Character): void {
-  const characters = getCharacters()
-  const existingIndex = characters.findIndex((c) => c.id === character.id)
+export function saveCharacter(character: Character): boolean {
+  try {
+    const characters = getCharacters()
+    const existingIndex = characters.findIndex((c) => c.id === character.id)
 
-  if (existingIndex >= 0) {
-    characters[existingIndex] = character
-  } else {
-    characters.push(character)
+    if (existingIndex >= 0) {
+      characters[existingIndex] = character
+    } else {
+      characters.push(character)
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(characters))
+    return true
+  } catch (error) {
+    console.error('Failed to save character:', error)
+    return false
   }
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(characters))
 }
 
 export function getCharacters(): Character[] {
@@ -38,10 +44,16 @@ export function getCharacter(id: string): Character | null {
   return characters.find((c) => c.id === id) || null
 }
 
-export function deleteCharacter(id: string): void {
-  const characters = getCharacters()
-  const filtered = characters.filter((c) => c.id !== id)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered))
+export function deleteCharacter(id: string): boolean {
+  try {
+    const characters = getCharacters()
+    const filtered = characters.filter((c) => c.id !== id)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered))
+    return true
+  } catch (error) {
+    console.error('Failed to delete character:', error)
+    return false
+  }
 }
 
 export function getActiveCharacter(): string | null {
@@ -51,6 +63,12 @@ export function getActiveCharacter(): string | null {
   return stored || null
 }
 
-export function setActiveCharacter(characterId: string): void {
-  localStorage.setItem(ACTIVE_CHARACTER_KEY, characterId)
+export function setActiveCharacter(characterId: string): boolean {
+  try {
+    localStorage.setItem(ACTIVE_CHARACTER_KEY, characterId)
+    return true
+  } catch (error) {
+    console.error('Failed to set active character:', error)
+    return false
+  }
 }

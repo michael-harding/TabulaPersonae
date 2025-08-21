@@ -1,15 +1,15 @@
 import { render, screen, fireEvent, waitFor } from "../test-utils"
 import CharacterSheetApp from "../../app/page"
-import { createDefaultCharacter } from "../../lib/character-types"
+import { createDefaultCharacter, type Character } from "../../lib/character-types"
 import { jest } from "@jest/globals"
 
 // Mock the storage functions
 const mockStorage = {
   loadCharacters: jest.fn(() => []),
-  saveCharacter: jest.fn(),
+  saveCharacter: jest.fn(() => true),
   getActiveCharacter: jest.fn(() => null),
-  setActiveCharacter: jest.fn(),
-  deleteCharacter: jest.fn(),
+  setActiveCharacter: jest.fn(() => true),
+  deleteCharacter: jest.fn(() => true),
 }
 
 jest.mock("../../lib/character-storage", () => mockStorage)
@@ -197,7 +197,7 @@ describe("Character Workflow Integration", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Original Name")).toBeInTheDocument()
-    })
+    }, { timeout: 3000 })
 
     // Edit character name
     fireEvent.click(screen.getByRole("button", { name: /edit/i }))

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { Character } from "@/lib/character-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -71,6 +71,19 @@ export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoPr
     alignment: character.alignment || "",
     experiencePoints: character.experiencePoints || 0,
   })
+
+  // Update edited character when character prop changes
+  useEffect(() => {
+    setEditedCharacter({
+      ...character,
+      name: character.name || "",
+      race: character.race || "",
+      class: character.class || "",
+      background: character.background || "",
+      alignment: character.alignment || "",
+      experiencePoints: character.experiencePoints || 0,
+    })
+  }, [character.id])
 
   const handleSave = () => {
     onUpdate(editedCharacter)
