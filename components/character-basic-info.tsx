@@ -115,6 +115,17 @@ export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoPr
             <div className="flex items-center gap-2">
               <User className="h-5 w-5 text-primary" />
               Character Information
+              <div className="flex items-center gap-2">
+                <Label htmlFor="heroic-inspiration-toggle" className="text-xs font-medium">Heroic Inspiration</Label>
+                <input
+                  id="heroic-inspiration-toggle"
+                  type="checkbox"
+                  checked={!!character.heroicInspiration}
+                  onChange={e => onUpdate({ ...character, heroicInspiration: e.target.checked })}
+                  className="accent-primary h-4 w-4"
+                  style={{ accentColor: '#eab308' }}
+                />
+              </div>
             </div>
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
               Edit

@@ -69,6 +69,17 @@ const SPELL_LEVELS = [
   { value: 9, label: "9th Level" },
 ]
 
+const CASTING_TIMES = [
+  "1 action",
+  "1 bonus action",
+  "1 reaction",
+  "1 minute",
+  "10 minutes",
+  "1 hour",
+  "8 hours",
+  "24 hours",
+]
+
 export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -281,12 +292,21 @@ function SpellForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="casting-time">Casting Time</Label>
-          <Input
-            id="casting-time"
+          <Select
             value={formData.castingTime}
-            onChange={(e) => setFormData((prev) => ({ ...prev, castingTime: e.target.value }))}
-            placeholder="1 action"
-          />
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, castingTime: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CASTING_TIMES.map((time) => (
+                <SelectItem key={time} value={time}>
+                  {time}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label htmlFor="range">Range</Label>
@@ -434,7 +454,7 @@ function SpellForm({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => {
                       const slots = character.spellSlots[level as keyof typeof character.spellSlots]
-                      
+
                       return (
                         <div key={level} className="flex items-center justify-between p-3 border rounded-lg">
                           <span className="font-medium">Level {level}</span>
@@ -458,19 +478,19 @@ function SpellForm({
               </DialogContent>
             </Dialog>
           </div>
-          
+
           {/* Spell Slot Toggles in Compact Flow */}
           <div className="flex flex-wrap gap-2">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => {
               const slots = character.spellSlots[level as keyof typeof character.spellSlots]
               if (slots.total === 0) return null
-              
+
               return (
                 <div key={level} className="flex items-center gap-2 p-2 border rounded-lg">
                   <span className="font-medium text-xs text-muted-foreground">
                     {getOrdinalSuffix(level)}
                   </span>
-                  
+
                   <div className="flex items-center gap-1">
                     {Array.from({ length: slots.total }, (_, index) => (
                       <button
@@ -495,9 +515,9 @@ function SpellForm({
               )
             })}
           </div>
-          
+
           {/* Show message if no spell slots */}
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].every(level => 
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].every(level =>
             character.spellSlots[level as keyof typeof character.spellSlots].total === 0
           ) && (
             <div className="text-center py-4 text-muted-foreground">

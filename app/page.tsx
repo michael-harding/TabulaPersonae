@@ -12,12 +12,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Scroll, Sword, Trash2 } from "lucide-react"
+import { Sunrise } from "lucide-react"
 import { CharacterBasicInfo } from "@/components/character-basic-info"
 import { AbilityScores } from "@/components/ability-scores"
 import { CombatStats } from "@/components/combat-stats"
 import { SkillsProficiencies } from "@/components/skills-proficiencies"
-import { EquipmentInventory } from "@/components/equipment-inventory"
+import { ActionsSection } from "@/components/actions-section"
 import { SpellsSection } from "@/components/spells-section"
+import { EquipmentInventory } from "@/components/equipment-inventory"
 import { CharacterNotes } from "@/components/character-notes"
 import { ModeToggle } from "@/components/mode-toggle"
 import { ImportExport } from "@/components/import-export"
@@ -51,7 +53,7 @@ export default function CharacterSheetApp() {
     setActiveCharacterState(newCharacter)
     const activeSet = setActiveCharacter(newCharacter.id)
     const saved = saveCharacter(newCharacter)
-    
+
     if (!saved || !activeSet) {
       alert("Failed to save character. Please check your browser storage settings.")
     }
@@ -65,7 +67,7 @@ export default function CharacterSheetApp() {
   const updateCharacter = (updatedCharacter: Character) => {
     setActiveCharacterState(updatedCharacter)
     const saved = saveCharacter(updatedCharacter)
-    
+
     if (!saved) {
       // Show error message to user
       alert("Failed to save character. Please check your browser storage settings.")
@@ -231,11 +233,22 @@ export default function CharacterSheetApp() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Scroll className="h-8 w-8 text-primary" />
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">{activeCharacter.name || "Unnamed Character"}</h1>
-                <p className="text-sm text-muted-foreground">
-                  Level {activeCharacter.level} {activeCharacter.race} {activeCharacter.class}
-                </p>
+              <div className="flex items-center gap-3">
+                <div>
+                  <h1 className="text-2xl font-bold text-foreground">{activeCharacter.name || "Unnamed Character"}</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Level {activeCharacter.level} {activeCharacter.race} {activeCharacter.class}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Toggle Heroic Inspiration"
+                  onClick={() => updateCharacter({ ...activeCharacter, heroicInspiration: !activeCharacter.heroicInspiration })}
+                  className={`ml-2 transition-colors ${activeCharacter.heroicInspiration ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`}
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                >
+                  <Sunrise className={`h-11 w-11 ${activeCharacter.heroicInspiration ? "fill-yellow-400" : "fill-none"}`} strokeWidth={2} />
+                </button>
               </div>
             </div>
 
@@ -252,8 +265,8 @@ export default function CharacterSheetApp() {
 
       <main className="max-w-7xl mx-auto p-4">
         <div className="space-y-6">
-          {/* Character Basic Info */}
-          <CharacterBasicInfo character={activeCharacter} onUpdate={updateCharacter} />
+          {/* Actions & Attacks */}
+          <ActionsSection character={activeCharacter} onUpdate={updateCharacter} />
 
           {/* Stats Grid */}
           <div className="grid gap-6 lg:grid-cols-2">
@@ -264,11 +277,14 @@ export default function CharacterSheetApp() {
           {/* Skills and Proficiencies */}
           <SkillsProficiencies character={activeCharacter} onUpdate={updateCharacter} />
 
+          {/* Spells */}
+          <SpellsSection character={activeCharacter} onUpdate={updateCharacter} />
+
           {/* Equipment */}
           <EquipmentInventory character={activeCharacter} onUpdate={updateCharacter} />
 
-          {/* Spells */}
-          <SpellsSection character={activeCharacter} onUpdate={updateCharacter} />
+{/* Character Basic Info */}
+<CharacterBasicInfo character={activeCharacter} onUpdate={updateCharacter} />
 
           {/* Character Notes and Background */}
           <CharacterNotes character={activeCharacter} onUpdate={updateCharacter} />

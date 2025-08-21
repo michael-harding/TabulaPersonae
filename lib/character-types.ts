@@ -62,6 +62,26 @@ export interface Spell {
   prepared: boolean
 }
 
+export interface Attack {
+  id: string
+  name: string
+  type: 'weapon' | 'spell'
+  attackBonus: number
+  damage: string
+  damageType: string
+  range: string
+  description: string
+}
+
+export interface BonusAction {
+  id: string
+  name: string
+  type: 'spell' | 'ability' | 'other'
+  description: string
+  uses?: number
+  maxUses?: number
+}
+
 export interface Character {
   id: string
   name: string
@@ -107,12 +127,17 @@ export interface Character {
   languages: string[]
   otherProficiencies: string[]
 
+  attacks: Attack[]
+  bonusActions: BonusAction[]
+
   personalityTraits: string
   ideals: string
   bonds: string
   flaws: string
   backstory: string
   notes: string
+
+  heroicInspiration?: boolean
 }
 
 export function createDefaultCharacter(): Character {
@@ -196,11 +221,15 @@ export function createDefaultCharacter(): Character {
     languages: [],
     otherProficiencies: [],
 
+    attacks: [],
+    bonusActions: [],
+
     personalityTraits: "",
     ideals: "",
     bonds: "",
     flaws: "",
     backstory: "",
     notes: "",
+    heroicInspiration: false,
   }
 }
