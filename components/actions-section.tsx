@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import type { Character, Spell, Attack, BonusAction } from "@/lib/character-types"
+import type { Character, Spell, Attack, BonusAction, Reaction } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sword, Plus, Edit, Trash2, Clock, Target, Zap, Star } from "lucide-react"
+import { Sword, Plus, Edit, Trash2, Clock, Target, Zap, Star, Shield } from "lucide-react"
 
 interface ActionsSectionProps {
   character: Character
@@ -59,10 +59,21 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
     }
     onUpdate(updated)
   }
+
+  // Remove reaction by id
+  const handleDeleteReaction = (id: string) => {
+    const updated = {
+      ...character,
+      reactions: (character.reactions || []).filter(r => r.id !== id),
+    }
+    onUpdate(updated)
+  }
   const [isAddActionDialogOpen, setIsAddActionDialogOpen] = useState(false)
   const [isAddBonusActionDialogOpen, setIsAddBonusActionDialogOpen] = useState(false)
+  const [isAddReactionDialogOpen, setIsAddReactionDialogOpen] = useState(false)
   const [editingAttack, setEditingAttack] = useState<Attack | null>(null)
   const [editingBonusAction, setEditingBonusAction] = useState<BonusAction | null>(null)
+  const [editingReaction, setEditingReaction] = useState<Reaction | null>(null)
 
   // Update local state when character changes
   useEffect(() => {
@@ -86,6 +97,11 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
   // Get prepared spells that are bonus actions (including cantrips)
   const bonusActionSpells = safeSpells.filter(spell =>
     spell.prepared && spell.castingTime.toLowerCase().includes('bonus')
+  )
+
+  // Get prepared spells that are reactions (including cantrips)
+  const reactionSpells = safeSpells.filter(spell =>
+    spell.prepared && spell.castingTime.toLowerCase().includes('reaction')
   )
 
   const getOrdinalSuffix = (num: number): string => {
@@ -120,6 +136,20 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
     }
     onUpdate(updated)
     setIsAddBonusActionDialogOpen(false)
+  }
+
+  const handleAddReaction = (reactionData: Omit<Reaction, 'id'>) => {
+    const newReaction: Reaction = {
+      id: crypto.randomUUID(),
+      ...reactionData,
+    }
+
+    const updated = {
+      ...character,
+      reactions: [...(character.reactions || []), newReaction],
+    }
+    onUpdate(updated)
+    setIsAddReactionDialogOpen(false)
   }
 
   return (
@@ -440,6 +470,119 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
           </div>
         </div>
 
+        {/* Reactions Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Reactions
+            </h3>
+            <Dialog open={isAddReactionDialogOpen} onOpenChange={setIsAddReactionDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1">
+                  <Plus className="h-3 w-3" />
+                  Add Reaction
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add Custom Reaction</DialogTitle>
+                </DialogHeader>
+                <ReactionForm
+                  onSubmit={handleAddReaction}
+                  onCancel={() => setIsAddReactionDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Reaction Spells */}
+            {reactionSpells.map((spell) => (
+              <div key={spell.id} className="p-3 border rounded-lg space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-medium">{spell.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {spell.level > 0 ? `${spell.level}${getOrdinalSuffix(spell.level)} level` : 'Cantrip'} • {spell.castingTime}
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">Spell</Badge>
+                </div>
+                <div className="text-sm space-y-1">
+                  <div><strong>Range:</strong> {spell.range}</div>
+                  <div><strong>Duration:</strong> {spell.duration}</div>
+                  <div><strong>Components:</strong> {spell.components}</div>
+                </div>
+                <div className="text-xs text-muted-foreground line-clamp-2">
+                  {spell.description}
+                </div>
+              </div>
+            ))}
+
+            {/* Custom Reactions */}
+            {(character.reactions || []).map((reaction) => (
+              <div key={reaction.id} className="p-3 border rounded-lg space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-medium">{reaction.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {reaction.type === 'ability' ? 'Class Feature' : reaction.type.charAt(0).toUpperCase() + reaction.type.slice(1)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={reaction.type === 'ability' ? "outline" : "secondary"} className="text-xs">
+                      {reaction.type.charAt(0).toUpperCase() + reaction.type.slice(1)}
+                    </Badge>
+                    <button
+                      type="button"
+                      className="text-destructive hover:text-destructive/80"
+                      aria-label="Delete Reaction"
+                      onClick={() => handleDeleteReaction(reaction.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-sm space-y-1">
+                  <div><strong>Trigger:</strong> {reaction.trigger}</div>
+                  {typeof reaction.uses === 'number' && typeof reaction.maxUses === 'number' && (
+                    <div><strong>Uses:</strong> {reaction.uses} / {reaction.maxUses === 0 ? '∞' : reaction.maxUses}</div>
+                  )}
+                </div>
+                {reaction.description && (
+                  <div className="text-xs text-muted-foreground line-clamp-2">
+                    {reaction.description}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Reactions Placeholder (shown only if no custom reactions) */}
+            {(character.reactions == null || character.reactions.length === 0) && (
+              <div className="p-3 border rounded-lg border-dashed space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-medium text-muted-foreground">Opportunity Attacks</div>
+                    <div className="text-xs text-muted-foreground">Add custom reactions</div>
+                  </div>
+                  <Badge variant="outline" className="text-xs">Reaction</Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Click "Add Reaction" to create reactions like Opportunity Attack, Counterspell, etc.
+                </div>
+              </div>
+            )}
+
+            {reactionSpells.length === 0 && (character.reactions == null || character.reactions.length === 0) && (
+              <div className="col-span-full text-center py-4 text-muted-foreground">
+                <p>No reaction spells prepared.</p>
+                <p className="text-sm">Prepare reaction spells in the Spells section or add class features.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Quick Actions */}
         <div className="space-y-3">
           <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -684,6 +827,116 @@ function BonusActionForm({ onSubmit, onCancel, initialData }: BonusActionFormPro
         </Button>
         <Button type="submit">
           {initialData ? 'Update' : 'Add'} Bonus Action
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+// Reaction Form Component
+interface ReactionFormProps {
+  onSubmit: (reaction: Omit<Reaction, 'id'>) => void
+  onCancel: () => void
+  initialData?: Reaction
+}
+
+function ReactionForm({ onSubmit, onCancel, initialData }: ReactionFormProps) {
+  const [formData, setFormData] = useState({
+    name: initialData?.name || "",
+    type: initialData?.type || 'ability' as 'spell' | 'ability' | 'other',
+    description: initialData?.description || "",
+    trigger: initialData?.trigger || "",
+    uses: initialData?.uses || 0,
+    maxUses: initialData?.maxUses || 0,
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.name.trim() || !formData.trigger.trim()) return
+    onSubmit(formData)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="reaction-name">Reaction Name</Label>
+        <Input
+          id="reaction-name"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          placeholder="e.g., Opportunity Attack, Counterspell"
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="reaction-type">Type</Label>
+        <Select value={formData.type} onValueChange={(value: 'spell' | 'ability' | 'other') => setFormData({ ...formData, type: value })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ability">Class Feature</SelectItem>
+            <SelectItem value="spell">Spell</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="reaction-trigger">Trigger</Label>
+        <Input
+          id="reaction-trigger"
+          value={formData.trigger}
+          onChange={(e) => setFormData({ ...formData, trigger: e.target.value })}
+          placeholder="e.g., When a creature moves out of your reach"
+          required
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label htmlFor="reaction-uses">Current Uses</Label>
+          <Input
+            id="reaction-uses"
+            type="number"
+            min="0"
+            value={formData.uses}
+            onChange={(e) => setFormData({ ...formData, uses: parseInt(e.target.value) || 0 })}
+            placeholder="0"
+          />
+        </div>
+        <div>
+          <Label htmlFor="reaction-max-uses">Max Uses</Label>
+          <Input
+            id="reaction-max-uses"
+            type="number"
+            min="0"
+            value={formData.maxUses}
+            onChange={(e) => setFormData({ ...formData, maxUses: parseInt(e.target.value) || 0 })}
+            placeholder="0 (unlimited)"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="reaction-description">Description</Label>
+        <Textarea
+          id="reaction-description"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Describe what this reaction does..."
+          rows={3}
+          required
+        />
+      </div>
+
+      <div className="flex gap-2 justify-end">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit">
+          {initialData ? 'Update' : 'Add'} Reaction
         </Button>
       </div>
     </form>

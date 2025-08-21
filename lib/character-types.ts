@@ -82,6 +82,16 @@ export interface BonusAction {
   maxUses?: number
 }
 
+export interface Reaction {
+  id: string
+  name: string
+  type: 'spell' | 'ability' | 'other'
+  description: string
+  trigger: string
+  uses?: number
+  maxUses?: number
+}
+
 export interface Character {
   id: string
   name: string
@@ -129,6 +139,7 @@ export interface Character {
 
   attacks: Attack[]
   bonusActions: BonusAction[]
+  reactions: Reaction[]
 
   personalityTraits: string
   ideals: string
@@ -223,6 +234,7 @@ export function createDefaultCharacter(): Character {
 
     attacks: [],
     bonusActions: [],
+    reactions: [],
 
     personalityTraits: "",
     ideals: "",
