@@ -279,12 +279,19 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                       {spell.attackSave && (
                         <div><strong>Attack/Save:</strong> {spell.attackSave}</div>
                       )}
+                      {spell.regain && (
+                        <div><strong>Regain:</strong> {spell.regain}</div>
+                      )}
                       <div><strong>Attack:</strong> {formatModifier(spellAttackBonus)} to hit</div>
                       <div><strong>Range:</strong> {spell.range}</div>
                       <div><strong>Components:</strong> {spell.components}</div>
                     </div>
                   </div>
-                  {spell.damage && (
+                  {spell.regain ? (
+                    <div className="absolute right-2 bottom-12 px-2 py-1 border-2 border-green-500 rounded text-green-700 font-semibold whitespace-nowrap">
+                      {spell.regain}
+                    </div>
+                  ) : spell.damage && (
                     <div className="absolute right-2 bottom-12 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
                       {spell.damage}
                     </div>
@@ -415,6 +422,9 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                       <div className="flex-1">
                         {spell.attackSave && (
                           <div><strong>Attack/Save:</strong> {spell.attackSave}</div>
+                        )}
+                        {spell.regain && (
+                          <div><strong>Regain:</strong> {spell.regain}</div>
                         )}
                         <div><strong>Range:</strong> {spell.range}</div>
                         <div><strong>Duration:</strong> {spell.duration}</div>
@@ -556,6 +566,9 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                       <div className="flex-1">
                         {spell.attackSave && (
                           <div><strong>Attack/Save:</strong> {spell.attackSave}</div>
+                        )}
+                        {spell.regain && (
+                          <div><strong>Regain:</strong> {spell.regain}</div>
                         )}
                         <div><strong>Range:</strong> {spell.range}</div>
                         <div><strong>Duration:</strong> {spell.duration}</div>

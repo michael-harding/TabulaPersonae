@@ -16,37 +16,41 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Sparkles, Plus, Edit, Trash2, Save, Search, ChevronDown, Zap, Target, Circle, Dot, Settings } from "lucide-react"
 
-interface SpellsSectionProps {
-  character: Character
-  onUpdate: (character: Character) => void
-}
 
 interface SpellFormData {
-  name: string
-  level: number
-  school: string
-  castingTime: string
-  range: string
-  components: string
-  duration: string
-  damage?: string
-  attackSave?: string
-  description: string
-  prepared: boolean
-}
+  name: string;
+  level: number;
+  school: string;
+  castingTime: string;
+  range: string;
+  components: string;
+  duration: string;
+  damage?: string;
+  attackSave?: string;
+  regain?: string;
+  description: string;
+  prepared: boolean;
+  }
 
-const defaultSpellForm: SpellFormData = {
-  name: "",
-  level: 0,
-  school: "Evocation",
-  castingTime: "1 action",
-  range: "Touch",
-  components: "V, S",
-  duration: "Instantaneous",
-  damage: "",
-  attackSave: "",
-  description: "",
-  prepared: false,
+  const defaultSpellForm: SpellFormData = {
+    name: "",
+    level: 0,
+    school: "Evocation",
+    castingTime: "1 action",
+    range: "Touch",
+    components: "V, S",
+    duration: "Instantaneous",
+    damage: "",
+    attackSave: "",
+    description: "",
+    prepared: false,
+    regain: "",
+  };
+
+
+interface SpellsSectionProps {
+  character: Character;
+  onUpdate: (character: Character) => void;
 }
 
 const SPELL_SCHOOLS = [
@@ -133,12 +137,14 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       prepared: formData.prepared,
       damage: formData.damage,
       attackSave: formData.attackSave,
+      regain: formData.regain,
     }
 
     const updated = {
       ...character,
       spells: [...safeSpells, newSpell],
       attackSave: formData.attackSave,
+      regain: formData.regain,
     }
     onUpdate(updated)
     setIsAddDialogOpen(false)
@@ -165,6 +171,7 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       prepared: formData.prepared,
       damage: formData.damage,
       attackSave: formData.attackSave,
+      regain: formData.regain,
     }
 
     const updated = {
@@ -255,11 +262,20 @@ function SpellForm({
           id="spell-name"
           value={formData.name}
           onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-          placeholder="Enter spell name"
+          placeholder="e.g. Fireball"
+          required
         />
       </div>
-
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="regain">Regain</Label>
+          <Input
+            id="regain"
+            value={formData.regain || ""}
+            onChange={(e) => setFormData((prev) => ({ ...prev, regain: e.target.value }))}
+            placeholder="e.g. Long Rest, Short Rest, Special"
+          />
+        </div>
         <div>
           <Label htmlFor="spell-damage">Damage</Label>
           <Input
@@ -621,6 +637,9 @@ function SpellForm({
                                 <Badge variant="outline" className="text-xs">
                                   {spell.school}
                                 </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  Level: {spell.level}
+                                </Badge>
                                 {spell.prepared && (
                                   <Badge variant="secondary" className="text-xs">
                                     Prepared
@@ -628,34 +647,50 @@ function SpellForm({
                                 )}
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground mb-2">
-                                <div>
-                                  <span className="font-medium">Time:</span> {spell.castingTime}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Range:</span> {spell.range}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Components:</span> {spell.components}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Duration:</span> {spell.duration}
-                                </div>
-                              </div>
-                                {(spell.damage || spell.attackSave) && (
-                                  <div className="flex flex-wrap gap-4 mb-2">
-                                    {spell.damage && (
-                                      <div className="text-sm text-red-700 font-semibold">
-                                        <span className="font-medium">Damage:</span> {spell.damage}
-                                      </div>
-                                    )}
-                                    {spell.attackSave && (
-                                      <div className="text-sm text-blue-700 font-semibold">
-                                        <span className="font-medium">Attack/Save:</span> {spell.attackSave}
-                                      </div>
-                                    )}
+                                {spell.castingTime && (
+                                  <div>
+                                    <span className="font-medium">Time:</span> {spell.castingTime}
                                   </div>
                                 )}
-                              <pre className="text-sm text-muted-foreground" style={{ whiteSpace: 'pre-wrap' }}>{spell.description}</pre>
+                                {spell.range && (
+                                  <div>
+                                    <span className="font-medium">Range:</span> {spell.range}
+                                  </div>
+                                )}
+                                {spell.components && (
+                                  <div>
+                                    <span className="font-medium">Components:</span> {spell.components}
+                                  </div>
+                                )}
+                                {spell.duration && (
+                                  <div>
+                                    <span className="font-medium">Duration:</span> {spell.duration}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-4 mb-2">
+                                {spell.damage && (
+                                  <div className="text-sm font-semibold">
+                                    <span className="font-medium">Damage:</span> {spell.damage}
+                                  </div>
+                                )}
+                                {spell.attackSave && (
+                                  <div className="text-sm font-semibold">
+                                    <span className="font-medium">Attack/Save:</span> {spell.attackSave}
+                                  </div>
+                                )}
+                                {spell.regain && (
+                                  <div className="text-sm font-semibold">
+                                    <span className="font-medium">Regain:</span> {spell.regain}
+                                  </div>
+                                )}
+                              </div>
+                              {spell.description && (
+                                <div className="mb-2">
+                                  <span className="font-medium">Description:</span>
+                                  <pre className="text-sm text-muted-foreground" style={{ whiteSpace: 'pre-wrap' }}>{spell.description}</pre>
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 ml-4">
                               <Button variant="ghost" size="sm" onClick={() => handleEditSpell(spell)}>
@@ -695,6 +730,7 @@ function SpellForm({
                 attackSave: editingSpell.attackSave || "",
                 description: editingSpell.description,
                 prepared: editingSpell.prepared || false,
+                regain: editingSpell.regain || "",
               } : defaultSpellForm}
               onSubmit={handleUpdateSpell}
               onCancel={() => setEditingSpell(null)}

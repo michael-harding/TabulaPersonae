@@ -49,19 +49,21 @@ export interface Equipment {
   type: "weapon" | "armor" | "tool" | "consumable" | "treasure" | "other"
 }
 
+// 'regain' is for spells that can be regained on short/long rest, etc.
 export interface Spell {
-  id: string
-  name: string
-  level: number
-  school: string
-  castingTime: string
-  range: string
-  components: string
-  duration: string
-  damage?: string
-  attackSave?: string
-  description: string
-  prepared: boolean
+  id: string;
+  name: string;
+  level: number;
+  school: string;
+  castingTime: string;
+  range: string;
+  components: string;
+  duration: string;
+  damage?: string;
+  attackSave?: string;
+  description: string;
+  prepared: boolean;
+  regain?: string;
 }
 
 export interface Attack {
