@@ -26,13 +26,15 @@ export function ImportExport({ characters, onImportCharacter, onImportMultiple }
       const dataBlob = new Blob([dataStr], { type: "application/json" })
       const url = URL.createObjectURL(dataBlob)
 
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `${character.name || "character"}.json`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+  const now = new Date()
+  const dateStr = now.toISOString().replace(/[:.]/g, "-").slice(0, 19)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = `${character.name || "character"}-${dateStr}.json`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 
       toast({
         title: "Export Successful",
@@ -54,13 +56,15 @@ export function ImportExport({ characters, onImportCharacter, onImportMultiple }
       const dataBlob = new Blob([dataStr], { type: "application/json" })
       const url = URL.createObjectURL(dataBlob)
 
-      const link = document.createElement("a")
-      link.href = url
-      link.download = "all-characters.json"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+  const now = new Date()
+  const dateStr = now.toISOString().replace(/[:.]/g, "-").slice(0, 19)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = `all-characters-${dateStr}.json`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 
       toast({
         title: "Export Successful",
