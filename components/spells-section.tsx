@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import type { Character, Spell } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
 import { saveCharacter } from "@/lib/character-storage"
@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Sparkles, Plus, Edit, Trash2, Save, Search, ChevronDown, Zap, Target } from "lucide-react"
+import { Sparkles, Plus, Edit, Trash2, Save, Search, ChevronDown, Zap, Target, Circle, Dot, Settings } from "lucide-react"
 
 interface SpellsSectionProps {
   character: Character
@@ -73,8 +73,13 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingSpell, setEditingSpell] = useState<Spell | null>(null)
-  // Remove formData and setFormData from parent; move to SpellForm
   const [expandedLevels, setExpandedLevels] = useState<Set<number>>(new Set([0]))
+  const [isSpellSlotsDialogOpen, setIsSpellSlotsDialogOpen] = useState(false)
+
+  // Update local state when character changes
+  useEffect(() => {
+    // Reset any local state when character changes
+  }, [character.id])
 
   const safeSpells = character.spells || []
 
@@ -118,7 +123,6 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       spells: [...safeSpells, newSpell],
     }
     onUpdate(updated)
-    saveCharacter(updated)
     setIsAddDialogOpen(false)
   }
 
@@ -148,7 +152,6 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       spells: safeSpells.map((spell) => (spell.id === editingSpell.id ? updatedSpell : spell)),
     }
     onUpdate(updated)
-    saveCharacter(updated)
     setEditingSpell(null)
   }
 
@@ -158,7 +161,6 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       spells: safeSpells.filter((spell) => spell.id !== spellId),
     }
     onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const togglePrepared = (spellId: string) => {
@@ -167,7 +169,32 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       spells: safeSpells.map((spell) => (spell.id === spellId ? { ...spell, prepared: !spell.prepared } : spell)),
     }
     onUpdate(updated)
-    saveCharacter(updated)
+  }
+
+  const updateSpellSlots = (level: number, field: 'total' | 'used', value: number) => {
+    const updated = {
+      ...character,
+      spellSlots: {
+        ...character.spellSlots,
+        [level]: {
+          ...character.spellSlots[level as keyof typeof character.spellSlots],
+          [field]: Math.max(0, value)
+        }
+      }
+    }
+    onUpdate(updated)
+  }
+
+  const toggleSpellSlot = (level: number, index: number) => {
+    const currentSlots = character.spellSlots[level as keyof typeof character.spellSlots]
+    const newUsed = index < currentSlots.used ? currentSlots.used - 1 : index + 1
+    updateSpellSlots(level, 'used', Math.min(newUsed, currentSlots.total))
+  }
+
+  const getOrdinalSuffix = (num: number): string => {
+    const suffixes = ['th', 'st', 'nd', 'rd']
+    const v = num % 100
+    return num + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0])
   }
 
   const toggleLevelExpanded = (level: number) => {
@@ -384,6 +411,101 @@ function SpellForm({
             </div>
           </div>
         )}
+
+        {/* Spell Slots */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Circle className="h-5 w-5 text-primary" />
+              Spell Slots
+            </h3>
+            <Dialog open={isSpellSlotsDialogOpen} onOpenChange={setIsSpellSlotsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1">
+                  <Settings className="h-3 w-3" />
+                  Edit Slots
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Edit Spell Slots</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => {
+                      const slots = character.spellSlots[level as keyof typeof character.spellSlots]
+                      
+                      return (
+                        <div key={level} className="flex items-center justify-between p-3 border rounded-lg">
+                          <span className="font-medium">Level {level}</span>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="20"
+                              value={slots.total}
+                              onChange={(e) => updateSpellSlots(level, 'total', parseInt(e.target.value) || 0)}
+                              className="w-16 h-8 text-center"
+                              title="Total slots"
+                            />
+                            <span className="text-sm text-muted-foreground">slots</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+          
+          {/* Spell Slot Toggles in Compact Flow */}
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => {
+              const slots = character.spellSlots[level as keyof typeof character.spellSlots]
+              if (slots.total === 0) return null
+              
+              return (
+                <div key={level} className="flex items-center gap-2 p-2 border rounded-lg">
+                  <span className="font-medium text-xs text-muted-foreground">
+                    {getOrdinalSuffix(level)}
+                  </span>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: slots.total }, (_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => toggleSpellSlot(level, index)}
+                        className={`w-5 h-5 rounded-full border-2 transition-colors ${
+                          index < slots.used
+                            ? 'bg-muted border-muted-foreground'
+                            : 'bg-primary border-primary hover:bg-primary/80'
+                        }`}
+                        title={index < slots.used ? 'Used slot (click to restore)' : 'Available slot (click to use)'}
+                      >
+                        {index < slots.used ? (
+                          <span className="sr-only">Used</span>
+                        ) : (
+                          <Dot className="h-3 w-3 text-primary-foreground mx-auto" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          
+          {/* Show message if no spell slots */}
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].every(level => 
+            character.spellSlots[level as keyof typeof character.spellSlots].total === 0
+          ) && (
+            <div className="text-center py-4 text-muted-foreground">
+              <p>No spell slots configured.</p>
+              <p className="text-sm">Click "Edit Slots" to add spell slots for your character.</p>
+            </div>
+          )}
+        </div>
 
         {/* Search */}
         <div className="relative">
