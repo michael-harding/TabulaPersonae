@@ -31,6 +31,23 @@ const RACES = [
   "Other",
 ]
 
+const CLASS_TO_SPELLCASTING_ABILITY: Record<string, keyof import("@/lib/character-types").AbilityScores | ""> = {
+  Barbarian: "",
+  Bard: "charisma",
+  Cleric: "wisdom",
+  Druid: "wisdom",
+  Fighter: "",
+  Monk: "",
+  Paladin: "charisma",
+  Ranger: "wisdom",
+  Rogue: "",
+  Sorcerer: "charisma",
+  Warlock: "charisma",
+  Wizard: "intelligence",
+  Artificer: "intelligence",
+  Other: "",
+};
+
 const CLASSES = [
   "Barbarian",
   "Bard",
@@ -104,7 +121,12 @@ export function CharacterBasicInfo({ character, onUpdate }: CharacterBasicInfoPr
   }
 
   const updateField = (field: keyof Character, value: any) => {
-    setEditedCharacter((prev) => ({ ...prev, [field]: value }))
+    if (field === "class") {
+      const spellcastingAbility = CLASS_TO_SPELLCASTING_ABILITY[value] || ""
+      setEditedCharacter((prev) => ({ ...prev, class: value, spellcastingAbility }))
+    } else {
+      setEditedCharacter((prev) => ({ ...prev, [field]: value }))
+    }
   }
 
   if (!isEditing) {
