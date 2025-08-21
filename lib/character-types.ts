@@ -59,6 +59,7 @@ export interface Spell {
   components: string
   duration: string
   damage?: string
+  attackSave?: string
   description: string
   prepared: boolean
 }

@@ -30,6 +30,7 @@ interface SpellFormData {
   components: string
   duration: string
   damage?: string
+  attackSave?: string
   description: string
   prepared: boolean
 }
@@ -43,6 +44,7 @@ const defaultSpellForm: SpellFormData = {
   components: "V, S",
   duration: "Instantaneous",
   damage: "",
+  attackSave: "",
   description: "",
   prepared: false,
 }
@@ -130,11 +132,13 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       description: formData.description.trim(),
       prepared: formData.prepared,
       damage: formData.damage,
+      attackSave: formData.attackSave,
     }
 
     const updated = {
       ...character,
       spells: [...safeSpells, newSpell],
+      attackSave: formData.attackSave,
     }
     onUpdate(updated)
     setIsAddDialogOpen(false)
@@ -160,6 +164,7 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       description: formData.description.trim(),
       prepared: formData.prepared,
       damage: formData.damage,
+      attackSave: formData.attackSave,
     }
 
     const updated = {
@@ -254,14 +259,25 @@ function SpellForm({
         />
       </div>
 
-      <div>
-        <Label htmlFor="spell-damage">Damage</Label>
-        <Input
-          id="spell-damage"
-          value={formData.damage || ""}
-          onChange={(e) => setFormData((prev) => ({ ...prev, damage: e.target.value }))}
-          placeholder="e.g. 1d8+3 fire"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="spell-damage">Damage</Label>
+          <Input
+            id="spell-damage"
+            value={formData.damage || ""}
+            onChange={(e) => setFormData((prev) => ({ ...prev, damage: e.target.value }))}
+            placeholder="e.g. 1d8+3 fire"
+          />
+        </div>
+        <div>
+          <Label htmlFor="attack-save">Attack/Save</Label>
+          <Input
+            id="attack-save"
+            value={formData.attackSave || ""}
+            onChange={(e) => setFormData((prev) => ({ ...prev, attackSave: e.target.value }))}
+            placeholder="e.g. Attack, Dex Save, Wis Save"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -625,9 +641,18 @@ function SpellForm({
                                   <span className="font-medium">Duration:</span> {spell.duration}
                                 </div>
                               </div>
-                                {spell.damage && (
-                                  <div className="text-sm text-red-700 font-semibold mb-2">
-                                    <span className="font-medium">Damage:</span> {spell.damage}
+                                {(spell.damage || spell.attackSave) && (
+                                  <div className="flex flex-wrap gap-4 mb-2">
+                                    {spell.damage && (
+                                      <div className="text-sm text-red-700 font-semibold">
+                                        <span className="font-medium">Damage:</span> {spell.damage}
+                                      </div>
+                                    )}
+                                    {spell.attackSave && (
+                                      <div className="text-sm text-blue-700 font-semibold">
+                                        <span className="font-medium">Attack/Save:</span> {spell.attackSave}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               <pre className="text-sm text-muted-foreground" style={{ whiteSpace: 'pre-wrap' }}>{spell.description}</pre>
@@ -666,6 +691,8 @@ function SpellForm({
                 range: editingSpell.range,
                 components: editingSpell.components,
                 duration: editingSpell.duration,
+                damage: editingSpell.damage || "",
+                attackSave: editingSpell.attackSave || "",
                 description: editingSpell.description,
                 prepared: editingSpell.prepared || false,
               } : defaultSpellForm}

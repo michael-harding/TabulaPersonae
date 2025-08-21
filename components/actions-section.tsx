@@ -276,6 +276,9 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                   </div>
                   <div className="flex items-center justify-between text-sm space-y-1">
                     <div className="flex-1">
+                      {spell.attackSave && (
+                        <div><strong>Attack/Save:</strong> {spell.attackSave}</div>
+                      )}
                       <div><strong>Attack:</strong> {formatModifier(spellAttackBonus)} to hit</div>
                       <div><strong>Range:</strong> {spell.range}</div>
                       <div><strong>Components:</strong> {spell.components}</div>
@@ -286,9 +289,6 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                       {spell.damage}
                     </div>
                   )}
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {spell.description}
-                  </div>
                   {spell.level > 0 && (
                     <Button
                       variant="outline"
@@ -413,6 +413,9 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                     </div>
                     <div className="flex items-center justify-between text-sm space-y-1">
                       <div className="flex-1">
+                        {spell.attackSave && (
+                          <div><strong>Attack/Save:</strong> {spell.attackSave}</div>
+                        )}
                         <div><strong>Range:</strong> {spell.range}</div>
                         <div><strong>Duration:</strong> {spell.duration}</div>
                         <div><strong>Components:</strong> {spell.components}</div>
@@ -551,6 +554,9 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                     </div>
                     <div className="flex items-center justify-between text-sm space-y-1">
                       <div className="flex-1">
+                        {spell.attackSave && (
+                          <div><strong>Attack/Save:</strong> {spell.attackSave}</div>
+                        )}
                         <div><strong>Range:</strong> {spell.range}</div>
                         <div><strong>Duration:</strong> {spell.duration}</div>
                         <div><strong>Components:</strong> {spell.components}</div>
