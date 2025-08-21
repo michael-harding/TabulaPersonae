@@ -225,7 +225,7 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
         {/* Skills */}
         <div>
           <h3 className="font-semibold mb-3">Skills</h3>
-          <div className="space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             {(Object.keys(SKILL_DISPLAY_NAMES) as Array<keyof Character["skills"]>).map((skillKey) => {
               const ability = SKILL_ABILITY_MAP[skillKey]
               const abilityScore = currentCharacter.abilityScores[ability]
@@ -238,8 +238,8 @@ export function SkillsProficiencies({ character, onUpdate }: SkillsProficiencies
               )
 
               return (
-                <div key={skillKey} className="flex items-center justify-between p-2 rounded hover:bg-muted/50">
-                  <div className="flex items-center gap-3">
+                <div key={skillKey} className="flex items-center justify-between p-2 rounded hover:bg-gray-500 rounded p-1">
+                  <div className="flex items-center gap-3 w-full transition-colors duration-150">
                     {isEditing && (
                       <div className="flex gap-1">
                         <Checkbox
