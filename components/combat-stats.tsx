@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Shield, Heart, Save, Edit, Plus, Minus } from "lucide-react"
+import { Shield, Heart, Save, Edit, Plus, Minus, Skull, CheckCircle, XCircle } from "lucide-react"
 
 interface CombatStatsProps {
   character: Character
@@ -28,6 +28,10 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
     initiative: character.initiative || 0,
     speed: character.speed || 30,
     proficiencyBonus: character.proficiencyBonus || 2,
+    deathSaves: {
+      successes: character.deathSaves?.successes || 0,
+      failures: character.deathSaves?.failures || 0,
+    },
   })
 
   const handleSave = () => {
@@ -48,16 +52,28 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
       initiative: character.initiative || 0,
       speed: character.speed || 30,
       proficiencyBonus: character.proficiencyBonus || 2,
+      deathSaves: {
+        successes: character.deathSaves?.successes || 0,
+        failures: character.deathSaves?.failures || 0,
+      },
     })
     setIsEditing(false)
   }
 
-  const updateField = (field: keyof Character | keyof typeof editedCharacter.hitPoints, value: any) => {
+  const updateField = (field: keyof Character | keyof typeof editedCharacter.hitPoints | keyof typeof editedCharacter.deathSaves, value: any) => {
     if (field === "current" || field === "maximum" || field === "temporary") {
       setEditedCharacter((prev) => ({
         ...prev,
         hitPoints: {
           ...prev.hitPoints,
+          [field]: value,
+        },
+      }))
+    } else if (field === "successes" || field === "failures") {
+      setEditedCharacter((prev) => ({
+        ...prev,
+        deathSaves: {
+          ...prev.deathSaves,
           [field]: value,
         },
       }))
@@ -78,6 +94,20 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
         ...character.hitPoints,
         current: newHP,
       },
+    }
+    onUpdate(updated)
+    saveCharacter(updated)
+  }
+
+  const toggleDeathSave = (type: 'successes' | 'failures', index: number) => {
+    const current = character.deathSaves?.[type] || 0
+    const newValue = index < current ? current - 1 : index + 1
+    const updated = {
+      ...character,
+      deathSaves: {
+        ...character.deathSaves,
+        [type]: Math.max(0, Math.min(3, newValue))
+      }
     }
     onUpdate(updated)
     saveCharacter(updated)
@@ -165,6 +195,82 @@ export function CombatStats({ character, onUpdate }: CombatStatsProps) {
             </div>
           )}
         </div>
+
+        {/* Death Saves - Only show when character is unconscious (0 HP) */}
+        {currentHP === 0 && (
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2">
+              <Skull className="h-4 w-4 text-destructive" />
+              Death Saves
+            </Label>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {/* Successes */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-green-600 flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  Successes
+                </div>
+                <div className="flex gap-1">
+                  {Array.from({ length: 3 }, (_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => toggleDeathSave('successes', index)}
+                      className={`w-6 h-6 rounded-full border-2 transition-colors ${
+                        index < (character.deathSaves?.successes || 0)
+                          ? 'bg-green-500 border-green-500'
+                          : 'bg-background border-green-500 hover:bg-green-100'
+                      }`}
+                      title={index < (character.deathSaves?.successes || 0) ? 'Success (click to remove)' : 'Click to add success'}
+                    >
+                      {index < (character.deathSaves?.successes || 0) && (
+                        <CheckCircle className="h-4 w-4 text-white mx-auto" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Failures */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-red-600 flex items-center gap-1">
+                  <XCircle className="h-3 w-3" />
+                  Failures
+                </div>
+                <div className="flex gap-1">
+                  {Array.from({ length: 3 }, (_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => toggleDeathSave('failures', index)}
+                      className={`w-6 h-6 rounded-full border-2 transition-colors ${
+                        index < (character.deathSaves?.failures || 0)
+                          ? 'bg-red-500 border-red-500'
+                          : 'bg-background border-red-500 hover:bg-red-100'
+                      }`}
+                      title={index < (character.deathSaves?.failures || 0) ? 'Failure (click to remove)' : 'Click to add failure'}
+                    >
+                      {index < (character.deathSaves?.failures || 0) && (
+                        <XCircle className="h-4 w-4 text-white mx-auto" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Death Save Status Messages */}
+            {(character.deathSaves?.successes || 0) >= 3 && (
+              <div className="text-sm text-green-600 font-medium">
+                ✓ Stabilized! Character is unconscious but stable.
+              </div>
+            )}
+            {(character.deathSaves?.failures || 0) >= 3 && (
+              <div className="text-sm text-red-600 font-medium">
+                ✗ Character has died.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Other Combat Stats */}
         <div className="grid grid-cols-2 gap-4">

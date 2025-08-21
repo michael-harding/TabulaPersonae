@@ -112,6 +112,10 @@ export interface Character {
     maximum: number
     temporary: number
   }
+  deathSaves: {
+    successes: number
+    failures: number
+  }
   hitDice: string
   speed: number
   initiative: number
@@ -206,6 +210,10 @@ export function createDefaultCharacter(): Character {
       current: 8,
       maximum: 8,
       temporary: 0,
+    },
+    deathSaves: {
+      successes: 0,
+      failures: 0,
     },
     hitDice: "1d8",
     speed: 30,

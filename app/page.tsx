@@ -65,8 +65,16 @@ export default function CharacterSheetApp() {
   }
 
   const updateCharacter = (updatedCharacter: Character) => {
-    setActiveCharacterState(updatedCharacter)
-    const saved = saveCharacter(updatedCharacter)
+    let nextCharacter = updatedCharacter
+    // If character reaches 1 hit point, reset death saves
+    if (nextCharacter.hitPoints.current === 1) {
+      nextCharacter = {
+        ...nextCharacter,
+        deathSaves: { successes: 0, failures: 0 },
+      }
+    }
+    setActiveCharacterState(nextCharacter)
+    const saved = saveCharacter(nextCharacter)
 
     if (!saved) {
       // Show error message to user
@@ -75,7 +83,7 @@ export default function CharacterSheetApp() {
     }
 
     // Update characters list
-    setCharacters((prev) => prev.map((c) => (c.id === updatedCharacter.id ? updatedCharacter : c)))
+    setCharacters((prev) => prev.map((c) => (c.id === nextCharacter.id ? nextCharacter : c)))
   }
 
   const handleImportCharacter = (character: Character) => {
