@@ -242,9 +242,10 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
             </Dialog>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Spell Attacks */}
-            {attackSpells.map((spell) => {
+          {(attackSpells.length > 0 || (character.attacks && character.attacks.length > 0)) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Spell Attacks */}
+              {attackSpells.map((spell) => {
               const slotKey = spell.level as keyof typeof character.spellSlots
               const slots = character.spellSlots[slotKey]
               const canCast = spell.level > 0 && slots && slots.used < slots.total
@@ -332,30 +333,8 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                 )}
               </div>
             ))}
-
-            {/* Weapon Attacks Placeholder (shown only if no custom attacks) */}
-            {(character.attacks == null || character.attacks.length === 0) && (
-              <div className="p-3 border rounded-lg border-dashed space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-medium text-muted-foreground">Weapon Attacks</div>
-                    <div className="text-xs text-muted-foreground">Add custom weapon attacks</div>
-                  </div>
-                  <Badge variant="outline" className="text-xs">Weapon</Badge>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Click "Add Attack" to create weapon attacks with custom damage and bonuses.
-                </div>
-              </div>
-            )}
-
-            {attackSpells.length === 0 && (character.attacks == null || character.attacks.length === 0) && (
-              <div className="col-span-full text-center py-4 text-muted-foreground">
-                <p>No attack spells prepared.</p>
-                <p className="text-sm">Prepare attack spells in the Spells section or add weapon attacks.</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Bonus Actions Section */}
@@ -384,9 +363,10 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
             </Dialog>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Bonus Action Spells */}
-            {bonusActionSpells.map((spell) => (
+          {(bonusActionSpells.length > 0 || (character.bonusActions && character.bonusActions.length > 0)) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Bonus Action Spells */}
+              {bonusActionSpells.map((spell) => (
               <div key={spell.id} className="p-3 border rounded-lg space-y-2">
                 <div className="flex items-start justify-between">
                   <div>
@@ -444,30 +424,8 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                 )}
               </div>
             ))}
-
-            {/* Class Features Placeholder (shown only if no custom bonus actions) */}
-            {(character.bonusActions == null || character.bonusActions.length === 0) && (
-              <div className="p-3 border rounded-lg border-dashed space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-medium text-muted-foreground">Class Features</div>
-                    <div className="text-xs text-muted-foreground">Add class-specific bonus actions</div>
-                  </div>
-                  <Badge variant="outline" className="text-xs">Ability</Badge>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Click "Add Bonus Action" to create custom bonus actions like Second Wind, Cunning Action, etc.
-                </div>
-              </div>
-            )}
-
-            {bonusActionSpells.length === 0 && (character.bonusActions == null || character.bonusActions.length === 0) && (
-              <div className="col-span-full text-center py-4 text-muted-foreground">
-                <p>No bonus action spells prepared.</p>
-                <p className="text-sm">Prepare bonus action spells in the Spells section or add class features.</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Reactions Section */}
@@ -496,9 +454,10 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
             </Dialog>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Reaction Spells */}
-            {reactionSpells.map((spell) => (
+          {(reactionSpells.length > 0 || (character.reactions && character.reactions.length > 0)) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Reaction Spells */}
+              {reactionSpells.map((spell) => (
               <div key={spell.id} className="p-3 border rounded-lg space-y-2">
                 <div className="flex items-start justify-between">
                   <div>
@@ -557,30 +516,8 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                 )}
               </div>
             ))}
-
-            {/* Reactions Placeholder (shown only if no custom reactions) */}
-            {(character.reactions == null || character.reactions.length === 0) && (
-              <div className="p-3 border rounded-lg border-dashed space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-medium text-muted-foreground">Opportunity Attacks</div>
-                    <div className="text-xs text-muted-foreground">Add custom reactions</div>
-                  </div>
-                  <Badge variant="outline" className="text-xs">Reaction</Badge>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Click "Add Reaction" to create reactions like Opportunity Attack, Counterspell, etc.
-                </div>
-              </div>
-            )}
-
-            {reactionSpells.length === 0 && (character.reactions == null || character.reactions.length === 0) && (
-              <div className="col-span-full text-center py-4 text-muted-foreground">
-                <p>No reaction spells prepared.</p>
-                <p className="text-sm">Prepare reaction spells in the Spells section or add class features.</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
