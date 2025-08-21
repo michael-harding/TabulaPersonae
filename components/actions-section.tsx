@@ -86,7 +86,7 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
 
   // Get prepared spells and cantrips with 1 action casting time
   const attackSpells = safeSpells.filter(spell =>
-    (spell.prepared || spell.level === 0) && 
+    (spell.prepared || spell.level === 0) &&
     spell.castingTime.toLowerCase().includes('1 action') &&
     !spell.castingTime.toLowerCase().includes('bonus') &&
     !spell.castingTime.toLowerCase().includes('reaction')
@@ -94,13 +94,13 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
 
   // Get prepared spells and cantrips with bonus action casting time
   const bonusActionSpells = safeSpells.filter(spell =>
-    (spell.prepared || spell.level === 0) && 
+    (spell.prepared || spell.level === 0) &&
     spell.castingTime.toLowerCase().includes('bonus')
   )
 
   // Get prepared spells and cantrips with reaction casting time
   const reactionSpells = safeSpells.filter(spell =>
-    (spell.prepared || spell.level === 0) && 
+    (spell.prepared || spell.level === 0) &&
     spell.castingTime.toLowerCase().includes('reaction')
   )
 
@@ -274,11 +274,18 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                     </div>
                     <Badge variant="secondary" className="text-xs">Spell</Badge>
                   </div>
-                  <div className="text-sm space-y-1">
-                    <div><strong>Attack:</strong> {formatModifier(spellAttackBonus)} to hit</div>
-                    <div><strong>Range:</strong> {spell.range}</div>
-                    <div><strong>Components:</strong> {spell.components}</div>
+                  <div className="flex items-center justify-between text-sm space-y-1">
+                    <div className="flex-1">
+                      <div><strong>Attack:</strong> {formatModifier(spellAttackBonus)} to hit</div>
+                      <div><strong>Range:</strong> {spell.range}</div>
+                      <div><strong>Components:</strong> {spell.components}</div>
+                    </div>
                   </div>
+                  {spell.damage && (
+                    <div className="absolute right-2 bottom-12 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
+                      {spell.damage}
+                    </div>
+                  )}
                   <div className="text-xs text-muted-foreground line-clamp-2">
                     {spell.description}
                   </div>
@@ -321,14 +328,23 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                     </button>
                   </div>
                 </div>
-                <div className="text-sm space-y-1">
-                  <div><strong>Attack:</strong> {formatModifier(attack.attackBonus)} to hit</div>
-                  <div><strong>Damage:</strong> {attack.damage} {attack.damageType}</div>
-                  <div><strong>Range:</strong> {attack.range}</div>
+                <div className="flex items-center justify-between text-sm space-y-1">
+                  <div className="flex-1">
+                    <div><strong>Attack:</strong> {formatModifier(attack.attackBonus)} to hit</div>
+                    <div><strong>Range:</strong> {attack.range}</div>
+                  </div>
+                  {attack.damage && (
+                    <div className="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
+                      {attack.damage} {attack.damageType}
+                    </div>
+                  )}
                 </div>
                 {attack.description && (
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {attack.description}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground line-clamp-2">
+                    <span>{attack.description}</span>
+                    {attack.damage && (
+                      <span className="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">{attack.damage} {attack.damageType}</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -395,11 +411,18 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                       </div>
                       <Badge variant="secondary" className="text-xs">Spell</Badge>
                     </div>
-                    <div className="text-sm space-y-1">
-                      <div><strong>Range:</strong> {spell.range}</div>
-                      <div><strong>Duration:</strong> {spell.duration}</div>
-                      <div><strong>Components:</strong> {spell.components}</div>
+                    <div className="flex items-center justify-between text-sm space-y-1">
+                      <div className="flex-1">
+                        <div><strong>Range:</strong> {spell.range}</div>
+                        <div><strong>Duration:</strong> {spell.duration}</div>
+                        <div><strong>Components:</strong> {spell.components}</div>
+                      </div>
                     </div>
+                    {spell.damage && (
+                      <div className="absolute right-2 bottom-12 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
+                        {spell.damage}
+                      </div>
+                    )}
                     <div className="text-xs text-muted-foreground line-clamp-2">
                       {spell.description}
                     </div>
@@ -442,14 +465,24 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                     </button>
                   </div>
                 </div>
-                <div className="text-sm space-y-1">
-                  {typeof bonus.uses === 'number' && typeof bonus.maxUses === 'number' && (
-                    <div><strong>Uses:</strong> {bonus.uses} / {bonus.maxUses === 0 ? '∞' : bonus.maxUses}</div>
+                <div className="flex items-center justify-between text-sm space-y-1">
+                  <div className="flex-1">
+                    {typeof bonus.uses === 'number' && typeof bonus.maxUses === 'number' && (
+                      <div><strong>Uses:</strong> {bonus.uses} / {bonus.maxUses === 0 ? '∞' : bonus.maxUses}</div>
+                    )}
+                  </div>
+                  {bonus.damage && (
+                    <div className="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
+                      {bonus.damage} {bonus.damageType}
+                    </div>
                   )}
                 </div>
                 {bonus.description && (
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {bonus.description}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground line-clamp-2">
+                    <span>{bonus.description}</span>
+                    {bonus.damage && (
+                      <span className="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">{bonus.damage} {bonus.damageType}</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -516,11 +549,18 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                       </div>
                       <Badge variant="secondary" className="text-xs">Spell</Badge>
                     </div>
-                    <div className="text-sm space-y-1">
-                      <div><strong>Range:</strong> {spell.range}</div>
-                      <div><strong>Duration:</strong> {spell.duration}</div>
-                      <div><strong>Components:</strong> {spell.components}</div>
+                    <div className="flex items-center justify-between text-sm space-y-1">
+                      <div className="flex-1">
+                        <div><strong>Range:</strong> {spell.range}</div>
+                        <div><strong>Duration:</strong> {spell.duration}</div>
+                        <div><strong>Components:</strong> {spell.components}</div>
+                      </div>
                     </div>
+                    {spell.damage && (
+                      <div className="absolute right-2 bottom-12 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
+                        {spell.damage}
+                      </div>
+                    )}
                     <div className="text-xs text-muted-foreground line-clamp-2">
                       {spell.description}
                     </div>
@@ -563,15 +603,25 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
                     </button>
                   </div>
                 </div>
-                <div className="text-sm space-y-1">
-                  <div><strong>Trigger:</strong> {reaction.trigger}</div>
-                  {typeof reaction.uses === 'number' && typeof reaction.maxUses === 'number' && (
-                    <div><strong>Uses:</strong> {reaction.uses} / {reaction.maxUses === 0 ? '∞' : reaction.maxUses}</div>
+                <div className="flex items-center justify-between text-sm space-y-1">
+                  <div className="flex-1">
+                    <div><strong>Trigger:</strong> {reaction.trigger}</div>
+                    {typeof reaction.uses === 'number' && typeof reaction.maxUses === 'number' && (
+                      <div><strong>Uses:</strong> {reaction.uses} / {reaction.maxUses === 0 ? '∞' : reaction.maxUses}</div>
+                    )}
+                  </div>
+                  {reaction.damage && (
+                    <div className="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
+                      {reaction.damage} {reaction.damageType}
+                    </div>
                   )}
                 </div>
                 {reaction.description && (
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {reaction.description}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground line-clamp-2">
+                    <span>{reaction.description}</span>
+                    {reaction.damage && (
+                      <span className="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">{reaction.damage} {reaction.damageType}</span>
+                    )}
                   </div>
                 )}
               </div>

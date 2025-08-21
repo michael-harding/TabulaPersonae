@@ -29,6 +29,7 @@ interface SpellFormData {
   range: string
   components: string
   duration: string
+  damage?: string
   description: string
   prepared: boolean
 }
@@ -41,6 +42,7 @@ const defaultSpellForm: SpellFormData = {
   range: "Touch",
   components: "V, S",
   duration: "Instantaneous",
+  damage: "",
   description: "",
   prepared: false,
 }
@@ -127,6 +129,7 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       duration: formData.duration,
       description: formData.description.trim(),
       prepared: formData.prepared,
+      damage: formData.damage,
     }
 
     const updated = {
@@ -156,6 +159,7 @@ export function SpellsSection({ character, onUpdate }: SpellsSectionProps) {
       duration: formData.duration,
       description: formData.description.trim(),
       prepared: formData.prepared,
+      damage: formData.damage,
     }
 
     const updated = {
@@ -247,6 +251,16 @@ function SpellForm({
           value={formData.name}
           onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
           placeholder="Enter spell name"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="spell-damage">Damage</Label>
+        <Input
+          id="spell-damage"
+          value={formData.damage || ""}
+          onChange={(e) => setFormData((prev) => ({ ...prev, damage: e.target.value }))}
+          placeholder="e.g. 1d8+3 fire"
         />
       </div>
 
@@ -611,6 +625,11 @@ function SpellForm({
                                   <span className="font-medium">Duration:</span> {spell.duration}
                                 </div>
                               </div>
+                                {spell.damage && (
+                                  <div className="text-sm text-red-700 font-semibold mb-2">
+                                    <span className="font-medium">Damage:</span> {spell.damage}
+                                  </div>
+                                )}
                               <pre className="text-sm text-muted-foreground" style={{ whiteSpace: 'pre-wrap' }}>{spell.description}</pre>
                             </div>
                             <div className="flex items-center gap-2 ml-4">

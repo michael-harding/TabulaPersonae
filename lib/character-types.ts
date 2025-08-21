@@ -58,6 +58,7 @@ export interface Spell {
   range: string
   components: string
   duration: string
+  damage?: string
   description: string
   prepared: boolean
 }
@@ -78,6 +79,8 @@ export interface BonusAction {
   name: string
   type: 'spell' | 'ability' | 'other'
   description: string
+  damage?: string
+  damageType?: string
   uses?: number
   maxUses?: number
 }
@@ -87,6 +90,8 @@ export interface Reaction {
   name: string
   type: 'spell' | 'ability' | 'other'
   description: string
+  damage?: string
+  damageType?: string
   trigger: string
   uses?: number
   maxUses?: number
