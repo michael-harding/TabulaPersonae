@@ -84,24 +84,24 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
   const spellSaveDC = getSpellSaveDC(character)
   const spellAttackBonus = getSpellAttackBonus(character)
 
-  // Get prepared spells that can be used as attacks (including cantrips)
+  // Get prepared spells and cantrips with 1 action casting time
   const attackSpells = safeSpells.filter(spell =>
-    spell.prepared && (
-      spell.description.toLowerCase().includes('attack') ||
-      spell.description.toLowerCase().includes('damage') ||
-      spell.school === 'Evocation' ||
-      spell.level === 0 // include cantrips
-    )
+    (spell.prepared || spell.level === 0) && 
+    spell.castingTime.toLowerCase().includes('1 action') &&
+    !spell.castingTime.toLowerCase().includes('bonus') &&
+    !spell.castingTime.toLowerCase().includes('reaction')
   )
 
-  // Get prepared spells that are bonus actions (including cantrips)
+  // Get prepared spells and cantrips with bonus action casting time
   const bonusActionSpells = safeSpells.filter(spell =>
-    spell.prepared && spell.castingTime.toLowerCase().includes('bonus')
+    (spell.prepared || spell.level === 0) && 
+    spell.castingTime.toLowerCase().includes('bonus')
   )
 
-  // Get prepared spells that are reactions (including cantrips)
+  // Get prepared spells and cantrips with reaction casting time
   const reactionSpells = safeSpells.filter(spell =>
-    spell.prepared && spell.castingTime.toLowerCase().includes('reaction')
+    (spell.prepared || spell.level === 0) && 
+    spell.castingTime.toLowerCase().includes('reaction')
   )
 
   const getOrdinalSuffix = (num: number): string => {
