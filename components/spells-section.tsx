@@ -611,7 +611,7 @@ function SpellForm({
                                   <span className="font-medium">Duration:</span> {spell.duration}
                                 </div>
                               </div>
-                              <p className="text-sm text-muted-foreground">{spell.description}</p>
+                              <pre className="text-sm text-muted-foreground" style={{ whiteSpace: 'pre-wrap' }}>{spell.description}</pre>
                             </div>
                             <div className="flex items-center gap-2 ml-4">
                               <Button variant="ghost" size="sm" onClick={() => handleEditSpell(spell)}>
