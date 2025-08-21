@@ -366,27 +366,57 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
           {(bonusActionSpells.length > 0 || (character.bonusActions && character.bonusActions.length > 0)) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Bonus Action Spells */}
-              {bonusActionSpells.map((spell) => (
-              <div key={spell.id} className="p-3 border rounded-lg space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-medium">{spell.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {spell.level > 0 ? `${spell.level}${getOrdinalSuffix(spell.level)} level` : 'Cantrip'} • {spell.castingTime}
+              {bonusActionSpells.map((spell) => {
+                const slotKey = spell.level as keyof typeof character.spellSlots
+                const slots = character.spellSlots[slotKey]
+                const canCast = spell.level > 0 && slots && slots.used < slots.total
+                const handleCast = () => {
+                  if (!canCast || !slots) return
+                  const updated = {
+                    ...character,
+                    spellSlots: {
+                      ...character.spellSlots,
+                      [slotKey]: {
+                        ...slots,
+                        used: slots.used + 1,
+                      },
+                    },
+                  }
+                  onUpdate(updated)
+                }
+                return (
+                  <div key={spell.id} className="p-3 border rounded-lg space-y-2 relative">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-medium">{spell.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {spell.level > 0 ? `${spell.level}${getOrdinalSuffix(spell.level)} level` : 'Cantrip'} • {spell.castingTime}
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">Spell</Badge>
                     </div>
+                    <div className="text-sm space-y-1">
+                      <div><strong>Range:</strong> {spell.range}</div>
+                      <div><strong>Duration:</strong> {spell.duration}</div>
+                      <div><strong>Components:</strong> {spell.components}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground line-clamp-2">
+                      {spell.description}
+                    </div>
+                    {spell.level > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!canCast}
+                        onClick={handleCast}
+                        className="absolute bottom-2 right-2"
+                      >
+                        Cast
+                      </Button>
+                    )}
                   </div>
-                  <Badge variant="secondary" className="text-xs">Spell</Badge>
-                </div>
-                <div className="text-sm space-y-1">
-                  <div><strong>Range:</strong> {spell.range}</div>
-                  <div><strong>Duration:</strong> {spell.duration}</div>
-                  <div><strong>Components:</strong> {spell.components}</div>
-                </div>
-                <div className="text-xs text-muted-foreground line-clamp-2">
-                  {spell.description}
-                </div>
-              </div>
-            ))}
+                )
+              })}
 
             {/* Custom Bonus Actions */}
             {(character.bonusActions || []).map((bonus) => (
@@ -457,27 +487,57 @@ export function ActionsSection({ character, onUpdate }: ActionsSectionProps) {
           {(reactionSpells.length > 0 || (character.reactions && character.reactions.length > 0)) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Reaction Spells */}
-              {reactionSpells.map((spell) => (
-              <div key={spell.id} className="p-3 border rounded-lg space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-medium">{spell.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {spell.level > 0 ? `${spell.level}${getOrdinalSuffix(spell.level)} level` : 'Cantrip'} • {spell.castingTime}
+              {reactionSpells.map((spell) => {
+                const slotKey = spell.level as keyof typeof character.spellSlots
+                const slots = character.spellSlots[slotKey]
+                const canCast = spell.level > 0 && slots && slots.used < slots.total
+                const handleCast = () => {
+                  if (!canCast || !slots) return
+                  const updated = {
+                    ...character,
+                    spellSlots: {
+                      ...character.spellSlots,
+                      [slotKey]: {
+                        ...slots,
+                        used: slots.used + 1,
+                      },
+                    },
+                  }
+                  onUpdate(updated)
+                }
+                return (
+                  <div key={spell.id} className="p-3 border rounded-lg space-y-2 relative">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-medium">{spell.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {spell.level > 0 ? `${spell.level}${getOrdinalSuffix(spell.level)} level` : 'Cantrip'} • {spell.castingTime}
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">Spell</Badge>
                     </div>
+                    <div className="text-sm space-y-1">
+                      <div><strong>Range:</strong> {spell.range}</div>
+                      <div><strong>Duration:</strong> {spell.duration}</div>
+                      <div><strong>Components:</strong> {spell.components}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground line-clamp-2">
+                      {spell.description}
+                    </div>
+                    {spell.level > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!canCast}
+                        onClick={handleCast}
+                        className="absolute bottom-2 right-2"
+                      >
+                        Cast
+                      </Button>
+                    )}
                   </div>
-                  <Badge variant="secondary" className="text-xs">Spell</Badge>
-                </div>
-                <div className="text-sm space-y-1">
-                  <div><strong>Range:</strong> {spell.range}</div>
-                  <div><strong>Duration:</strong> {spell.duration}</div>
-                  <div><strong>Components:</strong> {spell.components}</div>
-                </div>
-                <div className="text-xs text-muted-foreground line-clamp-2">
-                  {spell.description}
-                </div>
-              </div>
-            ))}
+                )
+              })}
 
             {/* Custom Reactions */}
             {(character.reactions || []).map((reaction) => (
