@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: "D&D Character Sheet",
-  description: "A comprehensive D&D character sheet app",
+  description: "A D&D character sheet app",
   generator: "v0.app",
 }
 
