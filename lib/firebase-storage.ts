@@ -4,6 +4,7 @@ import {
   getDocs,
   getDoc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -27,9 +28,9 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
     };
 
     if (character.id) {
-      // Update existing character
+      // Update existing character or create new one with specific ID
       const characterRef = doc(db, CHARACTERS_COLLECTION, character.id);
-      await updateDoc(characterRef, characterData);
+      await setDoc(characterRef, characterData, { merge: true });
     } else {
       // Create new character
       const newCharacterData = {
