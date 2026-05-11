@@ -9,8 +9,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Menu, Plus, Users, Upload, Download, Moon, Sun, Monitor } from "lucide-react"
+import { Menu, Plus, Users, Upload, Download, Moon, Sun, Monitor, User, LogOut, LogIn } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useAuth } from "@/lib/auth-context"
+import { AuthModal } from "@/components/auth-modal"
 import type { Character } from "@/lib/character-types"
 
 interface HeaderMenuProps {
@@ -29,7 +31,9 @@ export function HeaderMenu({
   onNewCharacter,
 }: HeaderMenuProps) {
   const { setTheme, theme } = useTheme()
+  const { user, logout, loading } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
 
   const handleExportCharacter = (character: Character) => {
     const dataStr = JSON.stringify(character, null, 2)
@@ -95,12 +99,34 @@ export function HeaderMenu({
   }
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Menu className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
+    <>
+      <div className="flex items-center gap-2">
+        {user ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4" />
+            <span className="hidden sm:inline">{user.email}</span>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              console.log('Sign in button clicked in header');
+              setAuthModalOpen(true);
+            }}
+            disabled={loading}
+          >
+            <LogIn className="h-4 w-4 mr-2" />
+            Sign In
+          </Button>
+        )}
+
+        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Menu className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem onClick={onNewCharacter}>
           <Plus className="h-4 w-4 mr-2" />
@@ -124,7 +150,23 @@ export function HeaderMenu({
           {getThemeIcon()}
           <span className="ml-2">Toggle Theme</span>
         </DropdownMenuItem>
+        {user && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={logout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
+    </div>
+
+    <AuthModal
+      isOpen={authModalOpen}
+      onClose={() => setAuthModalOpen(false)}
+    />
+    </>
   )
 }
