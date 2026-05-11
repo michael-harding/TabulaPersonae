@@ -12,7 +12,6 @@ import {
 import { Menu, Plus, Users, Upload, Download, Moon, Sun, Monitor, User, LogOut, LogIn } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/lib/auth-context"
-import { AuthModal } from "@/components/auth-modal"
 import type { Character } from "@/lib/character-types"
 
 interface HeaderMenuProps {
@@ -33,7 +32,6 @@ export function HeaderMenu({
   const { setTheme, theme } = useTheme()
   const { user, logout, loading } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
-  const [authModalOpen, setAuthModalOpen] = useState(false)
 
   const handleExportCharacter = (character: Character) => {
     const dataStr = JSON.stringify(character, null, 2)
@@ -98,27 +96,21 @@ export function HeaderMenu({
     }
   }
 
+  const handleBackToLogin = async () => {
+    localStorage.removeItem('dnd-skip-auth')
+    setIsOpen(false)
+    await logout()
+    window.location.reload()
+  }
+
   return (
     <>
       <div className="flex items-center gap-2">
-        {user ? (
+        {user && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">{user.email}</span>
           </div>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              console.log('Sign in button clicked in header');
-              setAuthModalOpen(true);
-            }}
-            disabled={loading}
-          >
-            <LogIn className="h-4 w-4 mr-2" />
-            Sign In
-          </Button>
         )}
 
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -150,7 +142,7 @@ export function HeaderMenu({
           {getThemeIcon()}
           <span className="ml-2">Toggle Theme</span>
         </DropdownMenuItem>
-        {user && (
+        {user ? (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>
@@ -158,15 +150,18 @@ export function HeaderMenu({
               Sign Out
             </DropdownMenuItem>
           </>
+        ) : (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleBackToLogin}>
+              <LogIn className="h-4 w-4 mr-2" />
+              Back to Login
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
     </div>
-
-    <AuthModal
-      isOpen={authModalOpen}
-      onClose={() => setAuthModalOpen(false)}
-    />
     </>
   )
 }

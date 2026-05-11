@@ -20,7 +20,6 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { ImportExport } from "@/components/import-export"
 import { HeaderMenu } from "@/components/header-menu"
 import { HpProgressBar } from "@/components/hp-progress-bar"
-import { AuthModal } from "@/components/auth-modal"
 
 // Inline authentication form component
 function AuthFormInline() {
@@ -253,7 +252,7 @@ export default function CharacterSheetApp() {
     console.log('Auth modal open state changed:', authModalOpen);
   }, [authModalOpen]);
 
-  const { user, loading: authLoading } = useAuth()
+  const { user, skipAuth, loading: authLoading } = useAuth()
   const storageManager = useStorageManager()
 
   useEffect(() => {
@@ -450,28 +449,16 @@ export default function CharacterSheetApp() {
     )
   }
 
-  // Show authentication prompt for unauthenticated users
-  if (!user && authChecked) {
+  // Show authentication prompt for unauthenticated users (unless they chose to skip auth)
+  if (!user && !skipAuth && authChecked) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="max-w-md mx-auto text-center">
           <Scroll className="h-16 w-16 mx-auto mb-6 text-primary" />
           <h1 className="text-4xl font-bold mb-4 text-foreground">D&D Character Sheet</h1>
           <p className="text-xl text-muted-foreground mb-8">
-            Sign in to create and manage your Dungeons & Dragons characters with cloud sync
+            Sign in to create and manage your Dungeons & Dragons characters
           </p>
-
-          <div className="space-y-4 mb-8">
-            <div className="text-sm text-muted-foreground">
-              <p className="mb-2">✨ <strong>Benefits of signing in:</strong></p>
-              <ul className="text-left space-y-1">
-                <li>• Sync characters across devices</li>
-                <li>• Never lose your characters</li>
-                <li>• Share characters with friends</li>
-                <li>• Access from anywhere</li>
-              </ul>
-            </div>
-          </div>
 
           <div className="bg-muted/50 rounded-lg p-6 text-left mb-6">
             <p className="text-sm text-muted-foreground">
@@ -520,7 +507,13 @@ export default function CharacterSheetApp() {
               onImportCharacter={handleImportCharacter}
               onImportMultiple={handleImportMultiple}
             />
-            <ModeToggle />
+            <HeaderMenu
+              characters={characters}
+              onImportCharacter={handleImportCharacter}
+              onImportMultiple={handleImportMultiple}
+              onAllCharacters={() => setActiveCharacterState(null)}
+              onNewCharacter={createNewCharacter}
+            />
           </div>
 
           <div className="text-center py-12">

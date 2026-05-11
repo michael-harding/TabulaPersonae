@@ -16,6 +16,7 @@ import { auth } from './firebase';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  skipAuth: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -43,6 +44,15 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [skipAuth, setSkipAuth] = useState(false);
+
+  useEffect(() => {
+    // Check if user has chosen to skip auth (local-only mode)
+    const hasSkipAuthFlag = localStorage.getItem('dnd-skip-auth') === 'true';
+    if (hasSkipAuthFlag) {
+      setSkipAuth(true);
+    }
+  }, []);
 
   useEffect(() => {
     console.log('Setting up auth state listener');
@@ -125,6 +135,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value = {
     user,
     loading,
+    skipAuth,
     signIn,
     signUp,
     signInWithGoogle,
