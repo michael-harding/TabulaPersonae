@@ -7,7 +7,6 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  GoogleAuthProvider,
   signInWithPopup,
   sendPasswordResetEmail
 } from 'firebase/auth';
@@ -19,7 +18,6 @@ interface AuthContextType {
   skipAuth: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -86,34 +84,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signInWithGoogle = async () => {
-    try {
-      console.log('Attempting Google sign in...');
-      const provider = new GoogleAuthProvider();
-      // Add scopes if needed
-      provider.addScope('email');
-      provider.addScope('profile');
-
-      await signInWithPopup(auth, provider);
-      console.log('Google sign in successful');
-    } catch (error: any) {
-      console.error('Google sign in error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-
-      // Handle specific Google sign-in errors
-      if (error.code === 'auth/popup-closed-by-user') {
-        throw new Error('Sign-in popup was closed. Please try again.');
-      } else if (error.code === 'auth/popup-blocked') {
-        throw new Error('Sign-in popup was blocked by your browser. Please allow popups for this site.');
-      } else if (error.code === 'auth/account-exists-with-different-credential') {
-        throw new Error('An account already exists with this email using a different sign-in method.');
-      }
-
-      throw error;
-    }
-  };
-
   const logout = async () => {
     try {
       await signOut(auth);
@@ -138,7 +108,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     skipAuth,
     signIn,
     signUp,
-    signInWithGoogle,
     logout,
     resetPassword,
   };
