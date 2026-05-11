@@ -31,7 +31,7 @@ function AuthFormInline() {
   const [loading, setLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
-  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,23 +58,6 @@ function AuthFormInline() {
       console.log('Authentication successful');
     } catch (err: any) {
       console.error('Authentication failed:', err);
-      setError(getErrorMessage(err.code));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    console.log('Google sign in clicked');
-    setError('');
-    setLoading(true);
-
-    try {
-      console.log('Calling signInWithGoogle');
-      await signInWithGoogle();
-      console.log('Google sign in successful');
-    } catch (err: any) {
-      console.error('Google sign in failed:', err);
       setError(getErrorMessage(err.code));
     } finally {
       setLoading(false);
@@ -208,15 +191,6 @@ function AuthFormInline() {
           ) : (
             isSignUp ? 'Create Account' : 'Sign In'
           )}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-          className="w-full py-2 px-4 border border-input bg-background hover:bg-accent rounded-md text-sm font-medium"
-        >
-          Sign in with Google
         </button>
 
         {!isSignUp && (
@@ -456,35 +430,28 @@ export default function CharacterSheetApp() {
         <div className="max-w-md mx-auto text-center">
           <Scroll className="h-16 w-16 mx-auto mb-6 text-primary" />
           <h1 className="text-4xl font-bold mb-4 text-foreground">D&D Character Sheet</h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            Sign in to create and manage your Dungeons & Dragons characters
-          </p>
-
-          <div className="bg-muted/50 rounded-lg p-6 text-left mb-6">
-            <p className="text-sm text-muted-foreground">
-              <strong>Continue without account:</strong> Your characters will be saved locally to this device only.
-            </p>
-          </div>
-
           <div className="space-y-4">
             <Button
               onClick={() => {
-                // This would trigger the auth modal - for now just set a flag to continue without auth
                 localStorage.setItem('dnd-skip-auth', 'true')
                 window.location.reload()
               }}
               variant="outline"
               className="w-full"
             >
-              Continue Offline
+              Continue without account
             </Button>
+            <p className="text-sm text-right text-muted-foreground">
+              *Your characters will be saved locally to this device only. Use Import/Export to backup characters and
+              synchronize between devices manually.
+            </p>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or sign in</span>
+              <div className="relative flex justify-center text-lg">
+                <span className="bg-background px-2 text-muted-foreground">Or Sign In</span>
               </div>
             </div>
 
