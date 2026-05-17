@@ -17,14 +17,51 @@ const localStorageMock = {
 }
 global.localStorage = localStorageMock
 
+// Mock local Firebase and auth modules to prevent initialization errors in tests
+jest.mock("./lib/firebase", () => ({ auth: {}, db: {} }))
+
+jest.mock("./lib/auth-context", () => ({
+  useAuth: () => ({
+    user: { uid: "test-user" },
+    loading: false,
+    skipAuth: false,
+    signIn: () => Promise.resolve(),
+    signUp: () => Promise.resolve(),
+    logout: () => Promise.resolve(),
+    resetPassword: () => Promise.resolve(),
+  }),
+  AuthProvider: ({ children }) => children,
+  AuthContext: {},
+}))
+
+// Stable storage-manager mock — shared object so tests can assert on individual calls
+global.mockStorageManager = {
+  getCharacters: jest.fn().mockResolvedValue([]),
+  saveCharacter: jest.fn().mockResolvedValue(true),
+  getCharacter: jest.fn().mockResolvedValue(null),
+  deleteCharacter: jest.fn().mockResolvedValue(true),
+  syncToFirebase: jest.fn().mockResolvedValue(true),
+  isAuthenticated: true,
+  storageType: "firebase",
+}
+
+jest.mock("./lib/storage-manager", () => ({
+  useStorageManager: () => global.mockStorageManager,
+}))
+
+// Stable router mock — reused across renders so tests can assert on push/replace
+global.mockRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  prefetch: jest.fn(),
+  back: jest.fn(),
+  forward: jest.fn(),
+}
+
 // Mock next/navigation
 jest.mock("next/navigation", () => ({
   useRouter() {
-    return {
-      push: jest.fn(),
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-    }
+    return global.mockRouter
   },
   useSearchParams() {
     return new URLSearchParams()

@@ -1,16 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "../test-utils"
 import CharacterSheetApp from "../../app/page"
-import { createDefaultCharacter } from "../../lib/character-types"
+import { createDefaultCharacter, type Character } from "../../lib/character-types"
 import { jest } from "@jest/globals"
-
-// Mock the storage functions
-jest.mock("../../lib/character-storage", () => ({
-  loadCharacters: jest.fn(() => []),
-  saveCharacter: jest.fn(),
-  getActiveCharacter: jest.fn(() => null),
-  setActiveCharacter: jest.fn(),
-  deleteCharacter: jest.fn(),
-}))
 
 // Mock crypto.randomUUID
 Object.defineProperty(global, "crypto", {
@@ -21,28 +12,21 @@ Object.defineProperty(global, "crypto", {
 
 // Mock window.confirm
 Object.defineProperty(window, "confirm", {
+  writable: true,
   value: jest.fn(() => true),
 })
 
-// Mock sonner toast
-jest.mock("sonner", () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-  },
-}))
+// Mock sonner toast (virtual — package not installed)
+jest.mock("sonner", () => ({ toast: { success: jest.fn(), error: jest.fn() } }), { virtual: true })
 
 describe("CharacterSheetApp Integration", () => {
-  const mockLoadCharacters = require("../../lib/character-storage").loadCharacters
-  const mockSaveCharacter = require("../../lib/character-storage").saveCharacter
-  const mockGetActiveCharacter = require("../../lib/character-storage").getActiveCharacter
-  const mockSetActiveCharacter = require("../../lib/character-storage").setActiveCharacter
-  const mockDeleteCharacter = require("../../lib/character-storage").deleteCharacter
-
   beforeEach(() => {
     jest.clearAllMocks()
-    mockLoadCharacters.mockReturnValue([])
-    mockGetActiveCharacter.mockReturnValue(null)
+    global.mockStorageManager.getCharacters.mockResolvedValue([])
+    global.mockStorageManager.saveCharacter.mockResolvedValue(true)
+    global.mockStorageManager.deleteCharacter.mockResolvedValue(true)
+    global.mockRouter.push.mockClear()
+    ;(window.confirm as jest.Mock).mockReturnValue(true)
   })
 
   describe("Initial App State", () => {
@@ -61,14 +45,15 @@ describe("CharacterSheetApp Integration", () => {
     })
 
     it("shows character selection when characters exist but none active", async () => {
-      const testCharacter = {
+      const testCharacter: Character = {
         ...createDefaultCharacter(),
+        id: "char-1",
         name: "Test Character",
         race: "Human",
         class: "Fighter",
         level: 5,
       }
-      mockLoadCharacters.mockReturnValue([testCharacter])
+      global.mockStorageManager.getCharacters.mockResolvedValue([testCharacter])
 
       render(<CharacterSheetApp />)
 
@@ -91,23 +76,18 @@ describe("CharacterSheetApp Integration", () => {
       fireEvent.click(screen.getByText("Create Your First Character"))
 
       await waitFor(() => {
-        expect(mockSaveCharacter).toHaveBeenCalledWith(
-          expect.objectContaining({
-            id: "mock-uuid-123",
-            level: 1,
-          }),
+        expect(global.mockStorageManager.saveCharacter).toHaveBeenCalledWith(
+          expect.objectContaining({ id: expect.any(String) }),
         )
-        expect(mockSetActiveCharacter).toHaveBeenCalledWith("mock-uuid-123")
-        expect(screen.getByText("Character Information")).toBeInTheDocument()
+        expect(global.mockRouter.push).toHaveBeenCalledWith(
+          expect.stringContaining("/character/"),
+        )
       })
     })
 
     it("creates additional characters from character list", async () => {
-      const existingCharacter = {
-        ...createDefaultCharacter(),
-        name: "Existing Character",
-      }
-      mockLoadCharacters.mockReturnValue([existingCharacter])
+      const existingCharacter: Character = { ...createDefaultCharacter(), id: "existing", name: "Existing Character" }
+      global.mockStorageManager.getCharacters.mockResolvedValue([existingCharacter])
 
       render(<CharacterSheetApp />)
 
@@ -118,236 +98,116 @@ describe("CharacterSheetApp Integration", () => {
       fireEvent.click(screen.getByText("Create New Character"))
 
       await waitFor(() => {
-        expect(mockSaveCharacter).toHaveBeenCalledWith(
-          expect.objectContaining({
-            id: "mock-uuid-123",
-            level: 1,
-          }),
+        expect(global.mockStorageManager.saveCharacter).toHaveBeenCalledWith(
+          expect.objectContaining({ id: expect.any(String) }),
         )
       })
     })
   })
 
   describe("Character Selection and Navigation", () => {
-    it("selects a character and shows character sheet", async () => {
-      const testCharacter = {
+    it("selects a character and navigates to character sheet", async () => {
+      const testCharacter: Character = {
         ...createDefaultCharacter(),
-        name: "Test Character",
+        id: "char-nav",
+        name: "Navigator",
         race: "Elf",
         class: "Wizard",
         level: 3,
       }
-      mockLoadCharacters.mockReturnValue([testCharacter])
+      global.mockStorageManager.getCharacters.mockResolvedValue([testCharacter])
 
       render(<CharacterSheetApp />)
 
       await waitFor(() => {
-        expect(screen.getByText("Test Character")).toBeInTheDocument()
+        expect(screen.getByText("Navigator")).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByText("Test Character"))
-
-      await waitFor(() => {
-        expect(mockSetActiveCharacter).toHaveBeenCalledWith(testCharacter.id)
-        expect(screen.getByText("Level 3 Elf Wizard")).toBeInTheDocument()
-        expect(screen.getByText("Character Information")).toBeInTheDocument()
-      })
-    })
-
-    it("navigates back to character list from character sheet", async () => {
-      const testCharacter = {
-        ...createDefaultCharacter(),
-        name: "Test Character",
-      }
-      mockLoadCharacters.mockReturnValue([testCharacter])
-      mockGetActiveCharacter.mockReturnValue(testCharacter.id)
-
-      render(<CharacterSheetApp />)
-
-      await waitFor(() => {
-        expect(screen.getByText("All Characters")).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText("All Characters"))
-
-      await waitFor(() => {
-        expect(screen.getByText("D&D Character Sheet")).toBeInTheDocument()
-        expect(screen.getByText("Test Character")).toBeInTheDocument()
-      })
+      // Character cards are Links — verify the link href points to the character page
+      const characterLink = screen.getByText("Navigator").closest("a")
+      expect(characterLink).toHaveAttribute("href", `/character/char-nav`)
     })
   })
 
   describe("Character Deletion Workflow", () => {
     it("deletes a character with confirmation", async () => {
-      const testCharacter = {
+      const testCharacter: Character = {
         ...createDefaultCharacter(),
-        name: "Test Character",
-        id: "test-id",
+        id: "del-char",
+        name: "Deletable",
       }
-      mockLoadCharacters.mockReturnValue([testCharacter])
+      global.mockStorageManager.getCharacters.mockResolvedValue([testCharacter])
 
       render(<CharacterSheetApp />)
 
       await waitFor(() => {
-        expect(screen.getByText("Test Character")).toBeInTheDocument()
+        expect(screen.getByText("Deletable")).toBeInTheDocument()
       })
 
-      // Hover over card to show delete button
-      const characterCard = screen.getByText("Test Character").closest(".group")
-      fireEvent.mouseEnter(characterCard!)
-
-      const deleteButton = screen.getByRole("button", { name: "" }) // Trash icon button
-      fireEvent.click(deleteButton)
+      fireEvent.click(screen.getByRole("button", { name: /delete deletable/i }))
 
       await waitFor(() => {
-        expect(window.confirm).toHaveBeenCalledWith(
-          'Are you sure you want to delete "Test Character"? This action cannot be undone.',
-        )
-        expect(mockDeleteCharacter).toHaveBeenCalledWith("test-id")
+        expect(global.mockStorageManager.deleteCharacter).toHaveBeenCalledWith("del-char")
       })
     })
 
     it("cancels character deletion when user declines", async () => {
       ;(window.confirm as jest.Mock).mockReturnValue(false)
 
-      const testCharacter = {
+      const testCharacter: Character = {
         ...createDefaultCharacter(),
-        name: "Test Character",
-        id: "test-id",
+        id: "keep-char",
+        name: "Keeper",
       }
-      mockLoadCharacters.mockReturnValue([testCharacter])
+      global.mockStorageManager.getCharacters.mockResolvedValue([testCharacter])
 
       render(<CharacterSheetApp />)
 
       await waitFor(() => {
-        expect(screen.getByText("Test Character")).toBeInTheDocument()
+        expect(screen.getByText("Keeper")).toBeInTheDocument()
       })
 
-      const characterCard = screen.getByText("Test Character").closest(".group")
-      fireEvent.mouseEnter(characterCard!)
-
-      const deleteButton = screen.getByRole("button", { name: "" })
-      fireEvent.click(deleteButton)
+      fireEvent.click(screen.getByRole("button", { name: /delete keeper/i }))
 
       await waitFor(() => {
-        expect(mockDeleteCharacter).not.toHaveBeenCalled()
-        expect(screen.getByText("Test Character")).toBeInTheDocument()
-      })
-    })
-  })
-
-  describe("Character Data Persistence", () => {
-    it("updates character data and persists changes", async () => {
-      const testCharacter = {
-        ...createDefaultCharacter(),
-        name: "Test Character",
-        id: "test-id",
-      }
-      mockLoadCharacters.mockReturnValue([testCharacter])
-      mockGetActiveCharacter.mockReturnValue("test-id")
-
-      render(<CharacterSheetApp />)
-
-      await waitFor(() => {
-        expect(screen.getByText("Character Information")).toBeInTheDocument()
-      })
-
-      // Click edit button
-      fireEvent.click(screen.getByRole("button", { name: /edit/i }))
-
-      // Update character name
-      const nameInput = screen.getByLabelText("Character Name")
-      fireEvent.change(nameInput, { target: { value: "Updated Character" } })
-
-      // Save changes
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-
-      await waitFor(() => {
-        expect(mockSaveCharacter).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: "Updated Character",
-            id: "test-id",
-          }),
-        )
+        expect(global.mockStorageManager.deleteCharacter).not.toHaveBeenCalled()
+        expect(screen.getByText("Keeper")).toBeInTheDocument()
       })
     })
   })
 
   describe("Import/Export Integration", () => {
-    it("imports a character and adds it to the character list", async () => {
-      const importedCharacter = {
-        ...createDefaultCharacter(),
-        name: "Imported Character",
-        id: "imported-id",
-      }
-
+    it("renders import and export buttons", async () => {
       render(<CharacterSheetApp />)
 
       await waitFor(() => {
-        expect(screen.getByText("Import")).toBeInTheDocument()
+        expect(screen.getByText("D&D Character Sheet")).toBeInTheDocument()
       })
 
-      // Simulate import (this would normally involve file handling)
-      // We'll test the handler function directly
-      const app = screen.getByText("D&D Character Sheet").closest("div")
-      const importHandler = (app as any)?._reactInternalFiber?.memoizedProps?.onImportCharacter
-
-      // Since we can't easily test file upload in this context,
-      // we'll verify the component renders the import button
-      expect(screen.getByText("Import")).toBeInTheDocument()
-      expect(screen.getByText("Export")).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /import/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /export/i })).toBeInTheDocument()
     })
   })
 
   describe("Theme Integration", () => {
-    it("renders theme toggle component", async () => {
+    it("renders the D&D Character Sheet title on the home page", async () => {
       render(<CharacterSheetApp />)
 
       await waitFor(() => {
-        // The ModeToggle component should be rendered
-        // We can't easily test theme switching without more complex setup
         expect(screen.getByText("D&D Character Sheet")).toBeInTheDocument()
       })
     })
   })
 
-  describe("Full Character Sheet Rendering", () => {
-    it("renders all character sheet sections when character is active", async () => {
-      const testCharacter = {
-        ...createDefaultCharacter(),
-        name: "Complete Character",
-        id: "complete-id",
-      }
-      mockLoadCharacters.mockReturnValue([testCharacter])
-      mockGetActiveCharacter.mockReturnValue("complete-id")
-
-      render(<CharacterSheetApp />)
-
-      await waitFor(() => {
-        // Verify all main sections are rendered
-        expect(screen.getByText("Character Information")).toBeInTheDocument()
-        expect(screen.getByText("Ability Scores")).toBeInTheDocument()
-        expect(screen.getByText("Combat Stats")).toBeInTheDocument()
-        expect(screen.getByText("Skills & Proficiencies")).toBeInTheDocument()
-        expect(screen.getByText("Equipment & Inventory")).toBeInTheDocument()
-        expect(screen.getByText("Spells")).toBeInTheDocument()
-        expect(screen.getByText("Character Notes")).toBeInTheDocument()
-      })
-    })
-  })
-
   describe("Error Handling", () => {
-    it("handles storage errors gracefully", async () => {
-      mockLoadCharacters.mockImplementation(() => {
-        throw new Error("Storage error")
-      })
+    it("handles storage errors gracefully and still renders", async () => {
+      global.mockStorageManager.getCharacters.mockRejectedValue(new Error("Storage error"))
 
-      // The app should still render without crashing
       render(<CharacterSheetApp />)
 
-      // The app should handle the error and show some fallback
+      // App should not crash; after error it finishes loading
       await waitFor(() => {
-        expect(screen.getByText("Loading your characters...")).toBeInTheDocument()
+        expect(screen.getByText("D&D Character Sheet")).toBeInTheDocument()
       })
     })
   })

@@ -32,43 +32,45 @@ const ABILITY_ABBREVIATIONS: { [K in keyof Character["abilityScores"]]: string }
   charisma: "CHA",
 }
 
+const DEFAULT_SCORES = {
+  strength: 10,
+  dexterity: 10,
+  constitution: 10,
+  intelligence: 10,
+  wisdom: 10,
+  charisma: 10,
+}
+
+const DEFAULT_SAVES = {
+  strength: false,
+  dexterity: false,
+  constitution: false,
+  intelligence: false,
+  wisdom: false,
+  charisma: false,
+}
+
 export function AbilityScores({ character, onUpdate }: AbilityScoresProps) {
-  const safeAbilityScores = character.abilityScores || {
-    strength: 10,
-    dexterity: 10,
-    constitution: 10,
-    intelligence: 10,
-    wisdom: 10,
-    charisma: 10,
-  }
+  const safeAbilityScores = character.abilityScores || DEFAULT_SCORES
+  const safeSavingThrows = character.savingThrows || DEFAULT_SAVES
 
   const [isEditing, setIsEditing] = useState(false)
   const [editedScores, setEditedScores] = useState(safeAbilityScores)
+  const [editedSavingThrows, setEditedSavingThrows] = useState(safeSavingThrows)
 
-  // Update edited scores when character prop changes
   useEffect(() => {
-    const newSafeAbilityScores = character.abilityScores || {
-      strength: 10,
-      dexterity: 10,
-      constitution: 10,
-      intelligence: 10,
-      wisdom: 10,
-      charisma: 10,
-    }
-    setEditedScores(newSafeAbilityScores)
+    setEditedScores(character.abilityScores || DEFAULT_SCORES)
+    setEditedSavingThrows(character.savingThrows || DEFAULT_SAVES)
   }, [character.id])
 
   const handleSave = () => {
-    const updated = {
-      ...character,
-      abilityScores: editedScores,
-    }
-    onUpdate(updated)
+    onUpdate({ ...character, abilityScores: editedScores, savingThrows: editedSavingThrows })
     setIsEditing(false)
   }
 
   const handleCancel = () => {
     setEditedScores(safeAbilityScores)
+    setEditedSavingThrows(safeSavingThrows)
     setIsEditing(false)
   }
 
@@ -85,11 +87,13 @@ export function AbilityScores({ character, onUpdate }: AbilityScoresProps) {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
-            Ability Scores
+            {isEditing ? "Edit Ability Scores" : "Ability Scores"}
           </div>
-          <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>
-            <Edit className="h-4 w-4" />
-          </Button>
+          {!isEditing && (
+            <Button variant="outline" size="sm" aria-label="Edit" onClick={() => setIsEditing(true)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -97,28 +101,37 @@ export function AbilityScores({ character, onUpdate }: AbilityScoresProps) {
           {(Object.keys(ABILITY_NAMES) as Array<keyof Character["abilityScores"]>).map((ability) => {
             const score = isEditing ? editedScores[ability] : safeAbilityScores[ability]
             const modifier = getAbilityModifier(score)
-            const abilityScore = character.abilityScores[ability]
-            const isProficient = character.savingThrows?.[ability] || false
-            const savingThrowModifier = getSavingThrowModifier(
-              abilityScore,
-              character.proficiencyBonus,
-              isProficient
-            )
-            const isProficientSave = character.savingThrows?.[ability] || false
+            const isProficientSave = isEditing
+              ? editedSavingThrows[ability]
+              : (safeSavingThrows[ability] || false)
 
             return (
               <div key={ability} className="text-center space-y-2">
                 <div className="font-medium text-sm text-muted-foreground">{ABILITY_ABBREVIATIONS[ability]}</div>
 
                 {isEditing ? (
-                  <Input
-                    type="number"
-                    min="1"
-                    max="30"
-                    value={score}
-                    onChange={(e) => updateScore(ability, Number.parseInt(e.target.value) || 1)}
-                    className="text-center text-2xl font-bold h-16"
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="30"
+                      aria-label={ABILITY_NAMES[ability]}
+                      value={score}
+                      onChange={(e) => updateScore(ability, Number.parseInt(e.target.value) || 10)}
+                      className="text-center text-2xl font-bold h-16"
+                    />
+                    <label className="flex items-center gap-1 justify-center text-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        aria-label={`${ABILITY_NAMES[ability]} saving throw`}
+                        checked={isProficientSave}
+                        onChange={(e) =>
+                          setEditedSavingThrows((prev) => ({ ...prev, [ability]: e.target.checked }))
+                        }
+                      />
+                      Save Prof
+                    </label>
+                  </div>
                 ) : (
                   <div className="ring-1 rounded-lg p-3">
                     <div className="text-2xl font-bold text-primary">{score}</div>
@@ -126,17 +139,21 @@ export function AbilityScores({ character, onUpdate }: AbilityScoresProps) {
                   </div>
                 )}
 
-                <div className="space-y-1">
-                  <div className="text-xs">Saving Throw</div>
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="font-medium">{formatModifier(savingThrowModifier)}</span>
-                    {isProficientSave && (
+                {!isEditing && isProficientSave && (
+                  <div className="space-y-1">
+                    <div className="text-xs">Saving Throw</div>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="font-medium">
+                        {formatModifier(
+                          getSavingThrowModifier(safeAbilityScores[ability], character.proficiencyBonus, true)
+                        )}
+                      </span>
                       <Badge variant="secondary" className="text-xs px-1 py-0">
                         Prof
                       </Badge>
-                    )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )
           })}

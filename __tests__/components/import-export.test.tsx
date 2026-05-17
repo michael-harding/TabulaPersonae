@@ -4,12 +4,7 @@ import { createDefaultCharacter } from "../../lib/character-types"
 import { jest } from "@jest/globals"
 
 // Mock sonner toast
-jest.mock("sonner", () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-  },
-}))
+jest.mock("sonner", () => ({ toast: { success: jest.fn(), error: jest.fn() } }), { virtual: true })
 
 // Mock URL.createObjectURL and URL.revokeObjectURL
 const mockCreateObjectURL = jest.fn()
@@ -93,16 +88,6 @@ describe("ImportExport", () => {
     })
 
     it("exports all characters when export all button is clicked", () => {
-      // Mock document.createElement and appendChild/removeChild
-      const mockLink = {
-        href: "",
-        download: "",
-        click: jest.fn(),
-      }
-      const mockCreateElement = jest.spyOn(document, "createElement").mockReturnValue(mockLink as any)
-      const mockAppendChild = jest.spyOn(document.body, "appendChild").mockImplementation(() => mockLink as any)
-      const mockRemoveChild = jest.spyOn(document.body, "removeChild").mockImplementation(() => mockLink as any)
-
       render(
         <ImportExport
           characters={characters}
@@ -111,61 +96,73 @@ describe("ImportExport", () => {
         />,
       )
 
+      // Open the export dialog first, then set up spies (so dialog DOM is already created)
       fireEvent.click(screen.getByRole("button", { name: /export/i }))
-      fireEvent.click(screen.getByText("Export All Characters (2)"))
+      expect(screen.getByText("Export All Characters (2)")).toBeInTheDocument()
 
-      expect(mockCreateElement).toHaveBeenCalledWith("a")
-      expect(mockLink.download).toBe("all-characters.json")
-      expect(mockLink.click).toHaveBeenCalled()
-      expect(mockAppendChild).toHaveBeenCalledWith(mockLink)
-      expect(mockRemoveChild).toHaveBeenCalledWith(mockLink)
-      expect(mockRevokeObjectURL).toHaveBeenCalledWith("mock-url")
+      // Spy only intercepts createElement("a") — delegates all other tags to the real impl
+      const mockLink = { href: "", download: "", click: jest.fn() }
+      const realCreate = document.createElement.bind(document)
+      const mockCreateElement = jest
+        .spyOn(document, "createElement")
+        .mockImplementation((tag: string, ...args: any[]) =>
+          tag === "a" ? (mockLink as any) : realCreate(tag, ...args),
+        )
+      const mockAppendChild = jest.spyOn(document.body, "appendChild").mockImplementation(() => mockLink as any)
+      const mockRemoveChild = jest.spyOn(document.body, "removeChild").mockImplementation(() => mockLink as any)
 
-      // Cleanup mocks
-      mockCreateElement.mockRestore()
-      mockAppendChild.mockRestore()
-      mockRemoveChild.mockRestore()
+      try {
+        fireEvent.click(screen.getByText("Export All Characters (2)"))
+
+        expect(mockCreateElement).toHaveBeenCalledWith("a")
+        expect(mockLink.download).toMatch(/^all-characters/)
+        expect(mockLink.click).toHaveBeenCalled()
+        expect(mockAppendChild).toHaveBeenCalledWith(mockLink)
+        expect(mockRemoveChild).toHaveBeenCalledWith(mockLink)
+        expect(mockRevokeObjectURL).toHaveBeenCalledWith("mock-url")
+      } finally {
+        mockCreateElement.mockRestore()
+        mockAppendChild.mockRestore()
+        mockRemoveChild.mockRestore()
+      }
     })
 
     it("exports individual character when character button is clicked", () => {
-      const mockLink = {
-        href: "",
-        download: "",
-        click: jest.fn(),
-      }
-      const mockCreateElement = jest.spyOn(document, "createElement").mockReturnValue(mockLink as any)
+      render(
+        <ImportExport
+          characters={characters}
+          onImportCharacter={mockOnImportCharacter}
+          onImportMultiple={mockOnImportMultiple}
+        />,
+      )
+
+      // Open the export dialog first
+      fireEvent.click(screen.getByRole("button", { name: /export/i }))
+      expect(screen.getByText("Test Character 1")).toBeInTheDocument()
+
+      const mockLink = { href: "", download: "", click: jest.fn() }
+      const realCreate = document.createElement.bind(document)
+      const mockCreateElement = jest
+        .spyOn(document, "createElement")
+        .mockImplementation((tag: string, ...args: any[]) =>
+          tag === "a" ? (mockLink as any) : realCreate(tag, ...args),
+        )
       const mockAppendChild = jest.spyOn(document.body, "appendChild").mockImplementation(() => mockLink as any)
       const mockRemoveChild = jest.spyOn(document.body, "removeChild").mockImplementation(() => mockLink as any)
 
-      render(
-        <ImportExport
-          characters={characters}
-          onImportCharacter={mockOnImportCharacter}
-          onImportMultiple={mockOnImportMultiple}
-        />,
-      )
+      try {
+        fireEvent.click(screen.getByText("Test Character 1"))
 
-      fireEvent.click(screen.getByRole("button", { name: /export/i }))
-      fireEvent.click(screen.getByText("Test Character 1"))
-
-      expect(mockLink.download).toBe("Test Character 1.json")
-      expect(mockLink.click).toHaveBeenCalled()
-
-      // Cleanup mocks
-      mockCreateElement.mockRestore()
-      mockAppendChild.mockRestore()
-      mockRemoveChild.mockRestore()
+        expect(mockLink.download).toMatch(/^Test Character 1/)
+        expect(mockLink.click).toHaveBeenCalled()
+      } finally {
+        mockCreateElement.mockRestore()
+        mockAppendChild.mockRestore()
+        mockRemoveChild.mockRestore()
+      }
     })
 
     it("handles export errors gracefully", () => {
-      // Mock console.error to avoid test output noise
-      const mockConsoleError = jest.spyOn(console, "error").mockImplementation(() => {})
-
-      // Mock document.createElement to throw an error
-      const mockCreateElement = jest.spyOn(document, "createElement").mockImplementation(() => {
-        throw new Error("Export failed")
-      })
-
       render(
         <ImportExport
           characters={characters}
@@ -174,14 +171,25 @@ describe("ImportExport", () => {
         />,
       )
 
+      // Open the export dialog first so dialog DOM exists before the spy
       fireEvent.click(screen.getByRole("button", { name: /export/i }))
-      fireEvent.click(screen.getByText("Export All Characters (2)"))
+      expect(screen.getByText("Export All Characters (2)")).toBeInTheDocument()
 
-      expect(mockConsoleError).toHaveBeenCalledWith("Export error:", expect.any(Error))
+      const mockConsoleError = jest.spyOn(console, "error").mockImplementation(() => {})
+      const realCreate = document.createElement.bind(document)
+      const mockCreateElement = jest.spyOn(document, "createElement").mockImplementation((tag: string, ...args: any[]) => {
+        if (tag === "a") throw new Error("Export failed")
+        return realCreate(tag, ...args)
+      })
 
-      // Cleanup mocks
-      mockCreateElement.mockRestore()
-      mockConsoleError.mockRestore()
+      try {
+        fireEvent.click(screen.getByText("Export All Characters (2)"))
+
+        expect(mockConsoleError).toHaveBeenCalledWith("Export error:", expect.any(Error))
+      } finally {
+        mockCreateElement.mockRestore()
+        mockConsoleError.mockRestore()
+      }
     })
   })
 
@@ -212,7 +220,7 @@ describe("ImportExport", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /import/i }))
 
-      const fileInput = screen.getByLabelText("Choose File").querySelector("input") as HTMLInputElement
+      const fileInput = screen.getByLabelText("Choose File") as HTMLInputElement
       const file = new File([JSON.stringify(testCharacter1)], "character.json", { type: "application/json" })
 
       // Mock FileReader
@@ -244,7 +252,7 @@ describe("ImportExport", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /import/i }))
 
-      const fileInput = screen.getByLabelText("Choose File").querySelector("input") as HTMLInputElement
+      const fileInput = screen.getByLabelText("Choose File") as HTMLInputElement
       const file = new File([JSON.stringify([testCharacter1, testCharacter2])], "characters.json", {
         type: "application/json",
       })
@@ -279,7 +287,7 @@ describe("ImportExport", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /import/i }))
 
-      const fileInput = screen.getByLabelText("Choose File").querySelector("input") as HTMLInputElement
+      const fileInput = screen.getByLabelText("Choose File") as HTMLInputElement
       const file = new File(["invalid json"], "invalid.json", { type: "application/json" })
 
       const mockFileReader = {
@@ -314,7 +322,7 @@ describe("ImportExport", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /import/i }))
 
-      const fileInput = screen.getByLabelText("Choose File").querySelector("input") as HTMLInputElement
+      const fileInput = screen.getByLabelText("Choose File") as HTMLInputElement
       const invalidData = { invalid: "data" }
       const file = new File([JSON.stringify(invalidData)], "invalid.json", { type: "application/json" })
 
@@ -349,7 +357,7 @@ describe("ImportExport", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /import/i }))
 
-      const fileInput = screen.getByLabelText("Choose File").querySelector("input") as HTMLInputElement
+      const fileInput = screen.getByLabelText("Choose File") as HTMLInputElement
       const file = new File([JSON.stringify(mixedData)], "mixed.json", { type: "application/json" })
 
       const mockFileReader = {

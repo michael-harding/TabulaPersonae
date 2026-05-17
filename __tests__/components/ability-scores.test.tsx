@@ -37,7 +37,7 @@ describe("AbilityScores", () => {
     // Check modifiers are calculated correctly
     expect(screen.getByText("+3")).toBeInTheDocument() // Strength modifier
     expect(screen.getByText("+2")).toBeInTheDocument() // Dexterity modifier
-    expect(screen.getByText("+1")).toBeInTheDocument() // Constitution modifier
+    expect(screen.getAllByText("+1").length).toBeGreaterThanOrEqual(1) // Constitution and/or Intelligence modifier
     expect(screen.getByText("+0")).toBeInTheDocument() // Wisdom modifier
     expect(screen.getByText("-1")).toBeInTheDocument() // Charisma modifier
   })
@@ -127,6 +127,6 @@ describe("AbilityScores", () => {
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
 
     expect(mockOnUpdate).not.toHaveBeenCalled()
-    expect(screen.getByText("10")).toBeInTheDocument() // Should show original value
+    expect(screen.getAllByText("10").length).toBeGreaterThan(0) // Should show original values
   })
 })

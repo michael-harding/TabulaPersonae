@@ -1,11 +1,11 @@
 import type { AbilityScores, Character } from "./character-types"
 
 export function getAbilityModifier(score: number): number {
-  return Math.floor((score - 10) / 2)
+  return Math.floor((Math.max(0, score) - 10) / 2)
 }
 
 export function getProficiencyBonus(level: number): number {
-  return Math.ceil(level / 4) + 1
+  return Math.ceil(Math.max(1, level) / 4) + 1
 }
 
 export function getSkillModifier(
