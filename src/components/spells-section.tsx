@@ -234,6 +234,12 @@ export function SpellsSection(props: SpellsSectionProps) {
     props.onUpdate(updated)
   }
 
+  const castSpell = (level: number) => {
+    const slots = props.character.spellSlots[level as keyof typeof props.character.spellSlots]
+    if (!slots || slots.used >= slots.total) return
+    updateSpellSlots(level, "used", slots.used + 1)
+  }
+
   const toggleSpellSlot = (level: number, index: number) => {
     const currentSlots = props.character.spellSlots[level as keyof typeof props.character.spellSlots]
     const newUsed = index < currentSlots.used ? currentSlots.used - 1 : index + 1
@@ -498,6 +504,17 @@ export function SpellsSection(props: SpellsSectionProps) {
                                     </Show>
                                   </div>
                                   <div class="flex items-center gap-2 ml-4">
+                                    <Show when={spell.level > 0}>
+                                      {() => {
+                                        const slots = () => props.character.spellSlots[spell.level as keyof typeof props.character.spellSlots]
+                                        const canCast = () => slots().used < slots().total
+                                        return (
+                                          <Button variant="outline" size="sm" disabled={!canCast()} onClick={() => castSpell(spell.level)}>
+                                            Cast
+                                          </Button>
+                                        )
+                                      }}
+                                    </Show>
                                     <Button variant="ghost" size="sm" onClick={() => setEditingSpell(spell)}>
                                       <Edit class="h-4 w-4" />
                                     </Button>
