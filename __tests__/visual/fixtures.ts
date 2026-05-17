@@ -1,4 +1,4 @@
-import type { Character } from "../../lib/character-types"
+import type { Character } from "../../src/lib/character-types"
 
 export const testCharacter: Character = {
   id: "visual-test-char-1",

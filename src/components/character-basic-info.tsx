@@ -1,0 +1,167 @@
+import { createSignal, createEffect, on, For } from "solid-js"
+import type { Character, AbilityScores } from "@/lib/character-types"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import User from "lucide-solid/icons/user"
+import Save from "lucide-solid/icons/save"
+
+interface CharacterBasicInfoProps {
+  character: Character
+  onUpdate: (character: Character) => void
+}
+
+const RACES = [
+  "Human","Elf","Dwarf","Halfling","Dragonborn","Gnome",
+  "Half-Elf","Half-Orc","Tiefling","Aasimar","Genasi","Goliath","Tabaxi","Other",
+]
+
+const CLASS_TO_SPELLCASTING_ABILITY: Record<string, keyof AbilityScores | ""> = {
+  Barbarian: "", Bard: "charisma", Cleric: "wisdom", Druid: "wisdom",
+  Fighter: "", Monk: "", Paladin: "charisma", Ranger: "wisdom",
+  Rogue: "", Sorcerer: "charisma", Warlock: "charisma",
+  Wizard: "intelligence", Artificer: "intelligence", Other: "",
+}
+
+const CLASSES = [
+  "Barbarian","Bard","Cleric","Druid","Fighter","Monk","Paladin",
+  "Ranger","Rogue","Sorcerer","Warlock","Wizard","Artificer","Other",
+]
+
+const ALIGNMENTS = [
+  "Lawful Good","Neutral Good","Chaotic Good",
+  "Lawful Neutral","True Neutral","Chaotic Neutral",
+  "Lawful Evil","Neutral Evil","Chaotic Evil",
+]
+
+const toEdit = (c: Character) => ({
+  ...c,
+  name: c.name || "",
+  race: c.race || "",
+  class: c.class || "",
+  background: c.background || "",
+  alignment: c.alignment || "",
+  experiencePoints: c.experiencePoints || 0,
+})
+
+export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
+  const [isEditing, setIsEditing] = createSignal(false)
+  const [edited, setEdited] = createSignal(toEdit(props.character))
+
+  createEffect(on(() => props.character.id, () => {
+    setEdited(toEdit(props.character))
+  }))
+
+  const updateField = (field: keyof Character, value: any) => {
+    if (field === "class") {
+      const spellcastingAbility = CLASS_TO_SPELLCASTING_ABILITY[value] ?? ""
+      setEdited((prev) => ({ ...prev, class: value, spellcastingAbility }))
+    } else {
+      setEdited((prev) => ({ ...prev, [field]: value }))
+    }
+  }
+
+  const handleSave = () => { props.onUpdate(edited()); setIsEditing(false) }
+  const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <User class="h-5 w-5 text-primary" />
+            {isEditing() ? "Edit Character Information" : "Character Information"}
+            {!isEditing() && (
+              <div class="flex items-center gap-2">
+                <Label for="heroic-inspiration-toggle" class="text-xs font-medium">Heroic Inspiration</Label>
+                <input
+                  id="heroic-inspiration-toggle"
+                  type="checkbox"
+                  checked={!!props.character.heroicInspiration}
+                  onChange={(e) => props.onUpdate({ ...props.character, heroicInspiration: e.currentTarget.checked })}
+                  class="accent-primary h-4 w-4"
+                  style={{ "accent-color": "#eab308" }}
+                />
+              </div>
+            )}
+          </div>
+          {!isEditing() && (
+            <Button variant="outline" size="sm" onClick={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}>Edit</Button>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        {isEditing() ? (
+          <>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label for="name">Character Name</Label>
+                <Input id="name" value={edited().name} onInput={(e) => updateField("name", e.currentTarget.value)} placeholder="Enter character name" />
+              </div>
+              <div>
+                <Label for="level">Level</Label>
+                <Input id="level" type="number" min="1" max="20" value={edited().level || 1} onInput={(e) => updateField("level", parseInt(e.currentTarget.value) || 1)} />
+              </div>
+              <div>
+                <Label for="race">Race</Label>
+                <Select value={edited().race} onValueChange={(v) => updateField("race", v)}>
+                  <SelectTrigger><SelectValue placeholder="Select race" /></SelectTrigger>
+                  <SelectContent>
+                    <For each={RACES}>{(race) => <SelectItem value={race}>{race}</SelectItem>}</For>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label for="class">Class</Label>
+                <Select value={edited().class} onValueChange={(v) => updateField("class", v)}>
+                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                  <SelectContent>
+                    <For each={CLASSES}>{(cls) => <SelectItem value={cls}>{cls}</SelectItem>}</For>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label for="background">Background</Label>
+                <Input id="background" value={edited().background} onInput={(e) => updateField("background", e.currentTarget.value)} placeholder="Enter background" />
+              </div>
+              <div>
+                <Label for="alignment">Alignment</Label>
+                <Select value={edited().alignment} onValueChange={(v) => updateField("alignment", v)}>
+                  <SelectTrigger><SelectValue placeholder="Select alignment" /></SelectTrigger>
+                  <SelectContent>
+                    <For each={ALIGNMENTS}>{(a) => <SelectItem value={a}>{a}</SelectItem>}</For>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label for="xp">Experience Points</Label>
+              <Input id="xp" type="number" min="0" value={edited().experiencePoints || 0} onInput={(e) => updateField("experiencePoints", parseInt(e.currentTarget.value) || 0)} />
+            </div>
+            <div class="flex gap-2 pt-4">
+              <Button onClick={handleSave} class="gap-2"><Save class="h-4 w-4" />Save Changes</Button>
+              <Button variant="outline" onClick={handleCancel}>Cancel</Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><Label class="text-sm font-medium text-muted-foreground">Name</Label><p class="text-lg font-semibold">{props.character.name || "Unnamed Character"}</p></div>
+              <div><Label class="text-sm font-medium text-muted-foreground">Level</Label><p class="text-lg font-semibold">{props.character.level}</p></div>
+              <div><Label class="text-sm font-medium text-muted-foreground">Race</Label><p class="text-lg">{props.character.race || "Not specified"}</p></div>
+              <div><Label class="text-sm font-medium text-muted-foreground">Class</Label><p class="text-lg">{props.character.class || "Not specified"}</p></div>
+              <div><Label class="text-sm font-medium text-muted-foreground">Background</Label><p class="text-lg">{props.character.background || "Not specified"}</p></div>
+              <div><Label class="text-sm font-medium text-muted-foreground">Alignment</Label><p class="text-lg">{props.character.alignment || "Not specified"}</p></div>
+            </div>
+            <div>
+              <Label class="text-sm font-medium text-muted-foreground">Experience Points</Label>
+              <p class="text-lg font-semibold">{(props.character.experiencePoints || 0).toLocaleString()} XP</p>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
