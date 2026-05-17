@@ -5,9 +5,9 @@ import { jest } from "@jest/globals"
 
 // Mock the storage functions
 const mockStorage = {
-  loadCharacters: jest.fn(() => []),
+  loadCharacters: jest.fn(() => [] as Character[]),
   saveCharacter: jest.fn(() => true),
-  getActiveCharacter: jest.fn(() => null),
+  getActiveCharacter: jest.fn(() => null as string | null),
   setActiveCharacter: jest.fn(() => true),
   deleteCharacter: jest.fn(() => true),
 }
