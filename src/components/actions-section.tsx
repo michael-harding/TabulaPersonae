@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
 import Trash2 from "lucide-solid/icons/trash-2"
@@ -59,7 +60,7 @@ const KIND_LABELS: Record<ActionKind, string> = {
 
 interface ActionFormData {
   name: string
-  type: ActionType
+  type: string
   attackBonus: number
   damage: string
   damageType: string
@@ -79,14 +80,17 @@ interface ActionFormProps {
 
 const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
 
+const ACTION_TYPE_LABELS = ACTION_TYPES.map((t) => t.label)
+const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+
 function ActionForm(props: ActionFormProps) {
   const kindLabel = KIND_LABELS[props.kind]
   const [formData, setFormData] = createSignal<ActionFormData>({
     name: "",
-    type: "ability",
+    type: "Ability",
     attackBonus: 0,
     damage: "",
-    damageType: "slashing",
+    damageType: "Slashing",
     range: "",
     trigger: "",
     uses: 0,
@@ -112,12 +116,7 @@ function ActionForm(props: ActionFormProps) {
 
       <div>
         <Label for="action-type">Type</Label>
-        <Select value={formData().type} onValueChange={(v) => setFormData(p => ({ ...p, type: v as ActionType }))}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <For each={ACTION_TYPES}>{(t) => <SelectItem value={t.value}>{t.label}</SelectItem>}</For>
-          </SelectContent>
-        </Select>
+        <Combobox value={formData().type} onValueChange={(v) => setFormData(p => ({ ...p, type: v }))} options={ACTION_TYPE_LABELS} />
       </div>
 
       <Show when={props.kind === "reaction"}>
@@ -129,7 +128,7 @@ function ActionForm(props: ActionFormProps) {
         </div>
       </Show>
 
-      <Show when={formData().type === "attack"}>
+      <Show when={formData().type.toLowerCase() === "attack"}>
         <div class="grid grid-cols-2 gap-2">
           <div>
             <Label for="action-attack-bonus">Attack Bonus</Label>
@@ -144,12 +143,7 @@ function ActionForm(props: ActionFormProps) {
         </div>
         <div>
           <Label for="action-damage-type">Damage Type</Label>
-          <Select value={formData().damageType} onValueChange={(v: string) => setFormData(p => ({ ...p, damageType: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <For each={DAMAGE_TYPES}>{(t) => <SelectItem value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>}</For>
-            </SelectContent>
-          </Select>
+          <Combobox value={formData().damageType} onValueChange={(v) => setFormData(p => ({ ...p, damageType: v }))} options={DAMAGE_TYPE_OPTIONS} />
         </div>
       </Show>
 

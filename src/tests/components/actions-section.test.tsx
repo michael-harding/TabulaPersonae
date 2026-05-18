@@ -610,6 +610,68 @@ describe("ActionsSection", () => {
     })
   })
 
+  describe("combobox fields in action form", () => {
+    it("saves a custom action type typed into the Type combobox", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add action/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Bardic Inspiration" } })
+      const typeInput = within(modal).getAllByRole("combobox").find((el) => !el.closest("label[for]") && (el as HTMLInputElement).value !== "Bardic Inspiration")!
+      fireEvent.focus(typeInput)
+      fireEvent.input(typeInput, { target: { value: "Bardic Resource" } })
+      fireEvent.blur(typeInput)
+      fireEvent.click(within(modal).getByRole("button", { name: /^add action$/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          attacks: expect.arrayContaining([expect.objectContaining({ type: "Bardic Resource" })]),
+        })
+      )
+    })
+
+    it("saves a predefined action type selected from the dropdown", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add action/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Rage" } })
+      const typeInput = within(modal).getAllByRole("combobox").find((el) => (el as HTMLInputElement).value !== "Rage")!
+      fireEvent.focus(typeInput)
+      fireEvent.click(within(modal).getByRole("option", { name: "Class Feature" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /^add action$/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          attacks: expect.arrayContaining([expect.objectContaining({ type: "Class Feature" })]),
+        })
+      )
+    })
+
+    it("saves a custom damage type when type is attack", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add action/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Claw" } })
+      // Set type to Attack to reveal damage fields
+      const typeInput = within(modal).getAllByRole("combobox").find((el) => (el as HTMLInputElement).value !== "Claw")!
+      fireEvent.focus(typeInput)
+      fireEvent.click(within(modal).getByRole("option", { name: "Attack" }))
+      // Now set a custom damage type (find by its default value "Slashing")
+      const damageTypeInput = within(modal).getAllByRole("combobox").find(
+        (el) => (el as HTMLInputElement).value === "Slashing"
+      )!
+      fireEvent.focus(damageTypeInput)
+      fireEvent.input(damageTypeInput, { target: { value: "Void" } })
+      fireEvent.blur(damageTypeInput)
+      fireEvent.click(within(modal).getByRole("button", { name: /^add action$/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          attacks: expect.arrayContaining([expect.objectContaining({ damageType: "Void" })]),
+        })
+      )
+    })
+  })
+
   describe("rechargeOn field in action form", () => {
     it("renders a 'Recharge On' select in the Add Action modal", () => {
       render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)

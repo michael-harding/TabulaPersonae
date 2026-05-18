@@ -352,6 +352,48 @@ describe("SpellsSection", () => {
     })
   })
 
+  describe("combobox fields in spell form", () => {
+    it("saves a custom spell school typed into the School combobox", () => {
+      const onUpdate = vi.fn()
+      render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^spell name$/i), { target: { value: "Void Bolt" } })
+      const schoolInput = within(modal).getAllByRole("combobox").find(
+        (el) => (el as HTMLInputElement).value === "Evocation"
+      )!
+      fireEvent.focus(schoolInput)
+      fireEvent.input(schoolInput, { target: { value: "Void" } })
+      fireEvent.blur(schoolInput)
+      fireEvent.click(within(modal).getByRole("button", { name: /^add spell$/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([expect.objectContaining({ school: "Void" })]),
+        })
+      )
+    })
+
+    it("saves a custom casting time typed into the Casting Time combobox", () => {
+      const onUpdate = vi.fn()
+      render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^spell name$/i), { target: { value: "Slow Ritual" } })
+      const castingTimeInput = within(modal).getAllByRole("combobox").find(
+        (el) => (el as HTMLInputElement).value === "1 action"
+      )!
+      fireEvent.focus(castingTimeInput)
+      fireEvent.input(castingTimeInput, { target: { value: "3 rounds" } })
+      fireEvent.blur(castingTimeInput)
+      fireEvent.click(within(modal).getByRole("button", { name: /^add spell$/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([expect.objectContaining({ castingTime: "3 rounds" })]),
+        })
+      )
+    })
+  })
+
   describe("spellcasting class (2014 only)", () => {
     it("renders the spellcasting class input in 2014 mode when spells exist", () => {
       const spell = makeSpell()

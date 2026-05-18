@@ -39,7 +39,7 @@ export interface Skills {
   survival: { proficient: boolean; expertise: boolean }
 }
 
-export type ActionType = 'attack' | 'ability' | 'class-feature' | 'feat' | 'species-ability' | 'other'
+export type ActionType = 'attack' | 'ability' | 'class-feature' | 'feat' | 'species-ability' | 'other' | string
 
 export interface Equipment {
   id: string

@@ -192,4 +192,46 @@ describe("CharacterBasicInfo", () => {
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ subclass: "Battlemaster" }))
     })
   })
+
+  describe("combobox fields", () => {
+    it("saves a custom race value typed into the race combobox", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterBasicInfo character={emptyCharacter} onUpdate={onUpdate} />)
+      clickEditButton()
+      const inputs = screen.getAllByRole("combobox")
+      const raceInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/race|species/i))!
+      fireEvent.focus(raceInput)
+      fireEvent.input(raceInput, { target: { value: "Warforged" } })
+      fireEvent.blur(raceInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ race: "Warforged" }))
+    })
+
+    it("saves a custom class value and clears spellcastingAbility for unknown classes", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterBasicInfo character={emptyCharacter} onUpdate={onUpdate} />)
+      clickEditButton()
+      const inputs = screen.getAllByRole("combobox")
+      const classInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/class/i))!
+      fireEvent.focus(classInput)
+      fireEvent.input(classInput, { target: { value: "Mystic" } })
+      fireEvent.blur(classInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ class: "Mystic", spellcastingAbility: "" })
+      )
+    })
+
+    it("saves a predefined race option selected from the dropdown", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterBasicInfo character={emptyCharacter} onUpdate={onUpdate} />)
+      clickEditButton()
+      const inputs = screen.getAllByRole("combobox")
+      const raceInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/race|species/i))!
+      fireEvent.focus(raceInput)
+      fireEvent.click(screen.getByRole("option", { name: "Elf" }))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ race: "Elf" }))
+    })
+  })
 })

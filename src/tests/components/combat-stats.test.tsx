@@ -367,4 +367,33 @@ describe("CombatStats", () => {
       )
     })
   })
+
+  describe("size combobox (2024)", () => {
+    it("saves a custom size value typed into the Size combobox", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStats character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
+      clickEditButton()
+      const sizeInput = screen.getAllByRole("combobox").find(
+        (el) => (el as HTMLInputElement).value === "Medium"
+      )!
+      fireEvent.focus(sizeInput)
+      fireEvent.input(sizeInput, { target: { value: "Colossal" } })
+      fireEvent.blur(sizeInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Colossal" }))
+    })
+
+    it("saves a predefined size option selected from the dropdown", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStats character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
+      clickEditButton()
+      const sizeInput = screen.getAllByRole("combobox").find(
+        (el) => (el as HTMLInputElement).value === "Medium"
+      )!
+      fireEvent.focus(sizeInput)
+      fireEvent.click(screen.getByRole("option", { name: "Huge" }))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Huge" }))
+    })
+  })
 })

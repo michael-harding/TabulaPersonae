@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import User from "lucide-solid/icons/user"
 
 interface CharacterBasicInfoProps {
@@ -114,21 +115,11 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
               </div>
               <div>
                 <Label for="race">{raceLabel()}</Label>
-                <Select value={edited().race} onValueChange={(v) => updateField("race", v)}>
-                  <SelectTrigger><SelectValue placeholder={`Select ${raceLabel().toLowerCase()}`} /></SelectTrigger>
-                  <SelectContent>
-                    <For each={raceList()}>{(r) => <SelectItem value={r}>{r}</SelectItem>}</For>
-                  </SelectContent>
-                </Select>
+                <Combobox value={edited().race} onValueChange={(v) => updateField("race", v)} options={raceList()} placeholder={`Select ${raceLabel().toLowerCase()}`} />
               </div>
               <div>
                 <Label for="class">Class</Label>
-                <Select value={edited().class} onValueChange={(v) => updateField("class", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-                  <SelectContent>
-                    <For each={CLASSES}>{(cls) => <SelectItem value={cls}>{cls}</SelectItem>}</For>
-                  </SelectContent>
-                </Select>
+                <Combobox value={edited().class} onValueChange={(v) => updateField("class", v)} options={CLASSES} placeholder="Select class" />
               </div>
               <Show when={edition() === "2024"}>
                 <div>

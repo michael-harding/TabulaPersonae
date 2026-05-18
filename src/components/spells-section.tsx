@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import Sparkles from "lucide-solid/icons/sparkles"
@@ -135,24 +136,14 @@ function SpellForm(props: SpellFormProps) {
         </div>
         <div>
           <Label for="spell-school">School</Label>
-          <Select value={formData().school} onValueChange={(v: string) => setFormData((p) => ({ ...p, school: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <For each={SPELL_SCHOOLS}>{(school) => <SelectItem value={school}>{school}</SelectItem>}</For>
-            </SelectContent>
-          </Select>
+          <Combobox value={formData().school} onValueChange={(v) => setFormData((p) => ({ ...p, school: v }))} options={SPELL_SCHOOLS} />
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
           <Label for="casting-time">Casting Time</Label>
-          <Select value={formData().castingTime} onValueChange={(v: string) => setFormData((p) => ({ ...p, castingTime: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <For each={CASTING_TIMES}>{(time) => <SelectItem value={time}>{time}</SelectItem>}</For>
-            </SelectContent>
-          </Select>
+          <Combobox value={formData().castingTime} onValueChange={(v) => setFormData((p) => ({ ...p, castingTime: v }))} options={CASTING_TIMES} />
         </div>
         <div>
           <Label for="range">Range</Label>

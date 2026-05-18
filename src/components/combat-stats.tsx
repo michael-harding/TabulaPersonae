@@ -8,6 +8,7 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
@@ -444,15 +445,12 @@ export function CombatStats(props: CombatStatsProps) {
               <Show when={isEditing()} fallback={
                 <div class="text-2xl font-bold text-primary mt-1">{props.character.size ?? "Medium"}</div>
               }>
-                <Select
+                <Combobox
                   value={edited().size ?? "Medium"}
                   onValueChange={(v) => setEdited(prev => ({ ...prev, size: v }))}
-                >
-                  <SelectTrigger class="mt-1"><SelectValue placeholder="Size" /></SelectTrigger>
-                  <SelectContent>
-                    <For each={SIZES}>{(s) => <SelectItem value={s}>{s}</SelectItem>}</For>
-                  </SelectContent>
-                </Select>
+                  options={SIZES}
+                  class="mt-1"
+                />
               </Show>
             </div>
           </Show>
