@@ -32,6 +32,11 @@ export default function CharacterSheet() {
   const [isRestOpen, setIsRestOpen] = createSignal(false)
 
   createEffect(() => {
+    const name = character()?.name
+    document.title = name ? `${name} | TabulaPersonae` : "TabulaPersonae"
+  })
+
+  createEffect(() => {
     if (authLoading()) return
     if (!user() && !skipAuth()) {
       navigate("/auth")

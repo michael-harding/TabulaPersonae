@@ -112,8 +112,8 @@ export default function Home() {
 
           <div class="text-center py-12">
             <Scroll class="h-16 w-16 mx-auto mb-6 text-primary" />
-            <h1 class="text-4xl font-bold mb-4 text-foreground">D&D Character Sheet</h1>
-            <p class="text-xl text-muted-foreground mb-8">Create and manage your Dungeons & Dragons characters</p>
+            <h1 class="text-4xl font-bold mb-4 text-foreground">TabulaPersonae</h1>
+            <p class="text-xl text-muted-foreground mb-8">Create and manage your characters</p>
 
             <Show
               when={characters().length > 0}
