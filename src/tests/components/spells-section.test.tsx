@@ -231,6 +231,59 @@ describe("SpellsSection", () => {
     })
   })
 
+  describe("At Higher Level field", () => {
+    it("renders the At Higher Level input in the Add Spell dialog", () => {
+      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
+      const dialog = screen.getByRole("dialog")
+      expect(within(dialog).getByLabelText(/at higher level/i)).toBeInTheDocument()
+    })
+
+    it("saves atHigherLevel when adding a spell with a value", () => {
+      const onUpdate = vi.fn()
+      render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
+      const dialog = screen.getByRole("dialog")
+      fireEvent.input(within(dialog).getByLabelText(/spell name/i), { target: { value: "Fireball" } })
+      fireEvent.input(within(dialog).getByLabelText(/at higher level/i), { target: { value: "+1d6 per level" } })
+      fireEvent.click(within(dialog).getByRole("button", { name: /add spell/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([
+            expect.objectContaining({ name: "Fireball", atHigherLevel: "+1d6 per level" }),
+          ]),
+        })
+      )
+    })
+
+    it("pre-populates atHigherLevel in the Edit Spell dialog", () => {
+      const spell = makeSpell({ name: "Fire Bolt", level: 0, atHigherLevel: "+1d10 per level" })
+      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      const buttons = screen.getAllByRole("button")
+      fireEvent.click(buttons[buttons.length - 2]) // Edit button (second-to-last)
+      const dialog = screen.getByRole("dialog")
+      expect(within(dialog).getByLabelText(/at higher level/i)).toHaveValue("+1d10 per level")
+    })
+
+    it("saves the updated atHigherLevel when editing a spell", () => {
+      const onUpdate = vi.fn()
+      const spell = makeSpell({ name: "Fire Bolt", level: 0, atHigherLevel: "+1d10 per level" })
+      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
+      const buttons = screen.getAllByRole("button")
+      fireEvent.click(buttons[buttons.length - 2]) // Edit button
+      const dialog = screen.getByRole("dialog")
+      fireEvent.input(within(dialog).getByLabelText(/at higher level/i), { target: { value: "+2d6 per level" } })
+      fireEvent.click(within(dialog).getByRole("button", { name: /update spell/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([
+            expect.objectContaining({ name: "Fire Bolt", atHigherLevel: "+2d6 per level" }),
+          ]),
+        })
+      )
+    })
+  })
+
   describe("Edit Spell Slots dialog", () => {
     it("opens the Edit Spell Slots dialog when Edit Slots is clicked", () => {
       render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)

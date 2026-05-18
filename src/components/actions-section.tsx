@@ -357,6 +357,7 @@ export function ActionsSection(props: ActionsSectionProps) {
           <Button variant="outline" size="sm" class="h-11 px-4" disabled={!castable()} onClick={onCast}>Cast</Button>
           <Show when={!!spell.atHigherLevel && hasHigherSlots?.()}>
             <Button variant="outline" size="sm" class="h-11 w-11 p-0"
+              aria-label="Upcast"
               disabled={!upcastLevels?.().length}
               onClick={() => setUpcastSpellId(upcastSpellId() === spell.id ? null : spell.id)}>
               <ArrowBigUp class="h-4 w-4" />

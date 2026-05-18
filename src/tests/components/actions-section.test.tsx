@@ -290,4 +290,162 @@ describe("ActionsSection", () => {
       )
     })
   })
+
+  describe("Upcast (At Higher Level) feature", () => {
+    function makeUpcastSpell(overrides: Partial<Spell> = {}): Spell {
+      return makeSpell({
+        id: "sp-upcast",
+        name: "Magic Missile",
+        level: 1,
+        castingTime: "1 action",
+        prepared: true,
+        known: true,
+        atHigherLevel: "+1d4+1 per level",
+        ...overrides,
+      })
+    }
+
+    function makeCharacterWithUpcast({
+      level1Used = 0,
+      level2Total = 1,
+      level2Used = 0,
+      spellOverrides = {} as Partial<Spell>,
+    } = {}): Character {
+      return makeCharacter({
+        spells: [makeUpcastSpell(spellOverrides)],
+        spellSlots: {
+          ...createDefaultCharacter().spellSlots,
+          1: { total: 2, used: level1Used },
+          2: { total: level2Total, used: level2Used },
+        },
+      })
+    }
+
+    it("displays 'At Higher Level:' on a spell card when atHigherLevel is set", () => {
+      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("At Higher Level:")).toBeInTheDocument()
+    })
+
+    it("does not display 'At Higher Level:' when atHigherLevel is not set", () => {
+      render(
+        <ActionsSection
+          character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.queryByText("At Higher Level:")).not.toBeInTheDocument()
+    })
+
+    it("does not show the upcast button when atHigherLevel is not set", () => {
+      render(
+        <ActionsSection
+          character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.queryByRole("button", { name: /upcast/i })).not.toBeInTheDocument()
+    })
+
+    it("does not show the upcast button when the character has no higher-level spell slots", () => {
+      render(
+        <ActionsSection
+          character={makeCharacterWithUpcast({ level2Total: 0 })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.queryByRole("button", { name: /upcast/i })).not.toBeInTheDocument()
+    })
+
+    it("shows an enabled upcast button when atHigherLevel is set and higher slots are available", () => {
+      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: /upcast/i })).not.toBeDisabled()
+    })
+
+    it("shows a disabled upcast button when all higher-level slots are exhausted", () => {
+      render(
+        <ActionsSection
+          character={makeCharacterWithUpcast({ level2Total: 1, level2Used: 1 })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByRole("button", { name: /upcast/i })).toBeDisabled()
+    })
+
+    it("clicking the upcast button reveals level picker buttons", () => {
+      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
+      expect(screen.getByRole("button", { name: "2nd" })).toBeInTheDocument()
+    })
+
+    it("clicking a level picker button calls onUpdate consuming that slot level", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
+      fireEvent.click(screen.getByRole("button", { name: "2nd" }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spellSlots: expect.objectContaining({ 2: expect.objectContaining({ used: 1 }) }),
+        })
+      )
+    })
+
+    it("clicking a level picker button does not consume the base spell slot", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
+      fireEvent.click(screen.getByRole("button", { name: "2nd" }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 0 }) }),
+        })
+      )
+    })
+
+    it("level picker closes after a level is selected", () => {
+      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
+      expect(screen.getByRole("button", { name: "2nd" })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole("button", { name: "2nd" }))
+      expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
+    })
+
+    it("clicking the upcast button again closes the level picker", () => {
+      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
+      expect(screen.getByRole("button", { name: "2nd" })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
+      expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
+    })
+
+    it("level picker shows only slots above the spell's base level", () => {
+      const char = makeCharacter({
+        spells: [makeUpcastSpell({ level: 2 })],
+        spellSlots: {
+          ...createDefaultCharacter().spellSlots,
+          1: { total: 2, used: 0 },
+          2: { total: 2, used: 0 },
+          3: { total: 1, used: 0 },
+        },
+      })
+      render(<ActionsSection character={char} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
+      expect(screen.queryByRole("button", { name: "1st" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "3rd" })).toBeInTheDocument()
+    })
+
+    it("upcast button works for bonus action spells", () => {
+      const char = makeCharacter({
+        spells: [makeUpcastSpell({ castingTime: "1 bonus action" })],
+        spellSlots: {
+          ...createDefaultCharacter().spellSlots,
+          1: { total: 2, used: 0 },
+          2: { total: 1, used: 0 },
+        },
+      })
+      render(<ActionsSection character={char} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: /upcast/i })).toBeInTheDocument()
+    })
+  })
 })
