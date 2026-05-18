@@ -20,6 +20,8 @@ import Star from "lucide-solid/icons/star"
 import Shield from "lucide-solid/icons/shield"
 import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
+import { PipTracker } from "@/components/ui/pip-tracker"
+import { StepperInput } from "@/components/ui/stepper-input"
 
 interface ActionsSectionProps {
   character: Character
@@ -41,6 +43,8 @@ function AttackForm(props: AttackFormProps) {
     damageType: props.initialData?.damageType ?? "slashing",
     range: props.initialData?.range ?? "5 ft",
     description: props.initialData?.description ?? "",
+    maxUses: props.initialData?.maxUses ?? 0,
+    uses: props.initialData?.uses ?? 0,
   })
 
   const handleSubmit = () => {
@@ -98,6 +102,11 @@ function AttackForm(props: AttackFormProps) {
       <div>
         <Label for="attack-description">Description</Label>
         <Textarea id="attack-description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Additional effects..." rows={3} />
+      </div>
+
+      <div>
+        <Label for="attack-max-uses">Uses per Rest (0 = unlimited)</Label>
+        <NumericInput id="attack-max-uses" min={0} value={formData().maxUses} onChange={(v) => setFormData(p => ({ ...p, maxUses: v, uses: 0 }))} />
       </div>
 
       <div class="flex gap-2 justify-end">
@@ -236,6 +245,32 @@ function ReactionForm(props: ReactionFormProps) {
   )
 }
 
+function ActionUsesTracker(props: { uses: number; maxUses: number; onUsesChange: (v: number) => void }) {
+  return (
+    <Show when={props.maxUses > 0}>
+      <Show
+        when={props.maxUses <= 5}
+        fallback={
+          <StepperInput
+            value={props.uses}
+            min={0}
+            max={props.maxUses}
+            onChange={props.onUsesChange}
+          />
+        }
+      >
+        <PipTracker
+          total={props.maxUses}
+          used={props.uses}
+          onToggle={props.onUsesChange}
+          usedTitle="Charge spent (click to restore)"
+          availableTitle="Charge available (click to use)"
+        />
+      </Show>
+    </Show>
+  )
+}
+
 export function ActionsSection(props: ActionsSectionProps) {
   const [isAddActionOpen, setIsAddActionOpen] = createSignal(false)
   const [isAddBonusActionOpen, setIsAddBonusActionOpen] = createSignal(false)
@@ -306,6 +341,18 @@ export function ActionsSection(props: ActionsSectionProps) {
 
   const handleDeleteReaction = (id: string) => {
     props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).filter((r) => r.id !== id) })
+  }
+
+  const handleAttackUsesChange = (id: string, v: number) => {
+    props.onUpdate({ ...props.character, attacks: (props.character.attacks || []).map(a => a.id === id ? { ...a, uses: v } : a) })
+  }
+
+  const handleBonusActionUsesChange = (id: string, v: number) => {
+    props.onUpdate({ ...props.character, bonusActions: (props.character.bonusActions || []).map(b => b.id === id ? { ...b, uses: v } : b) })
+  }
+
+  const handleReactionUsesChange = (id: string, v: number) => {
+    props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).map(r => r.id === id ? { ...r, uses: v } : r) })
   }
 
   const SpellCard = (
@@ -463,6 +510,11 @@ export function ActionsSection(props: ActionsSectionProps) {
                     <Show when={attack.description}>
                       <div class="text-xs text-muted-foreground line-clamp-2">{attack.description}</div>
                     </Show>
+                    <ActionUsesTracker
+                      uses={attack.uses ?? 0}
+                      maxUses={attack.maxUses ?? 0}
+                      onUsesChange={(v) => handleAttackUsesChange(attack.id, v)}
+                    />
                   </div>
                 )}
               </For>
@@ -520,9 +572,11 @@ export function ActionsSection(props: ActionsSectionProps) {
                     </div>
                     <div class="flex items-center justify-between text-sm">
                       <div class="flex-1">
-                        <Show when={typeof bonus.uses === "number" && typeof bonus.maxUses === "number"}>
-                          <div><strong>Uses:</strong> {bonus.uses} / {bonus.maxUses === 0 ? "∞" : bonus.maxUses}</div>
-                        </Show>
+                        <ActionUsesTracker
+                          uses={bonus.uses ?? 0}
+                          maxUses={bonus.maxUses ?? 0}
+                          onUsesChange={(v) => handleBonusActionUsesChange(bonus.id, v)}
+                        />
                       </div>
                       <Show when={bonus.damage}>
                         <div class="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
@@ -591,9 +645,11 @@ export function ActionsSection(props: ActionsSectionProps) {
                     <div class="flex items-center justify-between text-sm">
                       <div class="flex-1">
                         <div><strong>Trigger:</strong> {reaction.trigger}</div>
-                        <Show when={typeof reaction.uses === "number" && typeof reaction.maxUses === "number"}>
-                          <div><strong>Uses:</strong> {reaction.uses} / {reaction.maxUses === 0 ? "∞" : reaction.maxUses}</div>
-                        </Show>
+                        <ActionUsesTracker
+                          uses={reaction.uses ?? 0}
+                          maxUses={reaction.maxUses ?? 0}
+                          onUsesChange={(v) => handleReactionUsesChange(reaction.id, v)}
+                        />
                       </div>
                       <Show when={reaction.damage}>
                         <div class="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">

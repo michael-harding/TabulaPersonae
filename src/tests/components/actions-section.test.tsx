@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, within } from "../test-utils"
 import { ActionsSection } from "@/components/actions-section"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, Spell } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Reaction, Spell } from "@/lib/character-types"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -446,6 +446,116 @@ describe("ActionsSection", () => {
       })
       render(<ActionsSection character={char} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /upcast/i })).toBeInTheDocument()
+    })
+  })
+
+  describe("Action uses tracker", () => {
+    function makeBonusAction(overrides: Partial<BonusAction> = {}): BonusAction {
+      return { id: "ba-1", name: "Second Wind", type: "ability", description: "", ...overrides }
+    }
+
+    function makeReaction(overrides: Partial<Reaction> = {}): Reaction {
+      return { id: "rx-1", name: "Shield", type: "ability", description: "", trigger: "When hit", ...overrides }
+    }
+
+    describe("BonusAction with maxUses <= 5", () => {
+      it("renders pip buttons when maxUses = 3", () => {
+        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 3 })] })} onUpdate={vi.fn()} />)
+        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+        expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
+      })
+
+      it("clicking a pip calls onUpdate with incremented uses on the correct bonus action", () => {
+        const onUpdate = vi.fn()
+        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 3 })] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            bonusActions: expect.arrayContaining([expect.objectContaining({ id: "ba-1", uses: 1 })]),
+          })
+        )
+      })
+    })
+
+    describe("BonusAction with maxUses > 5", () => {
+      it("renders stepper +/- buttons when maxUses = 8", () => {
+        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 8 })] })} onUpdate={vi.fn()} />)
+        expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /decrease/i })).toBeInTheDocument()
+      })
+
+      it("clicking + calls onUpdate with uses + 1", () => {
+        const onUpdate = vi.fn()
+        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 2, maxUses: 8 })] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /increase/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            bonusActions: expect.arrayContaining([expect.objectContaining({ id: "ba-1", uses: 3 })]),
+          })
+        )
+      })
+
+      it("clicking - calls onUpdate with uses - 1", () => {
+        const onUpdate = vi.fn()
+        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 2, maxUses: 8 })] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /decrease/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            bonusActions: expect.arrayContaining([expect.objectContaining({ id: "ba-1", uses: 1 })]),
+          })
+        )
+      })
+    })
+
+    describe("BonusAction with maxUses = 0", () => {
+      it("renders no tracker UI", () => {
+        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 0 })] })} onUpdate={vi.fn()} />)
+        expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+        expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
+      })
+    })
+
+    describe("Reaction with maxUses <= 5", () => {
+      it("renders pip buttons when maxUses = 2", () => {
+        render(<ActionsSection character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 2 })] })} onUpdate={vi.fn()} />)
+        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(2)
+      })
+
+      it("clicking a pip calls onUpdate with incremented uses on the correct reaction", () => {
+        const onUpdate = vi.fn()
+        render(<ActionsSection character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 2 })] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            reactions: expect.arrayContaining([expect.objectContaining({ id: "rx-1", uses: 1 })]),
+          })
+        )
+      })
+    })
+
+    describe("Reaction with maxUses = 0", () => {
+      it("renders no tracker UI", () => {
+        render(<ActionsSection character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 0 })] })} onUpdate={vi.fn()} />)
+        expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+      })
+    })
+
+    describe("Attack with maxUses", () => {
+      it("renders 2 pip buttons on an attack card with maxUses = 2", () => {
+        render(<ActionsSection character={makeCharacter({ attacks: [makeAttack({ uses: 0, maxUses: 2 })] })} onUpdate={vi.fn()} />)
+        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(2)
+      })
+
+      it("clicking a pip calls onUpdate with updated uses on the attack", () => {
+        const onUpdate = vi.fn()
+        render(<ActionsSection character={makeCharacter({ attacks: [makeAttack({ uses: 0, maxUses: 2 })] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            attacks: expect.arrayContaining([expect.objectContaining({ id: "atk-1", uses: 1 })]),
+          })
+        )
+      })
     })
   })
 })

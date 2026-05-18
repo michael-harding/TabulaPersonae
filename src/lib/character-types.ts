@@ -79,6 +79,8 @@ export interface Attack {
   damageType: string
   range: string
   description: string
+  uses?: number
+  maxUses?: number
 }
 
 export interface BonusAction {
