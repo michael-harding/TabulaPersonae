@@ -240,10 +240,9 @@ describe("SkillsProficiencies", () => {
       render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
-      // In edit mode the language badges each have an X (ghost) button.
-      // Button order: [0]=edit toggle, [1]=X for "Common", [2]=X for "Elvish", ...
+      // In edit mode button order: [0]=Save changes, [1]=Cancel, [2]=X for "Common", [3]=X for "Elvish", ...
       const buttons = screen.getAllByRole("button")
-      fireEvent.click(buttons[1]) // remove "Common"
+      fireEvent.click(buttons[2]) // remove "Common"
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
 
       const updatedLanguages = onUpdate.mock.calls[0][0].languages

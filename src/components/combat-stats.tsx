@@ -1,14 +1,12 @@
 import { createSignal, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { saveCharacter } from "@/lib/character-storage"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EditableSection } from "@/components/editable-section"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import Shield from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
-import Save from "lucide-solid/icons/save"
-import Edit from "lucide-solid/icons/edit"
 import Plus from "lucide-solid/icons/plus"
 import Minus from "lucide-solid/icons/minus"
 import Skull from "lucide-solid/icons/skull"
@@ -48,9 +46,6 @@ export function CombatStats(props: CombatStatsProps) {
       if (next.current > next.maximum) next.current = next.maximum
       return { ...prev, hitPoints: next }
     })
-
-  const updateDeathSave = (field: "successes" | "failures", value: number) =>
-    setEdited((prev) => ({ ...prev, deathSaves: { ...prev.deathSaves, [field]: value } }))
 
   const adjustHitPoints = (amount: number) => {
     const currentHP = props.character.hitPoints?.current ?? 0
@@ -96,22 +91,15 @@ export function CombatStats(props: CombatStatsProps) {
   const tempHpLeft = () => Math.min(hpPercentage(), 100 - tempHpWidth())
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <Shield class="h-5 w-5 text-primary" />
-            Combat Stats
-          </div>
-          <Button variant="outline" size="sm" onClick={() => {
-            if (!isEditing()) setEdited(toEdit(props.character))
-            setIsEditing(!isEditing())
-          }}>
-            <Edit class="h-4 w-4" />
-          </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent class="space-y-6">
+    <EditableSection
+      icon={<Shield class="h-5 w-5 text-primary" />}
+      title="Combat Stats"
+      isEditing={isEditing()}
+      onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
+      onSave={handleSave}
+      onCancel={handleCancel}
+      contentClass="space-y-6"
+    >
         {/* Hit Points */}
         <div class="space-y-3">
           <div class="flex items-center justify-between">
@@ -253,13 +241,6 @@ export function CombatStats(props: CombatStatsProps) {
           ))}
         </div>
 
-        <Show when={isEditing()}>
-          <div class="flex gap-2 pt-4 border-t">
-            <Button onClick={handleSave} class="gap-2"><Save class="h-4 w-4" />Save Changes</Button>
-            <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-          </div>
-        </Show>
-      </CardContent>
-    </Card>
+    </EditableSection>
   )
 }

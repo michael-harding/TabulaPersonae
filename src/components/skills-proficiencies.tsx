@@ -1,15 +1,13 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getSkillModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EditableSection } from "@/components/editable-section"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import BookOpen from "lucide-solid/icons/book-open"
-import Save from "lucide-solid/icons/save"
-import Edit from "lucide-solid/icons/edit"
 import Plus from "lucide-solid/icons/plus"
 import X from "lucide-solid/icons/x"
 
@@ -108,22 +106,15 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <BookOpen class="h-5 w-5 text-primary" />
-            Skills & Proficiencies
-          </div>
-          <Button variant="outline" size="sm" onClick={() => {
-            if (!isEditing()) setEdited(props.character)
-            setIsEditing(!isEditing())
-          }}>
-            <Edit class="h-4 w-4" />
-          </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent class="space-y-6">
+    <EditableSection
+      icon={<BookOpen class="h-5 w-5 text-primary" />}
+      title="Skills & Proficiencies"
+      isEditing={isEditing()}
+      onEdit={() => { setEdited(props.character); setIsEditing(true) }}
+      onSave={handleSave}
+      onCancel={handleCancel}
+      contentClass="space-y-6"
+    >
         {/* Saving Throws */}
         <div>
           <h3 class="font-semibold mb-3">Saving Throws</h3>
@@ -249,13 +240,6 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
           </Show>
         </div>
 
-        <Show when={isEditing()}>
-          <div class="flex gap-2 pt-4 border-t">
-            <Button onClick={handleSave} class="gap-2"><Save class="h-4 w-4" />Save Changes</Button>
-            <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-          </div>
-        </Show>
-      </CardContent>
-    </Card>
+    </EditableSection>
   )
 }

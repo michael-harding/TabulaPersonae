@@ -1,13 +1,11 @@
 import { createSignal, createEffect, on, For } from "solid-js"
 import type { Character, AbilityScores } from "@/lib/character-types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EditableSection } from "@/components/editable-section"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import User from "lucide-solid/icons/user"
-import Save from "lucide-solid/icons/save"
 
 interface CharacterBasicInfoProps {
   character: Character
@@ -67,32 +65,29 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <User class="h-5 w-5 text-primary" />
-            {isEditing() ? "Edit Character Information" : "Character Information"}
-            {!isEditing() && (
-              <div class="flex items-center gap-2">
-                <Label for="heroic-inspiration-toggle" class="text-xs font-medium">Heroic Inspiration</Label>
-                <input
-                  id="heroic-inspiration-toggle"
-                  type="checkbox"
-                  checked={!!props.character.heroicInspiration}
-                  onChange={(e) => props.onUpdate({ ...props.character, heroicInspiration: e.currentTarget.checked })}
-                  class="accent-primary h-4 w-4"
-                  style={{ "accent-color": "#eab308" }}
-                />
-              </div>
-            )}
-          </div>
-          {!isEditing() && (
-            <Button variant="outline" size="sm" onClick={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}>Edit</Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent class="space-y-4">
+    <EditableSection
+      icon={<User class="h-5 w-5 text-primary" />}
+      title="Character Information"
+      editTitle="Edit Character Information"
+      isEditing={isEditing()}
+      onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
+      onSave={handleSave}
+      onCancel={handleCancel}
+      headerExtra={
+        <div class="flex items-center gap-2">
+          <Label for="heroic-inspiration-toggle" class="text-xs font-medium">Heroic Inspiration</Label>
+          <input
+            id="heroic-inspiration-toggle"
+            type="checkbox"
+            checked={!!props.character.heroicInspiration}
+            onChange={(e) => props.onUpdate({ ...props.character, heroicInspiration: e.currentTarget.checked })}
+            class="accent-primary h-4 w-4"
+            style={{ "accent-color": "#eab308" }}
+          />
+        </div>
+      }
+      contentClass="space-y-4"
+    >
         {isEditing() ? (
           <>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -140,10 +135,6 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
               <Label for="xp">Experience Points</Label>
               <NumericInput id="xp" min={0} value={edited().experiencePoints || 0} onChange={(v) => updateField("experiencePoints", v)} />
             </div>
-            <div class="flex gap-2 pt-4">
-              <Button onClick={handleSave} class="gap-2"><Save class="h-4 w-4" />Save Changes</Button>
-              <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-            </div>
           </>
         ) : (
           <>
@@ -161,7 +152,6 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+    </EditableSection>
   )
 }

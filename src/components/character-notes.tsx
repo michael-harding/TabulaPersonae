@@ -1,13 +1,10 @@
 import { createSignal, createEffect, on } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { EditableSection } from "@/components/editable-section"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import FileText from "lucide-solid/icons/file-text"
-import Save from "lucide-solid/icons/save"
-import Edit from "lucide-solid/icons/edit"
 
 interface CharacterNotesProps {
   character: Character
@@ -39,21 +36,16 @@ export function CharacterNotes(props: CharacterNotesProps) {
   const current = () => isEditing() ? editedCharacter() : props.character
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <FileText class="h-5 w-5 text-primary" />
-            {isEditing() ? "Edit Character Background & Notes" : "Character Background & Notes"}
-          </div>
-          {!isEditing() && (
-            <Button variant="outline" size="sm" onClick={() => { setEditedCharacter(props.character); setIsEditing(true) }}>
-              <Edit class="h-4 w-4" />
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent class="space-y-6">
+    <EditableSection
+      icon={<FileText class="h-5 w-5 text-primary" />}
+      title="Character Background & Notes"
+      editTitle="Edit Character Background & Notes"
+      isEditing={isEditing()}
+      onEdit={() => { setEditedCharacter(props.character); setIsEditing(true) }}
+      onSave={handleSave}
+      onCancel={handleCancel}
+      contentClass="space-y-6"
+    >
         {isEditing() ? (
           <>
             <div>
@@ -150,15 +142,6 @@ export function CharacterNotes(props: CharacterNotesProps) {
               </p>
             </div>
 
-            <div class="flex gap-2 pt-4 border-t">
-              <Button onClick={handleSave} class="gap-2">
-                <Save class="h-4 w-4" />
-                Save Changes
-              </Button>
-              <Button variant="outline" onClick={handleCancel}>
-                Cancel
-              </Button>
-            </div>
           </>
         ) : (
           <>
@@ -211,7 +194,6 @@ export function CharacterNotes(props: CharacterNotesProps) {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+    </EditableSection>
   )
 }

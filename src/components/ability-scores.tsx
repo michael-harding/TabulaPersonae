@@ -1,13 +1,10 @@
 import { createSignal, createEffect, on, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EditableSection } from "@/components/editable-section"
 import { NumericInput } from "@/components/ui/numeric-input"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Zap from "lucide-solid/icons/zap"
-import Save from "lucide-solid/icons/save"
-import Edit from "lucide-solid/icons/edit"
 
 interface AbilityScoresProps {
   character: Character
@@ -53,21 +50,15 @@ export function AbilityScores(props: AbilityScoresProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <Zap class="h-5 w-5 text-primary" />
-            {isEditing() ? "Edit Ability Scores" : "Ability Scores"}
-          </div>
-          {!isEditing() && (
-            <Button variant="outline" size="sm" aria-label="Edit" onClick={() => { setEditedScores(safeScores()); setEditedSaves(safeSaves()); setIsEditing(true) }}>
-              <Edit class="h-4 w-4" />
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <EditableSection
+      icon={<Zap class="h-5 w-5 text-primary" />}
+      title="Ability Scores"
+      editTitle="Edit Ability Scores"
+      isEditing={isEditing()}
+      onEdit={() => { setEditedScores(safeScores()); setEditedSaves(safeSaves()); setIsEditing(true) }}
+      onSave={handleSave}
+      onCancel={handleCancel}
+    >
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
           <For each={Object.keys(ABILITY_NAMES) as AbilityKey[]}>
             {(ability) => {
@@ -119,13 +110,6 @@ export function AbilityScores(props: AbilityScoresProps) {
             }}
           </For>
         </div>
-        {isEditing() && (
-          <div class="flex gap-2 pt-4 border-t">
-            <Button onClick={handleSave} class="gap-2"><Save class="h-4 w-4" />Save Changes</Button>
-            <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    </EditableSection>
   )
 }
