@@ -157,7 +157,6 @@ export function ImportExport(props: ImportExportProps) {
             <div class="space-y-2 max-h-60 overflow-y-auto">
               {props.characters.map((character) => (
                 <Button
-                  key={character.id}
                   variant="outline"
                   onClick={() => exportCharacter(character)}
                   class="w-full justify-start gap-2"

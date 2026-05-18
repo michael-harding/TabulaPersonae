@@ -1,5 +1,7 @@
-import { render, type RenderOptions } from "@solidjs/testing-library"
+import { render } from "@solidjs/testing-library"
 import type { JSX } from "solid-js"
+
+type RenderOptions = NonNullable<Parameters<typeof render>[1]>
 
 const customRender = (ui: JSX.Element, options?: Omit<RenderOptions, "wrapper">) =>
   render(() => ui, options)

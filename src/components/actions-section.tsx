@@ -58,7 +58,7 @@ function AttackForm(props: AttackFormProps) {
 
       <div>
         <Label for="attack-type">Type</Label>
-        <Select value={formData().type} onValueChange={(v: "weapon" | "spell") => setFormData((p) => ({ ...p, type: v }))}>
+        <Select value={formData().type} onValueChange={(v) => setFormData((p) => ({ ...p, type: v as "weapon" | "spell" }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="weapon">Weapon</SelectItem>
@@ -134,7 +134,7 @@ function BonusActionForm(props: BonusActionFormProps) {
 
       <div>
         <Label for="bonus-action-type">Type</Label>
-        <Select value={formData().type} onValueChange={(v: "spell" | "ability" | "other") => setFormData((p) => ({ ...p, type: v }))}>
+        <Select value={formData().type} onValueChange={(v) => setFormData((p) => ({ ...p, type: v as "spell" | "ability" | "other" }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ability">Class Feature</SelectItem>
@@ -196,7 +196,7 @@ function ReactionForm(props: ReactionFormProps) {
 
       <div>
         <Label for="reaction-type">Type</Label>
-        <Select value={formData().type} onValueChange={(v: "spell" | "ability" | "other") => setFormData((p) => ({ ...p, type: v }))}>
+        <Select value={formData().type} onValueChange={(v) => setFormData((p) => ({ ...p, type: v as "spell" | "ability" | "other" }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ability">Class Feature</SelectItem>
@@ -306,7 +306,7 @@ export function ActionsSection(props: ActionsSectionProps) {
     props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).filter((r) => r.id !== id) })
   }
 
-  const SpellCard = (spell: (typeof safeSpells)[0], castable: () => boolean, onCast?: () => void) => (
+  const SpellCard = (spell: ReturnType<typeof safeSpells>[0], castable: () => boolean, onCast?: () => void) => (
     <div class="p-3 border rounded-lg space-y-2 relative">
       <div class="flex items-start justify-between">
         <div>
