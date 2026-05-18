@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
+import { CurrencyInput } from "@/components/ui/currency-input"
+import { cascadeDecrement } from "@/lib/currency-utils"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -226,9 +228,9 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
           </h3>
           <div class="grid grid-cols-5 gap-2">
             {(["cp", "sp", "ep", "gp", "pp"] as const).map((denom) => (
-              <div class="text-center">
+              <div class="text-center space-y-1">
                 <Label class="text-xs font-medium text-muted-foreground">{denom.toUpperCase()}</Label>
-                <NumericInput
+                <CurrencyInput
                   min={0}
                   value={props.character.coins?.[denom] ?? 0}
                   onChange={(v) => {
@@ -236,7 +238,15 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                     props.onUpdate(updated)
                     saveCharacter(updated)
                   }}
-                  class="text-center"
+                  onAtMin={() => {
+                    const currentCoins = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...props.character.coins }
+                    const result = cascadeDecrement(currentCoins, denom)
+                    if (result) {
+                      const updated = { ...props.character, coins: result }
+                      props.onUpdate(updated)
+                      saveCharacter(updated)
+                    }
+                  }}
                 />
               </div>
             ))}
