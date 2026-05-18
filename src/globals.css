@@ -4,18 +4,17 @@
 
 
 :root {
-  /* Updated color palette for fantasy D&D theme */
   --background: oklch(1 0 0);
   --foreground: oklch(0.35 0 0);
   --card: oklch(0.98 0 0);
   --card-foreground: oklch(0.35 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.35 0 0);
-  --primary: oklch(0.55 0.15 200);
+  --primary: oklch(66.583% 0.224 142.02);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.45 0.2 260);
   --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(67.032% 0.20622 145.317);
+  --muted: oklch(34.07% 0.00004 271.152);
   --muted-foreground: oklch(0.7 0 0);
   --accent: oklch(0.55 0.25 25);
   --accent-foreground: oklch(1 0 0);
@@ -48,7 +47,7 @@
   --card-foreground: oklch(0.95 0 0);
   --popover: oklch(0.1 0 0);
   --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.65 0.15 200);
+  --primary: oklch(66.583% 0.224 142.02);
   --primary-foreground: oklch(0.1 0 0);
   --secondary: oklch(0.25 0 0);
   --secondary-foreground: oklch(0.95 0 0);
@@ -86,14 +85,5 @@
   }
   .dark body {
     color: var(--foreground);
-  }
-  .bg-background, .bg-popover {
-    background: var(--background) !important;
-  }
-  .bg-muted {
-    background-color: var(--foreground) !important;
-  }
-  button:hover, .menu-item:hover {
-    background-color: var(--muted-foreground) !important;
   }
 }
