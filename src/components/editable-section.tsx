@@ -37,7 +37,7 @@ export function EditableSection(props: EditableSectionProps) {
               </Button>
             </div>
           ) : (
-            <Button variant="outline" size="sm" onClick={props.onEdit}>
+            <Button variant="outline" size="sm" aria-label="Edit" onClick={props.onEdit}>
               <Edit class="h-4 w-4" />
             </Button>
           )}

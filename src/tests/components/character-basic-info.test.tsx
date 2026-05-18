@@ -15,9 +15,8 @@ const populatedCharacter = {
   experiencePoints: 64000,
 }
 
-// The edit button is icon-only. It is the only button in view mode (heroic inspiration is a raw checkbox).
 function clickEditButton() {
-  fireEvent.click(screen.getAllByRole("button")[0])
+  fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
 
 describe("CharacterBasicInfo", () => {

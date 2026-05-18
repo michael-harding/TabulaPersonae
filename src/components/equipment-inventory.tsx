@@ -272,10 +272,10 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                       </Show>
                     </div>
                     <div class="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(item)}>
+                      <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
                         <Edit class="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteItem(item.id)}>
+                      <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
                         <Trash2 class="h-4 w-4" />
                       </Button>
                     </div>

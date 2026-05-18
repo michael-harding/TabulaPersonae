@@ -14,9 +14,8 @@ const populatedCharacter = {
   notes: "Remember the tavern",
 }
 
-// The edit button is icon-only (no aria-label). It is the only button in view mode.
 function enterEditMode() {
-  fireEvent.click(screen.getAllByRole("button")[0])
+  fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
 
 describe("CharacterNotes", () => {

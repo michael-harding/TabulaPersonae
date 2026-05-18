@@ -19,9 +19,8 @@ function makeCharacter(overrides: Record<string, any> = {}) {
   }
 }
 
-// The edit button is icon-only (no aria-label). It is always the first button in the card.
 function clickEditButton() {
-  fireEvent.click(screen.getAllByRole("button")[0])
+  fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
 
 describe("CombatStats", () => {

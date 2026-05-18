@@ -36,9 +36,8 @@ function makeCharacter(overrides: Record<string, any> = {}) {
   }
 }
 
-// The edit button is icon-only. In view mode it is the only button rendered.
 function clickEditButton() {
-  fireEvent.click(screen.getAllByRole("button")[0])
+  fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
 
 // Skill order in SKILL_DISPLAY_NAMES (matches component's Object.keys order):

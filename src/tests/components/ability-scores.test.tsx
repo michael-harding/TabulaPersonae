@@ -26,9 +26,8 @@ function makeCharacter(overrides: Record<string, any> = {}) {
   }
 }
 
-// The edit button is icon-only. It is the only button in view mode.
 function clickEditButton() {
-  fireEvent.click(screen.getAllByRole("button")[0])
+  fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
 
 // Ability order in the component: strength, dexterity, constitution, intelligence, wisdom, charisma
