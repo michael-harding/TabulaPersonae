@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { SwitchButton } from "@/components/ui/switch-button"
 import User from "lucide-solid/icons/user"
 
 interface CharacterBasicInfoProps {
@@ -87,13 +86,6 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
       onCancel={handleCancel}
       headerExtra={
         <div class="flex items-center gap-3">
-          <SwitchButton
-            optionA="2014"
-            optionB="2024"
-            value={edition()}
-            onChange={(v) => props.onUpdate({ ...props.character, edition: v as "2014" | "2024" })}
-            id="edition-switch-info"
-          />
           <div class="flex items-center gap-2">
             <Label for="heroic-inspiration-toggle" class="text-xs font-medium">{inspirationLabel()}</Label>
             <input

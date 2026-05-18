@@ -13,6 +13,7 @@ import { ActionsSection } from "@/components/actions-section"
 import { SpellsSection } from "@/components/spells-section"
 import { EquipmentInventory } from "@/components/equipment-inventory"
 import { CharacterNotes } from "@/components/character-notes"
+import { SheetSettings } from "@/components/sheet-settings"
 import { HeaderMenu } from "@/components/header-menu"
 import { HpProgressBar } from "@/components/hp-progress-bar"
 
@@ -89,7 +90,7 @@ export default function CharacterSheet() {
     >
       <Show when={character()}>
         {(getChar) => (
-          <div class="min-h-screen bg-background">
+          <div class="min-h-screen bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
             <HpProgressBar character={getChar()} />
 
             <header class="border-b bg-card">
@@ -139,6 +140,7 @@ export default function CharacterSheet() {
                 <EquipmentInventory character={getChar()} onUpdate={updateCharacter} />
                 <CharacterBasicInfo character={getChar()} onUpdate={updateCharacter} />
                 <CharacterNotes character={getChar()} onUpdate={updateCharacter} />
+                <SheetSettings character={getChar()} onUpdate={updateCharacter} />
               </div>
             </main>
           </div>

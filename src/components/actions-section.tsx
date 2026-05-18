@@ -444,7 +444,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                         <Badge variant={attack.type === "weapon" ? "outline" : "secondary"} class="text-xs">
                           {attack.type.charAt(0).toUpperCase() + attack.type.slice(1)}
                         </Badge>
-                        <button type="button" class="text-destructive hover:text-destructive/80" aria-label="Delete Attack" onClick={() => handleDeleteAttack(attack.id)}>
+                        <button type="button" class="" aria-label="Delete Attack" onClick={() => handleDeleteAttack(attack.id)}>
                           <Trash2 class="h-4 w-4" />
                         </button>
                       </div>
@@ -513,7 +513,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                         <Badge variant={bonus.type === "ability" ? "outline" : "secondary"} class="text-xs">
                           {bonus.type.charAt(0).toUpperCase() + bonus.type.slice(1)}
                         </Badge>
-                        <button type="button" class="text-destructive hover:text-destructive/80" aria-label="Delete Bonus Action" onClick={() => handleDeleteBonusAction(bonus.id)}>
+                        <button type="button" class="" aria-label="Delete Bonus Action" onClick={() => handleDeleteBonusAction(bonus.id)}>
                           <Trash2 class="h-4 w-4" />
                         </button>
                       </div>
@@ -583,7 +583,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                         <Badge variant={reaction.type === "ability" ? "outline" : "secondary"} class="text-xs">
                           {reaction.type.charAt(0).toUpperCase() + reaction.type.slice(1)}
                         </Badge>
-                        <button type="button" class="text-destructive hover:text-destructive/80" aria-label="Delete Reaction" onClick={() => handleDeleteReaction(reaction.id)}>
+                        <button type="button" class="" aria-label="Delete Reaction" onClick={() => handleDeleteReaction(reaction.id)}>
                           <Trash2 class="h-4 w-4" />
                         </button>
                       </div>

@@ -166,6 +166,8 @@ export interface Character {
 
   heroicInspiration?: boolean
 
+  sheetColor?: string
+
   // Both editions
   edition?: "2014" | "2024"
   spentHitDice?: number

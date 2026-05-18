@@ -136,29 +136,6 @@ describe("CharacterBasicInfo", () => {
     })
   })
 
-  describe("edition switch", () => {
-    it("renders the edition switch", () => {
-      render(<CharacterBasicInfo character={emptyCharacter} onUpdate={vi.fn()} />)
-      expect(screen.getByText("2014")).toBeInTheDocument()
-      expect(screen.getByText("2024")).toBeInTheDocument()
-    })
-
-    it("calls onUpdate with edition '2014' when switch is toggled to 2014", () => {
-      const onUpdate = vi.fn()
-      render(<CharacterBasicInfo character={char2024} onUpdate={onUpdate} />)
-      // The hidden checkbox is labelled by both edition labels "2014 2024"
-      fireEvent.click(screen.getByRole("checkbox", { name: /2014 2024/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ edition: "2014" }))
-    })
-
-    it("calls onUpdate with edition '2024' when switch is toggled to 2024", () => {
-      const onUpdate = vi.fn()
-      render(<CharacterBasicInfo character={char2014} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("checkbox", { name: /2014 2024/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ edition: "2024" }))
-    })
-  })
-
   describe("race vs species label", () => {
     it("shows 'Race' label in 2014 mode", () => {
       render(<CharacterBasicInfo character={char2014} onUpdate={vi.fn()} />)
