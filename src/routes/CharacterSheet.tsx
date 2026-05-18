@@ -15,7 +15,7 @@ import { EquipmentInventory } from "@/components/equipment-inventory"
 import { CharacterNotes } from "@/components/character-notes"
 import { SheetSettings } from "@/components/sheet-settings"
 import { HeaderMenu } from "@/components/header-menu"
-import { HpProgressBar } from "@/components/hp-progress-bar"
+import { StatsBar } from "@/components/stats-bar"
 
 export default function CharacterSheet() {
   const params = useParams()
@@ -91,7 +91,7 @@ export default function CharacterSheet() {
       <Show when={character()}>
         {(getChar) => (
           <div class="min-h-screen bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
-            <HpProgressBar character={getChar()} />
+            <StatsBar character={getChar()} />
 
             <header class="border-b bg-card">
               <div class="max-w-7xl mx-auto px-4 py-4">

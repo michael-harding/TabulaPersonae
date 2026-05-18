@@ -7,6 +7,7 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
 import Plus from "lucide-solid/icons/plus"
@@ -14,6 +15,13 @@ import Minus from "lucide-solid/icons/minus"
 import Skull from "lucide-solid/icons/skull"
 import CheckCircle from "lucide-solid/icons/check-circle"
 import XCircle from "lucide-solid/icons/x-circle"
+import X from "lucide-solid/icons/x"
+
+const CONDITIONS = [
+  "Blinded", "Charmed", "Deafened", "Exhaustion", "Frightened",
+  "Grappled", "Incapacitated", "Invisible", "Paralyzed", "Petrified",
+  "Poisoned", "Prone", "Restrained", "Stunned", "Unconscious",
+]
 
 interface CombatStatsProps {
   character: Character
@@ -107,6 +115,16 @@ export function CombatStats(props: CombatStatsProps) {
   }
   const tempHpWidth = () => Math.min(tempHP() / maxHP() * 100, 100)
   const tempHpLeft = () => Math.min(hpPercentage(), 100 - tempHpWidth())
+
+  const toggleCondition = (condition: string) => {
+    const current = props.character.conditions ?? []
+    const next = current.includes(condition)
+      ? current.filter((c) => c !== condition)
+      : [...current, condition]
+    const updated = { ...props.character, conditions: next }
+    props.onUpdate(updated)
+    saveCharacter(updated)
+  }
 
   const passivePerception = () => {
     const wis = props.character.abilityScores?.wisdom ?? 10
@@ -274,6 +292,57 @@ export function CombatStats(props: CombatStatsProps) {
             </Show>
           </div>
         </Show>
+
+        {/* Conditions */}
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <Label class="text-sm text-muted-foreground">Conditions</Label>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                as="button"
+                class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+                title="Add condition"
+              >
+                <Plus class="h-3 w-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <For each={CONDITIONS}>
+                  {(condition) => (
+                    <DropdownMenuItem
+                      onSelect={() => toggleCondition(condition)}
+                      class={(props.character.conditions ?? []).includes(condition) ? "text-primary font-medium" : ""}
+                    >
+                      {condition}
+                      <Show when={(props.character.conditions ?? []).includes(condition)}>
+                        <span class="ml-auto text-primary">✓</span>
+                      </Show>
+                    </DropdownMenuItem>
+                  )}
+                </For>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div class="flex flex-wrap gap-1.5 min-h-[1.5rem]">
+            <Show
+              when={(props.character.conditions ?? []).length > 0}
+              fallback={<span class="text-xs text-muted-foreground italic">None</span>}
+            >
+              <For each={props.character.conditions ?? []}>
+                {(condition) => (
+                  <button
+                    type="button"
+                    onClick={() => toggleCondition(condition)}
+                    class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
+                    title="Click to remove"
+                  >
+                    {condition}
+                    <X class="h-2.5 w-2.5" />
+                  </button>
+                )}
+              </For>
+            </Show>
+          </div>
+        </div>
 
         {/* Other Combat Stats */}
         <div class="grid grid-cols-2 gap-4">

@@ -180,6 +180,9 @@ export interface Character {
   skin?: string
   hair?: string
 
+  // Active conditions (both editions)
+  conditions?: string[]
+
   // 2024-only
   subclass?: string
   size?: string
@@ -302,6 +305,8 @@ export function createDefaultCharacter(): Character {
     eyes: "",
     skin: "",
     hair: "",
+
+    conditions: [],
 
     subclass: "",
     size: "Medium",
