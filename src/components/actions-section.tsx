@@ -311,7 +311,7 @@ export function ActionsSection(props: ActionsSectionProps) {
     props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).filter((r) => r.id !== id) })
   }
 
-  const SpellCard = (spell: (typeof safeSpells)[0], castable: boolean, onCast?: () => void) => (
+  const SpellCard = (spell: (typeof safeSpells)[0], castable: () => boolean, onCast?: () => void) => (
     <div class="p-3 border rounded-lg space-y-2 relative">
       <div class="flex items-start justify-between">
         <div>
@@ -336,7 +336,7 @@ export function ActionsSection(props: ActionsSectionProps) {
         <div class="absolute right-2 bottom-12 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">{spell.damage}</div>
       </Show>
       <Show when={spell.level > 0 && onCast}>
-        <Button variant="outline" size="sm" disabled={!castable} onClick={onCast} class="absolute bottom-2 right-2">Cast</Button>
+        <Button variant="outline" size="sm" disabled={!castable()} onClick={onCast} class="absolute bottom-2 right-2">Cast</Button>
       </Show>
     </div>
   )
@@ -422,7 +422,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                   const slotKey = spell.level as keyof typeof props.character.spellSlots
                   const slots = () => props.character.spellSlots[slotKey]
                   const canCast = () => spell.level > 0 && slots() && slots().used < slots().total
-                  return SpellCard(spell, canCast(), () => castSpell(spell.level))
+                  return SpellCard(spell, canCast, () => castSpell(spell.level))
                 }}
               </For>
               <For each={props.character.attacks || []}>
@@ -483,7 +483,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                   const slotKey = spell.level as keyof typeof props.character.spellSlots
                   const slots = () => props.character.spellSlots[slotKey]
                   const canCast = () => spell.level > 0 && slots() && slots().used < slots().total
-                  return SpellCard(spell, canCast(), () => castSpell(spell.level))
+                  return SpellCard(spell, canCast, () => castSpell(spell.level))
                 }}
               </For>
               <For each={props.character.bonusActions || []}>
@@ -547,7 +547,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                   const slotKey = spell.level as keyof typeof props.character.spellSlots
                   const slots = () => props.character.spellSlots[slotKey]
                   const canCast = () => spell.level > 0 && slots() && slots().used < slots().total
-                  return SpellCard(spell, canCast(), () => castSpell(spell.level))
+                  return SpellCard(spell, canCast, () => castSpell(spell.level))
                 }}
               </For>
               <For each={props.character.reactions || []}>
