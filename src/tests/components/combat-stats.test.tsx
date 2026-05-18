@@ -232,6 +232,7 @@ describe("CombatStats", () => {
       // spinbutton[0] = current HP (displays "10")
       const currentInput = screen.getAllByRole("spinbutton")[0]
       fireEvent.input(currentInput, { target: { value: "7" } })
+      fireEvent.blur(currentInput)
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
