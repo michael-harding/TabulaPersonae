@@ -560,12 +560,16 @@ export function SpellsSection(props: SpellsSectionProps) {
                                     </Show>
                                   </div>
                                   <div class="flex items-center gap-2 ml-4">
-                                    <Button variant="ghost" size="sm" onClick={() => setEditingSpell(spell)}>
-                                      <Edit class="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm" onClick={() => handleDeleteSpell(spell.id)}>
-                                      <Trash2 class="h-4 w-4" />
-                                    </Button>
+                                    <Tooltip content="Edit spell">
+                                      <Button variant="ghost" size="sm" aria-label="Edit spell" onClick={() => setEditingSpell(spell)}>
+                                        <Edit class="h-4 w-4" />
+                                      </Button>
+                                    </Tooltip>
+                                    <Tooltip content="Delete spell">
+                                      <Button variant="ghost" size="sm" aria-label="Delete spell" onClick={() => handleDeleteSpell(spell.id)}>
+                                        <Trash2 class="h-4 w-4" />
+                                      </Button>
+                                    </Tooltip>
                                   </div>
                                 </div>
                               </div>

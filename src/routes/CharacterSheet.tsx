@@ -109,15 +109,17 @@ export default function CharacterSheet() {
                           Level {getChar().level} {getChar().race} {getChar().class}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        aria-label="Toggle Heroic Inspiration"
-                        onClick={() => updateCharacter({ ...getChar(), heroicInspiration: !getChar().heroicInspiration })}
-                        class={`ml-2 transition-colors ${getChar().heroicInspiration ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`}
-                        style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}
-                      >
-                        <Sunrise class={`h-11 w-11 ${getChar().heroicInspiration ? "fill-yellow-400" : "fill-none"}`} stroke-width={2} />
-                      </button>
+                      <Tooltip content="Toggle Heroic Inspiration">
+                        <button
+                          type="button"
+                          aria-label="Toggle Heroic Inspiration"
+                          onClick={() => updateCharacter({ ...getChar(), heroicInspiration: !getChar().heroicInspiration })}
+                          class={`ml-2 transition-colors ${getChar().heroicInspiration ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`}
+                          style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}
+                        >
+                          <Sunrise class={`h-11 w-11 ${getChar().heroicInspiration ? "fill-yellow-400" : "fill-none"}`} stroke-width={2} />
+                        </button>
+                      </Tooltip>
                       <Tooltip content="Take a Rest">
                         <button
                           type="button"

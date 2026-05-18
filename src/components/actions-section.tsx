@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
@@ -446,9 +447,11 @@ export function ActionsSection(props: ActionsSectionProps) {
                       </div>
                       <div class="flex items-center gap-2">
                         <Badge variant="outline" class="text-xs">{ACTION_TYPE_LABEL[attack.type] ?? attack.type}</Badge>
-                        <button type="button" class="" aria-label="Delete Attack" onClick={() => handleDeleteAttack(attack.id)}>
-                          <Trash2 class="h-4 w-4" />
-                        </button>
+                        <Tooltip content="Delete attack">
+                          <button type="button" class="" aria-label="Delete Attack" onClick={() => handleDeleteAttack(attack.id)}>
+                            <Trash2 class="h-4 w-4" />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                     <div class="flex items-center justify-between text-sm">
@@ -520,9 +523,11 @@ export function ActionsSection(props: ActionsSectionProps) {
                       </div>
                       <div class="flex items-center gap-2">
                         <Badge variant="outline" class="text-xs">{ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}</Badge>
-                        <button type="button" class="" aria-label="Delete Bonus Action" onClick={() => handleDeleteBonusAction(bonus.id)}>
-                          <Trash2 class="h-4 w-4" />
-                        </button>
+                        <Tooltip content="Delete bonus action">
+                          <button type="button" class="" aria-label="Delete Bonus Action" onClick={() => handleDeleteBonusAction(bonus.id)}>
+                            <Trash2 class="h-4 w-4" />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                     <div class="text-sm space-y-1">
@@ -590,9 +595,11 @@ export function ActionsSection(props: ActionsSectionProps) {
                       </div>
                       <div class="flex items-center gap-2">
                         <Badge variant="outline" class="text-xs">{ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}</Badge>
-                        <button type="button" class="" aria-label="Delete Reaction" onClick={() => handleDeleteReaction(reaction.id)}>
-                          <Trash2 class="h-4 w-4" />
-                        </button>
+                        <Tooltip content="Delete reaction">
+                          <button type="button" class="" aria-label="Delete Reaction" onClick={() => handleDeleteReaction(reaction.id)}>
+                            <Trash2 class="h-4 w-4" />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                     <div class="text-sm space-y-1">

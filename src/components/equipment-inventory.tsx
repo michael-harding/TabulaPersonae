@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Tooltip } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
 import Package from "lucide-solid/icons/package"
 import Plus from "lucide-solid/icons/plus"
@@ -279,19 +280,22 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                       placeholder="Attuned item name"
                       class="h-8 text-sm"
                     />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="h-8 w-8 p-0 shrink-0"
-                      onClick={() => {
-                        const list = (props.character.magicItemAttunement ?? []).filter((_, idx) => idx !== i())
-                        const updated = { ...props.character, magicItemAttunement: list }
-                        props.onUpdate(updated)
-                        saveCharacter(updated)
-                      }}
-                    >
-                      <Trash2 class="h-3 w-3" />
-                    </Button>
+                    <Tooltip content="Remove attuned item">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Remove attuned item"
+                        class="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          const list = (props.character.magicItemAttunement ?? []).filter((_, idx) => idx !== i())
+                          const updated = { ...props.character, magicItemAttunement: list }
+                          props.onUpdate(updated)
+                          saveCharacter(updated)
+                        }}
+                      >
+                        <Trash2 class="h-3 w-3" />
+                      </Button>
+                    </Tooltip>
                   </div>
                 )}
               </For>
@@ -374,12 +378,16 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                       </Show>
                     </div>
                     <div class="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
-                        <Edit class="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
-                        <Trash2 class="h-4 w-4" />
-                      </Button>
+                      <Tooltip content={`Edit ${item.name}`}>
+                        <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
+                          <Edit class="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content={`Delete ${item.name}`}>
+                        <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
+                          <Trash2 class="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
                     </div>
                   </div>
 

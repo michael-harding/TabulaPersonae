@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
+import { Tooltip } from "@/components/ui/tooltip"
 import BookOpen from "lucide-solid/icons/book-open"
 import Plus from "lucide-solid/icons/plus"
 import X from "lucide-solid/icons/x"
@@ -197,9 +198,11 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                 <Badge variant="outline" class="gap-1">
                   {lang}
                   <Show when={isEditing()}>
-                    <Button variant="ghost" size="sm" class="h-auto p-0 hover:bg-transparent" onClick={() => setEdited((prev) => ({ ...prev, languages: prev.languages?.filter((l) => l !== lang) }))}>
-                      <X class="h-3 w-3" />
-                    </Button>
+                    <Tooltip content="Remove language">
+                      <Button variant="ghost" size="sm" aria-label="Remove language" class="h-auto p-0 hover:bg-transparent" onClick={() => setEdited((prev) => ({ ...prev, languages: prev.languages?.filter((l) => l !== lang) }))}>
+                        <X class="h-3 w-3" />
+                      </Button>
+                    </Tooltip>
                   </Show>
                 </Badge>
               )}
@@ -208,7 +211,9 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
           <Show when={isEditing()}>
             <div class="flex gap-2">
               <Input placeholder="Add language" value={newLanguage()} onInput={(e) => setNewLanguage(e.currentTarget.value)} onKeyDown={(e) => e.key === "Enter" && addLanguage()} class="flex-1" />
-              <Button onClick={addLanguage} size="sm" disabled={!newLanguage().trim()}><Plus class="h-4 w-4" /></Button>
+              <Tooltip content="Add language">
+                <Button onClick={addLanguage} size="sm" aria-label="Add language" disabled={!newLanguage().trim()}><Plus class="h-4 w-4" /></Button>
+              </Tooltip>
             </div>
           </Show>
         </div>
@@ -224,9 +229,11 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                 <Badge variant="outline" class="gap-1">
                   {prof}
                   <Show when={isEditing()}>
-                    <Button variant="ghost" size="sm" class="h-auto p-0 hover:bg-transparent" onClick={() => setEdited((prev) => ({ ...prev, otherProficiencies: prev.otherProficiencies?.filter((p) => p !== prof) }))}>
-                      <X class="h-3 w-3" />
-                    </Button>
+                    <Tooltip content="Remove proficiency">
+                      <Button variant="ghost" size="sm" aria-label="Remove proficiency" class="h-auto p-0 hover:bg-transparent" onClick={() => setEdited((prev) => ({ ...prev, otherProficiencies: prev.otherProficiencies?.filter((p) => p !== prof) }))}>
+                        <X class="h-3 w-3" />
+                      </Button>
+                    </Tooltip>
                   </Show>
                 </Badge>
               )}
@@ -238,7 +245,9 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
           <Show when={isEditing()}>
             <div class="flex gap-2">
               <Input placeholder="Add proficiency (weapons, tools, etc.)" value={newProficiency()} onInput={(e) => setNewProficiency(e.currentTarget.value)} onKeyDown={(e) => e.key === "Enter" && addProficiency()} class="flex-1" />
-              <Button onClick={addProficiency} size="sm" disabled={!newProficiency().trim()}><Plus class="h-4 w-4" /></Button>
+              <Tooltip content="Add proficiency">
+                <Button onClick={addProficiency} size="sm" aria-label="Add proficiency" disabled={!newProficiency().trim()}><Plus class="h-4 w-4" /></Button>
+              </Tooltip>
             </div>
           </Show>
         </div>
