@@ -509,24 +509,26 @@ export function SpellsSection(props: SpellsSectionProps) {
                                 <div class="flex items-start justify-between">
                                   <div class="flex-1">
                                     <div class="flex items-center gap-2 mb-1">
-                                      <Show when={spell.level === 0}>
-                                        <Tooltip content="Known">
-                                          <Checkbox
-                                            checked={spell.known ?? true}
-                                            onChange={() => toggleKnown(spell.id)}
-                                          />
-                                        </Tooltip>
-                                      </Show>
-                                      <Show when={spell.level > 0}>
-                                        <Tooltip content="Prepared">
-                                          <Checkbox
-                                            checked={spell.prepared || false}
-                                            disabled={!(spell.known ?? true)}
-                                            onChange={() => togglePrepared(spell.id)}
-                                          />
-                                        </Tooltip>
-                                      </Show>
-                                      <h4 class="font-medium">{spell.name}</h4>
+                                      <label class="flex items-center gap-2 cursor-pointer">
+                                        <Show when={spell.level === 0}>
+                                          <Tooltip content="Known">
+                                            <Checkbox
+                                              checked={spell.known ?? true}
+                                              onChange={() => toggleKnown(spell.id)}
+                                            />
+                                          </Tooltip>
+                                        </Show>
+                                        <Show when={spell.level > 0}>
+                                          <Tooltip content="Prepared">
+                                            <Checkbox
+                                              checked={spell.prepared || false}
+                                              disabled={!(spell.known ?? true)}
+                                              onChange={() => togglePrepared(spell.id)}
+                                            />
+                                          </Tooltip>
+                                        </Show>
+                                        <h4 class="font-medium">{spell.name}</h4>
+                                      </label>
                                       <Badge variant="outline" class="text-xs">{spell.school}</Badge>
                                       <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>
                                       <Show when={spell.concentration}>

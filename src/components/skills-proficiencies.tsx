@@ -125,7 +125,7 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                 const modifier = () => getSavingThrowModifier(current().abilityScores[ability], current().proficiencyBonus, isProficient())
                 return (
                   <div class="flex items-center justify-between p-2 rounded border">
-                    <div class="flex items-center gap-2">
+                    <label class={`flex items-center gap-2 ${isEditing() ? "cursor-pointer" : "cursor-default"}`}>
                       <Show when={isEditing()}>
                         <Checkbox checked={isProficient()} onChange={() => toggleSavingThrow(ability)} />
                       </Show>
@@ -133,7 +133,7 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                       <Show when={!isEditing() && isProficient()}>
                         <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
                       </Show>
-                    </div>
+                    </label>
                     <span class="font-semibold">{formatModifier(modifier())}</span>
                   </div>
                 )
@@ -164,7 +164,10 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                       </Show>
                       <div class="flex-1">
                         <div class="flex items-center gap-2">
-                          <span class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]}</span>
+                          <span
+                            class={`font-medium ${isEditing() ? "cursor-pointer" : ""}`}
+                            onClick={() => isEditing() && toggleSkillProf(skillKey)}
+                          >{SKILL_DISPLAY_NAMES[skillKey]}</span>
                           <span class="text-xs text-muted-foreground">({ABILITY_ABBREVIATIONS[ability]})</span>
                           <Show when={!isEditing()}>
                             <div class="flex gap-1">

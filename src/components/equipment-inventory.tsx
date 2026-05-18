@@ -357,12 +357,14 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                   <div class="flex items-start justify-between">
                     <div class="flex-1">
                       <div class="flex items-center gap-2">
-                        <Checkbox
-                          checked={item.equipped || false}
-                          onChange={() => toggleEquipped(item.id)}
-                          title="Toggle equipped"
-                        />
-                        <h4 class="font-medium">{item.name}</h4>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={item.equipped || false}
+                            onChange={() => toggleEquipped(item.id)}
+                            title="Toggle equipped"
+                          />
+                          <h4 class="font-medium">{item.name}</h4>
+                        </label>
                         <Show when={item.equipped}>
                           <Badge variant="secondary" class="text-xs">Equipped</Badge>
                         </Show>
