@@ -44,7 +44,11 @@ export function CombatStats(props: CombatStatsProps) {
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   const updateHP = (field: "current" | "maximum" | "temporary", value: number) =>
-    setEdited((prev) => ({ ...prev, hitPoints: { ...prev.hitPoints, [field]: value } }))
+    setEdited((prev) => {
+      const next = { ...prev.hitPoints, [field]: value }
+      if (next.current > next.maximum) next.current = next.maximum
+      return { ...prev, hitPoints: next }
+    })
 
   const updateDeathSave = (field: "successes" | "failures", value: number) =>
     setEdited((prev) => ({ ...prev, deathSaves: { ...prev.deathSaves, [field]: value } }))
@@ -53,8 +57,20 @@ export function CombatStats(props: CombatStatsProps) {
     const currentHP = props.character.hitPoints?.current ?? 0
     const maxHP = props.character.hitPoints?.maximum ?? 1
     const tempHP = props.character.hitPoints?.temporary ?? 0
-    const newHP = Math.max(0, Math.min(maxHP + tempHP, currentHP + amount))
-    const updated = { ...props.character, hitPoints: { ...props.character.hitPoints, current: newHP } }
+
+    let newTempHP = tempHP
+    let newCurrentHP = currentHP
+
+    if (amount < 0) {
+      const damage = -amount
+      const tempAbsorbed = Math.min(tempHP, damage)
+      newTempHP = tempHP - tempAbsorbed
+      newCurrentHP = Math.max(0, currentHP - (damage - tempAbsorbed))
+    } else {
+      newCurrentHP = Math.min(maxHP, currentHP + amount)
+    }
+
+    const updated = { ...props.character, hitPoints: { ...props.character.hitPoints, current: newCurrentHP, temporary: newTempHP } }
     props.onUpdate(updated)
     saveCharacter(updated)
   }
@@ -124,7 +140,7 @@ export function CombatStats(props: CombatStatsProps) {
             <div class="grid grid-cols-3 gap-2">
               <div>
                 <Label class="text-xs">Current</Label>
-                <NumericInput min={0} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} />
+                <NumericInput min={0} max={edited().hitPoints?.maximum} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} />
               </div>
               <div>
                 <Label class="text-xs">Maximum</Label>
