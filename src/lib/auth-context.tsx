@@ -8,6 +8,8 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth'
 import { auth } from './firebase'
+import { saveCharacterToFirebase } from './firebase-storage'
+import type { Character } from './character-types'
 
 interface AuthContextType {
   user: () => User | null
@@ -43,7 +45,17 @@ export const AuthProvider: ParentComponent = (props) => {
   }
 
   if (!isSkipAuth) {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const stored = localStorage.getItem('dnd-characters')
+        const localChars: Character[] = stored ? JSON.parse(stored) : []
+        if (localChars.length > 0) {
+          for (const char of localChars) {
+            await saveCharacterToFirebase(char, firebaseUser.uid)
+          }
+          localStorage.setItem('dnd-characters', '[]')
+        }
+      }
       setUser(firebaseUser)
       setLoading(false)
     })
@@ -70,6 +82,10 @@ export const AuthProvider: ParentComponent = (props) => {
 
   const logout = async () => {
     try {
+      if (user()) {
+        localStorage.removeItem('dnd-characters')
+        localStorage.removeItem('dnd-active-character')
+      }
       await signOut(auth)
     } catch (error) {
       console.error('Sign out error:', error)
