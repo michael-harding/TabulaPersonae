@@ -3,11 +3,11 @@ import { ComponentProps, JSX, splitProps } from "solid-js"
 import X from "lucide-solid/icons/x"
 import { cn } from "@/lib/utils"
 
-export const Dialog = DialogPrimitive
-export const DialogTrigger = DialogPrimitive.Trigger
-export const DialogClose = DialogPrimitive.CloseButton
+export const Modal = DialogPrimitive
+export const ModalTrigger = DialogPrimitive.Trigger
+export const ModalClose = DialogPrimitive.CloseButton
 
-function DialogOverlay(props: ComponentProps<typeof DialogPrimitive.Overlay>) {
+function ModalOverlay(props: ComponentProps<typeof DialogPrimitive.Overlay>) {
   const [local, others] = splitProps(props, ["class"])
   return (
     <DialogPrimitive.Overlay
@@ -20,11 +20,11 @@ function DialogOverlay(props: ComponentProps<typeof DialogPrimitive.Overlay>) {
   )
 }
 
-export function DialogContent(props: ComponentProps<typeof DialogPrimitive.Content> & { children?: JSX.Element }) {
+export function ModalContent(props: ComponentProps<typeof DialogPrimitive.Content> & { children?: JSX.Element }) {
   const [local, others] = splitProps(props, ["class", "children"])
   return (
     <DialogPrimitive.Portal>
-      <DialogOverlay />
+      <ModalOverlay />
       <DialogPrimitive.Content
         class={cn(
           "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[closed]:zoom-out-95 data-[expanded]:zoom-in-95 sm:rounded-lg max-h-[100dvh] overflow-y-auto",
@@ -42,21 +42,21 @@ export function DialogContent(props: ComponentProps<typeof DialogPrimitive.Conte
   )
 }
 
-export function DialogHeader(props: ComponentProps<"div">) {
+export function ModalHeader(props: ComponentProps<"div">) {
   const [local, others] = splitProps(props, ["class"])
   return (
     <div class={cn("flex flex-col space-y-1.5 text-center sm:text-left", local.class)} {...others} />
   )
 }
 
-export function DialogFooter(props: ComponentProps<"div">) {
+export function ModalFooter(props: ComponentProps<"div">) {
   const [local, others] = splitProps(props, ["class"])
   return (
     <div class={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", local.class)} {...others} />
   )
 }
 
-export function DialogTitle(props: ComponentProps<typeof DialogPrimitive.Title>) {
+export function ModalTitle(props: ComponentProps<typeof DialogPrimitive.Title>) {
   const [local, others] = splitProps(props, ["class"])
   return (
     <DialogPrimitive.Title
@@ -66,7 +66,7 @@ export function DialogTitle(props: ComponentProps<typeof DialogPrimitive.Title>)
   )
 }
 
-export function DialogDescription(props: ComponentProps<typeof DialogPrimitive.Description>) {
+export function ModalDescription(props: ComponentProps<typeof DialogPrimitive.Description>) {
   const [local, others] = splitProps(props, ["class"])
   return (
     <DialogPrimitive.Description

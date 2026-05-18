@@ -244,18 +244,18 @@ describe("EquipmentInventory", () => {
     })
   })
 
-  describe("Add Item dialog", () => {
-    it("opens the Add New Item dialog when Add Item is clicked", () => {
+  describe("Add Item modal", () => {
+    it("opens the Add New Item modal when Add Item is clicked", () => {
       render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add item/i }))
       expect(screen.getByText("Add New Item")).toBeInTheDocument()
     })
 
-    it("closes the dialog when Cancel is clicked", () => {
+    it("closes the modal when Cancel is clicked", () => {
       render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
-      const dialog = screen.getByRole("dialog")
-      fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("button", { name: /cancel/i }))
       expect(screen.getByRole("dialog")).toHaveAttribute("data-closed")
     })
 
@@ -263,8 +263,8 @@ describe("EquipmentInventory", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
-      const dialog = screen.getByRole("dialog")
-      fireEvent.click(within(dialog).getByRole("button", { name: /add item/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
@@ -273,9 +273,9 @@ describe("EquipmentInventory", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
-      const dialog = screen.getByRole("dialog")
-      fireEvent.input(within(dialog).getByLabelText(/item name/i), { target: { value: "Shield" } })
-      fireEvent.click(within(dialog).getByRole("button", { name: /add item/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Shield" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ name: "Shield" })]),
@@ -284,13 +284,13 @@ describe("EquipmentInventory", () => {
       expect(saveCharacter).toHaveBeenCalled()
     })
 
-    it("sets type to 'other' for new items added via dialog", () => {
+    it("sets type to 'other' for new items added via modal", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
-      const dialog = screen.getByRole("dialog")
-      fireEvent.input(within(dialog).getByLabelText(/item name/i), { target: { value: "Shield" } })
-      fireEvent.click(within(dialog).getByRole("button", { name: /add item/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Shield" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ type: "other" })]),
@@ -299,8 +299,8 @@ describe("EquipmentInventory", () => {
     })
   })
 
-  describe("Edit Item dialog", () => {
-    it("opens the Edit Item dialog when the edit icon button is clicked", () => {
+  describe("Edit Item modal", () => {
+    it("opens the Edit Item modal when the edit icon button is clicked", () => {
       render(
         <EquipmentInventory
           character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })}

@@ -8,7 +8,7 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
@@ -681,26 +681,26 @@ export function ActionsSection(props: ActionsSectionProps) {
         </div>
       </CardContent>
 
-      <Dialog open={isAddActionOpen()} onOpenChange={setIsAddActionOpen}>
-        <DialogContent class="max-w-md">
-          <DialogHeader><DialogTitle>Add Custom Action</DialogTitle></DialogHeader>
+      <Modal open={isAddActionOpen()} onOpenChange={setIsAddActionOpen}>
+        <ModalContent class="max-w-md">
+          <ModalHeader><ModalTitle>Add Custom Action</ModalTitle></ModalHeader>
           <AttackForm onSubmit={handleAddAction} onCancel={() => setIsAddActionOpen(false)} />
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
-      <Dialog open={isAddBonusActionOpen()} onOpenChange={setIsAddBonusActionOpen}>
-        <DialogContent class="max-w-md">
-          <DialogHeader><DialogTitle>Add Custom Bonus Action</DialogTitle></DialogHeader>
+      <Modal open={isAddBonusActionOpen()} onOpenChange={setIsAddBonusActionOpen}>
+        <ModalContent class="max-w-md">
+          <ModalHeader><ModalTitle>Add Custom Bonus Action</ModalTitle></ModalHeader>
           <BonusActionForm onSubmit={handleAddBonusAction} onCancel={() => setIsAddBonusActionOpen(false)} />
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
-      <Dialog open={isAddReactionOpen()} onOpenChange={setIsAddReactionOpen}>
-        <DialogContent class="max-w-md">
-          <DialogHeader><DialogTitle>Add Custom Reaction</DialogTitle></DialogHeader>
+      <Modal open={isAddReactionOpen()} onOpenChange={setIsAddReactionOpen}>
+        <ModalContent class="max-w-md">
+          <ModalHeader><ModalTitle>Add Custom Reaction</ModalTitle></ModalHeader>
           <ReactionForm onSubmit={handleAddReaction} onCancel={() => setIsAddReactionOpen(false)} />
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
     </Card>
   )
 }

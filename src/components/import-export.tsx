@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import Download from "lucide-solid/icons/download"
 import Upload from "lucide-solid/icons/upload"
 import FileText from "lucide-solid/icons/file-text"
@@ -102,11 +102,11 @@ export function ImportExport(props: ImportExportProps) {
         Export
       </Button>
 
-      <Dialog open={isImportOpen()} onOpenChange={setIsImportOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Import Characters</DialogTitle>
-          </DialogHeader>
+      <Modal open={isImportOpen()} onOpenChange={setIsImportOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Import Characters</ModalTitle>
+          </ModalHeader>
           <div class="space-y-4">
             <p class="text-sm text-muted-foreground">
               Select a JSON file containing character data to import. You can import single characters or multiple characters at once.
@@ -126,14 +126,14 @@ export function ImportExport(props: ImportExportProps) {
               </label>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
-      <Dialog open={isExportOpen()} onOpenChange={setIsExportOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Export Characters</DialogTitle>
-          </DialogHeader>
+      <Modal open={isExportOpen()} onOpenChange={setIsExportOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Export Characters</ModalTitle>
+          </ModalHeader>
           <div class="space-y-4">
             <p class="text-sm text-muted-foreground">
               Export your characters as JSON files to save locally or share with others.
@@ -170,8 +170,8 @@ export function ImportExport(props: ImportExportProps) {
               ))}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
     </div>
   )
 }

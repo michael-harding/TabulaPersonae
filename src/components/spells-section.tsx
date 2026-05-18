@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import Sparkles from "lucide-solid/icons/sparkles"
 import Plus from "lucide-solid/icons/plus"
@@ -229,10 +229,10 @@ function SpellForm(props: SpellFormProps) {
 
 export function SpellsSection(props: SpellsSectionProps) {
   const [searchTerm, setSearchTerm] = createSignal("")
-  const [isAddDialogOpen, setIsAddDialogOpen] = createSignal(false)
+  const [isAddModalOpen, setIsAddModalOpen] = createSignal(false)
   const [editingSpell, setEditingSpell] = createSignal<Spell | null>(null)
   const [expandedLevels, setExpandedLevels] = createSignal<Set<number>>(new Set([0]))
-  const [isSpellSlotsDialogOpen, setIsSpellSlotsDialogOpen] = createSignal(false)
+  const [isSpellSlotsModalOpen, setIsSpellSlotsModalOpen] = createSignal(false)
 
 
   const safeSpells = () => props.character.spells || []
@@ -297,7 +297,7 @@ export function SpellsSection(props: SpellsSectionProps) {
     const updated = { ...props.character, spells: [...safeSpells(), newSpell] }
     props.onUpdate(updated)
     saveCharacter(updated)
-    setIsAddDialogOpen(false)
+    setIsAddModalOpen(false)
   }
 
   const handleUpdateSpell = (formData: SpellFormData) => {
@@ -391,7 +391,7 @@ export function SpellsSection(props: SpellsSectionProps) {
             <Sparkles class="h-5 w-5 text-primary" />
             Spells
           </div>
-          <Button size="sm" class="gap-2" onClick={() => setIsAddDialogOpen(true)}>
+          <Button size="sm" class="gap-2" onClick={() => setIsAddModalOpen(true)}>
             <Plus class="h-4 w-4" />
             Add Spell
           </Button>
@@ -445,7 +445,7 @@ export function SpellsSection(props: SpellsSectionProps) {
               <Circle class="h-5 w-5 text-primary" />
               Spell Slots
             </h3>
-            <Button variant="outline" size="sm" class="gap-1" onClick={() => setIsSpellSlotsDialogOpen(true)}>
+            <Button variant="outline" size="sm" class="gap-1" onClick={() => setIsSpellSlotsModalOpen(true)}>
               <Settings class="h-3 w-3" />
               Edit Slots
             </Button>
@@ -580,36 +580,36 @@ export function SpellsSection(props: SpellsSectionProps) {
         </div>
       </CardContent>
 
-      {/* Add Spell Dialog */}
-      <Dialog open={isAddDialogOpen()} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent class="max-w-2xl">
-          <DialogHeader><DialogTitle>Add New Spell</DialogTitle></DialogHeader>
+      {/* Add Spell Modal */}
+      <Modal open={isAddModalOpen()} onOpenChange={setIsAddModalOpen}>
+        <ModalContent class="max-w-2xl">
+          <ModalHeader><ModalTitle>Add New Spell</ModalTitle></ModalHeader>
           <SpellForm
             initialData={defaultSpellForm}
             onSubmit={handleAddSpell}
-            onCancel={() => setIsAddDialogOpen(false)}
+            onCancel={() => setIsAddModalOpen(false)}
             editing={false}
           />
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
-      {/* Edit Spell Dialog */}
-      <Dialog open={!!editingSpell()} onOpenChange={(open: boolean) => { if (!open) setEditingSpell(null) }}>
-        <DialogContent class="max-w-2xl">
-          <DialogHeader><DialogTitle>Edit Spell</DialogTitle></DialogHeader>
+      {/* Edit Spell Modal */}
+      <Modal open={!!editingSpell()} onOpenChange={(open: boolean) => { if (!open) setEditingSpell(null) }}>
+        <ModalContent class="max-w-2xl">
+          <ModalHeader><ModalTitle>Edit Spell</ModalTitle></ModalHeader>
           <SpellForm
             initialData={editSpellData()}
             onSubmit={handleUpdateSpell}
             onCancel={() => setEditingSpell(null)}
             editing={true}
           />
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
 
-      {/* Spell Slots Dialog */}
-      <Dialog open={isSpellSlotsDialogOpen()} onOpenChange={setIsSpellSlotsDialogOpen}>
-        <DialogContent class="max-w-2xl">
-          <DialogHeader><DialogTitle>Edit Spell Slots</DialogTitle></DialogHeader>
+      {/* Spell Slots Modal */}
+      <Modal open={isSpellSlotsModalOpen()} onOpenChange={setIsSpellSlotsModalOpen}>
+        <ModalContent class="max-w-2xl">
+          <ModalHeader><ModalTitle>Edit Spell Slots</ModalTitle></ModalHeader>
           <div class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <For each={[1,2,3,4,5,6,7,8,9]}>
@@ -634,8 +634,8 @@ export function SpellsSection(props: SpellsSectionProps) {
               </For>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
     </Card>
   )
 }

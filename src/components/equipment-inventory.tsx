@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Separator } from "@/components/ui/separator"
 import Package from "lucide-solid/icons/package"
 import Plus from "lucide-solid/icons/plus"
@@ -111,7 +111,7 @@ function EquipmentForm(props: EquipmentFormProps) {
 
 export function EquipmentInventory(props: EquipmentInventoryProps) {
   const [searchTerm, setSearchTerm] = createSignal("")
-  const [dialogOpen, setDialogOpen] = createSignal(false)
+  const [modalOpen, setModalOpen] = createSignal(false)
   const [editingItem, setEditingItem] = createSignal<Equipment | null>(null)
 
   const safeEquipment = () => props.character.equipment || []
@@ -132,9 +132,9 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
     return defaultEquipmentForm
   }
 
-  const openAdd = () => { setEditingItem(null); setDialogOpen(true) }
-  const openEdit = (item: Equipment) => { setEditingItem(item); setDialogOpen(true) }
-  const closeDialog = () => { setEditingItem(null); setDialogOpen(false) }
+  const openAdd = () => { setEditingItem(null); setModalOpen(true) }
+  const openEdit = (item: Equipment) => { setEditingItem(item); setModalOpen(true) }
+  const closeModal = () => { setEditingItem(null); setModalOpen(false) }
 
   const handleAddItem = (formData: EquipmentFormData) => {
     if (!formData.name.trim()) return
@@ -150,7 +150,7 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
     const updated = { ...props.character, equipment: [...safeEquipment(), newItem] }
     props.onUpdate(updated)
     saveCharacter(updated)
-    closeDialog()
+    closeModal()
   }
 
   const handleUpdateItem = (formData: EquipmentFormData) => {
@@ -171,7 +171,7 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
     }
     props.onUpdate(updated)
     saveCharacter(updated)
-    closeDialog()
+    closeModal()
   }
 
   const handleDeleteItem = (itemId: string) => {
@@ -421,19 +421,19 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
         </div>
       </CardContent>
 
-      <Dialog open={dialogOpen()} onOpenChange={(open: boolean) => { if (!open) closeDialog() }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingItem() ? "Edit Item" : "Add New Item"}</DialogTitle>
-          </DialogHeader>
+      <Modal open={modalOpen()} onOpenChange={(open: boolean) => { if (!open) closeModal() }}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>{editingItem() ? "Edit Item" : "Add New Item"}</ModalTitle>
+          </ModalHeader>
           <EquipmentForm
             initialData={currentFormData()}
             onSubmit={editingItem() ? handleUpdateItem : handleAddItem}
-            onCancel={closeDialog}
+            onCancel={closeModal}
             editing={!!editingItem()}
           />
-        </DialogContent>
-      </Dialog>
+        </ModalContent>
+      </Modal>
     </Card>
   )
 }

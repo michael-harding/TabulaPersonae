@@ -27,8 +27,8 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
 }
 
 function cleanupPortals() {
-  // Kobalte portals dialogs into a body-level div and marks test-container siblings
-  // aria-hidden when open. In jsdom, CSS animationend never fires so dialogs never
+  // Kobalte portals modals into a body-level div and marks test-container siblings
+  // aria-hidden when open. In jsdom, CSS animationend never fires so modals never
   // fully unmount — both the portal div and the hidden siblings accumulate. Remove
   // any body child that either is aria-hidden OR contains a [role="dialog"] element.
   Array.from(document.body.children).forEach((child) => {
@@ -154,18 +154,18 @@ describe("SpellsSection", () => {
     })
   })
 
-  describe("Add Spell dialog", () => {
-    it("opens the Add New Spell dialog when Add Spell is clicked", () => {
+  describe("Add Spell modal", () => {
+    it("opens the Add New Spell modal when Add Spell is clicked", () => {
       render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
       expect(screen.getByText("Add New Spell")).toBeInTheDocument()
     })
 
-    it("closes the dialog when Cancel is clicked", () => {
+    it("closes the modal when Cancel is clicked", () => {
       render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
-      const dialog = screen.getByRole("dialog")
-      fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("button", { name: /cancel/i }))
       expect(screen.getByRole("dialog")).toHaveAttribute("data-closed")
     })
 
@@ -173,8 +173,8 @@ describe("SpellsSection", () => {
       const onUpdate = vi.fn()
       render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
-      const dialog = screen.getByRole("dialog")
-      fireEvent.click(within(dialog).getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
@@ -183,11 +183,11 @@ describe("SpellsSection", () => {
       const onUpdate = vi.fn()
       render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
-      const dialog = screen.getByRole("dialog")
-      fireEvent.input(within(dialog).getByLabelText(/spell name/i), {
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/spell name/i), {
         target: { value: "Lightning Bolt" },
       })
-      fireEvent.click(within(dialog).getByRole("button", { name: /add spell/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           spells: expect.arrayContaining([expect.objectContaining({ name: "Lightning Bolt" })]),
@@ -232,21 +232,21 @@ describe("SpellsSection", () => {
   })
 
   describe("At Higher Level field", () => {
-    it("renders the At Higher Level input in the Add Spell dialog", () => {
+    it("renders the At Higher Level input in the Add Spell modal", () => {
       render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
-      const dialog = screen.getByRole("dialog")
-      expect(within(dialog).getByLabelText(/at higher level/i)).toBeInTheDocument()
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByLabelText(/at higher level/i)).toBeInTheDocument()
     })
 
     it("saves atHigherLevel when adding a spell with a value", () => {
       const onUpdate = vi.fn()
       render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
-      const dialog = screen.getByRole("dialog")
-      fireEvent.input(within(dialog).getByLabelText(/spell name/i), { target: { value: "Fireball" } })
-      fireEvent.input(within(dialog).getByLabelText(/at higher level/i), { target: { value: "+1d6 per level" } })
-      fireEvent.click(within(dialog).getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/spell name/i), { target: { value: "Fireball" } })
+      fireEvent.input(within(modal).getByLabelText(/at higher level/i), { target: { value: "+1d6 per level" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           spells: expect.arrayContaining([
@@ -256,13 +256,13 @@ describe("SpellsSection", () => {
       )
     })
 
-    it("pre-populates atHigherLevel in the Edit Spell dialog", () => {
+    it("pre-populates atHigherLevel in the Edit Spell modal", () => {
       const spell = makeSpell({ name: "Fire Bolt", level: 0, atHigherLevel: "+1d10 per level" })
       render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       const buttons = screen.getAllByRole("button")
       fireEvent.click(buttons[buttons.length - 2]) // Edit button (second-to-last)
-      const dialog = screen.getByRole("dialog")
-      expect(within(dialog).getByLabelText(/at higher level/i)).toHaveValue("+1d10 per level")
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByLabelText(/at higher level/i)).toHaveValue("+1d10 per level")
     })
 
     it("saves the updated atHigherLevel when editing a spell", () => {
@@ -271,9 +271,9 @@ describe("SpellsSection", () => {
       render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
       const buttons = screen.getAllByRole("button")
       fireEvent.click(buttons[buttons.length - 2]) // Edit button
-      const dialog = screen.getByRole("dialog")
-      fireEvent.input(within(dialog).getByLabelText(/at higher level/i), { target: { value: "+2d6 per level" } })
-      fireEvent.click(within(dialog).getByRole("button", { name: /update spell/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/at higher level/i), { target: { value: "+2d6 per level" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /update spell/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           spells: expect.arrayContaining([
@@ -284,20 +284,20 @@ describe("SpellsSection", () => {
     })
   })
 
-  describe("Edit Spell Slots dialog", () => {
-    it("opens the Edit Spell Slots dialog when Edit Slots is clicked", () => {
+  describe("Edit Spell Slots modal", () => {
+    it("opens the Edit Spell Slots modal when Edit Slots is clicked", () => {
       render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
       expect(screen.getByText("Edit Spell Slots")).toBeInTheDocument()
     })
 
-    it("calls onUpdate when a slot total is changed in the dialog", () => {
+    it("calls onUpdate when a slot total is changed in the modal", () => {
       const onUpdate = vi.fn()
       render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
-      const dialog = screen.getByRole("dialog")
+      const modal = screen.getByRole("dialog")
       // First spinbutton is Level 1 total (title="Total slots")
-      const spinbutton = within(dialog).getAllByRole("spinbutton")[0]
+      const spinbutton = within(modal).getAllByRole("spinbutton")[0]
       fireEvent.input(spinbutton, { target: { value: "3" } })
       fireEvent.blur(spinbutton)
       expect(onUpdate).toHaveBeenCalledWith(
@@ -337,18 +337,18 @@ describe("SpellsSection", () => {
   describe("concentration and ritual in edit form", () => {
     beforeEach(() => cleanupPortals())
 
-    it("renders Concentration label in the add spell dialog", () => {
+    it("renders Concentration label in the add spell modal", () => {
       render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
-      const dialog = screen.getByRole("dialog")
-      expect(within(dialog).getByText(/^concentration$/i)).toBeInTheDocument()
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByText(/^concentration$/i)).toBeInTheDocument()
     })
 
-    it("renders Ritual label in the add spell dialog", () => {
+    it("renders Ritual label in the add spell modal", () => {
       render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
-      const dialog = screen.getByRole("dialog")
-      expect(within(dialog).getByText(/^ritual$/i)).toBeInTheDocument()
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByText(/^ritual$/i)).toBeInTheDocument()
     })
   })
 
