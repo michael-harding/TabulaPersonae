@@ -2,7 +2,7 @@ import { createSignal, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -34,6 +34,7 @@ const toEdit = (c: Character) => ({
   proficiencyBonus: c.proficiencyBonus || 2,
   deathSaves: { successes: c.deathSaves?.successes || 0, failures: c.deathSaves?.failures || 0 },
 })
+
 
 export function CombatStats(props: CombatStatsProps) {
   const [isEditing, setIsEditing] = createSignal(false)
@@ -123,15 +124,15 @@ export function CombatStats(props: CombatStatsProps) {
             <div class="grid grid-cols-3 gap-2">
               <div>
                 <Label class="text-xs">Current</Label>
-                <Input type="number" min="0" value={edited().hitPoints?.current ?? 0} onInput={(e) => updateHP("current", parseInt(e.currentTarget.value) || 0)} />
+                <NumericInput min={0} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} />
               </div>
               <div>
                 <Label class="text-xs">Maximum</Label>
-                <Input type="number" min="1" value={edited().hitPoints?.maximum ?? 1} onInput={(e) => updateHP("maximum", parseInt(e.currentTarget.value) || 1)} />
+                <NumericInput min={1} value={edited().hitPoints?.maximum ?? 1} onChange={(v) => updateHP("maximum", v)} />
               </div>
               <div>
                 <Label class="text-xs">Temporary</Label>
-                <Input type="number" min="0" value={edited().hitPoints?.temporary ?? 0} onInput={(e) => updateHP("temporary", parseInt(e.currentTarget.value) || 0)} />
+                <NumericInput min={0} value={edited().hitPoints?.temporary ?? 0} onChange={(v) => updateHP("temporary", v)} />
               </div>
             </div>
           </Show>
@@ -208,10 +209,9 @@ export function CombatStats(props: CombatStatsProps) {
               <Show when={isEditing()} fallback={
                 <div class="text-2xl font-bold text-primary mt-1">{display(props.character[field] as number || def)}</div>
               }>
-                <Input
-                  type="number"
-                  value={edited()[field] as number || def}
-                  onInput={(e) => setEdited((prev) => ({ ...prev, [field]: parseInt(e.currentTarget.value) || def }))}
+                <NumericInput
+                  value={edited()[field] as number}
+                  onChange={(v) => setEdited(prev => ({ ...prev, [field]: v }))}
                   class="text-center text-xl font-bold mt-1"
                 />
               </Show>

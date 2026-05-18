@@ -2,7 +2,7 @@ import { createSignal, createEffect, on, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { NumericInput } from "@/components/ui/numeric-input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Zap from "lucide-solid/icons/zap"
@@ -80,11 +80,11 @@ export function AbilityScores(props: AbilityScoresProps) {
                   <div class="font-medium text-sm text-muted-foreground">{ABILITY_ABBREVIATIONS[ability]}</div>
                   {isEditing() ? (
                     <div class="space-y-2">
-                      <Input
-                        type="number" min="1" max="30"
+                      <NumericInput
+                        min={1} max={30}
                         aria-label={ABILITY_NAMES[ability]}
-                        value={score()}
-                        onInput={(e) => setEditedScores((prev) => ({ ...prev, [ability]: Math.max(1, Math.min(30, parseInt(e.currentTarget.value) || 10)) }))}
+                        value={editedScores()[ability]}
+                        onChange={(v) => setEditedScores((prev) => ({ ...prev, [ability]: v }))}
                         class="text-center text-2xl font-bold h-16"
                       />
                       <label class="flex items-center gap-1 justify-center text-xs cursor-pointer">

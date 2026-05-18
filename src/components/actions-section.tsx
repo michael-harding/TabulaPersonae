@@ -4,6 +4,7 @@ import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/chara
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -68,7 +69,7 @@ function AttackForm(props: AttackFormProps) {
       <div class="grid grid-cols-2 gap-2">
         <div>
           <Label for="attack-bonus">Attack Bonus</Label>
-          <Input id="attack-bonus" type="number" value={formData().attackBonus} onInput={(e) => setFormData((p) => ({ ...p, attackBonus: parseInt(e.currentTarget.value) || 0 }))} placeholder="+5" />
+          <NumericInput id="attack-bonus" value={formData().attackBonus} onChange={(v) => setFormData(p => ({ ...p, attackBonus: v }))} placeholder="+5" />
         </div>
         <div>
           <Label for="damage">Damage</Label>
@@ -118,7 +119,6 @@ function BonusActionForm(props: BonusActionFormProps) {
     uses: 0,
     maxUses: 0,
   })
-
   const handleSubmit = () => {
     if (!formData().name.trim()) return
     props.onSubmit(formData())
@@ -146,11 +146,11 @@ function BonusActionForm(props: BonusActionFormProps) {
       <div class="grid grid-cols-2 gap-2">
         <div>
           <Label for="uses">Current Uses</Label>
-          <Input id="uses" type="number" min="0" value={formData().uses} onInput={(e) => setFormData((p) => ({ ...p, uses: parseInt(e.currentTarget.value) || 0 }))} />
+          <NumericInput id="uses" min={0} value={formData().uses} onChange={(v) => setFormData(p => ({ ...p, uses: v }))} />
         </div>
         <div>
           <Label for="max-uses">Max Uses</Label>
-          <Input id="max-uses" type="number" min="0" value={formData().maxUses} onInput={(e) => setFormData((p) => ({ ...p, maxUses: parseInt(e.currentTarget.value) || 0 }))} placeholder="0 (unlimited)" />
+          <NumericInput id="max-uses" min={0} value={formData().maxUses} onChange={(v) => setFormData(p => ({ ...p, maxUses: v }))} placeholder="0 (unlimited)" />
         </div>
       </div>
 
@@ -181,7 +181,6 @@ function ReactionForm(props: ReactionFormProps) {
     uses: 0,
     maxUses: 0,
   })
-
   const handleSubmit = () => {
     if (!formData().name.trim() || !formData().trigger.trim()) return
     props.onSubmit(formData())
@@ -214,11 +213,11 @@ function ReactionForm(props: ReactionFormProps) {
       <div class="grid grid-cols-2 gap-2">
         <div>
           <Label for="reaction-uses">Current Uses</Label>
-          <Input id="reaction-uses" type="number" min="0" value={formData().uses} onInput={(e) => setFormData((p) => ({ ...p, uses: parseInt(e.currentTarget.value) || 0 }))} />
+          <NumericInput id="reaction-uses" min={0} value={formData().uses} onChange={(v) => setFormData(p => ({ ...p, uses: v }))} />
         </div>
         <div>
           <Label for="reaction-max-uses">Max Uses</Label>
-          <Input id="reaction-max-uses" type="number" min="0" value={formData().maxUses} onInput={(e) => setFormData((p) => ({ ...p, maxUses: parseInt(e.currentTarget.value) || 0 }))} placeholder="0 (unlimited)" />
+          <NumericInput id="reaction-max-uses" min={0} value={formData().maxUses} onChange={(v) => setFormData(p => ({ ...p, maxUses: v }))} placeholder="0 (unlimited)" />
         </div>
       </div>
 

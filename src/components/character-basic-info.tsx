@@ -2,6 +2,7 @@ import { createSignal, createEffect, on, For } from "solid-js"
 import type { Character, AbilityScores } from "@/lib/character-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -49,7 +50,6 @@ const toEdit = (c: Character) => ({
 export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
   const [isEditing, setIsEditing] = createSignal(false)
   const [edited, setEdited] = createSignal(toEdit(props.character))
-
   createEffect(on(() => props.character.id, () => {
     setEdited(toEdit(props.character))
   }))
@@ -102,7 +102,7 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
               </div>
               <div>
                 <Label for="level">Level</Label>
-                <Input id="level" type="number" min="1" max="20" value={edited().level || 1} onInput={(e) => updateField("level", parseInt(e.currentTarget.value) || 1)} />
+                <NumericInput id="level" min={1} max={20} value={edited().level || 1} onChange={(v) => updateField("level", v)} />
               </div>
               <div>
                 <Label for="race">Race</Label>
@@ -138,7 +138,7 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
             </div>
             <div>
               <Label for="xp">Experience Points</Label>
-              <Input id="xp" type="number" min="0" value={edited().experiencePoints || 0} onInput={(e) => updateField("experiencePoints", parseInt(e.currentTarget.value) || 0)} />
+              <NumericInput id="xp" min={0} value={edited().experiencePoints || 0} onChange={(v) => updateField("experiencePoints", v)} />
             </div>
             <div class="flex gap-2 pt-4">
               <Button onClick={handleSave} class="gap-2"><Save class="h-4 w-4" />Save Changes</Button>

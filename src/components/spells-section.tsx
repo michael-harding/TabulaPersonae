@@ -5,6 +5,7 @@ import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -97,7 +98,7 @@ function SpellForm(props: SpellFormProps) {
       <div class="grid grid-cols-3 gap-4">
         <div>
           <Label for="regain">Regain</Label>
-          <Input id="regain" value={formData().regain || ""} onInput={(e) => setFormData((p) => ({ ...p, regain: e.currentTarget.value }))} placeholder="e.g. Long Rest" />
+          <Input id="regain" value={formData().regain || ""} onInput={(e) => setFormData((p) => ({ ...p, regain: e.currentTarget.value }))} placeholder="e.g. 2d4+3 healing" />
         </div>
         <div>
           <Label for="spell-damage">Damage</Label>
@@ -190,6 +191,7 @@ export function SpellsSection(props: SpellsSectionProps) {
   const [editingSpell, setEditingSpell] = createSignal<Spell | null>(null)
   const [expandedLevels, setExpandedLevels] = createSignal<Set<number>>(new Set([0]))
   const [isSpellSlotsDialogOpen, setIsSpellSlotsDialogOpen] = createSignal(false)
+
 
   const safeSpells = () => props.character.spells || []
   const filteredSpells = () =>
@@ -576,12 +578,10 @@ export function SpellsSection(props: SpellsSectionProps) {
                     <div class="flex items-center justify-between p-3 border rounded-lg">
                       <span class="font-medium">Level {level}</span>
                       <div class="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="20"
+                        <NumericInput
+                          min={0} max={20}
                           value={slots().total}
-                          onInput={(e) => updateSpellSlots(level, "total", parseInt(e.currentTarget.value) || 0)}
+                          onChange={(v) => updateSpellSlots(level, "total", v)}
                           class="w-16 h-8 text-center"
                           title="Total slots"
                         />

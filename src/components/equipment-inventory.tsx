@@ -4,6 +4,7 @@ import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -48,7 +49,6 @@ interface EquipmentFormProps {
 
 function EquipmentForm(props: EquipmentFormProps) {
   const [formData, setFormData] = createSignal<EquipmentFormData>(props.initialData)
-
   createEffect(on(() => props.initialData, (init) => setFormData(init)))
 
   return (
@@ -66,24 +66,11 @@ function EquipmentForm(props: EquipmentFormProps) {
       <div class="grid grid-cols-2 gap-4">
         <div>
           <Label for="quantity">Quantity</Label>
-          <Input
-            id="quantity"
-            type="number"
-            min="1"
-            value={formData().quantity}
-            onInput={(e) => setFormData((prev) => ({ ...prev, quantity: parseInt(e.currentTarget.value) || 1 }))}
-          />
+          <NumericInput id="quantity" min={1} value={formData().quantity} onChange={(v) => setFormData(prev => ({ ...prev, quantity: v }))} />
         </div>
         <div>
           <Label for="weight">Weight (lbs)</Label>
-          <Input
-            id="weight"
-            type="number"
-            min="0"
-            step="0.1"
-            value={formData().weight}
-            onInput={(e) => setFormData((prev) => ({ ...prev, weight: parseFloat(e.currentTarget.value) || 0 }))}
-          />
+          <NumericInput id="weight" min={0} step="0.1" value={formData().weight} onChange={(v) => setFormData(prev => ({ ...prev, weight: v }))} parser={parseFloat} />
         </div>
       </div>
 
