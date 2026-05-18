@@ -361,4 +361,71 @@ describe("EquipmentInventory", () => {
       expect(saveCharacter).toHaveBeenCalled()
     })
   })
+
+  describe("Coins", () => {
+    it("renders CP, SP, EP, GP, PP labels", () => {
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("CP")).toBeInTheDocument()
+      expect(screen.getByText("SP")).toBeInTheDocument()
+      expect(screen.getByText("EP")).toBeInTheDocument()
+      expect(screen.getByText("GP")).toBeInTheDocument()
+      expect(screen.getByText("PP")).toBeInTheDocument()
+    })
+
+    it("shows 0 for all coin denominations by default", () => {
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      const spinbuttons = screen.getAllByRole("spinbutton")
+      // First 5 spinbuttons are coin fields (CP SP EP GP PP)
+      spinbuttons.slice(0, 5).forEach((input) => {
+        expect(input).toHaveValue(0)
+      })
+    })
+
+    it("calls onUpdate with updated GP when GP field changes", async () => {
+      const { saveCharacter } = await import("@/lib/character-storage")
+      const onUpdate = vi.fn()
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      const spinbuttons = screen.getAllByRole("spinbutton")
+      // GP is the 4th coin field (index 3)
+      fireEvent.input(spinbuttons[3], { target: { value: "50" } })
+      fireEvent.blur(spinbuttons[3])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ coins: expect.objectContaining({ gp: 50 }) })
+      )
+      expect(saveCharacter).toHaveBeenCalled()
+    })
+  })
+
+  describe("Magic Item Attunement (2024 only)", () => {
+    it("renders the attunement section in 2024 mode", () => {
+      render(<EquipmentInventory character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Magic Item Attunement")).toBeInTheDocument()
+    })
+
+    it("does not render the attunement section in 2014 mode", () => {
+      render(<EquipmentInventory character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Magic Item Attunement")).not.toBeInTheDocument()
+    })
+
+    it("renders 'Add Attuned Item' button when fewer than 3 items attuned", () => {
+      render(<EquipmentInventory character={makeCharacter({ edition: "2024", magicItemAttunement: ["Ring of Protection"] })} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: /add attuned item/i })).toBeInTheDocument()
+    })
+
+    it("hides 'Add Attuned Item' button when 3 items are already attuned", () => {
+      render(<EquipmentInventory character={makeCharacter({ edition: "2024", magicItemAttunement: ["Item A", "Item B", "Item C"] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("button", { name: /add attuned item/i })).not.toBeInTheDocument()
+    })
+
+    it("calls onUpdate with new empty entry when Add Attuned Item is clicked", async () => {
+      const { saveCharacter } = await import("@/lib/character-storage")
+      const onUpdate = vi.fn()
+      render(<EquipmentInventory character={makeCharacter({ edition: "2024", magicItemAttunement: [] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add attuned item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ magicItemAttunement: [""] })
+      )
+      expect(saveCharacter).toHaveBeenCalled()
+    })
+  })
 })

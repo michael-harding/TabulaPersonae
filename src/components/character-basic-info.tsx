@@ -1,10 +1,11 @@
-import { createSignal, createEffect, on, For } from "solid-js"
+import { createSignal, createEffect, on, For, Show } from "solid-js"
 import type { Character, AbilityScores } from "@/lib/character-types"
 import { EditableSection } from "@/components/editable-section"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SwitchButton } from "@/components/ui/switch-button"
 import User from "lucide-solid/icons/user"
 
 interface CharacterBasicInfoProps {
@@ -15,6 +16,11 @@ interface CharacterBasicInfoProps {
 const RACES = [
   "Human","Elf","Dwarf","Halfling","Dragonborn","Gnome",
   "Half-Elf","Half-Orc","Tiefling","Aasimar","Genasi","Goliath","Tabaxi","Other",
+]
+
+const SPECIES = [
+  "Human","Elf","Dwarf","Halfling","Dragonborn","Gnome",
+  "Orc","Tiefling","Aasimar","Goliath","Ardling","Other",
 ]
 
 const CLASS_TO_SPELLCASTING_ABILITY: Record<string, keyof AbilityScores | ""> = {
@@ -40,6 +46,7 @@ const toEdit = (c: Character) => ({
   name: c.name || "",
   race: c.race || "",
   class: c.class || "",
+  subclass: c.subclass || "",
   background: c.background || "",
   alignment: c.alignment || "",
   experiencePoints: c.experiencePoints || 0,
@@ -51,6 +58,11 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
   createEffect(on(() => props.character.id, () => {
     setEdited(toEdit(props.character))
   }))
+
+  const edition = () => props.character.edition ?? "2024"
+  const raceLabel = () => edition() === "2014" ? "Race" : "Species"
+  const raceList = () => edition() === "2014" ? RACES : SPECIES
+  const inspirationLabel = () => edition() === "2014" ? "Inspiration" : "Heroic Inspiration"
 
   const updateField = (field: keyof Character, value: any) => {
     if (field === "class") {
@@ -74,16 +86,25 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
       onSave={handleSave}
       onCancel={handleCancel}
       headerExtra={
-        <div class="flex items-center gap-2">
-          <Label for="heroic-inspiration-toggle" class="text-xs font-medium">Heroic Inspiration</Label>
-          <input
-            id="heroic-inspiration-toggle"
-            type="checkbox"
-            checked={!!props.character.heroicInspiration}
-            onChange={(e) => props.onUpdate({ ...props.character, heroicInspiration: e.currentTarget.checked })}
-            class="accent-primary h-4 w-4"
-            style={{ "accent-color": "#eab308" }}
+        <div class="flex items-center gap-3">
+          <SwitchButton
+            optionA="2014"
+            optionB="2024"
+            value={edition()}
+            onChange={(v) => props.onUpdate({ ...props.character, edition: v as "2014" | "2024" })}
+            id="edition-switch-info"
           />
+          <div class="flex items-center gap-2">
+            <Label for="heroic-inspiration-toggle" class="text-xs font-medium">{inspirationLabel()}</Label>
+            <input
+              id="heroic-inspiration-toggle"
+              type="checkbox"
+              checked={!!props.character.heroicInspiration}
+              onChange={(e) => props.onUpdate({ ...props.character, heroicInspiration: e.currentTarget.checked })}
+              class="accent-primary h-4 w-4"
+              style={{ "accent-color": "#eab308" }}
+            />
+          </div>
         </div>
       }
       contentClass="space-y-4"
@@ -100,11 +121,11 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
                 <NumericInput id="level" min={1} max={20} value={edited().level || 1} onChange={(v) => updateField("level", v)} />
               </div>
               <div>
-                <Label for="race">Race</Label>
+                <Label for="race">{raceLabel()}</Label>
                 <Select value={edited().race} onValueChange={(v) => updateField("race", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select race" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={`Select ${raceLabel().toLowerCase()}`} /></SelectTrigger>
                   <SelectContent>
-                    <For each={RACES}>{(race) => <SelectItem value={race}>{race}</SelectItem>}</For>
+                    <For each={raceList()}>{(r) => <SelectItem value={r}>{r}</SelectItem>}</For>
                   </SelectContent>
                 </Select>
               </div>
@@ -117,6 +138,12 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
                   </SelectContent>
                 </Select>
               </div>
+              <Show when={edition() === "2024"}>
+                <div>
+                  <Label for="subclass">Subclass</Label>
+                  <Input id="subclass" value={edited().subclass || ""} onInput={(e) => updateField("subclass", e.currentTarget.value)} placeholder="Enter subclass" />
+                </div>
+              </Show>
               <div>
                 <Label for="background">Background</Label>
                 <Input id="background" value={edited().background} onInput={(e) => updateField("background", e.currentTarget.value)} placeholder="Enter background" />
@@ -141,8 +168,14 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><Label class="text-sm font-medium text-muted-foreground">Name</Label><p class="text-lg font-semibold">{props.character.name || "Unnamed Character"}</p></div>
               <div><Label class="text-sm font-medium text-muted-foreground">Level</Label><p class="text-lg font-semibold">{props.character.level}</p></div>
-              <div><Label class="text-sm font-medium text-muted-foreground">Race</Label><p class="text-lg">{props.character.race || "Not specified"}</p></div>
-              <div><Label class="text-sm font-medium text-muted-foreground">Class</Label><p class="text-lg">{props.character.class || "Not specified"}</p></div>
+              <div><Label class="text-sm font-medium text-muted-foreground">{raceLabel()}</Label><p class="text-lg">{props.character.race || "Not specified"}</p></div>
+              <div>
+                <Label class="text-sm font-medium text-muted-foreground">Class</Label>
+                <p class="text-lg">{props.character.class || "Not specified"}</p>
+              </div>
+              <Show when={edition() === "2024"}>
+                <div><Label class="text-sm font-medium text-muted-foreground">Subclass</Label><p class="text-lg">{props.character.subclass || "Not specified"}</p></div>
+              </Show>
               <div><Label class="text-sm font-medium text-muted-foreground">Background</Label><p class="text-lg">{props.character.background || "Not specified"}</p></div>
               <div><Label class="text-sm font-medium text-muted-foreground">Alignment</Label><p class="text-lg">{props.character.alignment || "Not specified"}</p></div>
             </div>

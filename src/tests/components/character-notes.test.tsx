@@ -104,4 +104,150 @@ describe("CharacterNotes", () => {
       expect(screen.getByText("Brave and curious")).toBeInTheDocument()
     })
   })
+
+  describe("physical details", () => {
+    const charWithPhysical = { ...emptyCharacter, age: "30", height: "6'0\"", weight: "180lb", eyes: "Blue", skin: "Fair", hair: "Brown" }
+
+    it("shows physical detail values in view mode", () => {
+      render(<CharacterNotes character={charWithPhysical} onUpdate={vi.fn()} />)
+      expect(screen.getByText(/30/)).toBeInTheDocument()
+      expect(screen.getByText(/Blue/)).toBeInTheDocument()
+      expect(screen.getByText(/Brown/)).toBeInTheDocument()
+    })
+
+    it("shows dashes for empty physical details in view mode", () => {
+      render(<CharacterNotes character={emptyCharacter} onUpdate={vi.fn()} />)
+      // Six dashes — one per physical field
+      expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(6)
+    })
+
+    it("shows physical detail inputs in edit mode", () => {
+      render(<CharacterNotes character={emptyCharacter} onUpdate={vi.fn()} />)
+      enterEditMode()
+      expect(screen.getByLabelText(/^age$/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/^height$/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/^weight$/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/^eyes$/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/^skin$/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/^hair$/i)).toBeInTheDocument()
+    })
+
+    it("saves updated age on save", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterNotes character={emptyCharacter} onUpdate={onUpdate} />)
+      enterEditMode()
+      fireEvent.input(screen.getByLabelText(/^age$/i), { target: { value: "25" } })
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ age: "25" }))
+    })
+  })
+
+  describe("appearance", () => {
+    it("shows empty-state text when appearance is empty", () => {
+      render(<CharacterNotes character={emptyCharacter} onUpdate={vi.fn()} />)
+      expect(screen.getByText("No appearance description yet.")).toBeInTheDocument()
+    })
+
+    it("shows appearance value when set", () => {
+      render(<CharacterNotes character={{ ...emptyCharacter, appearance: "Tall and lean" }} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Tall and lean")).toBeInTheDocument()
+    })
+
+    it("shows appearance textarea in edit mode", () => {
+      render(<CharacterNotes character={emptyCharacter} onUpdate={vi.fn()} />)
+      enterEditMode()
+      expect(screen.getByLabelText(/appearance/i)).toBeInTheDocument()
+    })
+
+    it("saves updated appearance on save", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterNotes character={emptyCharacter} onUpdate={onUpdate} />)
+      enterEditMode()
+      fireEvent.input(screen.getByLabelText(/appearance/i), { target: { value: "Short with a scar" } })
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ appearance: "Short with a scar" }))
+    })
+  })
+
+  describe("2024-only fields", () => {
+    const char2024 = { ...emptyCharacter, edition: "2024" as const }
+
+    it("shows empty-state text for class features in 2024 mode", () => {
+      render(<CharacterNotes character={char2024} onUpdate={vi.fn()} />)
+      expect(screen.getByText("No class features listed yet.")).toBeInTheDocument()
+    })
+
+    it("shows empty-state text for species traits in 2024 mode", () => {
+      render(<CharacterNotes character={char2024} onUpdate={vi.fn()} />)
+      expect(screen.getByText("No species traits listed yet.")).toBeInTheDocument()
+    })
+
+    it("shows empty-state text for feats in 2024 mode", () => {
+      render(<CharacterNotes character={char2024} onUpdate={vi.fn()} />)
+      expect(screen.getByText("No feats listed yet.")).toBeInTheDocument()
+    })
+
+    it("does not render 2024 fields in 2014 mode", () => {
+      render(<CharacterNotes character={{ ...emptyCharacter, edition: "2014" }} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("No class features listed yet.")).not.toBeInTheDocument()
+      expect(screen.queryByText("No species traits listed yet.")).not.toBeInTheDocument()
+      expect(screen.queryByText("No feats listed yet.")).not.toBeInTheDocument()
+    })
+
+    it("shows class features textarea in edit mode", () => {
+      render(<CharacterNotes character={char2024} onUpdate={vi.fn()} />)
+      enterEditMode()
+      expect(screen.getByLabelText(/class features/i)).toBeInTheDocument()
+    })
+
+    it("saves class features on save", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterNotes character={char2024} onUpdate={onUpdate} />)
+      enterEditMode()
+      fireEvent.input(screen.getByLabelText(/class features/i), { target: { value: "Action Surge" } })
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ classFeatures: "Action Surge" }))
+    })
+  })
+
+  describe("2014-only fields", () => {
+    const char2014 = { ...emptyCharacter, edition: "2014" as const }
+
+    it("shows empty-state text for features & traits in 2014 mode", () => {
+      render(<CharacterNotes character={char2014} onUpdate={vi.fn()} />)
+      expect(screen.getByText("No features or traits listed yet.")).toBeInTheDocument()
+    })
+
+    it("shows empty-state text for allies & organizations in 2014 mode", () => {
+      render(<CharacterNotes character={char2014} onUpdate={vi.fn()} />)
+      expect(screen.getByText("No allies or organizations listed yet.")).toBeInTheDocument()
+    })
+
+    it("shows empty-state text for treasure in 2014 mode", () => {
+      render(<CharacterNotes character={char2014} onUpdate={vi.fn()} />)
+      expect(screen.getByText("No treasure listed yet.")).toBeInTheDocument()
+    })
+
+    it("does not render 2014-only fields in 2024 mode", () => {
+      render(<CharacterNotes character={{ ...emptyCharacter, edition: "2024" }} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("No features or traits listed yet.")).not.toBeInTheDocument()
+      expect(screen.queryByText("No allies or organizations listed yet.")).not.toBeInTheDocument()
+      expect(screen.queryByText("No treasure listed yet.")).not.toBeInTheDocument()
+    })
+
+    it("shows features & traits textarea in edit mode", () => {
+      render(<CharacterNotes character={char2014} onUpdate={vi.fn()} />)
+      enterEditMode()
+      expect(screen.getByLabelText(/features & traits/i)).toBeInTheDocument()
+    })
+
+    it("saves allies & organizations on save", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterNotes character={char2014} onUpdate={onUpdate} />)
+      enterEditMode()
+      fireEvent.input(screen.getByLabelText(/allies & organizations/i), { target: { value: "The Harpers" } })
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ alliesAndOrganizations: "The Harpers" }))
+    })
+  })
 })

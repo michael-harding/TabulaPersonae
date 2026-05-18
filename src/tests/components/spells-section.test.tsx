@@ -307,4 +307,62 @@ describe("SpellsSection", () => {
       )
     })
   })
+
+  describe("concentration and ritual badges", () => {
+    it("shows 'C' badge for a concentration spell", () => {
+      const spell = makeSpell({ name: "Hold Person", level: 2, concentration: true })
+      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      // Expand level 2 collapsible
+      fireEvent.click(screen.getByText("2nd Level"))
+      expect(screen.getByTitle("Concentration")).toBeInTheDocument()
+      expect(screen.getByText("C")).toBeInTheDocument()
+    })
+
+    it("shows 'R' badge for a ritual spell", () => {
+      const spell = makeSpell({ name: "Detect Magic", level: 1, ritual: true })
+      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      expect(screen.getByTitle("Ritual")).toBeInTheDocument()
+      expect(screen.getByText("R")).toBeInTheDocument()
+    })
+
+    it("does not show C or R badges for a plain spell", () => {
+      const spell = makeSpell({ name: "Fire Bolt", level: 0, concentration: false, ritual: false })
+      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByTitle("Concentration")).not.toBeInTheDocument()
+      expect(screen.queryByTitle("Ritual")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("concentration and ritual in edit form", () => {
+    beforeEach(() => cleanupPortals())
+
+    it("renders Concentration label in the add spell dialog", () => {
+      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const dialog = screen.getByRole("dialog")
+      expect(within(dialog).getByText(/^concentration$/i)).toBeInTheDocument()
+    })
+
+    it("renders Ritual label in the add spell dialog", () => {
+      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const dialog = screen.getByRole("dialog")
+      expect(within(dialog).getByText(/^ritual$/i)).toBeInTheDocument()
+    })
+  })
+
+  describe("spellcasting class (2014 only)", () => {
+    it("renders the spellcasting class input in 2014 mode when spells exist", () => {
+      const spell = makeSpell()
+      render(<SpellsSection character={makeCharacter({ edition: "2014", spells: [spell] })} onUpdate={vi.fn()} />)
+      expect(screen.getByPlaceholderText(/e\.g\. Wizard/i)).toBeInTheDocument()
+    })
+
+    it("does not render the spellcasting class input in 2024 mode", () => {
+      const spell = makeSpell()
+      render(<SpellsSection character={makeCharacter({ edition: "2024", spells: [spell] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByPlaceholderText(/e\.g\. Wizard/i)).not.toBeInTheDocument()
+    })
+  })
 })

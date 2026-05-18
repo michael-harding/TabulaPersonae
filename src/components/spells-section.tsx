@@ -42,6 +42,8 @@ interface SpellFormData {
   description: string
   prepared: boolean
   known: boolean
+  concentration?: boolean
+  ritual?: boolean
 }
 
 interface SpellsSectionProps {
@@ -81,6 +83,8 @@ const defaultSpellForm: SpellFormData = {
   description: "",
   prepared: false,
   known: true,
+  concentration: false,
+  ritual: false,
 }
 
 interface SpellFormProps {
@@ -193,6 +197,25 @@ function SpellForm(props: SpellFormProps) {
         </div>
       </Show>
 
+      <div class="flex items-center gap-6">
+        <div class="flex items-center space-x-2">
+          <Checkbox
+            id="concentration"
+            checked={!!formData().concentration}
+            onChange={(checked: boolean) => setFormData((p) => ({ ...p, concentration: checked }))}
+          />
+          <Label for="concentration">Concentration</Label>
+        </div>
+        <div class="flex items-center space-x-2">
+          <Checkbox
+            id="ritual"
+            checked={!!formData().ritual}
+            onChange={(checked: boolean) => setFormData((p) => ({ ...p, ritual: checked }))}
+          />
+          <Label for="ritual">Ritual</Label>
+        </div>
+      </div>
+
       <div class="flex gap-2 pt-4">
         <Button onClick={() => props.onSubmit(formData())} class="gap-2">
           <Save class="h-4 w-4" />
@@ -268,6 +291,8 @@ export function SpellsSection(props: SpellsSectionProps) {
       attackSave: formData.attackSave,
       regain: formData.regain,
       atHigherLevel: formData.atHigherLevel,
+      concentration: formData.concentration,
+      ritual: formData.ritual,
     }
     const updated = { ...props.character, spells: [...safeSpells(), newSpell] }
     props.onUpdate(updated)
@@ -294,6 +319,8 @@ export function SpellsSection(props: SpellsSectionProps) {
       attackSave: formData.attackSave,
       regain: formData.regain,
       atHigherLevel: formData.atHigherLevel,
+      concentration: formData.concentration,
+      ritual: formData.ritual,
     }
     const updated = { ...props.character, spells: safeSpells().map((s) => (s.id === spell.id ? updatedSpell : s)) }
     props.onUpdate(updated)
@@ -347,6 +374,8 @@ export function SpellsSection(props: SpellsSectionProps) {
       known: spell.known ?? true,
       regain: spell.regain || "",
       atHigherLevel: spell.atHigherLevel || "",
+      concentration: spell.concentration ?? false,
+      ritual: spell.ritual ?? false,
     }
   }
 
@@ -370,24 +399,41 @@ export function SpellsSection(props: SpellsSectionProps) {
       </CardHeader>
       <CardContent class="space-y-4">
         <Show when={safeSpells().length > 0}>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
-            <div class="text-center">
-              <div class="flex items-center justify-center gap-1 mb-1">
-                <Target class="h-4 w-4 text-primary" />
-                <span class="text-sm font-medium">Spell Save DC</span>
+          <div class="space-y-2">
+            <Show when={(props.character.edition ?? "2024") === "2014"}>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-muted-foreground">Spellcasting Class:</span>
+                <Input
+                  class="h-7 w-40 text-sm"
+                  value={props.character.spellcastingClass || ""}
+                  onInput={(e) => {
+                    const updated = { ...props.character, spellcastingClass: e.currentTarget.value }
+                    props.onUpdate(updated)
+                    saveCharacter(updated)
+                  }}
+                  placeholder="e.g. Wizard"
+                />
               </div>
-              <div class="text-2xl font-bold text-primary">{spellSaveDC()}</div>
-            </div>
-            <div class="text-center">
-              <div class="flex items-center justify-center gap-1 mb-1">
-                <Zap class="h-4 w-4 text-primary" />
-                <span class="text-sm font-medium">Spell Attack</span>
+            </Show>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div class="text-center">
+                <div class="flex items-center justify-center gap-1 mb-1">
+                  <Target class="h-4 w-4 text-primary" />
+                  <span class="text-sm font-medium">Spell Save DC</span>
+                </div>
+                <div class="text-2xl font-bold text-primary">{spellSaveDC()}</div>
               </div>
-              <div class="text-2xl font-bold text-primary">{formatModifier(spellAttackBonus())}</div>
-            </div>
-            <div class="text-center">
-              <div class="text-sm font-medium mb-1">Prepared Spells</div>
-              <div class="text-2xl font-bold text-primary">{preparedSpells().length}</div>
+              <div class="text-center">
+                <div class="flex items-center justify-center gap-1 mb-1">
+                  <Zap class="h-4 w-4 text-primary" />
+                  <span class="text-sm font-medium">Spell Attack</span>
+                </div>
+                <div class="text-2xl font-bold text-primary">{formatModifier(spellAttackBonus())}</div>
+              </div>
+              <div class="text-center">
+                <div class="text-sm font-medium mb-1">Prepared Spells</div>
+                <div class="text-2xl font-bold text-primary">{preparedSpells().length}</div>
+              </div>
             </div>
           </div>
         </Show>
@@ -483,6 +529,12 @@ export function SpellsSection(props: SpellsSectionProps) {
                                       <h4 class="font-medium">{spell.name}</h4>
                                       <Badge variant="outline" class="text-xs">{spell.school}</Badge>
                                       <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>
+                                      <Show when={spell.concentration}>
+                                        <Badge variant="secondary" class="text-xs" title="Concentration">C</Badge>
+                                      </Show>
+                                      <Show when={spell.ritual}>
+                                        <Badge variant="secondary" class="text-xs" title="Ritual">R</Badge>
+                                      </Show>
                                       <Show when={spell.prepared}>
                                         <Badge variant="secondary" class="text-xs">Prepared</Badge>
                                       </Show>

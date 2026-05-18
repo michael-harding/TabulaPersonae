@@ -1,11 +1,13 @@
 import { createSignal, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
+import { getSkillModifier } from "@/lib/character-utils"
 import { saveCharacter } from "@/lib/character-storage"
 import { EditableSection } from "@/components/editable-section"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import Shield from "lucide-solid/icons/shield"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
 import Plus from "lucide-solid/icons/plus"
 import Minus from "lucide-solid/icons/minus"
@@ -17,6 +19,8 @@ interface CombatStatsProps {
   character: Character
   onUpdate: (character: Character) => void
 }
+
+const SIZES = ["Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"]
 
 const toEdit = (c: Character) => ({
   ...c,
@@ -30,6 +34,9 @@ const toEdit = (c: Character) => ({
   speed: c.speed || 30,
   proficiencyBonus: c.proficiencyBonus || 2,
   deathSaves: { successes: c.deathSaves?.successes || 0, failures: c.deathSaves?.failures || 0 },
+  spentHitDice: c.spentHitDice ?? 0,
+  size: c.size ?? "Medium",
+  shield: c.shield ?? false,
 })
 
 
@@ -39,6 +46,8 @@ export function CombatStats(props: CombatStatsProps) {
 
   const handleSave = () => { props.onUpdate(edited()); saveCharacter(edited()); setIsEditing(false) }
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
+
+  const edition = () => props.character.edition ?? "2024"
 
   const updateHP = (field: "current" | "maximum" | "temporary", value: number) =>
     setEdited((prev) => {
@@ -69,6 +78,15 @@ export function CombatStats(props: CombatStatsProps) {
     saveCharacter(updated)
   }
 
+  const adjustSpentHitDice = (delta: number) => {
+    const current = props.character.spentHitDice ?? 0
+    const max = props.character.level ?? 1
+    const next = Math.max(0, Math.min(max, current + delta))
+    const updated = { ...props.character, spentHitDice: next }
+    props.onUpdate(updated)
+    saveCharacter(updated)
+  }
+
   const toggleDeathSave = (type: "successes" | "failures", index: number) => {
     const current = props.character.deathSaves?.[type] || 0
     const newValue = Math.max(0, Math.min(3, index < current ? current - 1 : index + 1))
@@ -90,9 +108,18 @@ export function CombatStats(props: CombatStatsProps) {
   const tempHpWidth = () => Math.min(tempHP() / maxHP() * 100, 100)
   const tempHpLeft = () => Math.min(hpPercentage(), 100 - tempHpWidth())
 
+  const passivePerception = () => {
+    const wis = props.character.abilityScores?.wisdom ?? 10
+    const prof = props.character.proficiencyBonus ?? 2
+    const percSkill = props.character.skills?.perception
+    return 10 + getSkillModifier(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
+  }
+
+  const passivePerceptionLabel = () => edition() === "2014" ? "Passive Wisdom (Perception)" : "Passive Perception"
+
   return (
     <EditableSection
-      icon={<Shield class="h-5 w-5 text-primary" />}
+      icon={<ShieldIcon class="h-5 w-5 text-primary" />}
       title="Combat Stats"
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
@@ -160,6 +187,36 @@ export function CombatStats(props: CombatStatsProps) {
           </Show>
         </div>
 
+        {/* Hit Dice */}
+        <div class="flex items-center justify-between">
+          <div>
+            <Label class="text-sm text-muted-foreground">Hit Dice</Label>
+            <p class="text-lg font-semibold">{props.character.hitDice || "—"}</p>
+          </div>
+          <div class="text-center">
+            <Label class="text-sm text-muted-foreground">Spent</Label>
+            <Show when={!isEditing()} fallback={
+              <NumericInput
+                min={0}
+                max={props.character.level ?? 1}
+                value={edited().spentHitDice ?? 0}
+                onChange={(v) => setEdited(prev => ({ ...prev, spentHitDice: v }))}
+                class="w-20 text-center"
+              />
+            }>
+              <div class="flex items-center gap-1 mt-1">
+                <Button size="sm" variant="outline" onClick={() => adjustSpentHitDice(-1)} disabled={(props.character.spentHitDice ?? 0) <= 0}>
+                  <Minus class="h-3 w-3" />
+                </Button>
+                <span class="text-lg font-bold w-8 text-center">{props.character.spentHitDice ?? 0}</span>
+                <Button size="sm" variant="outline" onClick={() => adjustSpentHitDice(1)} disabled={(props.character.spentHitDice ?? 0) >= (props.character.level ?? 1)}>
+                  <Plus class="h-3 w-3" />
+                </Button>
+              </div>
+            </Show>
+          </div>
+        </div>
+
         {/* Death Saves — only at 0 HP */}
         <Show when={currentHP() === 0}>
           <div class="space-y-3">
@@ -220,8 +277,53 @@ export function CombatStats(props: CombatStatsProps) {
 
         {/* Other Combat Stats */}
         <div class="grid grid-cols-2 gap-4">
+          {/* AC with optional shield */}
+          <div class="text-center">
+            <Label class="text-sm text-muted-foreground">
+              Armor Class
+              <Show when={edition() === "2024"}>
+                <Show when={!isEditing()}>
+                  <label class="ml-2 inline-flex items-center gap-1 cursor-pointer" title="Shield equipped">
+                    <input
+                      type="checkbox"
+                      checked={!!props.character.shield}
+                      onChange={(e) => {
+                        const updated = { ...props.character, shield: e.currentTarget.checked }
+                        props.onUpdate(updated)
+                        saveCharacter(updated)
+                      }}
+                      class="h-3 w-3 accent-primary"
+                    />
+                    <span class="text-xs">Shield</span>
+                  </label>
+                </Show>
+              </Show>
+            </Label>
+            <Show when={isEditing()} fallback={
+              <div class="text-2xl font-bold text-primary mt-1">{props.character.armorClass as number || 10}</div>
+            }>
+              <div class="space-y-1">
+                <NumericInput
+                  value={edited().armorClass}
+                  onChange={(v) => setEdited(prev => ({ ...prev, armorClass: v }))}
+                  class="text-center text-xl font-bold mt-1"
+                />
+                <Show when={edition() === "2024"}>
+                  <label class="inline-flex items-center gap-1 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!edited().shield}
+                      onChange={(e) => setEdited(prev => ({ ...prev, shield: e.currentTarget.checked }))}
+                      class="h-3 w-3 accent-primary"
+                    />
+                    Shield equipped
+                  </label>
+                </Show>
+              </div>
+            </Show>
+          </div>
+
           {[
-            { label: "Armor Class", field: "armorClass" as const, default: 10, display: (v: number) => String(v) },
             { label: "Initiative", field: "initiative" as const, default: 0, display: (v: number) => `${v >= 0 ? "+" : ""}${v}` },
             { label: "Speed", field: "speed" as const, default: 30, display: (v: number) => `${v} ft` },
             { label: "Proficiency Bonus", field: "proficiencyBonus" as const, default: 2, display: (v: number) => `+${v}` },
@@ -239,6 +341,32 @@ export function CombatStats(props: CombatStatsProps) {
               </Show>
             </div>
           ))}
+
+          {/* Passive Perception — both editions */}
+          <div class="text-center">
+            <Label class="text-sm text-muted-foreground">{passivePerceptionLabel()}</Label>
+            <div class="text-2xl font-bold text-primary mt-1">{passivePerception()}</div>
+          </div>
+
+          {/* Size — 2024 only */}
+          <Show when={edition() === "2024"}>
+            <div class="text-center">
+              <Label class="text-sm text-muted-foreground">Size</Label>
+              <Show when={isEditing()} fallback={
+                <div class="text-2xl font-bold text-primary mt-1">{props.character.size ?? "Medium"}</div>
+              }>
+                <Select
+                  value={edited().size ?? "Medium"}
+                  onValueChange={(v) => setEdited(prev => ({ ...prev, size: v }))}
+                >
+                  <SelectTrigger class="mt-1"><SelectValue placeholder="Size" /></SelectTrigger>
+                  <SelectContent>
+                    <For each={SIZES}>{(s) => <SelectItem value={s}>{s}</SelectItem>}</For>
+                  </SelectContent>
+                </Select>
+              </Show>
+            </div>
+          </Show>
         </div>
 
     </EditableSection>

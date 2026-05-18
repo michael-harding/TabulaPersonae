@@ -213,6 +213,90 @@ describe("CombatStats", () => {
     })
   })
 
+  describe("passive perception", () => {
+    it("renders 'Passive Perception' in 2024 mode", () => {
+      render(<CombatStats character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Passive Perception")).toBeInTheDocument()
+    })
+
+    it("renders 'Passive Wisdom (Perception)' in 2014 mode", () => {
+      render(<CombatStats character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Passive Wisdom (Perception)")).toBeInTheDocument()
+    })
+
+    it("calculates passive perception correctly (Wis 14, perception proficient, proficiency bonus 2 → 14)", () => {
+      const char = makeCharacter({
+        abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14 },
+        skills: { ...createDefaultCharacter().skills, perception: { proficient: true, expertise: false } },
+        proficiencyBonus: 2,
+      })
+      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      expect(screen.getByText("14")).toBeInTheDocument()
+    })
+  })
+
+  describe("hit dice and spent hit dice", () => {
+    it("renders hit dice string", () => {
+      render(<CombatStats character={makeCharacter({ hitDice: "3d8" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("3d8")).toBeInTheDocument()
+    })
+
+    it("renders spent hit dice count", () => {
+      render(<CombatStats character={makeCharacter({ spentHitDice: 2 })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("2")).toBeInTheDocument()
+    })
+
+    it("spend button increments spentHitDice and calls onUpdate", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStats character={makeCharacter({ level: 5, spentHitDice: 1 })} onUpdate={onUpdate} />)
+      // Find the + button in the hit dice section by its proximity to "Spent" label
+      const spentSection = screen.getByText("Spent").closest("div")!
+      const plusBtn = spentSection.querySelectorAll("button")[1]
+      fireEvent.click(plusBtn)
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentHitDice: 2 }))
+    })
+
+    it("recover button decrements spentHitDice and calls onUpdate", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStats character={makeCharacter({ level: 5, spentHitDice: 2 })} onUpdate={onUpdate} />)
+      const spentSection = screen.getByText("Spent").closest("div")!
+      const minusBtn = spentSection.querySelectorAll("button")[0]
+      fireEvent.click(minusBtn)
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentHitDice: 1 }))
+    })
+  })
+
+  describe("shield (2024 only)", () => {
+    it("renders shield checkbox in 2024 mode", () => {
+      render(<CombatStats character={makeCharacter({ edition: "2024", shield: false })} onUpdate={vi.fn()} />)
+      expect(screen.getByTitle("Shield equipped")).toBeInTheDocument()
+    })
+
+    it("does not render shield checkbox in 2014 mode", () => {
+      render(<CombatStats character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
+      expect(screen.queryByTitle("Shield equipped")).not.toBeInTheDocument()
+    })
+
+    it("toggling shield checkbox calls onUpdate with updated shield value", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStats character={makeCharacter({ edition: "2024", shield: false })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByTitle("Shield equipped"))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ shield: true }))
+    })
+  })
+
+  describe("size (2024 only)", () => {
+    it("renders size in 2024 view mode", () => {
+      render(<CombatStats character={makeCharacter({ edition: "2024", size: "Large" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Large")).toBeInTheDocument()
+    })
+
+    it("does not render size in 2014 mode", () => {
+      render(<CombatStats character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Size")).not.toBeInTheDocument()
+    })
+  })
+
   describe("edit mode", () => {
     // In edit mode the order is: current HP, max HP, temp HP, AC,
     // initiative, speed, proficiency bonus.

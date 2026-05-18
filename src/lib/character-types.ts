@@ -66,6 +66,8 @@ export interface Spell {
   known: boolean;
   regain?: string;
   atHigherLevel?: string;
+  concentration?: boolean;
+  ritual?: boolean;
 }
 
 export interface Attack {
@@ -163,6 +165,32 @@ export interface Character {
   notes: string
 
   heroicInspiration?: boolean
+
+  // Both editions
+  edition?: "2014" | "2024"
+  spentHitDice?: number
+  appearance?: string
+  coins?: { cp: number; sp: number; ep: number; gp: number; pp: number }
+  age?: string
+  height?: string
+  weight?: string
+  eyes?: string
+  skin?: string
+  hair?: string
+
+  // 2024-only
+  subclass?: string
+  size?: string
+  shield?: boolean
+  magicItemAttunement?: string[]
+  classFeatures?: string
+  speciesTraits?: string
+  feats?: string
+
+  // 2014-only
+  spellcastingClass?: string
+  alliesAndOrganizations?: string
+  treasure?: string
 }
 
 export function createDefaultCharacter(): Character {
@@ -261,5 +289,28 @@ export function createDefaultCharacter(): Character {
     backstory: "",
     notes: "",
     heroicInspiration: false,
+
+    edition: "2024",
+    spentHitDice: 0,
+    appearance: "",
+    coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
+    age: "",
+    height: "",
+    weight: "",
+    eyes: "",
+    skin: "",
+    hair: "",
+
+    subclass: "",
+    size: "Medium",
+    shield: false,
+    magicItemAttunement: [],
+    classFeatures: "",
+    speciesTraits: "",
+    feats: "",
+
+    spellcastingClass: "",
+    alliesAndOrganizations: "",
+    treasure: "",
   }
 }

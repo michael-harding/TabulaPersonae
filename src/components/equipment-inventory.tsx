@@ -18,6 +18,8 @@ import Trash2 from "lucide-solid/icons/trash-2"
 import Save from "lucide-solid/icons/save"
 import Search from "lucide-solid/icons/search"
 import Scale from "lucide-solid/icons/scale"
+import Gem from "lucide-solid/icons/gem"
+import Coins from "lucide-solid/icons/coins"
 
 interface EquipmentInventoryProps {
   character: Character
@@ -216,6 +218,94 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
         </CardTitle>
       </CardHeader>
       <CardContent class="space-y-4">
+        {/* Coins */}
+        <div>
+          <h3 class="font-semibold mb-2 text-sm flex items-center gap-2">
+            <Coins class="h-4 w-4 text-primary" />
+            Currency
+          </h3>
+          <div class="grid grid-cols-5 gap-2">
+            {(["cp", "sp", "ep", "gp", "pp"] as const).map((denom) => (
+              <div class="text-center">
+                <Label class="text-xs font-medium text-muted-foreground">{denom.toUpperCase()}</Label>
+                <NumericInput
+                  min={0}
+                  value={props.character.coins?.[denom] ?? 0}
+                  onChange={(v) => {
+                    const updated = { ...props.character, coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...props.character.coins, [denom]: v } }
+                    props.onUpdate(updated)
+                    saveCharacter(updated)
+                  }}
+                  class="text-center"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Magic Item Attunement — 2024 only */}
+        <Show when={(props.character.edition ?? "2024") === "2024"}>
+          <div>
+            <h3 class="font-semibold mb-2 text-sm flex items-center gap-2">
+              <Gem class="h-4 w-4 text-primary" />
+              Magic Item Attunement
+              <span class="text-xs text-muted-foreground font-normal">({(props.character.magicItemAttunement ?? []).length}/3)</span>
+            </h3>
+            <div class="space-y-2">
+              <For each={props.character.magicItemAttunement ?? []}>
+                {(item, i) => (
+                  <div class="flex items-center gap-2">
+                    <Input
+                      value={item}
+                      onInput={(e) => {
+                        const list = [...(props.character.magicItemAttunement ?? [])]
+                        list[i()] = e.currentTarget.value
+                        const updated = { ...props.character, magicItemAttunement: list }
+                        props.onUpdate(updated)
+                        saveCharacter(updated)
+                      }}
+                      placeholder="Attuned item name"
+                      class="h-8 text-sm"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      class="h-8 w-8 p-0 shrink-0"
+                      onClick={() => {
+                        const list = (props.character.magicItemAttunement ?? []).filter((_, idx) => idx !== i())
+                        const updated = { ...props.character, magicItemAttunement: list }
+                        props.onUpdate(updated)
+                        saveCharacter(updated)
+                      }}
+                    >
+                      <Trash2 class="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </For>
+              <Show when={(props.character.magicItemAttunement ?? []).length < 3}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="gap-2 w-full"
+                  onClick={() => {
+                    const list = [...(props.character.magicItemAttunement ?? []), ""]
+                    const updated = { ...props.character, magicItemAttunement: list }
+                    props.onUpdate(updated)
+                    saveCharacter(updated)
+                  }}
+                >
+                  <Plus class="h-3 w-3" />
+                  Add Attuned Item
+                </Button>
+              </Show>
+            </div>
+          </div>
+          <Separator />
+        </Show>
+
         <div class="relative">
           <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
