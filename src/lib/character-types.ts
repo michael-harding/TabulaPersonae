@@ -65,6 +65,7 @@ export interface Spell {
   prepared: boolean;
   known: boolean;
   regain?: string;
+  atHigherLevel?: string;
 }
 
 export interface Attack {

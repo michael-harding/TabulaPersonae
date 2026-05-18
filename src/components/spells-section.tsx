@@ -38,6 +38,7 @@ interface SpellFormData {
   damage?: string
   attackSave?: string
   regain?: string
+  atHigherLevel?: string
   description: string
   prepared: boolean
   known: boolean
@@ -75,10 +76,11 @@ const defaultSpellForm: SpellFormData = {
   duration: "Instantaneous",
   damage: "",
   attackSave: "",
+  regain: "",
+  atHigherLevel: "",
   description: "",
   prepared: false,
   known: true,
-  regain: "",
 }
 
 interface SpellFormProps {
@@ -98,7 +100,7 @@ function SpellForm(props: SpellFormProps) {
         <Input id="spell-name" value={formData().name} onInput={(e) => setFormData((p) => ({ ...p, name: e.currentTarget.value }))} placeholder="e.g. Fireball" />
       </div>
 
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div>
           <Label for="regain">Regain</Label>
           <Input id="regain" value={formData().regain || ""} onInput={(e) => setFormData((p) => ({ ...p, regain: e.currentTarget.value }))} placeholder="e.g. 2d4+3 healing" />
@@ -110,6 +112,10 @@ function SpellForm(props: SpellFormProps) {
         <div>
           <Label for="attack-save">Attack/Save</Label>
           <Input id="attack-save" value={formData().attackSave || ""} onInput={(e) => setFormData((p) => ({ ...p, attackSave: e.currentTarget.value }))} placeholder="e.g. Dex Save" />
+        </div>
+        <div>
+          <Label for="at-higher-level">At Higher Level</Label>
+          <Input id="at-higher-level" value={formData().atHigherLevel || ""} onInput={(e) => setFormData((p) => ({ ...p, atHigherLevel: e.currentTarget.value }))} placeholder="e.g. +1d6 per level" />
         </div>
       </div>
 
@@ -261,6 +267,7 @@ export function SpellsSection(props: SpellsSectionProps) {
       damage: formData.damage,
       attackSave: formData.attackSave,
       regain: formData.regain,
+      atHigherLevel: formData.atHigherLevel,
     }
     const updated = { ...props.character, spells: [...safeSpells(), newSpell] }
     props.onUpdate(updated)
@@ -286,6 +293,7 @@ export function SpellsSection(props: SpellsSectionProps) {
       damage: formData.damage,
       attackSave: formData.attackSave,
       regain: formData.regain,
+      atHigherLevel: formData.atHigherLevel,
     }
     const updated = { ...props.character, spells: safeSpells().map((s) => (s.id === spell.id ? updatedSpell : s)) }
     props.onUpdate(updated)
@@ -338,6 +346,7 @@ export function SpellsSection(props: SpellsSectionProps) {
       prepared: spell.prepared || false,
       known: spell.known ?? true,
       regain: spell.regain || "",
+      atHigherLevel: spell.atHigherLevel || "",
     }
   }
 

@@ -18,6 +18,7 @@ import Target from "lucide-solid/icons/target"
 import Zap from "lucide-solid/icons/zap"
 import Star from "lucide-solid/icons/star"
 import Shield from "lucide-solid/icons/shield"
+import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 
 interface ActionsSectionProps {
@@ -239,6 +240,7 @@ export function ActionsSection(props: ActionsSectionProps) {
   const [isAddActionOpen, setIsAddActionOpen] = createSignal(false)
   const [isAddBonusActionOpen, setIsAddBonusActionOpen] = createSignal(false)
   const [isAddReactionOpen, setIsAddReactionOpen] = createSignal(false)
+  const [upcastSpellId, setUpcastSpellId] = createSignal<string | null>(null)
 
   const safeSpells = () => props.character.spells || []
   const spellSaveDC = () => getSpellSaveDC(props.character)
@@ -306,7 +308,14 @@ export function ActionsSection(props: ActionsSectionProps) {
     props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).filter((r) => r.id !== id) })
   }
 
-  const SpellCard = (spell: ReturnType<typeof safeSpells>[0], castable: () => boolean, onCast?: () => void) => (
+  const SpellCard = (
+    spell: ReturnType<typeof safeSpells>[0],
+    castable: () => boolean,
+    onCast?: () => void,
+    upcastLevels?: () => number[],
+    onCastAtLevel?: (level: number) => void,
+    hasHigherSlots?: () => boolean,
+  ) => (
     <div class="p-3 border rounded-lg space-y-2 relative">
       <div class="flex items-start justify-between">
         <div>
@@ -320,18 +329,40 @@ export function ActionsSection(props: ActionsSectionProps) {
       <div class="text-sm space-y-1">
         <Show when={spell.attackSave}><div><strong>Attack/Save:</strong> {spell.attackSave}</div></Show>
         <Show when={spell.regain}><div><strong>Regain:</strong> {spell.regain}</div></Show>
+        <Show when={spell.atHigherLevel}><div><strong>At Higher Level:</strong> {spell.atHigherLevel}</div></Show>
         <div><strong>Attack:</strong> {formatModifier(spellAttackBonus())} to hit</div>
         <div><strong>Range:</strong> {spell.range}</div>
         <div><strong>Components:</strong> {spell.components}</div>
       </div>
       <Show when={spell.regain}>
-        <div class="absolute right-2 bottom-12 px-2 py-1 border-2 border-green-500 rounded text-green-700 font-semibold whitespace-nowrap">{spell.regain}</div>
+        <div class="absolute right-2 bottom-16 px-2 py-1 border-2 border-green-500 rounded text-green-700 font-semibold whitespace-nowrap">{spell.regain}</div>
       </Show>
       <Show when={!spell.regain && spell.damage}>
-        <div class="absolute right-2 bottom-12 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">{spell.damage}</div>
+        <div class="absolute right-2 bottom-16 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">{spell.damage}</div>
       </Show>
       <Show when={spell.level > 0 && onCast}>
-        <Button variant="outline" size="sm" disabled={!castable()} onClick={onCast} class="absolute bottom-2 right-2">Cast</Button>
+        <div class="absolute bottom-2 right-2 flex items-center gap-1">
+          <Show when={upcastSpellId() === spell.id && upcastLevels && upcastLevels().length > 0}>
+            <div class="flex gap-1">
+              <For each={upcastLevels!()}>
+                {(level) => (
+                  <Button variant="secondary" size="sm" class="h-11 min-w-[44px] px-2 text-xs"
+                    onClick={() => onCastAtLevel?.(level)}>
+                    {getOrdinalSuffix(level)}
+                  </Button>
+                )}
+              </For>
+            </div>
+          </Show>
+          <Button variant="outline" size="sm" class="h-11 px-4" disabled={!castable()} onClick={onCast}>Cast</Button>
+          <Show when={!!spell.atHigherLevel && hasHigherSlots?.()}>
+            <Button variant="outline" size="sm" class="h-11 w-11 p-0"
+              disabled={!upcastLevels?.().length}
+              onClick={() => setUpcastSpellId(upcastSpellId() === spell.id ? null : spell.id)}>
+              <ArrowBigUp class="h-4 w-4" />
+            </Button>
+          </Show>
+        </div>
       </Show>
     </div>
   )
@@ -391,7 +422,13 @@ export function ActionsSection(props: ActionsSectionProps) {
                   const slotKey = spell.level as keyof typeof props.character.spellSlots
                   const slots = () => props.character.spellSlots[slotKey]
                   const canCast = () => spell.level > 0 && slots() && slots().used < slots().total
-                  return SpellCard(spell, canCast, () => castSpell(spell.level))
+                  const upcastLevels = () => ([2,3,4,5,6,7,8,9] as const)
+                    .filter(l => l > spell.level)
+                    .filter(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 && s.used < s.total })
+                  const hasHigherSlots = () => ([2,3,4,5,6,7,8,9] as const)
+                    .filter(l => l > spell.level)
+                    .some(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 })
+                  return SpellCard(spell, canCast, () => castSpell(spell.level), upcastLevels, (level) => { castSpell(level); setUpcastSpellId(null) }, hasHigherSlots)
                 }}
               </For>
               <For each={props.character.attacks || []}>
@@ -452,7 +489,13 @@ export function ActionsSection(props: ActionsSectionProps) {
                   const slotKey = spell.level as keyof typeof props.character.spellSlots
                   const slots = () => props.character.spellSlots[slotKey]
                   const canCast = () => spell.level > 0 && slots() && slots().used < slots().total
-                  return SpellCard(spell, canCast, () => castSpell(spell.level))
+                  const upcastLevels = () => ([2,3,4,5,6,7,8,9] as const)
+                    .filter(l => l > spell.level)
+                    .filter(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 && s.used < s.total })
+                  const hasHigherSlots = () => ([2,3,4,5,6,7,8,9] as const)
+                    .filter(l => l > spell.level)
+                    .some(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 })
+                  return SpellCard(spell, canCast, () => castSpell(spell.level), upcastLevels, (level) => { castSpell(level); setUpcastSpellId(null) }, hasHigherSlots)
                 }}
               </For>
               <For each={props.character.bonusActions || []}>
@@ -516,7 +559,13 @@ export function ActionsSection(props: ActionsSectionProps) {
                   const slotKey = spell.level as keyof typeof props.character.spellSlots
                   const slots = () => props.character.spellSlots[slotKey]
                   const canCast = () => spell.level > 0 && slots() && slots().used < slots().total
-                  return SpellCard(spell, canCast, () => castSpell(spell.level))
+                  const upcastLevels = () => ([2,3,4,5,6,7,8,9] as const)
+                    .filter(l => l > spell.level)
+                    .filter(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 && s.used < s.total })
+                  const hasHigherSlots = () => ([2,3,4,5,6,7,8,9] as const)
+                    .filter(l => l > spell.level)
+                    .some(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 })
+                  return SpellCard(spell, canCast, () => castSpell(spell.level), upcastLevels, (level) => { castSpell(level); setUpcastSpellId(null) }, hasHigherSlots)
                 }}
               </For>
               <For each={props.character.reactions || []}>
