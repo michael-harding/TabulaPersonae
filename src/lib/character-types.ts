@@ -39,6 +39,8 @@ export interface Skills {
   survival: { proficient: boolean; expertise: boolean }
 }
 
+export type ActionType = 'attack' | 'ability' | 'class-feature' | 'feat' | 'species-ability' | 'other'
+
 export interface Equipment {
   id: string
   name: string
@@ -70,40 +72,26 @@ export interface Spell {
   ritual?: boolean;
 }
 
-export interface Attack {
+interface ActionBase {
   id: string
   name: string
-  type: 'weapon' | 'spell'
-  attackBonus: number
-  damage: string
-  damageType: string
-  range: string
+  type: ActionType
   description: string
+  attackBonus?: number
+  damage?: string
+  damageType?: string
+  range?: string
+  trigger?: string
   uses?: number
   maxUses?: number
 }
 
-export interface BonusAction {
-  id: string
-  name: string
-  type: 'spell' | 'ability' | 'other'
-  description: string
-  damage?: string
-  damageType?: string
-  uses?: number
-  maxUses?: number
-}
+export interface Attack extends ActionBase {}
 
-export interface Reaction {
-  id: string
-  name: string
-  type: 'spell' | 'ability' | 'other'
-  description: string
-  damage?: string
-  damageType?: string
+export interface BonusAction extends ActionBase {}
+
+export interface Reaction extends ActionBase {
   trigger: string
-  uses?: number
-  maxUses?: number
 }
 
 export interface Character {

@@ -1,5 +1,5 @@
 import { createSignal, For, Show } from "solid-js"
-import type { Character, Attack, BonusAction, Reaction } from "@/lib/character-types"
+import type { Character, ActionType } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,218 +28,158 @@ interface ActionsSectionProps {
   onUpdate: (character: Character) => void
 }
 
-interface AttackFormProps {
-  onSubmit: (attack: Omit<Attack, "id">) => void
-  onCancel: () => void
-  initialData?: Attack
+const ACTION_TYPES: { value: ActionType; label: string }[] = [
+  { value: "attack", label: "Attack" },
+  { value: "ability", label: "Ability" },
+  { value: "class-feature", label: "Class Feature" },
+  { value: "feat", label: "Feat" },
+  { value: "species-ability", label: "Species Ability" },
+  { value: "other", label: "Other" },
+]
+
+export const ACTION_TYPE_LABEL: Record<string, string> = {
+  attack: "Attack",
+  ability: "Ability",
+  "class-feature": "Class Feature",
+  feat: "Feat",
+  "species-ability": "Species Ability",
+  other: "Other",
+  weapon: "Attack",
+  spell: "Ability",
 }
 
-function AttackForm(props: AttackFormProps) {
-  const [formData, setFormData] = createSignal({
-    name: props.initialData?.name ?? "",
-    type: (props.initialData?.type ?? "weapon") as "weapon" | "spell",
-    attackBonus: props.initialData?.attackBonus ?? 0,
-    damage: props.initialData?.damage ?? "",
-    damageType: props.initialData?.damageType ?? "slashing",
-    range: props.initialData?.range ?? "5 ft",
-    description: props.initialData?.description ?? "",
-    maxUses: props.initialData?.maxUses ?? 0,
-    uses: props.initialData?.uses ?? 0,
+type ActionKind = "action" | "bonus-action" | "reaction"
+
+const KIND_LABELS: Record<ActionKind, string> = {
+  action: "Action",
+  "bonus-action": "Bonus Action",
+  reaction: "Reaction",
+}
+
+interface ActionFormData {
+  name: string
+  type: ActionType
+  attackBonus: number
+  damage: string
+  damageType: string
+  range: string
+  trigger: string
+  uses: number
+  maxUses: number
+  description: string
+}
+
+interface ActionFormProps {
+  kind: ActionKind
+  onSubmit: (data: ActionFormData) => void
+  onCancel: () => void
+}
+
+const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
+
+function ActionForm(props: ActionFormProps) {
+  const kindLabel = KIND_LABELS[props.kind]
+  const [formData, setFormData] = createSignal<ActionFormData>({
+    name: "",
+    type: "ability",
+    attackBonus: 0,
+    damage: "",
+    damageType: "slashing",
+    range: "",
+    trigger: "",
+    uses: 0,
+    maxUses: 0,
+    description: "",
   })
 
   const handleSubmit = () => {
     if (!formData().name.trim()) return
+    if (props.kind === "reaction" && !formData().trigger.trim()) return
     props.onSubmit(formData())
   }
-
-  const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
 
   return (
     <div class="space-y-4">
       <div>
-        <Label for="attack-name">Attack Name</Label>
-        <Input id="attack-name" value={formData().name} onInput={(e) => setFormData((p) => ({ ...p, name: e.currentTarget.value }))} placeholder="e.g., Longsword, Fire Bolt" />
+        <Label for="action-name">{kindLabel} Name</Label>
+        <Input id="action-name" value={formData().name}
+          onInput={(e) => setFormData(p => ({ ...p, name: e.currentTarget.value }))}
+          placeholder={props.kind === "reaction" ? "e.g., Shield, Opportunity Attack" : props.kind === "bonus-action" ? "e.g., Second Wind, Cunning Action" : "e.g., Lay on Hands, Breath Weapon"} />
       </div>
 
       <div>
-        <Label for="attack-type">Type</Label>
-        <Select value={formData().type} onValueChange={(v) => setFormData((p) => ({ ...p, type: v as "weapon" | "spell" }))}>
+        <Label for="action-type">Type</Label>
+        <Select value={formData().type} onValueChange={(v) => setFormData(p => ({ ...p, type: v as ActionType }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="weapon">Weapon</SelectItem>
-            <SelectItem value="spell">Spell</SelectItem>
+            <For each={ACTION_TYPES}>{(t) => <SelectItem value={t.value}>{t.label}</SelectItem>}</For>
           </SelectContent>
         </Select>
       </div>
 
-      <div class="grid grid-cols-2 gap-2">
+      <Show when={props.kind === "reaction"}>
         <div>
-          <Label for="attack-bonus">Attack Bonus</Label>
-          <NumericInput id="attack-bonus" value={formData().attackBonus} onChange={(v) => setFormData(p => ({ ...p, attackBonus: v }))} placeholder="+5" />
+          <Label for="action-trigger">Trigger</Label>
+          <Input id="action-trigger" value={formData().trigger}
+            onInput={(e) => setFormData(p => ({ ...p, trigger: e.currentTarget.value }))}
+            placeholder="e.g., When a creature moves out of your reach" />
         </div>
-        <div>
-          <Label for="damage">Damage</Label>
-          <Input id="damage" value={formData().damage} onInput={(e) => setFormData((p) => ({ ...p, damage: e.currentTarget.value }))} placeholder="1d8+3" />
-        </div>
-      </div>
+      </Show>
 
-      <div class="grid grid-cols-2 gap-2">
+      <Show when={formData().type === "attack"}>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <Label for="action-attack-bonus">Attack Bonus</Label>
+            <NumericInput id="action-attack-bonus" value={formData().attackBonus}
+              onChange={(v) => setFormData(p => ({ ...p, attackBonus: v }))} placeholder="+5" />
+          </div>
+          <div>
+            <Label for="action-damage">Damage</Label>
+            <Input id="action-damage" value={formData().damage}
+              onInput={(e) => setFormData(p => ({ ...p, damage: e.currentTarget.value }))} placeholder="1d8+3" />
+          </div>
+        </div>
         <div>
-          <Label for="damage-type">Damage Type</Label>
-          <Select value={formData().damageType} onValueChange={(v: string) => setFormData((p) => ({ ...p, damageType: v }))}>
+          <Label for="action-damage-type">Damage Type</Label>
+          <Select value={formData().damageType} onValueChange={(v: string) => setFormData(p => ({ ...p, damageType: v }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <For each={DAMAGE_TYPES}>{(t) => <SelectItem value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>}</For>
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label for="range">Range</Label>
-          <Input id="range" value={formData().range} onInput={(e) => setFormData((p) => ({ ...p, range: e.currentTarget.value }))} placeholder="5 ft, 30 ft" />
-        </div>
-      </div>
+      </Show>
 
       <div>
-        <Label for="attack-description">Description</Label>
-        <Textarea id="attack-description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Additional effects..." rows={3} />
-      </div>
-
-      <div>
-        <Label for="attack-max-uses">Uses per Rest (0 = unlimited)</Label>
-        <NumericInput id="attack-max-uses" min={0} value={formData().maxUses} onChange={(v) => setFormData(p => ({ ...p, maxUses: v, uses: 0 }))} />
-      </div>
-
-      <div class="flex gap-2 justify-end">
-        <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button onClick={handleSubmit}>{props.initialData ? "Update" : "Add"} Attack</Button>
-      </div>
-    </div>
-  )
-}
-
-interface BonusActionFormProps {
-  onSubmit: (bonusAction: Omit<BonusAction, "id">) => void
-  onCancel: () => void
-}
-
-function BonusActionForm(props: BonusActionFormProps) {
-  const [formData, setFormData] = createSignal({
-    name: "",
-    type: "ability" as "spell" | "ability" | "other",
-    description: "",
-    uses: 0,
-    maxUses: 0,
-  })
-  const handleSubmit = () => {
-    if (!formData().name.trim()) return
-    props.onSubmit(formData())
-  }
-
-  return (
-    <div class="space-y-4">
-      <div>
-        <Label for="bonus-action-name">Bonus Action Name</Label>
-        <Input id="bonus-action-name" value={formData().name} onInput={(e) => setFormData((p) => ({ ...p, name: e.currentTarget.value }))} placeholder="e.g., Second Wind, Cunning Action" />
-      </div>
-
-      <div>
-        <Label for="bonus-action-type">Type</Label>
-        <Select value={formData().type} onValueChange={(v) => setFormData((p) => ({ ...p, type: v as "spell" | "ability" | "other" }))}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ability">Class Feature</SelectItem>
-            <SelectItem value="spell">Spell</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
+        <Label for="action-range">Range</Label>
+        <Input id="action-range" value={formData().range}
+          onInput={(e) => setFormData(p => ({ ...p, range: e.currentTarget.value }))}
+          placeholder="5 ft, 30 ft, Touch, Self" />
       </div>
 
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <Label for="uses">Current Uses</Label>
-          <NumericInput id="uses" min={0} value={formData().uses} onChange={(v) => setFormData(p => ({ ...p, uses: v }))} />
+          <Label for="action-uses">Current Uses</Label>
+          <NumericInput id="action-uses" min={0} value={formData().uses}
+            onChange={(v) => setFormData(p => ({ ...p, uses: v }))} />
         </div>
         <div>
-          <Label for="max-uses">Max Uses</Label>
-          <NumericInput id="max-uses" min={0} value={formData().maxUses} onChange={(v) => setFormData(p => ({ ...p, maxUses: v }))} placeholder="0 (unlimited)" />
+          <Label for="action-max-uses">Max Uses (0 = unlimited)</Label>
+          <NumericInput id="action-max-uses" min={0} value={formData().maxUses}
+            onChange={(v) => setFormData(p => ({ ...p, maxUses: v, uses: 0 }))} />
         </div>
       </div>
 
       <div>
-        <Label for="bonus-action-description">Description</Label>
-        <Textarea id="bonus-action-description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Describe what this bonus action does..." rows={3} />
+        <Label for="action-description">Description</Label>
+        <Textarea id="action-description" value={formData().description}
+          onInput={(e) => setFormData(p => ({ ...p, description: e.currentTarget.value }))}
+          placeholder={`Describe what this ${kindLabel.toLowerCase()} does...`} rows={3} />
       </div>
 
       <div class="flex gap-2 justify-end">
         <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button onClick={handleSubmit}>Add Bonus Action</Button>
-      </div>
-    </div>
-  )
-}
-
-interface ReactionFormProps {
-  onSubmit: (reaction: Omit<Reaction, "id">) => void
-  onCancel: () => void
-}
-
-function ReactionForm(props: ReactionFormProps) {
-  const [formData, setFormData] = createSignal({
-    name: "",
-    type: "ability" as "spell" | "ability" | "other",
-    description: "",
-    trigger: "",
-    uses: 0,
-    maxUses: 0,
-  })
-  const handleSubmit = () => {
-    if (!formData().name.trim() || !formData().trigger.trim()) return
-    props.onSubmit(formData())
-  }
-
-  return (
-    <div class="space-y-4">
-      <div>
-        <Label for="reaction-name">Reaction Name</Label>
-        <Input id="reaction-name" value={formData().name} onInput={(e) => setFormData((p) => ({ ...p, name: e.currentTarget.value }))} placeholder="e.g., Opportunity Attack, Counterspell" />
-      </div>
-
-      <div>
-        <Label for="reaction-type">Type</Label>
-        <Select value={formData().type} onValueChange={(v) => setFormData((p) => ({ ...p, type: v as "spell" | "ability" | "other" }))}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ability">Class Feature</SelectItem>
-            <SelectItem value="spell">Spell</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label for="reaction-trigger">Trigger</Label>
-        <Input id="reaction-trigger" value={formData().trigger} onInput={(e) => setFormData((p) => ({ ...p, trigger: e.currentTarget.value }))} placeholder="e.g., When a creature moves out of your reach" />
-      </div>
-
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <Label for="reaction-uses">Current Uses</Label>
-          <NumericInput id="reaction-uses" min={0} value={formData().uses} onChange={(v) => setFormData(p => ({ ...p, uses: v }))} />
-        </div>
-        <div>
-          <Label for="reaction-max-uses">Max Uses</Label>
-          <NumericInput id="reaction-max-uses" min={0} value={formData().maxUses} onChange={(v) => setFormData(p => ({ ...p, maxUses: v }))} placeholder="0 (unlimited)" />
-        </div>
-      </div>
-
-      <div>
-        <Label for="reaction-description">Description</Label>
-        <Textarea id="reaction-description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Describe what this reaction does..." rows={3} />
-      </div>
-
-      <div class="flex gap-2 justify-end">
-        <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button onClick={handleSubmit}>Add Reaction</Button>
+        <Button onClick={handleSubmit}>Add {kindLabel}</Button>
       </div>
     </div>
   )
@@ -316,8 +256,8 @@ export function ActionsSection(props: ActionsSectionProps) {
     updateSpellSlotUsed(level, slots.used + 1)
   }
 
-  const handleAddAction = (actionData: Omit<Attack, "id">) => {
-    props.onUpdate({ ...props.character, attacks: [...(props.character.attacks || []), { id: crypto.randomUUID(), ...actionData }] })
+  const handleAddAction = (data: ActionFormData) => {
+    props.onUpdate({ ...props.character, attacks: [...(props.character.attacks || []), { id: crypto.randomUUID(), ...data }] })
     setIsAddActionOpen(false)
   }
 
@@ -325,7 +265,7 @@ export function ActionsSection(props: ActionsSectionProps) {
     props.onUpdate({ ...props.character, attacks: (props.character.attacks || []).filter((a) => a.id !== id) })
   }
 
-  const handleAddBonusAction = (data: Omit<BonusAction, "id">) => {
+  const handleAddBonusAction = (data: ActionFormData) => {
     props.onUpdate({ ...props.character, bonusActions: [...(props.character.bonusActions || []), { id: crypto.randomUUID(), ...data }] })
     setIsAddBonusActionOpen(false)
   }
@@ -334,7 +274,7 @@ export function ActionsSection(props: ActionsSectionProps) {
     props.onUpdate({ ...props.character, bonusActions: (props.character.bonusActions || []).filter((b) => b.id !== id) })
   }
 
-  const handleAddReaction = (data: Omit<Reaction, "id">) => {
+  const handleAddReaction = (data: ActionFormData) => {
     props.onUpdate({ ...props.character, reactions: [...(props.character.reactions || []), { id: crypto.randomUUID(), ...data }] })
     setIsAddReactionOpen(false)
   }
@@ -485,12 +425,10 @@ export function ActionsSection(props: ActionsSectionProps) {
                     <div class="flex items-start justify-between">
                       <div>
                         <div class="font-medium">{attack.name}</div>
-                        <div class="text-xs text-muted-foreground">{attack.type === "weapon" ? "Weapon Attack" : "Spell Attack"}</div>
+                        <div class="text-xs text-muted-foreground">{ACTION_TYPE_LABEL[attack.type] ?? attack.type}</div>
                       </div>
                       <div class="flex items-center gap-2">
-                        <Badge variant={attack.type === "weapon" ? "outline" : "secondary"} class="text-xs">
-                          {attack.type.charAt(0).toUpperCase() + attack.type.slice(1)}
-                        </Badge>
+                        <Badge variant="outline" class="text-xs">{ACTION_TYPE_LABEL[attack.type] ?? attack.type}</Badge>
                         <button type="button" class="" aria-label="Delete Attack" onClick={() => handleDeleteAttack(attack.id)}>
                           <Trash2 class="h-4 w-4" />
                         </button>
@@ -498,8 +436,12 @@ export function ActionsSection(props: ActionsSectionProps) {
                     </div>
                     <div class="flex items-center justify-between text-sm">
                       <div class="flex-1">
-                        <div><strong>Attack:</strong> {formatModifier(attack.attackBonus)} to hit</div>
-                        <div><strong>Range:</strong> {attack.range}</div>
+                        <Show when={attack.attackBonus !== undefined}>
+                          <div><strong>Attack:</strong> {formatModifier(attack.attackBonus ?? 0)} to hit</div>
+                        </Show>
+                        <Show when={attack.range}>
+                          <div><strong>Range:</strong> {attack.range}</div>
+                        </Show>
                       </div>
                       <Show when={attack.damage}>
                         <div class="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
@@ -557,33 +499,31 @@ export function ActionsSection(props: ActionsSectionProps) {
                     <div class="flex items-start justify-between">
                       <div>
                         <div class="font-medium">{bonus.name}</div>
-                        <div class="text-xs text-muted-foreground">
-                          {bonus.type === "ability" ? "Class Feature" : bonus.type.charAt(0).toUpperCase() + bonus.type.slice(1)}
-                        </div>
+                        <div class="text-xs text-muted-foreground">{ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}</div>
                       </div>
                       <div class="flex items-center gap-2">
-                        <Badge variant={bonus.type === "ability" ? "outline" : "secondary"} class="text-xs">
-                          {bonus.type.charAt(0).toUpperCase() + bonus.type.slice(1)}
-                        </Badge>
+                        <Badge variant="outline" class="text-xs">{ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}</Badge>
                         <button type="button" class="" aria-label="Delete Bonus Action" onClick={() => handleDeleteBonusAction(bonus.id)}>
                           <Trash2 class="h-4 w-4" />
                         </button>
                       </div>
                     </div>
-                    <div class="flex items-center justify-between text-sm">
-                      <div class="flex-1">
-                        <ActionUsesTracker
-                          uses={bonus.uses ?? 0}
-                          maxUses={bonus.maxUses ?? 0}
-                          onUsesChange={(v) => handleBonusActionUsesChange(bonus.id, v)}
-                        />
-                      </div>
+                    <div class="text-sm space-y-1">
+                      <Show when={bonus.attackBonus !== undefined}>
+                        <div><strong>Attack:</strong> {formatModifier(bonus.attackBonus ?? 0)} to hit</div>
+                      </Show>
+                      <Show when={bonus.range}>
+                        <div><strong>Range:</strong> {bonus.range}</div>
+                      </Show>
                       <Show when={bonus.damage}>
-                        <div class="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
-                          {bonus.damage} {bonus.damageType}
-                        </div>
+                        <div><strong>Damage:</strong> {bonus.damage} {bonus.damageType}</div>
                       </Show>
                     </div>
+                    <ActionUsesTracker
+                      uses={bonus.uses ?? 0}
+                      maxUses={bonus.maxUses ?? 0}
+                      onUsesChange={(v) => handleBonusActionUsesChange(bonus.id, v)}
+                    />
                     <Show when={bonus.description}>
                       <div class="text-xs text-muted-foreground line-clamp-2">{bonus.description}</div>
                     </Show>
@@ -629,34 +569,32 @@ export function ActionsSection(props: ActionsSectionProps) {
                     <div class="flex items-start justify-between">
                       <div>
                         <div class="font-medium">{reaction.name}</div>
-                        <div class="text-xs text-muted-foreground">
-                          {reaction.type === "ability" ? "Class Feature" : reaction.type.charAt(0).toUpperCase() + reaction.type.slice(1)}
-                        </div>
+                        <div class="text-xs text-muted-foreground">{ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}</div>
                       </div>
                       <div class="flex items-center gap-2">
-                        <Badge variant={reaction.type === "ability" ? "outline" : "secondary"} class="text-xs">
-                          {reaction.type.charAt(0).toUpperCase() + reaction.type.slice(1)}
-                        </Badge>
+                        <Badge variant="outline" class="text-xs">{ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}</Badge>
                         <button type="button" class="" aria-label="Delete Reaction" onClick={() => handleDeleteReaction(reaction.id)}>
                           <Trash2 class="h-4 w-4" />
                         </button>
                       </div>
                     </div>
-                    <div class="flex items-center justify-between text-sm">
-                      <div class="flex-1">
-                        <div><strong>Trigger:</strong> {reaction.trigger}</div>
-                        <ActionUsesTracker
-                          uses={reaction.uses ?? 0}
-                          maxUses={reaction.maxUses ?? 0}
-                          onUsesChange={(v) => handleReactionUsesChange(reaction.id, v)}
-                        />
-                      </div>
+                    <div class="text-sm space-y-1">
+                      <div><strong>Trigger:</strong> {reaction.trigger}</div>
+                      <Show when={reaction.attackBonus !== undefined}>
+                        <div><strong>Attack:</strong> {formatModifier(reaction.attackBonus ?? 0)} to hit</div>
+                      </Show>
+                      <Show when={reaction.range}>
+                        <div><strong>Range:</strong> {reaction.range}</div>
+                      </Show>
                       <Show when={reaction.damage}>
-                        <div class="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
-                          {reaction.damage} {reaction.damageType}
-                        </div>
+                        <div><strong>Damage:</strong> {reaction.damage} {reaction.damageType}</div>
                       </Show>
                     </div>
+                    <ActionUsesTracker
+                      uses={reaction.uses ?? 0}
+                      maxUses={reaction.maxUses ?? 0}
+                      onUsesChange={(v) => handleReactionUsesChange(reaction.id, v)}
+                    />
                     <Show when={reaction.description}>
                       <div class="text-xs text-muted-foreground line-clamp-2">{reaction.description}</div>
                     </Show>
@@ -684,21 +622,21 @@ export function ActionsSection(props: ActionsSectionProps) {
       <Modal open={isAddActionOpen()} onOpenChange={setIsAddActionOpen}>
         <ModalContent class="max-w-md">
           <ModalHeader><ModalTitle>Add Custom Action</ModalTitle></ModalHeader>
-          <AttackForm onSubmit={handleAddAction} onCancel={() => setIsAddActionOpen(false)} />
+          <ActionForm kind="action" onSubmit={handleAddAction} onCancel={() => setIsAddActionOpen(false)} />
         </ModalContent>
       </Modal>
 
       <Modal open={isAddBonusActionOpen()} onOpenChange={setIsAddBonusActionOpen}>
         <ModalContent class="max-w-md">
           <ModalHeader><ModalTitle>Add Custom Bonus Action</ModalTitle></ModalHeader>
-          <BonusActionForm onSubmit={handleAddBonusAction} onCancel={() => setIsAddBonusActionOpen(false)} />
+          <ActionForm kind="bonus-action" onSubmit={handleAddBonusAction} onCancel={() => setIsAddBonusActionOpen(false)} />
         </ModalContent>
       </Modal>
 
       <Modal open={isAddReactionOpen()} onOpenChange={setIsAddReactionOpen}>
         <ModalContent class="max-w-md">
           <ModalHeader><ModalTitle>Add Custom Reaction</ModalTitle></ModalHeader>
-          <ReactionForm onSubmit={handleAddReaction} onCancel={() => setIsAddReactionOpen(false)} />
+          <ActionForm kind="reaction" onSubmit={handleAddReaction} onCancel={() => setIsAddReactionOpen(false)} />
         </ModalContent>
       </Modal>
     </Card>

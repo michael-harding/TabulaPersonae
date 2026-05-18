@@ -11,7 +11,7 @@ function makeAttack(overrides: Partial<Attack> = {}): Attack {
   return {
     id: "atk-1",
     name: "Longsword",
-    type: "weapon",
+    type: "attack",
     attackBonus: 5,
     damage: "1d8+3",
     damageType: "slashing",
@@ -137,29 +137,43 @@ describe("ActionsSection", () => {
       expect(screen.getByRole("dialog")).toHaveAttribute("data-closed")
     })
 
-    it("does not call onUpdate when the attack name is empty", () => {
+    it("does not call onUpdate when the action name is empty", () => {
       const onUpdate = vi.fn()
       render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
-      fireEvent.click(within(modal).getByRole("button", { name: /add attack/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /^add action$/i }))
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
-    it("calls onUpdate with the new attack (including UUID) on valid submit", () => {
+    it("calls onUpdate with the new action (including UUID) on valid submit", () => {
       const onUpdate = vi.fn()
       render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
-      fireEvent.input(within(modal).getByLabelText(/attack name/i), { target: { value: "Dagger" } })
-      fireEvent.click(within(modal).getByRole("button", { name: /add attack/i }))
+      fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Lay on Hands" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /^add action$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           attacks: expect.arrayContaining([
-            expect.objectContaining({ name: "Dagger", id: expect.stringMatching(/^test-uuid-/) }),
+            expect.objectContaining({ name: "Lay on Hands", id: expect.stringMatching(/^test-uuid-/) }),
           ]),
         })
       )
+    })
+
+    it("shows the Range field", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add action/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByLabelText(/^range$/i)).toBeInTheDocument()
+    })
+
+    it("does not show the Trigger field", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add action/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).queryByLabelText(/^trigger$/i)).not.toBeInTheDocument()
     })
   })
 
@@ -191,7 +205,7 @@ describe("ActionsSection", () => {
       render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
       const modal = screen.getByRole("dialog")
-      fireEvent.click(within(modal).getByRole("button", { name: /add bonus action/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /^add bonus action$/i }))
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
@@ -200,15 +214,29 @@ describe("ActionsSection", () => {
       render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
       const modal = screen.getByRole("dialog")
-      fireEvent.input(within(modal).getByLabelText(/bonus action name/i), {
+      fireEvent.input(within(modal).getByLabelText(/^bonus action name$/i), {
         target: { value: "Second Wind" },
       })
-      fireEvent.click(within(modal).getByRole("button", { name: /add bonus action/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /^add bonus action$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           bonusActions: expect.arrayContaining([expect.objectContaining({ name: "Second Wind" })]),
         })
       )
+    })
+
+    it("shows the Range field", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByLabelText(/^range$/i)).toBeInTheDocument()
+    })
+
+    it("does not show the Trigger field", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).queryByLabelText(/^trigger$/i)).not.toBeInTheDocument()
     })
   })
 
@@ -224,9 +252,18 @@ describe("ActionsSection", () => {
       render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       const modal = screen.getByRole("dialog")
-      fireEvent.input(within(modal).getByLabelText(/reaction name/i), { target: { value: "Shield" } })
-      // Trigger left empty — submit should be blocked
-      fireEvent.click(within(modal).getByRole("button", { name: /add reaction/i }))
+      fireEvent.input(within(modal).getByLabelText(/^reaction name$/i), { target: { value: "Shield" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /^add reaction$/i }))
+      expect(onUpdate).not.toHaveBeenCalled()
+    })
+
+    it("does not add a reaction when name is empty", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^trigger$/i), { target: { value: "When hit" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /^add reaction$/i }))
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
@@ -235,11 +272,11 @@ describe("ActionsSection", () => {
       render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       const modal = screen.getByRole("dialog")
-      fireEvent.input(within(modal).getByLabelText(/reaction name/i), { target: { value: "Shield" } })
-      fireEvent.input(within(modal).getByLabelText(/trigger/i), {
+      fireEvent.input(within(modal).getByLabelText(/^reaction name$/i), { target: { value: "Shield" } })
+      fireEvent.input(within(modal).getByLabelText(/^trigger$/i), {
         target: { value: "When targeted by an attack" },
       })
-      fireEvent.click(within(modal).getByRole("button", { name: /add reaction/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /^add reaction$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           reactions: expect.arrayContaining([
@@ -247,6 +284,20 @@ describe("ActionsSection", () => {
           ]),
         })
       )
+    })
+
+    it("shows the Trigger field", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByLabelText(/^trigger$/i)).toBeInTheDocument()
+    })
+
+    it("shows the Range field", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByLabelText(/^range$/i)).toBeInTheDocument()
     })
   })
 
