@@ -24,8 +24,8 @@ import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
 import Target from "lucide-solid/icons/target"
 import Circle from "lucide-solid/icons/circle"
-import Dot from "lucide-solid/icons/dot"
 import Settings from "lucide-solid/icons/settings"
+import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 
 interface SpellFormData {
   name: string
@@ -220,12 +220,6 @@ export function SpellsSection(props: SpellsSectionProps) {
   const spellSaveDC = () => getSpellSaveDC(props.character)
   const spellAttackBonus = () => getSpellAttackBonus(props.character)
 
-  const getOrdinalSuffix = (num: number): string => {
-    const suffixes = ["th", "st", "nd", "rd"]
-    const v = num % 100
-    return num + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0])
-  }
-
   const toggleLevelExpanded = (level: number, isOpen: boolean) => {
     setExpandedLevels((prev) => {
       const newSet = new Set(prev)
@@ -236,7 +230,7 @@ export function SpellsSection(props: SpellsSectionProps) {
   }
 
   const updateSpellSlots = (level: number, field: "total" | "used", value: number) => {
-    const updated = {
+    props.onUpdate({
       ...props.character,
       spellSlots: {
         ...props.character.spellSlots,
@@ -245,15 +239,10 @@ export function SpellsSection(props: SpellsSectionProps) {
           [field]: Math.max(0, value),
         },
       },
-    }
-    props.onUpdate(updated)
+    })
   }
 
-  const toggleSpellSlot = (level: number, index: number) => {
-    const currentSlots = props.character.spellSlots[level as keyof typeof props.character.spellSlots]
-    const newUsed = index < currentSlots.used ? currentSlots.used - 1 : index + 1
-    updateSpellSlots(level, "used", Math.min(newUsed, currentSlots.total))
-  }
+  const updateSpellSlotUsed = (level: number, used: number) => updateSpellSlots(level, "used", used)
 
   const handleAddSpell = (formData: SpellFormData) => {
     if (!formData.name.trim()) return
@@ -407,38 +396,7 @@ export function SpellsSection(props: SpellsSectionProps) {
             </Button>
           </div>
 
-          <div class="flex flex-wrap gap-2">
-            <For each={[1,2,3,4,5,6,7,8,9]}>
-              {(level) => {
-                const slots = () => props.character.spellSlots[level as keyof typeof props.character.spellSlots]
-                return (
-                  <Show when={slots().total > 0}>
-                    <div class="flex items-center gap-2 p-2 border rounded-lg">
-                      <span class="font-medium text-xs text-muted-foreground">{getOrdinalSuffix(level)}</span>
-                      <div class="flex items-center gap-1">
-                        <For each={Array.from({ length: slots().total }, (_, i) => i)}>
-                          {(index) => (
-                            <button
-                              onClick={() => toggleSpellSlot(level, index)}
-                              class={`w-5 h-5 rounded-full border-2 transition-colors ${index < slots().used ? "bg-muted border-muted-foreground" : "bg-primary border-primary hover:bg-primary/80"}`}
-                              title={index < slots().used ? "Used slot (click to restore)" : "Available slot (click to use)"}
-                            >
-                              <Show when={index < slots().used}>
-                                <span class="sr-only">Used</span>
-                              </Show>
-                              <Show when={index >= slots().used}>
-                                <Dot class="h-3 w-3 text-primary-foreground mx-auto" />
-                              </Show>
-                            </button>
-                          )}
-                        </For>
-                      </div>
-                    </div>
-                  </Show>
-                )
-              }}
-            </For>
-          </div>
+          <SpellSlotTracker spellSlots={props.character.spellSlots} onToggle={updateSpellSlotUsed} />
 
           <Show when={allSlotsEmpty()}>
             <div class="text-center py-4 text-muted-foreground">

@@ -18,6 +18,7 @@ import Target from "lucide-solid/icons/target"
 import Zap from "lucide-solid/icons/zap"
 import Star from "lucide-solid/icons/star"
 import Shield from "lucide-solid/icons/shield"
+import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 
 interface ActionsSectionProps {
   character: Character
@@ -262,26 +263,20 @@ export function ActionsSection(props: ActionsSectionProps) {
     return num + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0])
   }
 
-  const updateSpellSlots = (level: number, field: "total" | "used", value: number) => {
+  const updateSpellSlotUsed = (level: number, used: number) => {
     props.onUpdate({
       ...props.character,
       spellSlots: {
         ...props.character.spellSlots,
-        [level]: { ...props.character.spellSlots[level as keyof typeof props.character.spellSlots], [field]: value },
+        [level]: { ...props.character.spellSlots[level as keyof typeof props.character.spellSlots], used },
       },
     })
-  }
-
-  const toggleSpellSlot = (level: number, index: number) => {
-    const currentSlots = props.character.spellSlots[level as keyof typeof props.character.spellSlots]
-    const newUsed = index < currentSlots.used ? currentSlots.used - 1 : index + 1
-    updateSpellSlots(level, "used", Math.min(newUsed, currentSlots.total))
   }
 
   const castSpell = (level: number) => {
     const slots = props.character.spellSlots[level as keyof typeof props.character.spellSlots]
     if (!slots || slots.used >= slots.total) return
-    updateSpellSlots(level, "used", slots.used + 1)
+    updateSpellSlotUsed(level, slots.used + 1)
   }
 
   const handleAddAction = (actionData: Omit<Attack, "id">) => {
@@ -372,34 +367,8 @@ export function ActionsSection(props: ActionsSectionProps) {
         </div>
 
         {/* Spell Slot Toggles */}
-        <div class="flex flex-wrap gap-2 justify-start my-4">
-          <For each={[1,2,3,4,5,6,7,8,9]}>
-            {(level) => {
-              const slots = () => props.character.spellSlots[level as keyof typeof props.character.spellSlots]
-              return (
-                <Show when={slots() && slots().total > 0}>
-                  <div class="flex items-center gap-2 p-2 border rounded-lg">
-                    <span class="font-medium text-xs text-muted-foreground">{getOrdinalSuffix(level)}</span>
-                    <div class="flex items-center gap-1">
-                      <For each={Array.from({ length: slots().total }, (_, i) => i)}>
-                        {(index) => (
-                          <button
-                            onClick={() => toggleSpellSlot(level, index)}
-                            class={`w-5 h-5 rounded-full border-2 transition-colors ${index < slots().used ? "bg-muted border-muted-foreground" : "bg-primary border-primary hover:bg-primary/80"}`}
-                            title={index < slots().used ? "Used slot (click to restore)" : "Available slot (click to use)"}
-                          >
-                            <Show when={index >= slots().used}>
-                              <span class="block w-2 h-2 bg-primary-foreground rounded-full mx-auto" />
-                            </Show>
-                          </button>
-                        )}
-                      </For>
-                    </div>
-                  </div>
-                </Show>
-              )
-            }}
-          </For>
+        <div class="my-4">
+          <SpellSlotTracker spellSlots={props.character.spellSlots} onToggle={updateSpellSlotUsed} />
         </div>
 
         {/* Actions */}
