@@ -63,6 +63,7 @@ export interface Spell {
   attackSave?: string;
   description: string;
   prepared: boolean;
+  known: boolean;
   regain?: string;
 }
 

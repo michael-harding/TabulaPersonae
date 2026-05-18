@@ -244,16 +244,16 @@ export function ActionsSection(props: ActionsSectionProps) {
   const spellAttackBonus = () => getSpellAttackBonus(props.character)
 
   const attackSpells = () => safeSpells().filter((spell) =>
-    (spell.prepared || spell.level === 0) &&
+    (spell.level === 0 ? (spell.known ?? true) : spell.prepared) &&
     spell.castingTime.toLowerCase().includes("1 action") &&
     !spell.castingTime.toLowerCase().includes("bonus") &&
     !spell.castingTime.toLowerCase().includes("reaction")
   )
   const bonusActionSpells = () => safeSpells().filter((spell) =>
-    (spell.prepared || spell.level === 0) && spell.castingTime.toLowerCase().includes("bonus")
+    (spell.level === 0 ? (spell.known ?? true) : spell.prepared) && spell.castingTime.toLowerCase().includes("bonus")
   )
   const reactionSpells = () => safeSpells().filter((spell) =>
-    (spell.prepared || spell.level === 0) && spell.castingTime.toLowerCase().includes("reaction")
+    (spell.level === 0 ? (spell.known ?? true) : spell.prepared) && spell.castingTime.toLowerCase().includes("reaction")
   )
 
   const getOrdinalSuffix = (num: number): string => {

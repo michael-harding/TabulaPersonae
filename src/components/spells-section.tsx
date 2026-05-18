@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -39,6 +40,7 @@ interface SpellFormData {
   regain?: string
   description: string
   prepared: boolean
+  known: boolean
 }
 
 interface SpellsSectionProps {
@@ -75,6 +77,7 @@ const defaultSpellForm: SpellFormData = {
   attackSave: "",
   description: "",
   prepared: false,
+  known: true,
   regain: "",
 }
 
@@ -163,11 +166,21 @@ function SpellForm(props: SpellFormProps) {
         <Textarea id="description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Spell description and effects" rows={4} />
       </div>
 
+      <div class="flex items-center space-x-2">
+        <Checkbox
+          id="known"
+          checked={formData().known}
+          onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
+        />
+        <Label for="known">Known</Label>
+      </div>
+
       <Show when={formData().level > 0}>
         <div class="flex items-center space-x-2">
           <Checkbox
             id="prepared"
             checked={formData().prepared}
+            disabled={!formData().known}
             onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
           />
           <Label for="prepared">Prepared</Label>
@@ -255,6 +268,7 @@ export function SpellsSection(props: SpellsSectionProps) {
       duration: formData.duration,
       description: formData.description.trim(),
       prepared: formData.prepared,
+      known: formData.known,
       damage: formData.damage,
       attackSave: formData.attackSave,
       regain: formData.regain,
@@ -279,6 +293,7 @@ export function SpellsSection(props: SpellsSectionProps) {
       duration: formData.duration,
       description: formData.description.trim(),
       prepared: formData.prepared,
+      known: formData.known,
       damage: formData.damage,
       attackSave: formData.attackSave,
       regain: formData.regain,
@@ -304,6 +319,19 @@ export function SpellsSection(props: SpellsSectionProps) {
     saveCharacter(updated)
   }
 
+  const toggleKnown = (spellId: string) => {
+    const updated = {
+      ...props.character,
+      spells: safeSpells().map((spell) =>
+        spell.id === spellId
+          ? { ...spell, known: !spell.known, prepared: spell.known ? false : spell.prepared }
+          : spell
+      ),
+    }
+    props.onUpdate(updated)
+    saveCharacter(updated)
+  }
+
   const editSpellData = (): SpellFormData => {
     const spell = editingSpell()
     if (!spell) return defaultSpellForm
@@ -319,6 +347,7 @@ export function SpellsSection(props: SpellsSectionProps) {
       attackSave: spell.attackSave || "",
       description: spell.description,
       prepared: spell.prepared || false,
+      known: spell.known ?? true,
       regain: spell.regain || "",
     }
   }
@@ -467,12 +496,22 @@ export function SpellsSection(props: SpellsSectionProps) {
                                 <div class="flex items-start justify-between">
                                   <div class="flex-1">
                                     <div class="flex items-center gap-2 mb-1">
+                                      <Show when={spell.level === 0}>
+                                        <Tooltip content="Known">
+                                          <Checkbox
+                                            checked={spell.known ?? true}
+                                            onChange={() => toggleKnown(spell.id)}
+                                          />
+                                        </Tooltip>
+                                      </Show>
                                       <Show when={spell.level > 0}>
-                                        <Checkbox
-                                          checked={spell.prepared || false}
-                                          onChange={() => togglePrepared(spell.id)}
-                                          title="Toggle prepared"
-                                        />
+                                        <Tooltip content="Prepared">
+                                          <Checkbox
+                                            checked={spell.prepared || false}
+                                            disabled={!(spell.known ?? true)}
+                                            onChange={() => togglePrepared(spell.id)}
+                                          />
+                                        </Tooltip>
                                       </Show>
                                       <h4 class="font-medium">{spell.name}</h4>
                                       <Badge variant="outline" class="text-xs">{spell.school}</Badge>
