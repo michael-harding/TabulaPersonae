@@ -89,7 +89,7 @@ export function AbilityScores(props: AbilityScoresProps) {
                       </label>
                     </div>
                   ) : (
-                    <div class="ring-1 rounded-lg p-3">
+                    <div class="ring-1 ring-black rounded-lg p-3">
                       <div class="text-2xl font-bold text-primary">{score()}</div>
                       <div class="text-lg font-semibold text-foreground">{formatModifier(modifier())}</div>
                     </div>

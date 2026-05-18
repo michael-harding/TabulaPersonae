@@ -147,14 +147,14 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
         {/* Skills */}
         <div>
           <h3 class="font-semibold mb-3">Skills</h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+          <div class="columns-1 sm:columns-2 md:columns-3" style="column-gap: 1rem; column-rule: 1px solid var(--border)">
             <For each={Object.keys(SKILL_DISPLAY_NAMES) as SkillKey[]}>
               {(skillKey) => {
                 const ability = SKILL_ABILITY_MAP[skillKey]
                 const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
                 const modifier = () => getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
                 return (
-                  <div class="flex items-center justify-between p-2 rounded hover:bg-gray-500 rounded p-1">
+                  <div class="break-inside-avoid flex items-center justify-between p-1 rounded hover:bg-gray-500 [&:nth-child(3n)]:mb-3">
                     <div class="flex items-center gap-3 w-full transition-colors duration-150">
                       <Show when={isEditing()}>
                         <div class="flex gap-1">

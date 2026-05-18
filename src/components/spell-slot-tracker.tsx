@@ -39,7 +39,7 @@ export function SpellSlotTracker(props: SpellSlotTrackerProps) {
                         class="w-11 h-11 flex items-center justify-center"
                         title={index < slots().used ? "Used slot (click to restore)" : "Available slot (click to use)"}
                       >
-                        <span class={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${index < slots().used ? "bg-muted border-muted-foreground" : "bg-primary border-primary hover:bg-primary/80"}`}>
+                        <span class={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${index < slots().used ? "bg-primary border-primary hover:bg-primary/80" : "bg-muted border-muted-foreground"}`}>
                         </span>
                       </button>
                     )}
