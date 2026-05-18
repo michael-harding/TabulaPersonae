@@ -84,6 +84,7 @@ interface ActionBase {
   trigger?: string
   uses?: number
   maxUses?: number
+  rechargeOn?: 'short-rest' | 'long-rest'
 }
 
 export interface Attack extends ActionBase {}
@@ -161,6 +162,7 @@ export interface Character {
   // Both editions
   edition?: "2014" | "2024"
   spentHitDice?: number
+  hitDiceSize?: number
   appearance?: string
   coins?: { cp: number; sp: number; ep: number; gp: number; pp: number }
   age?: string

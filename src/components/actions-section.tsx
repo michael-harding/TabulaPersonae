@@ -66,6 +66,7 @@ interface ActionFormData {
   trigger: string
   uses: number
   maxUses: number
+  rechargeOn: '' | 'short-rest' | 'long-rest'
   description: string
 }
 
@@ -89,6 +90,7 @@ function ActionForm(props: ActionFormProps) {
     trigger: "",
     uses: 0,
     maxUses: 0,
+    rechargeOn: "",
     description: "",
   })
 
@@ -168,6 +170,18 @@ function ActionForm(props: ActionFormProps) {
           <NumericInput id="action-max-uses" min={0} value={formData().maxUses}
             onChange={(v) => setFormData(p => ({ ...p, maxUses: v, uses: 0 }))} />
         </div>
+      </div>
+
+      <div>
+        <Label for="action-recharge">Recharge On</Label>
+        <Select value={formData().rechargeOn} onValueChange={(v) => setFormData(p => ({ ...p, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
+          <SelectTrigger id="action-recharge"><SelectValue placeholder="None" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">None</SelectItem>
+            <SelectItem value="short-rest">Short Rest</SelectItem>
+            <SelectItem value="long-rest">Long Rest</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
@@ -256,8 +270,11 @@ export function ActionsSection(props: ActionsSectionProps) {
     updateSpellSlotUsed(level, slots.used + 1)
   }
 
+  const normalizeRechargeOn = (data: ActionFormData) =>
+    ({ ...data, rechargeOn: data.rechargeOn || undefined } as const)
+
   const handleAddAction = (data: ActionFormData) => {
-    props.onUpdate({ ...props.character, attacks: [...(props.character.attacks || []), { id: crypto.randomUUID(), ...data }] })
+    props.onUpdate({ ...props.character, attacks: [...(props.character.attacks || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
     setIsAddActionOpen(false)
   }
 
@@ -266,7 +283,7 @@ export function ActionsSection(props: ActionsSectionProps) {
   }
 
   const handleAddBonusAction = (data: ActionFormData) => {
-    props.onUpdate({ ...props.character, bonusActions: [...(props.character.bonusActions || []), { id: crypto.randomUUID(), ...data }] })
+    props.onUpdate({ ...props.character, bonusActions: [...(props.character.bonusActions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
     setIsAddBonusActionOpen(false)
   }
 
@@ -275,7 +292,7 @@ export function ActionsSection(props: ActionsSectionProps) {
   }
 
   const handleAddReaction = (data: ActionFormData) => {
-    props.onUpdate({ ...props.character, reactions: [...(props.character.reactions || []), { id: crypto.randomUUID(), ...data }] })
+    props.onUpdate({ ...props.character, reactions: [...(props.character.reactions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
     setIsAddReactionOpen(false)
   }
 

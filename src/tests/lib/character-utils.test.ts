@@ -8,6 +8,8 @@ import {
   formatModifier,
   SKILL_ABILITY_MAP,
   SKILL_DISPLAY_NAMES,
+  parseHitDiceSize,
+  rollHitDice,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type AbilityScores } from "@/lib/character-types"
 
@@ -290,6 +292,57 @@ describe("Character Utils", () => {
       expect(SKILL_DISPLAY_NAMES.animalHandling).toBe("Animal Handling")
       expect(SKILL_DISPLAY_NAMES.sleightOfHand).toBe("Sleight of Hand")
       expect(SKILL_DISPLAY_NAMES.athletics).toBe("Athletics")
+    })
+  })
+
+  describe("parseHitDiceSize", () => {
+    it("parses '1d8' → 8", () => {
+      expect(parseHitDiceSize("1d8")).toBe(8)
+    })
+
+    it("parses '1d6' → 6", () => {
+      expect(parseHitDiceSize("1d6")).toBe(6)
+    })
+
+    it("parses 'd12' → 12", () => {
+      expect(parseHitDiceSize("d12")).toBe(12)
+    })
+
+    it("falls back to 8 for unrecognised strings", () => {
+      expect(parseHitDiceSize("foo")).toBe(8)
+      expect(parseHitDiceSize("")).toBe(8)
+      expect(parseHitDiceSize("1d7")).toBe(8)
+    })
+  })
+
+  describe("rollHitDice", () => {
+    it("returns the correct number of adjusted rolls", () => {
+      const { rolls } = rollHitDice(3, 8, 0)
+      expect(rolls).toHaveLength(3)
+    })
+
+    it("applies conMod to each roll", () => {
+      // With a +10 conMod, all results will be well above 1 and clearly modified
+      const { rolls } = rollHitDice(10, 8, 10)
+      for (const r of rolls) {
+        expect(r).toBeGreaterThanOrEqual(11) // min die roll 1 + 10
+        expect(r).toBeLessThanOrEqual(18)    // max die roll 8 + 10
+      }
+    })
+
+    it("floors each adjusted roll at 1 (minimum 1 per die)", () => {
+      // With a -100 conMod every raw roll + modifier would be negative
+      const { rolls } = rollHitDice(20, 4, -100)
+      for (const r of rolls) {
+        expect(r).toBe(1)
+      }
+    })
+
+    it("total equals sum of adjusted rolls", () => {
+      for (let i = 0; i < 10; i++) {
+        const { rolls, total } = rollHitDice(4, 6, 2)
+        expect(total).toBe(rolls.reduce((a, b) => a + b, 0))
+      }
     })
   })
 })

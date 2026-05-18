@@ -236,33 +236,14 @@ describe("CombatStats", () => {
   })
 
   describe("hit dice and spent hit dice", () => {
-    it("renders hit dice string", () => {
-      render(<CombatStats character={makeCharacter({ hitDice: "3d8" })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("3d8")).toBeInTheDocument()
+    it("renders die size derived from hitDice string in view mode", () => {
+      render(<CombatStats character={makeCharacter({ hitDice: "1d8" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("d8")).toBeInTheDocument()
     })
 
-    it("renders spent hit dice count", () => {
-      render(<CombatStats character={makeCharacter({ spentHitDice: 2 })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("2")).toBeInTheDocument()
-    })
-
-    it("spend button increments spentHitDice and calls onUpdate", () => {
-      const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter({ level: 5, spentHitDice: 1 })} onUpdate={onUpdate} />)
-      // Find the + button in the hit dice section by its proximity to "Spent" label
-      const spentSection = screen.getByText("Spent").closest("div")!
-      const plusBtn = spentSection.querySelectorAll("button")[1]
-      fireEvent.click(plusBtn)
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentHitDice: 2 }))
-    })
-
-    it("recover button decrements spentHitDice and calls onUpdate", () => {
-      const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter({ level: 5, spentHitDice: 2 })} onUpdate={onUpdate} />)
-      const spentSection = screen.getByText("Spent").closest("div")!
-      const minusBtn = spentSection.querySelectorAll("button")[0]
-      fireEvent.click(minusBtn)
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentHitDice: 1 }))
+    it("renders available / total hit dice count in view mode", () => {
+      render(<CombatStats character={makeCharacter({ level: 5, spentHitDice: 2, hitDice: "1d8" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText(/3\/5 available/i)).toBeInTheDocument()
     })
   })
 
@@ -333,6 +314,57 @@ describe("CombatStats", () => {
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
       expect(onUpdate).not.toHaveBeenCalled()
       expect(screen.getByText(/\/20/)).toBeInTheDocument()
+    })
+  })
+
+  describe("hit dice section — view mode", () => {
+    it("displays the die size label derived from hitDice string", () => {
+      render(<CombatStats character={makeCharacter({ hitDice: "1d8" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("d8")).toBeInTheDocument()
+    })
+
+    it("displays the explicit hitDiceSize when set", () => {
+      render(<CombatStats character={makeCharacter({ hitDiceSize: 10, hitDice: "1d8" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("d10")).toBeInTheDocument()
+    })
+
+    it("displays available / total hit dice count", () => {
+      render(<CombatStats character={makeCharacter({ level: 4, spentHitDice: 1, hitDice: "1d8" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText(/3\/4 available/i)).toBeInTheDocument()
+    })
+
+    it("does not render interactive hit dice controls in view mode", () => {
+      render(<CombatStats character={makeCharacter({ level: 3, hitDice: "1d8" })} onUpdate={vi.fn()} />)
+      // Die type select and spent dice stepper only appear in edit mode
+      expect(screen.queryByText(/die type/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/spent hit dice/i)).not.toBeInTheDocument()
+    })
+  })
+
+  describe("hit dice section — edit mode", () => {
+    it("renders a 'Die Type' label and select trigger button in edit mode", () => {
+      render(<CombatStats character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByText(/die type/i)).toBeInTheDocument()
+      // Kobalte Select trigger renders as a button showing the current value
+      expect(screen.getByRole("button", { name: "8" })).toBeInTheDocument()
+    })
+
+    it("renders 'Spent Hit Dice' label and stepper buttons when level > 5", () => {
+      render(<CombatStats character={makeCharacter({ level: 8, spentHitDice: 2, hitDice: "1d10" })} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByText(/spent hit dice/i)).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
+    })
+
+    it("saves the updated hitDiceSize on save", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStats character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ hitDiceSize: 8 })
+      )
     })
   })
 })

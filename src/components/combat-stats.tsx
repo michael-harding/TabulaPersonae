@@ -1,6 +1,7 @@
 import { createSignal, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier } from "@/lib/character-utils"
+import { getSkillModifier, parseHitDiceSize } from "@/lib/character-utils"
+import { DIE_SIZES } from "@/lib/dice"
 import { saveCharacter } from "@/lib/character-storage"
 import { EditableSection } from "@/components/editable-section"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -8,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { PipTracker } from "@/components/ui/pip-tracker"
+import { StepperInput } from "@/components/ui/stepper-input"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
 import Plus from "lucide-solid/icons/plus"
@@ -43,6 +46,7 @@ const toEdit = (c: Character) => ({
   proficiencyBonus: c.proficiencyBonus || 2,
   deathSaves: { successes: c.deathSaves?.successes || 0, failures: c.deathSaves?.failures || 0 },
   spentHitDice: c.spentHitDice ?? 0,
+  hitDiceSize: c.hitDiceSize ?? parseHitDiceSize(c.hitDice ?? "1d8"),
   size: c.size ?? "Medium",
   shield: c.shield ?? false,
 })
@@ -82,15 +86,6 @@ export function CombatStats(props: CombatStatsProps) {
     }
 
     const updated = { ...props.character, hitPoints: { ...props.character.hitPoints, current: newCurrentHP, temporary: newTempHP } }
-    props.onUpdate(updated)
-    saveCharacter(updated)
-  }
-
-  const adjustSpentHitDice = (delta: number) => {
-    const current = props.character.spentHitDice ?? 0
-    const max = props.character.level ?? 1
-    const next = Math.max(0, Math.min(max, current + delta))
-    const updated = { ...props.character, spentHitDice: next }
     props.onUpdate(updated)
     saveCharacter(updated)
   }
@@ -206,33 +201,58 @@ export function CombatStats(props: CombatStatsProps) {
         </div>
 
         {/* Hit Dice */}
-        <div class="flex items-center justify-between">
-          <div>
-            <Label class="text-sm text-muted-foreground">Hit Dice</Label>
-            <p class="text-lg font-semibold">{props.character.hitDice || "—"}</p>
-          </div>
-          <div class="text-center">
-            <Label class="text-sm text-muted-foreground">Spent</Label>
-            <Show when={!isEditing()} fallback={
-              <NumericInput
-                min={0}
-                max={props.character.level ?? 1}
-                value={edited().spentHitDice ?? 0}
-                onChange={(v) => setEdited(prev => ({ ...prev, spentHitDice: v }))}
-                class="w-20 text-center"
-              />
-            }>
-              <div class="flex items-center gap-1 mt-1">
-                <Button size="sm" variant="outline" onClick={() => adjustSpentHitDice(-1)} disabled={(props.character.spentHitDice ?? 0) <= 0}>
-                  <Minus class="h-3 w-3" />
-                </Button>
-                <span class="text-lg font-bold w-8 text-center">{props.character.spentHitDice ?? 0}</span>
-                <Button size="sm" variant="outline" onClick={() => adjustSpentHitDice(1)} disabled={(props.character.spentHitDice ?? 0) >= (props.character.level ?? 1)}>
-                  <Plus class="h-3 w-3" />
-                </Button>
+        <div class="space-y-2">
+          <Label class="text-sm text-muted-foreground">Hit Dice</Label>
+          <Show
+            when={isEditing()}
+            fallback={
+              <div class="flex items-center gap-3">
+                <span class="text-lg font-semibold">
+                  d{props.character.hitDiceSize ?? parseHitDiceSize(props.character.hitDice ?? "1d8")}
+                </span>
+                <span class="text-muted-foreground">
+                  {(props.character.level ?? 1) - (props.character.spentHitDice ?? 0)}/{props.character.level ?? 1} available
+                </span>
               </div>
-            </Show>
-          </div>
+            }
+          >
+            <div class="space-y-3">
+              <div>
+                <Label class="text-xs">Die Type</Label>
+                <Select
+                  value={String(edited().hitDiceSize)}
+                  onValueChange={(v) => setEdited(prev => ({ ...prev, hitDiceSize: Number(v) }))}
+                >
+                  <SelectTrigger class="w-24"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label class="text-xs">Spent Hit Dice</Label>
+                <Show
+                  when={(props.character.level ?? 1) <= 5}
+                  fallback={
+                    <StepperInput
+                      value={edited().spentHitDice ?? 0}
+                      min={0}
+                      max={props.character.level ?? 1}
+                      onChange={(v) => setEdited(prev => ({ ...prev, spentHitDice: v }))}
+                    />
+                  }
+                >
+                  <PipTracker
+                    total={props.character.level ?? 1}
+                    used={edited().spentHitDice ?? 0}
+                    onToggle={(v) => setEdited(prev => ({ ...prev, spentHitDice: v }))}
+                    usedTitle="Hit die spent"
+                    availableTitle="Hit die available"
+                  />
+                </Show>
+              </div>
+            </div>
+          </Show>
         </div>
 
         {/* Death Saves — only at 0 HP */}

@@ -5,6 +5,9 @@ import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import Scroll from "lucide-solid/icons/scroll"
 import Sunrise from "lucide-solid/icons/sunrise"
+import FlameKindling from "lucide-solid/icons/flame-kindling"
+import { Tooltip } from "@/components/ui/tooltip"
+import { RestModal } from "@/components/rest-modal"
 import { CharacterBasicInfo } from "@/components/character-basic-info"
 import { AbilityScores } from "@/components/ability-scores"
 import { CombatStats } from "@/components/combat-stats"
@@ -26,6 +29,7 @@ export default function CharacterSheet() {
   const [character, setCharacter] = createSignal<Character | null>(null)
   const [characters, setCharacters] = createSignal<Character[]>([])
   const [isLoading, setIsLoading] = createSignal(true)
+  const [isRestOpen, setIsRestOpen] = createSignal(false)
 
   createEffect(() => {
     if (authLoading()) return
@@ -114,6 +118,17 @@ export default function CharacterSheet() {
                       >
                         <Sunrise class={`h-11 w-11 ${getChar().heroicInspiration ? "fill-yellow-400" : "fill-none"}`} stroke-width={2} />
                       </button>
+                      <Tooltip content="Take a Rest">
+                        <button
+                          type="button"
+                          aria-label="Take a Rest"
+                          onClick={() => setIsRestOpen(true)}
+                          class="ml-2 text-muted-foreground hover:text-orange-400 transition-colors"
+                          style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}
+                        >
+                          <FlameKindling class="h-11 w-11" stroke-width={2} />
+                        </button>
+                      </Tooltip>
                     </div>
                   </div>
 
@@ -143,6 +158,13 @@ export default function CharacterSheet() {
                 <SheetSettings character={getChar()} onUpdate={updateCharacter} />
               </div>
             </main>
+
+            <RestModal
+              character={getChar()}
+              open={isRestOpen()}
+              onOpenChange={setIsRestOpen}
+              onRest={updateCharacter}
+            />
           </div>
         )}
       </Show>

@@ -1,4 +1,5 @@
 import type { AbilityScores, Character } from "./character-types"
+import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
   return Math.floor((Math.max(0, score) - 10) / 2)
@@ -147,4 +148,14 @@ export const SKILL_DISPLAY_NAMES = {
 
 export function formatModifier(modifier: number): string {
   return modifier >= 0 ? `+${modifier}` : `${modifier}`
+}
+
+export function parseHitDiceSize(hitDice: string): number {
+  return parseDiceString(hitDice)?.sides ?? 8
+}
+
+export function rollHitDice(count: number, dieSize: DieSize, conMod: number): { total: number; rolls: number[] } {
+  const { rolls } = rollMany(count, dieSize)
+  const adjusted = rolls.map((r) => Math.max(1, r + conMod))
+  return { rolls: adjusted, total: adjusted.reduce((a, b) => a + b, 0) }
 }

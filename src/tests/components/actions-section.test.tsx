@@ -609,4 +609,29 @@ describe("ActionsSection", () => {
       })
     })
   })
+
+  describe("rechargeOn field in action form", () => {
+    it("renders a 'Recharge On' select in the Add Action modal", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add action/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByLabelText(/recharge on/i)).toBeInTheDocument()
+    })
+
+    it("submits the action with rechargeOn undefined when None is selected (default)", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add action/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Strike" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /^add action$/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          attacks: expect.arrayContaining([
+            expect.objectContaining({ name: "Strike", rechargeOn: undefined }),
+          ]),
+        })
+      )
+    })
+  })
 })
