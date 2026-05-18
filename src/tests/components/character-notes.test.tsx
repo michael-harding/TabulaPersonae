@@ -172,51 +172,25 @@ describe("CharacterNotes", () => {
   describe("2024-only fields", () => {
     const char2024 = { ...emptyCharacter, edition: "2024" as const }
 
-    it("shows empty-state text for class features in 2024 mode", () => {
+    it("does not render class features textarea in 2024 mode (managed in FeaturesSection)", () => {
       render(<CharacterNotes character={char2024} onUpdate={vi.fn()} />)
-      expect(screen.getByText("No class features listed yet.")).toBeInTheDocument()
-    })
-
-    it("shows empty-state text for species traits in 2024 mode", () => {
-      render(<CharacterNotes character={char2024} onUpdate={vi.fn()} />)
-      expect(screen.getByText("No species traits listed yet.")).toBeInTheDocument()
-    })
-
-    it("shows empty-state text for feats in 2024 mode", () => {
-      render(<CharacterNotes character={char2024} onUpdate={vi.fn()} />)
-      expect(screen.getByText("No feats listed yet.")).toBeInTheDocument()
-    })
-
-    it("does not render 2024 fields in 2014 mode", () => {
-      render(<CharacterNotes character={{ ...emptyCharacter, edition: "2014" }} onUpdate={vi.fn()} />)
       expect(screen.queryByText("No class features listed yet.")).not.toBeInTheDocument()
-      expect(screen.queryByText("No species traits listed yet.")).not.toBeInTheDocument()
-      expect(screen.queryByText("No feats listed yet.")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/class features/i)).not.toBeInTheDocument()
     })
 
-    it("shows class features textarea in edit mode", () => {
+    it("does not render species traits textarea in 2024 mode (managed in FeaturesSection)", () => {
       render(<CharacterNotes character={char2024} onUpdate={vi.fn()} />)
-      enterEditMode()
-      expect(screen.getByLabelText(/class features/i)).toBeInTheDocument()
+      expect(screen.queryByText("No species traits listed yet.")).not.toBeInTheDocument()
     })
 
-    it("saves class features on save", () => {
-      const onUpdate = vi.fn()
-      render(<CharacterNotes character={char2024} onUpdate={onUpdate} />)
-      enterEditMode()
-      fireEvent.input(screen.getByLabelText(/class features/i), { target: { value: "Action Surge" } })
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ classFeatures: "Action Surge" }))
+    it("does not render feats textarea in 2024 mode (managed in FeaturesSection)", () => {
+      render(<CharacterNotes character={char2024} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("No feats listed yet.")).not.toBeInTheDocument()
     })
   })
 
   describe("2014-only fields", () => {
     const char2014 = { ...emptyCharacter, edition: "2014" as const }
-
-    it("shows empty-state text for features & traits in 2014 mode", () => {
-      render(<CharacterNotes character={char2014} onUpdate={vi.fn()} />)
-      expect(screen.getByText("No features or traits listed yet.")).toBeInTheDocument()
-    })
 
     it("shows empty-state text for allies & organizations in 2014 mode", () => {
       render(<CharacterNotes character={char2014} onUpdate={vi.fn()} />)
@@ -230,15 +204,8 @@ describe("CharacterNotes", () => {
 
     it("does not render 2014-only fields in 2024 mode", () => {
       render(<CharacterNotes character={{ ...emptyCharacter, edition: "2024" }} onUpdate={vi.fn()} />)
-      expect(screen.queryByText("No features or traits listed yet.")).not.toBeInTheDocument()
       expect(screen.queryByText("No allies or organizations listed yet.")).not.toBeInTheDocument()
       expect(screen.queryByText("No treasure listed yet.")).not.toBeInTheDocument()
-    })
-
-    it("shows features & traits textarea in edit mode", () => {
-      render(<CharacterNotes character={char2014} onUpdate={vi.fn()} />)
-      enterEditMode()
-      expect(screen.getByLabelText(/features & traits/i)).toBeInTheDocument()
     })
 
     it("saves allies & organizations on save", () => {

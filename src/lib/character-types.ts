@@ -72,6 +72,17 @@ export interface Spell {
   ritual?: boolean;
 }
 
+export type FeatureKind = 'class-feature' | 'species-trait' | 'feat'
+export type ActionKind = 'action' | 'bonus-action' | 'reaction'
+
+export interface Feature {
+  id: string
+  name: string
+  description: string
+  source: FeatureKind
+  actionKind?: ActionKind
+}
+
 interface ActionBase {
   id: string
   name: string
@@ -180,9 +191,9 @@ export interface Character {
   size?: string
   shield?: boolean
   magicItemAttunement?: string[]
-  classFeatures?: string
-  speciesTraits?: string
-  feats?: string
+  classFeatures?: Feature[]
+  speciesTraits?: Feature[]
+  feats?: Feature[]
 
   // 2014-only
   spellcastingClass?: string
@@ -304,9 +315,9 @@ export function createDefaultCharacter(): Character {
     size: "Medium",
     shield: false,
     magicItemAttunement: [],
-    classFeatures: "",
-    speciesTraits: "",
-    feats: "",
+    classFeatures: [],
+    speciesTraits: [],
+    feats: [],
 
     spellcastingClass: "",
     alliesAndOrganizations: "",

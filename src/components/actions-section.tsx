@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
-import type { Character, ActionType } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
+import type { Character, ActionType, Feature } from "@/lib/character-types"
+import { getSpellSaveDC, getSpellAttackBonus, formatModifier, safeFeatures } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -220,6 +220,29 @@ function ActionUsesTracker(props: { uses: number; maxUses: number; onUsesChange:
   )
 }
 
+const FEATURE_SOURCE_LABELS: Record<string, string> = {
+  'class-feature': 'Class Feature',
+  'species-trait': 'Species Trait',
+  'feat': 'Feat',
+}
+
+function FeatureActionCard(props: { feature: Feature }) {
+  return (
+    <div class="p-3 border rounded-lg space-y-2">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="font-medium">{props.feature.name}</div>
+          <div class="text-xs text-muted-foreground">{FEATURE_SOURCE_LABELS[props.feature.source] ?? props.feature.source}</div>
+        </div>
+        <Badge variant="secondary" class="text-xs">{FEATURE_SOURCE_LABELS[props.feature.source] ?? props.feature.source}</Badge>
+      </div>
+      <Show when={props.feature.description}>
+        <div class="text-xs text-muted-foreground line-clamp-2">{props.feature.description}</div>
+      </Show>
+    </div>
+  )
+}
+
 export function ActionsSection(props: ActionsSectionProps) {
   const [isAddActionOpen, setIsAddActionOpen] = createSignal(false)
   const [isAddBonusActionOpen, setIsAddBonusActionOpen] = createSignal(false)
@@ -229,6 +252,15 @@ export function ActionsSection(props: ActionsSectionProps) {
   const safeSpells = () => props.character.spells || []
   const spellSaveDC = () => getSpellSaveDC(props.character)
   const spellAttackBonus = () => getSpellAttackBonus(props.character)
+
+  const allFeatures = (): Feature[] => [
+    ...safeFeatures(props.character.classFeatures),
+    ...safeFeatures(props.character.speciesTraits),
+    ...safeFeatures(props.character.feats),
+  ]
+  const featureActions   = () => allFeatures().filter((f) => f.actionKind === 'action')
+  const featureBonuses   = () => allFeatures().filter((f) => f.actionKind === 'bonus-action')
+  const featureReactions = () => allFeatures().filter((f) => f.actionKind === 'reaction')
 
   const attackSpells = () => safeSpells().filter((spell) =>
     (spell.level === 0 ? (spell.known ?? true) : spell.prepared) &&
@@ -393,7 +425,7 @@ export function ActionsSection(props: ActionsSectionProps) {
           </div>
           <div class="text-center">
             <div class="text-sm font-medium mb-1">Ready Actions</div>
-            <div class="text-2xl font-bold text-primary">{attackSpells().length + bonusActionSpells().length}</div>
+            <div class="text-2xl font-bold text-primary">{attackSpells().length + bonusActionSpells().length + featureActions().length + featureBonuses().length}</div>
           </div>
         </div>
 
@@ -415,7 +447,7 @@ export function ActionsSection(props: ActionsSectionProps) {
             </Button>
           </div>
 
-          <Show when={attackSpells().length > 0 || (props.character.attacks && props.character.attacks.length > 0)}>
+          <Show when={attackSpells().length > 0 || (props.character.attacks?.length ?? 0) > 0 || featureActions().length > 0}>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <For each={attackSpells()}>
                 {(spell) => {
@@ -430,6 +462,9 @@ export function ActionsSection(props: ActionsSectionProps) {
                     .some(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 })
                   return SpellCard(spell, canCast, () => castSpell(spell.level), upcastLevels, (level) => { castSpell(level); setUpcastSpellId(null) }, hasHigherSlots)
                 }}
+              </For>
+              <For each={featureActions()}>
+                {(feature) => <FeatureActionCard feature={feature} />}
               </For>
               <For each={props.character.attacks || []}>
                 {(attack) => (
@@ -491,7 +526,7 @@ export function ActionsSection(props: ActionsSectionProps) {
             </Button>
           </div>
 
-          <Show when={bonusActionSpells().length > 0 || (props.character.bonusActions && props.character.bonusActions.length > 0)}>
+          <Show when={bonusActionSpells().length > 0 || (props.character.bonusActions?.length ?? 0) > 0 || featureBonuses().length > 0}>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <For each={bonusActionSpells()}>
                 {(spell) => {
@@ -506,6 +541,9 @@ export function ActionsSection(props: ActionsSectionProps) {
                     .some(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 })
                   return SpellCard(spell, canCast, () => castSpell(spell.level), upcastLevels, (level) => { castSpell(level); setUpcastSpellId(null) }, hasHigherSlots)
                 }}
+              </For>
+              <For each={featureBonuses()}>
+                {(feature) => <FeatureActionCard feature={feature} />}
               </For>
               <For each={props.character.bonusActions || []}>
                 {(bonus) => (
@@ -563,7 +601,7 @@ export function ActionsSection(props: ActionsSectionProps) {
             </Button>
           </div>
 
-          <Show when={reactionSpells().length > 0 || (props.character.reactions && props.character.reactions.length > 0)}>
+          <Show when={reactionSpells().length > 0 || (props.character.reactions?.length ?? 0) > 0 || featureReactions().length > 0}>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <For each={reactionSpells()}>
                 {(spell) => {
@@ -578,6 +616,9 @@ export function ActionsSection(props: ActionsSectionProps) {
                     .some(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 })
                   return SpellCard(spell, canCast, () => castSpell(spell.level), upcastLevels, (level) => { castSpell(level); setUpcastSpellId(null) }, hasHigherSlots)
                 }}
+              </For>
+              <For each={featureReactions()}>
+                {(feature) => <FeatureActionCard feature={feature} />}
               </For>
               <For each={props.character.reactions || []}>
                 {(reaction) => (

@@ -1,4 +1,4 @@
-import type { AbilityScores, Character } from "./character-types"
+import type { AbilityScores, Character, Feature } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -158,4 +158,9 @@ export function rollHitDice(count: number, dieSize: DieSize, conMod: number): { 
   const { rolls } = rollMany(count, dieSize)
   const adjusted = rolls.map((r) => Math.max(1, r + conMod))
   return { rolls: adjusted, total: adjusted.reduce((a, b) => a + b, 0) }
+}
+
+export function safeFeatures(raw: Feature[] | string | undefined): Feature[] {
+  if (!raw || typeof raw === 'string') return []
+  return raw
 }

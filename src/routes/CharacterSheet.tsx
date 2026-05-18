@@ -16,6 +16,7 @@ import { ActionsSection } from "@/components/actions-section"
 import { SpellsSection } from "@/components/spells-section"
 import { EquipmentInventory } from "@/components/equipment-inventory"
 import { CharacterNotes } from "@/components/character-notes"
+import { FeaturesSection } from "@/components/features-section"
 import { SheetSettings } from "@/components/sheet-settings"
 import { HeaderMenu } from "@/components/header-menu"
 import { StatsBar } from "@/components/stats-bar"
@@ -159,6 +160,7 @@ export default function CharacterSheet() {
                 </div>
                 <SkillsProficiencies character={getChar()} onUpdate={updateCharacter} />
                 <SpellsSection character={getChar()} onUpdate={updateCharacter} />
+                <FeaturesSection character={getChar()} onUpdate={updateCharacter} />
                 <EquipmentInventory character={getChar()} onUpdate={updateCharacter} />
                 <CharacterBasicInfo character={getChar()} onUpdate={updateCharacter} />
                 <CharacterNotes character={getChar()} onUpdate={updateCharacter} />

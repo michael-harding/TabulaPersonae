@@ -149,61 +149,8 @@ export function CharacterNotes(props: CharacterNotesProps) {
 
             <Separator />
 
-            {/* 2024 edition-specific fields */}
-            <Show when={edition() === "2024"}>
-              <div>
-                <Label for="class-features">Class Features</Label>
-                <Textarea
-                  id="class-features"
-                  value={editedCharacter().classFeatures || ""}
-                  onInput={(e) => updateField("classFeatures", e.currentTarget.value)}
-                  placeholder="List your class features and abilities..."
-                  rows={4}
-                  class="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label for="species-traits">Species Traits</Label>
-                <Textarea
-                  id="species-traits"
-                  value={editedCharacter().speciesTraits || ""}
-                  onInput={(e) => updateField("speciesTraits", e.currentTarget.value)}
-                  placeholder="List your species traits and abilities..."
-                  rows={3}
-                  class="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label for="feats">Feats</Label>
-                <Textarea
-                  id="feats"
-                  value={editedCharacter().feats || ""}
-                  onInput={(e) => updateField("feats", e.currentTarget.value)}
-                  placeholder="List your feats..."
-                  rows={3}
-                  class="mt-1"
-                />
-              </div>
-
-              <Separator />
-            </Show>
-
             {/* 2014 edition-specific fields */}
             <Show when={edition() === "2014"}>
-              <div>
-                <Label for="features-traits">Features & Traits</Label>
-                <Textarea
-                  id="features-traits"
-                  value={editedCharacter().classFeatures || ""}
-                  onInput={(e) => updateField("classFeatures", e.currentTarget.value)}
-                  placeholder="List your class features, racial traits, and other abilities..."
-                  rows={6}
-                  class="mt-1"
-                />
-              </div>
-
               <div>
                 <Label for="allies-organizations">Allies & Organizations</Label>
                 <Textarea
@@ -306,41 +253,8 @@ export function CharacterNotes(props: CharacterNotesProps) {
 
             <Separator />
 
-            {/* 2024-only view */}
-            <Show when={edition() === "2024"}>
-              <div>
-                <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Class Features</h3>
-                <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                  <p class="text-sm whitespace-pre-wrap">{current().classFeatures || "No class features listed yet."}</p>
-                </div>
-              </div>
-
-              <div>
-                <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Species Traits</h3>
-                <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                  <p class="text-sm whitespace-pre-wrap">{current().speciesTraits || "No species traits listed yet."}</p>
-                </div>
-              </div>
-
-              <div>
-                <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Feats</h3>
-                <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                  <p class="text-sm whitespace-pre-wrap">{current().feats || "No feats listed yet."}</p>
-                </div>
-              </div>
-
-              <Separator />
-            </Show>
-
             {/* 2014-only view */}
             <Show when={edition() === "2014"}>
-              <div>
-                <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Features & Traits</h3>
-                <div class="bg-muted/50 rounded-lg p-3 min-h-[100px]">
-                  <p class="text-sm whitespace-pre-wrap">{current().classFeatures || "No features or traits listed yet."}</p>
-                </div>
-              </div>
-
               <div>
                 <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Allies & Organizations</h3>
                 <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">

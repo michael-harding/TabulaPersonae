@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, within } from "../test-utils"
 import { ActionsSection } from "@/components/actions-section"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Reaction, Spell } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Reaction, Spell, Feature } from "@/lib/character-types"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -694,6 +694,98 @@ describe("ActionsSection", () => {
           ]),
         })
       )
+    })
+  })
+
+  describe("Feature-derived actions", () => {
+    function makeFeature(overrides: Partial<Feature> = {}): Feature {
+      return {
+        id: "feat-1",
+        name: "Action Surge",
+        description: "Take an extra action.",
+        source: "class-feature",
+        ...overrides,
+      }
+    }
+
+    it("feature with actionKind='action' appears in the Actions subsection", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Action Surge")).toBeInTheDocument()
+    })
+
+    it("feature with actionKind='bonus-action' appears in the Bonus Actions subsection", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ name: "Cunning Action", actionKind: "bonus-action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Cunning Action")).toBeInTheDocument()
+    })
+
+    it("feature with actionKind='reaction' appears in the Reactions subsection", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ name: "Uncanny Dodge", actionKind: "reaction" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Uncanny Dodge")).toBeInTheDocument()
+    })
+
+    it("feature without actionKind does not appear in the actions grid", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ name: "Expertise", actionKind: undefined })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.queryByText("Expertise")).not.toBeInTheDocument()
+    })
+
+    it("species trait with actionKind='action' appears in the Actions subsection", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ speciesTraits: [makeFeature({ id: "t-1", name: "Breath Weapon", source: "species-trait", actionKind: "action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Breath Weapon")).toBeInTheDocument()
+    })
+
+    it("feat with actionKind='action' appears in the Actions subsection", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ feats: [makeFeature({ id: "f-1", name: "Shield Master", source: "feat", actionKind: "action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Shield Master")).toBeInTheDocument()
+    })
+
+    it("shows source badge for class feature action", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getAllByText("Class Feature").length).toBeGreaterThanOrEqual(1)
+    })
+
+    it("feature description is shown in the card", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", description: "Take an extra action." })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Take an extra action.")).toBeInTheDocument()
     })
   })
 })
