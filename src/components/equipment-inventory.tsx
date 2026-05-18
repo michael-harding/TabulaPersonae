@@ -226,7 +226,7 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
             <Coins class="h-4 w-4 text-primary" />
             Currency
           </h3>
-          <div class="grid grid-cols-5 gap-2">
+          <div class="flex flex-wrap gap-2">
             {(["cp", "sp", "ep", "gp", "pp"] as const).map((denom) => (
               <div class="text-center space-y-1">
                 <Label class="text-xs font-medium text-muted-foreground">{denom.toUpperCase()}</Label>

@@ -2,7 +2,8 @@ import { splitProps } from "solid-js"
 import type { ComponentProps } from "solid-js"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Button } from "@/components/ui/button"
-import { Minus, Plus } from "lucide-solid"
+import Minus from "lucide-solid/icons/minus"
+import Plus from "lucide-solid/icons/plus"
 
 type CurrencyInputProps = Omit<ComponentProps<"input">, "value" | "onChange" | "min" | "max"> & {
   value: number
@@ -45,7 +46,7 @@ export function CurrencyInput(props: CurrencyInputProps) {
         onChange={local.onChange}
         min={local.min}
         max={local.max}
-        class="text-center h-11 px-0 py-0 w-full rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        class="text-center h-11 px-0 py-0 w-[5ch] min-w-[3ch] max-w-[5ch] rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       />
       <Button
         variant="outline"
