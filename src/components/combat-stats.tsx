@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import Shield from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
 import Save from "lucide-solid/icons/save"
@@ -87,6 +86,14 @@ export function CombatStats(props: CombatStatsProps) {
   const maxHP = () => props.character.hitPoints?.maximum ?? 1
   const tempHP = () => props.character.hitPoints?.temporary ?? 0
   const hpPercentage = () => maxHP() > 0 ? (currentHP() / maxHP()) * 100 : 0
+  const hpColor = () => {
+    const pct = hpPercentage()
+    if (pct >= 67) return "bg-green-500 dark:bg-green-700"
+    if (pct >= 34) return "bg-yellow-500 dark:bg-yellow-600"
+    return "bg-red-600"
+  }
+  const tempHpWidth = () => Math.min(tempHP() / maxHP() * 100, 100)
+  const tempHpLeft = () => Math.min(hpPercentage(), 100 - tempHpWidth())
 
   return (
     <Card>
@@ -134,7 +141,18 @@ export function CombatStats(props: CombatStatsProps) {
                 </span>
                 <span class="text-sm text-muted-foreground">{Math.round(hpPercentage())}%</span>
               </div>
-              <Progress value={hpPercentage()} class="h-2" />
+              <div class="relative h-2 w-full overflow-hidden bg-secondary/30 rounded-full">
+                <div
+                  class={`absolute left-0 top-0 h-full transition-all duration-300 ${hpColor()}`}
+                  style={{ width: `${hpPercentage()}%` }}
+                />
+                <Show when={tempHP() > 0}>
+                  <div
+                    class="absolute top-0 h-full bg-blue-500 transition-all duration-300"
+                    style={{ left: `${tempHpLeft()}%`, width: `${tempHpWidth()}%` }}
+                  />
+                </Show>
+              </div>
             </div>
           }>
             <div class="grid grid-cols-3 gap-2">

@@ -97,14 +97,3 @@
     background-color: var(--muted-foreground) !important;
   }
 }
-
-@layer components {
-  .hp-progress [data-progress-indicator] {
-    background-color: hsl(var(--destructive));
-    transition: all 0.3s ease;
-  }
-
-  .hp-progress [data-progress-track] {
-    background-color: hsl(var(--destructive) / 0.2);
-  }
-}
