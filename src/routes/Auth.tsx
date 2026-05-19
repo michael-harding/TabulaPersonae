@@ -1,10 +1,55 @@
 import { createSignal, createEffect, Show } from "solid-js"
-import { useNavigate } from "@solidjs/router"
+import { useNavigate, A } from "@solidjs/router"
+import { Dialog as DialogPrimitive } from "@kobalte/core/dialog"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import Scroll from "lucide-solid/icons/scroll"
 
-function AuthForm() {
+const TERMS_KEY = "dnd-terms-accepted"
+
+function hasAcceptedTerms() {
+  return localStorage.getItem(TERMS_KEY) === "true"
+}
+
+function acceptTerms() {
+  localStorage.setItem(TERMS_KEY, "true")
+}
+
+function ConsentModal(props: { open: boolean; onAgree: () => void; onDecline: () => void }) {
+  return (
+    <DialogPrimitive open={props.open} modal>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay class="fixed inset-0 z-50 bg-black/80 data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0" />
+        <DialogPrimitive.Content
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          class="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] grid gap-4 border bg-background p-6 shadow-lg sm:rounded-lg data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[closed]:zoom-out-95 data-[expanded]:zoom-in-95">
+          <DialogPrimitive.Title class="text-lg font-semibold">
+            Terms of Use &amp; Privacy Policy
+          </DialogPrimitive.Title>
+          <DialogPrimitive.Description class="text-sm text-muted-foreground space-y-2">
+            <p>
+              Before using TabulaPersonae, please review and agree to our{" "}
+              <A href="/terms" target="_blank" class="underline hover:text-foreground">Terms of Use</A>
+              {" "}and{" "}
+              <A href="/privacy" target="_blank" class="underline hover:text-foreground">Privacy Policy</A>.
+            </p>
+            <p>
+              By clicking <strong>I Agree</strong>, you confirm that you have read and accept these
+              documents. This agreement is saved to this browser and will not be shown again.
+            </p>
+          </DialogPrimitive.Description>
+          <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={props.onDecline}>Decline</Button>
+            <Button onClick={props.onAgree}>I Agree</Button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive>
+  )
+}
+
+function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
   const [email, setEmail] = createSignal("")
   const [password, setPassword] = createSignal("")
   const [confirmPassword, setConfirmPassword] = createSignal("")
@@ -27,8 +72,7 @@ function AuthForm() {
     }
   }
 
-  const handleSubmit = async (e: Event) => {
-    e.preventDefault()
+  const doSubmit = async () => {
     setError("")
     setLoading(true)
     try {
@@ -43,6 +87,15 @@ function AuthForm() {
       setError(getErrorMessage(err.code))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSubmit = (e: Event) => {
+    e.preventDefault()
+    if (isSignUp()) {
+      props.onNeedConsent(doSubmit)
+    } else {
+      doSubmit()
     }
   }
 
@@ -115,6 +168,12 @@ function AuthForm() {
               required
             />
           </div>
+          <p class="text-xs text-muted-foreground">
+            By creating an account, you agree to our{" "}
+            <A href="/terms" target="_blank" class="underline hover:text-foreground">Terms of Use</A>
+            {" "}and{" "}
+            <A href="/privacy" target="_blank" class="underline hover:text-foreground">Privacy Policy</A>.
+          </p>
         </Show>
         <Show when={error()}>
           <div class="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">{error()}</div>
@@ -145,27 +204,53 @@ export default function Auth() {
   const { user, skipAuth, loading } = useAuth()
   const navigate = useNavigate()
 
+  const [consentOpen, setConsentOpen] = createSignal(false)
+  const [pendingAction, setPendingAction] = createSignal<(() => void) | null>(null)
+
   createEffect(() => {
     if (!loading() && (user() || skipAuth())) {
       navigate("/")
     }
   })
 
+  const requestConsent = (next: () => void) => {
+    setPendingAction(() => next)
+    setConsentOpen(true)
+  }
+
+  const handleAgree = () => {
+    acceptTerms()
+    setConsentOpen(false)
+    pendingAction()?.()
+    setPendingAction(null)
+  }
+
+  const handleDecline = () => {
+    setConsentOpen(false)
+    setPendingAction(null)
+  }
+
+  const handleSkipAuth = () => {
+    const proceed = () => {
+      localStorage.setItem("dnd-skip-auth", "true")
+      window.location.reload()
+    }
+    if (hasAcceptedTerms()) {
+      proceed()
+    } else {
+      requestConsent(proceed)
+    }
+  }
+
   return (
     <Show when={!loading()}>
+      <ConsentModal open={consentOpen()} onAgree={handleAgree} onDecline={handleDecline} />
       <div class="flex flex-1 items-center justify-center bg-background p-4">
         <div class="max-w-md mx-auto text-center w-full">
           <Scroll class="h-16 w-16 mx-auto mb-6 text-primary" />
           <h1 class="text-4xl font-bold mb-4 text-foreground">TabulaPersonae</h1>
           <div class="space-y-4">
-            <Button
-              onClick={() => {
-                localStorage.setItem("dnd-skip-auth", "true")
-                window.location.reload()
-              }}
-              variant="outline"
-              class="w-full"
-            >
+            <Button onClick={handleSkipAuth} variant="outline" class="w-full">
               Continue without account
             </Button>
             <p class="text-sm text-right text-muted-foreground">
@@ -181,7 +266,7 @@ export default function Auth() {
               </div>
             </div>
             <div class="bg-card rounded-lg p-6 border text-left">
-              <AuthForm />
+              <AuthForm onNeedConsent={requestConsent} />
             </div>
           </div>
         </div>

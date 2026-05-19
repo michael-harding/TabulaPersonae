@@ -8,6 +8,8 @@ import Auth from './routes/Auth'
 import CharacterSheet from './routes/CharacterSheet'
 import NotFound from './routes/NotFound'
 import Teapot from './routes/Teapot'
+import TermsOfUse from './routes/TermsOfUse'
+import PrivacyPolicy from './routes/PrivacyPolicy'
 
 export default function App() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
         <Route path="/auth" component={Auth} />
         <Route path="/character/:id" component={CharacterSheet} />
         <Route path="/418" component={Teapot} />
+        <Route path="/terms" component={TermsOfUse} />
+        <Route path="/privacy" component={PrivacyPolicy} />
         <Route path="*" component={NotFound} />
       </Router>
       <Toaster />
