@@ -85,7 +85,7 @@ export default function Home() {
     <Show
       when={!isLoading() && !authLoading()}
       fallback={
-        <div class="min-h-screen bg-background flex items-center justify-center">
+        <div class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
             <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
             <p class="text-muted-foreground">Loading your characters...</p>
@@ -93,7 +93,7 @@ export default function Home() {
         </div>
       }
     >
-      <div class="min-h-screen bg-background p-4">
+      <div class="bg-background p-4">
         <div class="max-w-4xl mx-auto">
           <div class="flex justify-between items-center mb-4">
             <ImportExport

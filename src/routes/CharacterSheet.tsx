@@ -91,7 +91,7 @@ export default function CharacterSheet() {
     <Show
       when={!isLoading() && !authLoading()}
       fallback={
-        <div class="min-h-screen bg-background flex items-center justify-center">
+        <div class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
             <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
             <p class="text-muted-foreground">Loading character...</p>
@@ -101,7 +101,7 @@ export default function CharacterSheet() {
     >
       <Show when={character()}>
         {(getChar) => (
-          <div class="min-h-screen bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
+          <div class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
             <StatsBar character={getChar()} />
 
             <header class="border-b bg-card">
