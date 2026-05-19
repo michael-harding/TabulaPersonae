@@ -76,7 +76,8 @@ export default function CharacterSheet() {
 
   const handleImportCharacter = async (char: Character) => {
     const imported = { ...char, id: crypto.randomUUID() }
-    await storageManager().saveCharacter(imported)
+    const success = await storageManager().saveCharacter(imported)
+    if (!success) throw new Error("Failed to save imported character")
     navigate(`/character/${imported.id}`)
   }
 

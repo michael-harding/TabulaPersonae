@@ -6,17 +6,20 @@ import Upload from "lucide-solid/icons/upload"
 import FileText from "lucide-solid/icons/file-text"
 import type { Character } from "@/lib/character-types"
 import { useToast } from "@/hooks/use-toast"
+import { parsePdfCharacterSheet, mergeWithDefault } from "@/lib/pdf-parser"
 
 interface ImportExportProps {
   characters: Character[]
-  onImportCharacter: (character: Character) => void
-  onImportMultiple: (characters: Character[]) => void
+  onImportCharacter: (character: Character) => Promise<void> | void
+  onImportMultiple: (characters: Character[]) => Promise<void> | void
 }
 
 export function ImportExport(props: ImportExportProps) {
   const [isImportOpen, setIsImportOpen] = createSignal(false)
   const [isExportOpen, setIsExportOpen] = createSignal(false)
+  const [isPdfParsing, setIsPdfParsing] = createSignal(false)
   let fileInputRef!: HTMLInputElement
+  let pdfInputRef!: HTMLInputElement
   const { toast } = useToast()
 
   const makeDownload = (content: string, filename: string) => {
@@ -91,6 +94,25 @@ export function ImportExport(props: ImportExportProps) {
     if (fileInputRef) fileInputRef.value = ""
   }
 
+  const handlePdfImport = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0]
+    if (!file) return
+    setIsPdfParsing(true)
+    try {
+      const parsed = await parsePdfCharacterSheet(file)
+      const character = mergeWithDefault(parsed)
+      await props.onImportCharacter(character)
+      toast({ title: "PDF Import Successful", description: `Imported ${character.name || "character"} from PDF!` })
+      setIsImportOpen(false)
+    } catch (error) {
+      toast({ title: "PDF Import Failed", description: "Could not parse the PDF. Make sure it's a D&D Beyond character sheet.", variant: "destructive" })
+      console.error("PDF import error:", error)
+    } finally {
+      setIsPdfParsing(false)
+      if (pdfInputRef) pdfInputRef.value = ""
+    }
+  }
+
   return (
     <div class="flex items-center gap-2">
       <Button variant="outline" size="sm" class="gap-2 bg-transparent" onClick={() => setIsImportOpen(true)}>
@@ -122,7 +144,30 @@ export function ImportExport(props: ImportExportProps) {
               />
               <label for="character-import" class={buttonVariants({ class: "w-full gap-2 cursor-pointer" })}>
                 <FileText class="h-4 w-4" />
-                Choose File
+                Choose JSON File
+              </label>
+              <div class="relative my-1">
+                <div class="absolute inset-0 flex items-center">
+                  <span class="w-full border-t" />
+                </div>
+                <div class="relative flex justify-center text-xs uppercase">
+                  <span class="bg-background px-2 text-muted-foreground">Or import from PDF</span>
+                </div>
+              </div>
+              <input
+                ref={pdfInputRef}
+                type="file"
+                accept=".pdf"
+                onChange={handlePdfImport}
+                class="hidden"
+                id="character-pdf-import"
+              />
+              <label
+                for="character-pdf-import"
+                class={buttonVariants({ variant: "outline", class: `w-full gap-2 cursor-pointer ${isPdfParsing() ? "opacity-50 pointer-events-none" : ""}` })}
+              >
+                <FileText class="h-4 w-4" />
+                {isPdfParsing() ? "Parsing PDF…" : "Choose PDF File (D&D Beyond)"}
               </label>
             </div>
           </div>

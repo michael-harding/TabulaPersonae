@@ -18,11 +18,13 @@ const CHARACTERS_COLLECTION = 'characters';
 
 export async function saveCharacterToFirebase(character: Character, userId: string): Promise<boolean> {
   try {
-    const characterData = {
+    const rawData = {
       ...character,
       userId,
       updatedAt: Timestamp.now(),
     };
+    // Firestore rejects undefined values — strip them via JSON round-trip
+    const characterData = JSON.parse(JSON.stringify(rawData));
 
     if (character.id) {
       const characterRef = doc(db, CHARACTERS_COLLECTION, character.id);
