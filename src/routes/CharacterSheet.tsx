@@ -1,8 +1,10 @@
-import { createSignal, createEffect, Show } from "solid-js"
+import { createSignal, createEffect, onCleanup, Show } from "solid-js"
 import { useParams, useNavigate } from "@solidjs/router"
 import { type Character } from "@/lib/character-types"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
+import { subscribeToCharacter } from "@/lib/firebase-storage"
+import { useSyncState } from "@/lib/sync-context"
 import Scroll from "lucide-solid/icons/scroll"
 import Sunrise from "lucide-solid/icons/sunrise"
 import FlameKindling from "lucide-solid/icons/flame-kindling"
@@ -27,6 +29,8 @@ export default function CharacterSheet() {
   const { user, skipAuth, loading: authLoading } = useAuth()
   const storageManager = useStorageManager()
 
+  const syncCtx = useSyncState()
+
   const [character, setCharacter] = createSignal<Character | null>(null)
   const [characters, setCharacters] = createSignal<Character[]>([])
   const [isLoading, setIsLoading] = createSignal(true)
@@ -47,17 +51,36 @@ export default function CharacterSheet() {
     const sm = storageManager()
     setIsLoading(true)
     sm.getCharacters()
-      .then((allChars) => {
+      .then(async (allChars) => {
         setCharacters(allChars)
         const found = allChars.find((c) => c.id === id)
         if (found) {
           setCharacter(found)
         } else {
-          navigate("/404")
+          // Fallback for characters created offline and not yet in the query cache
+          const single = await sm.getCharacter(id!)
+          if (single) {
+            setCharacter(single)
+          } else {
+            navigate("/404")
+          }
         }
       })
       .catch((error) => console.error("Failed to load character:", error))
       .finally(() => setIsLoading(false))
+  })
+
+  createEffect(() => {
+    const u = user()
+    const id = params.id
+    if (!u || !id) return
+    const unsubscribe = subscribeToCharacter(id, u.uid, (snap) => {
+      if (snap) syncCtx?.setSyncState({ hasPendingWrites: snap.hasPendingWrites, updatedAt: snap.updatedAt })
+    })
+    onCleanup(() => {
+      unsubscribe()
+      syncCtx?.setSyncState(null)
+    })
   })
 
   const updateCharacter = async (updated: Character) => {
@@ -146,7 +169,6 @@ export default function CharacterSheet() {
                     onImportCharacter={handleImportCharacter}
                     onImportMultiple={handleImportMultiple}
                     onAllCharacters={() => navigate("/")}
-                    onNewCharacter={() => navigate("/")}
                   />
                 </div>
               </div>

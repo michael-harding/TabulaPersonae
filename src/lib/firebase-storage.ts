@@ -6,6 +6,7 @@ import {
   addDoc,
   setDoc,
   deleteDoc,
+  onSnapshot,
   query,
   where,
   orderBy,
@@ -18,13 +19,11 @@ const CHARACTERS_COLLECTION = 'characters';
 
 export async function saveCharacterToFirebase(character: Character, userId: string): Promise<boolean> {
   try {
-    const rawData = {
-      ...character,
-      userId,
-      updatedAt: Timestamp.now(),
-    };
+    const rawData = { ...character, userId };
     // Firestore rejects undefined values — strip them via JSON round-trip
+    // updatedAt is set after to preserve the Timestamp type (JSON.stringify would convert it to a plain object)
     const characterData = JSON.parse(JSON.stringify(rawData));
+    characterData.updatedAt = Timestamp.now();
 
     if (character.id) {
       const characterRef = doc(db, CHARACTERS_COLLECTION, character.id);
@@ -94,6 +93,41 @@ export async function getCharacterFromFirebase(id: string, userId: string): Prom
     console.error('Failed to get character from Firebase:', error);
     return null;
   }
+}
+
+export type CharacterSyncSnapshot = {
+  hasPendingWrites: boolean
+  updatedAt: Date | null
+}
+
+export function subscribeToCharacter(
+  id: string,
+  userId: string,
+  callback: (snap: CharacterSyncSnapshot | null) => void
+): () => void {
+  const characterRef = doc(db, CHARACTERS_COLLECTION, id)
+  return onSnapshot(
+    characterRef,
+    { includeMetadataChanges: true },
+    (snap) => {
+      if (!snap.exists() || snap.data().userId !== userId) {
+        callback(null)
+        return
+      }
+      const raw = snap.data().updatedAt
+      let updatedAt: Date | null = null
+      if (raw instanceof Timestamp) {
+        updatedAt = raw.toDate()
+      } else if (raw?.seconds != null) {
+        // Legacy: JSON-serialised Timestamp stored as a plain { seconds, nanoseconds } map
+        updatedAt = new Timestamp(raw.seconds, raw.nanoseconds ?? 0).toDate()
+      }
+      callback({
+        hasPendingWrites: snap.metadata.hasPendingWrites,
+        updatedAt,
+      })
+    }
+  )
 }
 
 export async function deleteCharacterFromFirebase(id: string, userId: string): Promise<boolean> {

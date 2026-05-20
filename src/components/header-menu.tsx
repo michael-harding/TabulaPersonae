@@ -27,7 +27,6 @@ interface HeaderMenuProps {
   onImportCharacter: (character: Character) => void
   onImportMultiple: (characters: Character[]) => void
   onAllCharacters: () => void
-  onNewCharacter: () => void
 }
 
 export function HeaderMenu(props: HeaderMenuProps) {
@@ -102,10 +101,6 @@ export function HeaderMenu(props: HeaderMenuProps) {
           <Menu class="h-4 w-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="w-48">
-          <DropdownMenuItem onSelect={props.onNewCharacter}>
-            <Plus class="h-4 w-4 mr-2" />
-            New Character
-          </DropdownMenuItem>
           <DropdownMenuItem onSelect={props.onAllCharacters}>
             <Users class="h-4 w-4 mr-2" />
             All Characters

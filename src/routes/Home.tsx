@@ -33,41 +33,31 @@ export default function Home() {
       .finally(() => setIsLoading(false))
   })
 
-  const createNewCharacter = async () => {
+  const createNewCharacter = () => {
     const newCharacter = createDefaultCharacter()
     setCharacters((prev) => [...prev, newCharacter])
-    try {
-      const saved = await storageManager().saveCharacter(newCharacter)
-      if (!saved) { alert("Failed to save character. Please check your connection and try again."); return }
-      navigate(`/character/${newCharacter.id}`)
-    } catch (error) {
+    storageManager().saveCharacter(newCharacter).catch((error) => {
       console.error("Failed to save character:", error)
-      alert("Failed to save character. Please check your connection and try again.")
-    }
+    })
+    navigate(`/character/${newCharacter.id}`)
   }
 
-  const handleImportCharacter = async (character: Character) => {
+  const handleImportCharacter = (character: Character) => {
     const imported = { ...character, id: crypto.randomUUID() }
     setCharacters((prev) => [...prev, imported])
-    try {
-      await storageManager().saveCharacter(imported)
-      navigate(`/character/${imported.id}`)
-    } catch (error) {
+    storageManager().saveCharacter(imported).catch((error) => {
       console.error("Failed to save imported character:", error)
-      alert("Failed to save imported character. Please check your connection and try again.")
-    }
+    })
+    navigate(`/character/${imported.id}`)
   }
 
-  const handleImportMultiple = async (importedCharacters: Character[]) => {
+  const handleImportMultiple = (importedCharacters: Character[]) => {
     const withNewIds = importedCharacters.map((char) => ({ ...char, id: crypto.randomUUID() }))
     setCharacters((prev) => [...prev, ...withNewIds])
-    try {
-      await Promise.all(withNewIds.map((char) => storageManager().saveCharacter(char)))
-      if (withNewIds.length > 0) navigate(`/character/${withNewIds[0].id}`)
-    } catch (error) {
+    Promise.all(withNewIds.map((char) => storageManager().saveCharacter(char))).catch((error) => {
       console.error("Failed to save imported characters:", error)
-      alert("Failed to save some imported characters. Please check your connection and try again.")
-    }
+    })
+    if (withNewIds.length > 0) navigate(`/character/${withNewIds[0].id}`)
   }
 
   const handleDeleteCharacter = async (characterId: string, characterName: string) => {
@@ -106,7 +96,6 @@ export default function Home() {
               onImportCharacter={handleImportCharacter}
               onImportMultiple={handleImportMultiple}
               onAllCharacters={() => navigate("/")}
-              onNewCharacter={createNewCharacter}
             />
           </div>
 
