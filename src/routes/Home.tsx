@@ -62,13 +62,10 @@ export default function Home() {
 
   const handleDeleteCharacter = async (characterId: string, characterName: string) => {
     if (!window.confirm(`Are you sure you want to delete "${characterName || "Unnamed Character"}"? This action cannot be undone.`)) return
-    try {
-      await storageManager().deleteCharacter(characterId)
-      setCharacters((prev) => prev.filter((c) => c.id !== characterId))
-    } catch (error) {
+    setCharacters((prev) => prev.filter((c) => c.id !== characterId))
+    storageManager().deleteCharacter(characterId).catch((error) => {
       console.error("Failed to delete character:", error)
-      alert("Failed to delete character. Please check your connection and try again.")
-    }
+    })
   }
 
   return (

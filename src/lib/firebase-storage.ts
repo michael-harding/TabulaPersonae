@@ -151,20 +151,8 @@ export function subscribeToCharacter(
 export async function deleteCharacterFromFirebase(id: string, userId: string): Promise<boolean> {
   try {
     const characterRef = doc(db, CHARACTERS_COLLECTION, id);
-    const characterSnap = await getDoc(characterRef);
-
-    if (characterSnap.exists()) {
-      const data = characterSnap.data();
-
-      if (data.userId !== userId) {
-        return false;
-      }
-
-      await deleteDoc(characterRef);
-      return true;
-    }
-
-    return false;
+    await deleteDoc(characterRef);
+    return true;
   } catch (error) {
     console.error('Failed to delete character from Firebase:', error);
     return false;
