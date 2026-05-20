@@ -2,7 +2,9 @@ import {
   collection,
   doc,
   getDocs,
+  getDocsFromCache,
   getDoc,
+  getDocFromCache,
   addDoc,
   setDoc,
   deleteDoc,
@@ -52,7 +54,9 @@ export async function getCharactersFromFirebase(userId: string): Promise<Charact
       orderBy('updatedAt', 'desc')
     );
 
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = navigator.onLine
+      ? await getDocs(q)
+      : await getDocsFromCache(q);
     const characters: Character[] = [];
 
     querySnapshot.forEach((doc) => {
@@ -73,7 +77,9 @@ export async function getCharactersFromFirebase(userId: string): Promise<Charact
 export async function getCharacterFromFirebase(id: string, userId: string): Promise<Character | null> {
   try {
     const characterRef = doc(db, CHARACTERS_COLLECTION, id);
-    const characterSnap = await getDoc(characterRef);
+    const characterSnap = navigator.onLine
+      ? await getDoc(characterRef)
+      : await getDocFromCache(characterRef);
 
     if (characterSnap.exists()) {
       const data = characterSnap.data();
@@ -100,11 +106,17 @@ export type CharacterSyncSnapshot = {
   updatedAt: Date | null
 }
 
+const lastSyncedKey = (id: string) => `dnd-last-synced-${id}`
+
 export function subscribeToCharacter(
   id: string,
   userId: string,
   callback: (snap: CharacterSyncSnapshot | null) => void
 ): () => void {
+  // Seed from localStorage so confirmed sync time survives offline reloads
+  const stored = localStorage.getItem(lastSyncedKey(id))
+  let lastConfirmedAt: Date | null = stored ? new Date(stored) : null
+
   const characterRef = doc(db, CHARACTERS_COLLECTION, id)
   return onSnapshot(
     characterRef,
@@ -122,9 +134,15 @@ export function subscribeToCharacter(
         // Legacy: JSON-serialised Timestamp stored as a plain { seconds, nanoseconds } map
         updatedAt = new Timestamp(raw.seconds, raw.nanoseconds ?? 0).toDate()
       }
+      if (!snap.metadata.hasPendingWrites) {
+        lastConfirmedAt = updatedAt
+        if (lastConfirmedAt) {
+          localStorage.setItem(lastSyncedKey(id), lastConfirmedAt.toISOString())
+        }
+      }
       callback({
         hasPendingWrites: snap.metadata.hasPendingWrites,
-        updatedAt,
+        updatedAt: lastConfirmedAt,
       })
     }
   )

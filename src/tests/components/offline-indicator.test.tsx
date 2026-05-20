@@ -134,7 +134,7 @@ describe('OfflineIndicator', () => {
       expect(screen.getByText('Offline')).toBeInTheDocument()
     })
 
-    it('shows "Not yet synced" when character has pending writes', () => {
+    it('shows "Not yet synced" when character has pending writes and has never been synced', () => {
       mockUseSyncState.mockReturnValueOnce({
         syncState: () => ({ hasPendingWrites: true, updatedAt: null }),
         setSyncState: vi.fn(),
@@ -143,6 +143,17 @@ describe('OfflineIndicator', () => {
       const pill = container.querySelector('.rounded-full')!
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Not yet synced')).toBeInTheDocument()
+    })
+
+    it('shows formatted age when character has pending writes but was previously synced', () => {
+      mockUseSyncState.mockReturnValueOnce({
+        syncState: () => ({ hasPendingWrites: true, updatedAt: new Date(Date.now() - 90_000) }),
+        setSyncState: vi.fn(),
+      })
+      const { container } = render(<OfflineIndicator />)
+      const pill = container.querySelector('.rounded-full')!
+      fireEvent.mouseEnter(pill)
+      expect(screen.getByText('1 min ago')).toBeInTheDocument()
     })
 
     it('shows formatted age when character is synced', () => {

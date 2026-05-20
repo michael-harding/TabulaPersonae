@@ -51,7 +51,6 @@ export function OfflineIndicator() {
     tick()
     const state = syncCtx?.syncState() ?? null
     if (!state) return null
-    if (state.hasPendingWrites) return 'Not yet synced'
     return formatAge(state.updatedAt)
   })
 
