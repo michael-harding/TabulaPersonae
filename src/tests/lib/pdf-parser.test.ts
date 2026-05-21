@@ -9,6 +9,9 @@ import {
   parseSpellcastingAbility,
   countCheckedDeathSaves,
   decodeDndbeyondHexString,
+  splitIntoSections,
+  parseFeaturesTraitsText,
+  parseActionsText,
   mapFieldsToCharacter,
   mergeWithDefault,
 } from "@/lib/pdf-parser"
@@ -365,26 +368,179 @@ describe("pdf-parser", () => {
     })
 
     describe("features", () => {
-      it("wraps FeaturesTraits1 in classFeatures", () => {
-        // D&D Beyond uses FeaturesTraits1/2/3, not "Features and Traits"
-        const result = mapFieldsToCharacter({ FeaturesTraits1: "Lay On Hands: 10 HP pool" })
+      it("parses star items from FeaturesTraits1 into individual classFeatures", () => {
+        const result = mapFieldsToCharacter({
+          FeaturesTraits1: "=== CLASS FEATURES ===\n* Lay On Hands • PHB-2024 109\nYou have a healing pool.",
+        })
         expect(result.classFeatures).toHaveLength(1)
-        expect(result.classFeatures![0].name).toBe("Class Features")
-        expect(result.classFeatures![0].description).toBe("Lay On Hands: 10 HP pool")
+        expect(result.classFeatures![0].name).toBe("Lay On Hands")
+        expect(result.classFeatures![0].description).toContain("healing pool")
         expect(result.classFeatures![0].source).toBe("class-feature")
       })
-      it("wraps FeaturesTraits2/3 in speciesTraits", () => {
-        const result = mapFieldsToCharacter({ FeaturesTraits2: "Darkvision 120ft" })
+      it("parses star items from FeaturesTraits2 into individual speciesTraits", () => {
+        const result = mapFieldsToCharacter({
+          FeaturesTraits2: "=== SPECIES TRAITS ===\n* Darkvision • PHB-2024 195\nYou can see in dim light.",
+        })
         expect(result.speciesTraits).toHaveLength(1)
+        expect(result.speciesTraits![0].name).toBe("Darkvision")
         expect(result.speciesTraits![0].source).toBe("species-trait")
       })
-      it("wraps Actions1/Actions2 in classFeatures", () => {
-        const result = mapFieldsToCharacter({ Actions1: "Divine Smite" })
-        expect(result.classFeatures?.some(f => f.name === "Actions & Bonus Actions")).toBe(true)
+      it("detects actionKind from pipe sub-item inline patterns", () => {
+        const result = mapFieldsToCharacter({
+          FeaturesTraits1: "=== CLASS FEATURES ===\n* Divine Smite • PHB-2024 109\nDesc.\n   | Divine Smite: Hit • 1 Bonus Action",
+        })
+        expect(result.classFeatures?.some(f => f.name === "Divine Smite" && f.actionKind === "bonus-action")).toBe(true)
       })
-      it("omits classFeatures when all fields are blank", () => {
+      it("omits classFeatures when all fields have no parseable items", () => {
         const result = mapFieldsToCharacter({ FeaturesTraits1: "", Actions1: "", Actions2: "" })
         expect(result.classFeatures).toBeUndefined()
+      })
+    })
+
+    describe("splitIntoSections", () => {
+      it("returns one entry with null heading for text with no headings", () => {
+        const sections = splitIntoSections("just some text")
+        expect(sections).toHaveLength(1)
+        expect(sections[0].heading).toBeNull()
+        expect(sections[0].content).toBe("just some text")
+      })
+      it("splits on === HEADING === lines", () => {
+        const sections = splitIntoSections("=== FIRST ===\ncontent1\n=== SECOND ===\ncontent2")
+        expect(sections).toHaveLength(3) // preamble (empty), FIRST, SECOND
+        expect(sections[1].heading).toBe("FIRST")
+        expect(sections[1].content).toBe("content1")
+        expect(sections[2].heading).toBe("SECOND")
+        expect(sections[2].content).toBe("content2")
+      })
+      it("trims whitespace from heading labels", () => {
+        const sections = splitIntoSections("===  PALADIN FEATURES  ===\ntext")
+        expect(sections[1].heading).toBe("PALADIN FEATURES")
+      })
+      it("produces empty content for a heading with no body", () => {
+        const sections = splitIntoSections("=== A ===\n=== B ===\ntext")
+        expect(sections[1].content).toBe("")
+        expect(sections[2].content).toBe("text")
+      })
+      it("returns single entry with empty content for empty string", () => {
+        const sections = splitIntoSections("")
+        expect(sections).toHaveLength(1)
+        expect(sections[0].content).toBe("")
+      })
+    })
+
+    describe("parseFeaturesTraitsText", () => {
+      it("parses a star item into classFeatures under a FEATURES heading", () => {
+        const { classFeatures } = parseFeaturesTraitsText("=== CLASS FEATURES ===\n* Lay On Hands • PHB-2024 109\nHealing pool.")
+        expect(classFeatures).toHaveLength(1)
+        expect(classFeatures[0].name).toBe("Lay On Hands")
+        expect(classFeatures[0].source).toBe("class-feature")
+        expect(classFeatures[0].description).toBe("Healing pool.")
+      })
+      it("routes items under a TRAITS/SPECIES heading to speciesTraits", () => {
+        const { speciesTraits } = parseFeaturesTraitsText("=== ORC SPECIES TRAITS ===\n* Darkvision • PHB-2024 195\nSee in dark.")
+        expect(speciesTraits).toHaveLength(1)
+        expect(speciesTraits[0].name).toBe("Darkvision")
+        expect(speciesTraits[0].source).toBe("species-trait")
+      })
+      it("routes items under a FEATS heading to feats", () => {
+        const { feats } = parseFeaturesTraitsText("=== FEATS ===\n* Magic Initiate • PHB-2024 201\nLearn spells.")
+        expect(feats).toHaveLength(1)
+        expect(feats[0].name).toBe("Magic Initiate")
+        expect(feats[0].source).toBe("feat")
+      })
+      it("strips source citation from name", () => {
+        const { classFeatures } = parseFeaturesTraitsText("=== FEATURES ===\n* Smite • PHB-2024 110")
+        expect(classFeatures[0].name).toBe("Smite")
+      })
+      it("includes pipe sub-items as text in the description", () => {
+        const text = "=== FEATURES ===\n* Lay On Hands • PHB-2024 109\nDesc.\n   | Lay On Hands: Heal • 1 Bonus Action"
+        const { classFeatures } = parseFeaturesTraitsText(text)
+        expect(classFeatures[0].description).toContain("Lay On Hands: Heal")
+        expect(classFeatures).toHaveLength(1) // no extra feature created from |
+      })
+      it("detects actionKind from bullet pipe sub-item (• Bonus Action)", () => {
+        const text = "=== FEATURES ===\n* Lay On Hands • PHB-2024 109\nDesc.\n   | Lay On Hands: Heal • 1 Bonus Action"
+        const { classFeatures } = parseFeaturesTraitsText(text)
+        expect(classFeatures[0].actionKind).toBe("bonus-action")
+      })
+      it("detects actionKind from colon pipe sub-item (: 1 Action)", () => {
+        const text = "=== FEATURES ===\n* Divine Smite • PHB-2024 110\nDesc.\n   | Divine Smite: Hit: 1 Action"
+        const { classFeatures } = parseFeaturesTraitsText(text)
+        expect(classFeatures[0].actionKind).toBe("action")
+      })
+      it("uses actionKind from first matching pipe sub-item", () => {
+        const text = "=== FEATURES ===\n* Weapon Mastery • PHB-2024 200\nDesc.\n   | Slow: 1 Action\n   | Push: 1 Bonus Action"
+        const { classFeatures } = parseFeaturesTraitsText(text)
+        expect(classFeatures[0].actionKind).toBe("action")
+      })
+      it("leaves actionKind undefined when no pipe sub-items have action patterns", () => {
+        const text = "=== FEATURES ===\n* Darkvision • PHB-2024 195\nPassive trait."
+        const { speciesTraits } = parseFeaturesTraitsText("=== SPECIES TRAITS ===\n* Darkvision • PHB-2024 195\nPassive trait.")
+        expect(speciesTraits[0].actionKind).toBeUndefined()
+      })
+      it("handles multi-section combined text (FEATURES then FEATS)", () => {
+        const text = "=== PALADIN FEATURES ===\n* Smite • src\n\n=== FEATS ===\n* Alert • src"
+        const { classFeatures, feats } = parseFeaturesTraitsText(text)
+        expect(classFeatures[0].name).toBe("Smite")
+        expect(feats[0].name).toBe("Alert")
+      })
+      it("discards preamble text before the first heading", () => {
+        const text = "You're a Humanoid.\n=== FEATURES ===\n* Smite • src"
+        const { classFeatures } = parseFeaturesTraitsText(text)
+        expect(classFeatures).toHaveLength(1)
+        expect(classFeatures[0].name).toBe("Smite")
+      })
+      it("returns empty arrays for blank input", () => {
+        const result = parseFeaturesTraitsText("")
+        expect(result.classFeatures).toHaveLength(0)
+        expect(result.speciesTraits).toHaveLength(0)
+        expect(result.feats).toHaveLength(0)
+      })
+      it("produces empty description for a star item with no body lines", () => {
+        const { classFeatures } = parseFeaturesTraitsText("=== FEATURES ===\n* Spellcasting • PHB-2024 110")
+        expect(classFeatures[0].description).toBe("")
+      })
+    })
+
+    describe("parseActionsText", () => {
+      it("parses bonus action items with actionKind bonus-action", () => {
+        const features = parseActionsText("=== BONUS ACTIONS ===\n\nAdrenaline Rush • 2 / Short Rest\nAs a Bonus Action, dash.")
+        expect(features).toHaveLength(1)
+        expect(features[0].name).toBe("Adrenaline Rush")
+        expect(features[0].actionKind).toBe("bonus-action")
+        expect(features[0].source).toBe("class-feature")
+        expect(features[0].description).toBe("As a Bonus Action, dash.")
+      })
+      it("parses reaction items with actionKind reaction", () => {
+        const features = parseActionsText("=== REACTIONS ===\n\nShield of Faith\nReact to attacks.")
+        expect(features[0].actionKind).toBe("reaction")
+        expect(features[0].name).toBe("Shield of Faith")
+      })
+      it("skips ACTIONS section (standard game actions list)", () => {
+        const features = parseActionsText("=== ACTIONS ===\nStandard Actions\n     Attack, Dodge, Dash")
+        expect(features).toHaveLength(0)
+      })
+      it("skips SPECIAL section", () => {
+        const features = parseActionsText("=== SPECIAL ===\nSome special thing")
+        expect(features).toHaveLength(0)
+      })
+      it("extracts name before bullet from action line", () => {
+        const features = parseActionsText("=== BONUS ACTIONS ===\n\nLay On Hands: Heal • Long Rest\nDescription.")
+        expect(features[0].name).toBe("Lay On Hands: Heal")
+      })
+      it("handles items with no bullet suffix in the name line", () => {
+        const features = parseActionsText("=== BONUS ACTIONS ===\n\nLay On Hands: Heal\nDescription.")
+        expect(features[0].name).toBe("Lay On Hands: Heal")
+      })
+      it("separates multiple items by blank lines", () => {
+        const text = "=== BONUS ACTIONS ===\n\nItem One\nDesc one.\n\nItem Two\nDesc two."
+        const features = parseActionsText(text)
+        expect(features).toHaveLength(2)
+        expect(features[0].name).toBe("Item One")
+        expect(features[1].name).toBe("Item Two")
+      })
+      it("returns empty array for blank input", () => {
+        expect(parseActionsText("")).toHaveLength(0)
       })
     })
 

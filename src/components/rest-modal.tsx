@@ -130,9 +130,9 @@ export function RestModal(props: RestModalProps) {
                   <li>Regain all lost Hit Points</li>
                   <li>All spent Hit Dice restored</li>
                   <li>All spell slots restored</li>
-                  <li>Ability scores restored</li>
                   <li>Exhaustion reduced by 1</li>
                   <li>Long-rest features recharge</li>
+                  <li>Reset temporary hit points to 0</li>
                 </ul>
               }
             >

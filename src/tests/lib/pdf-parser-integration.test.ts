@@ -207,6 +207,49 @@ describe("PDF parser integration — Urush Greenshield (D&D Beyond export)", () 
     })
   })
 
+  describe("feature parsing", () => {
+    it("classFeatures has multiple individual entries (not one blob)", async () => {
+      const result = await parsePdfBuffer(loadTestPdf())
+      expect(result.classFeatures?.length).toBeGreaterThan(1)
+    })
+    it("Lay On Hands is parsed as an individual classFeature", async () => {
+      const result = await parsePdfBuffer(loadTestPdf())
+      expect(result.classFeatures?.some(f => /lay on hands/i.test(f.name))).toBe(true)
+    })
+    it("Spellcasting is parsed as an individual classFeature", async () => {
+      const result = await parsePdfBuffer(loadTestPdf())
+      expect(result.classFeatures?.some(f => /spellcasting/i.test(f.name))).toBe(true)
+    })
+    it("Adrenaline Rush is parsed as a species trait (not a class feature)", async () => {
+      const result = await parsePdfBuffer(loadTestPdf())
+      const f = result.speciesTraits?.find(f => /adrenaline rush/i.test(f.name))
+      expect(f).toBeDefined()
+      expect(result.classFeatures?.some(f => /adrenaline rush/i.test(f.name))).toBe(false)
+    })
+    it("speciesTraits has multiple individual entries (not one blob)", async () => {
+      const result = await parsePdfBuffer(loadTestPdf())
+      expect(result.speciesTraits?.length).toBeGreaterThan(1)
+    })
+    it("feats array has individual entries", async () => {
+      const result = await parsePdfBuffer(loadTestPdf())
+      expect(result.feats?.length).toBeGreaterThan(0)
+    })
+    it("no feature has undefined id, name, description, or source", async () => {
+      const result = await parsePdfBuffer(loadTestPdf())
+      const allFeatures = [
+        ...(result.classFeatures ?? []),
+        ...(result.speciesTraits ?? []),
+        ...(result.feats ?? []),
+      ]
+      for (const f of allFeatures) {
+        expect(f.id).toBeTruthy()
+        expect(typeof f.name).toBe("string")
+        expect(typeof f.description).toBe("string")
+        expect(f.source).toBeDefined()
+      }
+    })
+  })
+
   describe("mergeWithDefault produces a valid Character", () => {
     it("produces a complete, Firebase-safe character with no undefined values", async () => {
       const file = loadTestPdf()

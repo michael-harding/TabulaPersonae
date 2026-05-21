@@ -1,5 +1,5 @@
 import { PDFDocument, PDFName, PDFArray } from "pdf-lib"
-import type { AbilityScores, Attack, Character, Equipment, Feature, Skills, Spell } from "./character-types"
+import type { AbilityScores, ActionKind, Attack, Character, Equipment, Feature, FeatureKind, Skills, Spell } from "./character-types"
 import { createDefaultCharacter } from "./character-types"
 
 type SpellSlots = Character["spellSlots"]
@@ -47,6 +47,19 @@ export function parseDamageTypeField(value: string | undefined): { damage: strin
   return { damage: trimmed.slice(0, lastSpace), damageType: trimmed.slice(lastSpace + 1) }
 }
 
+// Splits text on === HEADING === lines. The first element has heading: null if there is
+// content before the first heading. Used by parseProficienciesLang, parseFeaturesTraitsText,
+// and parseActionsText so section-splitting logic lives in one place.
+export function splitIntoSections(text: string): Array<{ heading: string | null; content: string }> {
+  const headingRe = /^===\s*(.+?)\s*===\s*$/gm
+  const parts = text.split(/^===\s*.+?\s*===\s*$/m)
+  const headings = [...text.matchAll(headingRe)].map(m => m[1].trim())
+  return parts.map((content, i) => ({
+    heading: i === 0 ? null : headings[i - 1],
+    content: content.trim(),
+  }))
+}
+
 export function parseProficienciesLang(value: string | undefined): { languages: string[]; otherProficiencies: string[] } {
   if (!value?.trim()) return { languages: [], otherProficiencies: [] }
 
@@ -55,14 +68,11 @@ export function parseProficienciesLang(value: string | undefined): { languages: 
 
   if (/===/.test(value)) {
     // D&D Beyond sectioned format: === LANGUAGES ===, === ARMOR ===, etc.
-    const languageSection = value.match(/===\s*LANGUAGES\s*===\s*\n([\s\S]*?)(?:===|$)/i)
-    if (languageSection) {
-      languageSection[1].split(/[,\n]/).map(t => t.trim()).filter(Boolean).forEach(t => languages.push(t))
-    }
-    const withoutLang = value.replace(/===\s*LANGUAGES\s*===[\s\S]*/i, "")
-    const contentOnly = withoutLang.replace(/===\s*\w[\w\s]*\w\s*===/g, "").trim()
-    if (contentOnly) {
-      contentOnly.split(/[,\n]/).map(t => t.trim()).filter(Boolean).forEach(t => otherProficiencies.push(t))
+    for (const { heading, content } of splitIntoSections(value)) {
+      if (!content) continue
+      const tokens = content.split(/[,\n]/).map(t => t.trim()).filter(Boolean)
+      if (heading?.toUpperCase().includes("LANGUAGE")) tokens.forEach(t => languages.push(t))
+      else tokens.forEach(t => otherProficiencies.push(t))
     }
   } else {
     // Plain comma/newline list — classify by known D&D language names
@@ -80,6 +90,128 @@ export function parseProficienciesLang(value: string | undefined): { languages: 
   }
 
   return { languages, otherProficiencies }
+}
+
+function classifyFeatureSection(label: string): FeatureKind | null {
+  const u = label.toUpperCase()
+  if (/\bFEATS\b/.test(u)) return "feat"
+  if (/FEATURE/.test(u)) return "class-feature"
+  if (/TRAIT/.test(u) || /SPECIES/.test(u)) return "species-trait"
+  return null
+}
+
+function extractStarItemName(line: string): string {
+  const withoutStar = line.replace(/^\s*\*\s*/, "").trim()
+  const bulletIdx = withoutStar.indexOf("•")
+  return bulletIdx === -1 ? withoutStar : withoutStar.slice(0, bulletIdx).trim()
+}
+
+function buildFeatureDescription(lines: string[]): string {
+  return lines
+    .map(line => (/^\s*\|/.test(line) ? line.replace(/^\s*\|\s*/, "").trim() : line.trim()))
+    .filter(Boolean)
+    .join("\n")
+}
+
+export function parseFeaturesTraitsText(text: string): {
+  classFeatures: Feature[]
+  speciesTraits: Feature[]
+  feats: Feature[]
+} {
+  const output = { classFeatures: [] as Feature[], speciesTraits: [] as Feature[], feats: [] as Feature[] }
+  const kindToKey: Record<FeatureKind, keyof typeof output> = {
+    "class-feature": "classFeatures",
+    "species-trait": "speciesTraits",
+    "feat": "feats",
+  }
+
+  let currentKind: FeatureKind | null = null
+  let pendingName: string | null = null
+  let pendingLines: string[] = []
+  let pendingActionKind: ActionKind | undefined = undefined
+
+  function flush() {
+    if (pendingName === null || currentKind === null) return
+    const name = pendingName
+    const description = buildFeatureDescription(pendingLines)
+    const feature: Feature = { id: crypto.randomUUID(), name, description, source: currentKind }
+    if (pendingActionKind) feature.actionKind = pendingActionKind
+    output[kindToKey[currentKind]].push(feature)
+    pendingName = null
+    pendingLines = []
+    pendingActionKind = undefined
+  }
+
+  for (const { heading, content } of splitIntoSections(text)) {
+    if (heading === null) continue // discard preamble before first ===
+    const kind = classifyFeatureSection(heading)
+    if (kind !== null) {
+      flush()
+      currentKind = kind
+    }
+    if (currentKind === null) continue
+
+    for (const line of content.split("\n")) {
+      if (/^\s*\*\s+\S/.test(line)) {
+        flush()
+        pendingName = extractStarItemName(line)
+        pendingLines = []
+      } else if (pendingName !== null) {
+        if (/^\s*\|/.test(line) && pendingActionKind === undefined) {
+          const kind = extractActionKind(line)
+          if (kind) pendingActionKind = kind
+        }
+        pendingLines.push(line)
+      }
+    }
+    flush()
+  }
+
+  return output
+}
+
+// Detects an action kind from inline patterns like "• 1 Bonus Action", ": Bonus Action",
+// "• Reaction", ": 1 Action", etc. Used to annotate features from their pipe sub-items.
+function extractActionKind(text: string): ActionKind | undefined {
+  const m = /(?:•|:)\s*(?:\d+\s+)?(bonus\s+action|action|reaction)\s*(?:\(.*?\))?\s*$/i.exec(text.trim())
+  if (!m) return undefined
+  const kind = m[1].toLowerCase().replace(/\s+/, " ")
+  if (kind === "bonus action") return "bonus-action"
+  if (kind === "action") return "action"
+  if (kind === "reaction") return "reaction"
+  return undefined
+}
+
+function classifyActionSection(label: string): ActionKind | "skip" {
+  const u = label.toUpperCase()
+  if (u.includes("BONUS")) return "bonus-action"
+  if (u.includes("REACTION")) return "reaction"
+  return "skip"
+}
+
+export function parseActionsText(text: string): Feature[] {
+  const features: Feature[] = []
+
+  for (const { heading, content } of splitIntoSections(text)) {
+    if (heading === null) continue
+    const actionKind = classifyActionSection(heading)
+    if (actionKind === "skip") continue
+
+    // Items are separated by blank lines within the section
+    const blocks = content.split(/\n\n+/).map(b => b.trim()).filter(Boolean)
+    for (const block of blocks) {
+      const lines = block.split("\n").map(l => l.trim()).filter(Boolean)
+      if (lines.length === 0) continue
+      const firstLine = lines[0]
+      const bulletIdx = firstLine.indexOf("•")
+      const name = bulletIdx === -1 ? firstLine : firstLine.slice(0, bulletIdx).trim()
+      if (!name) continue
+      const description = lines.slice(1).join("\n")
+      features.push({ id: crypto.randomUUID(), name, description, source: "class-feature", actionKind })
+    }
+  }
+
+  return features
 }
 
 const ABILITY_ABBREVIATIONS: Record<string, keyof AbilityScores> = {
@@ -356,33 +488,25 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
     result.otherProficiencies = otherProficiencies
   }
 
-  // --- Features (pages 1 and 2) ---
-  const classFeatures: Feature[] = []
-  const featuresText1 = f("FeaturesTraits1")
-  if (featuresText1) {
-    classFeatures.push({
-      id: crypto.randomUUID(), name: "Class Features",
-      description: featuresText1, source: "class-feature",
-    })
-  }
-  const actionsText = [f("Actions1"), f("Actions2")].filter(Boolean).join("\n\n")
-  if (actionsText) {
-    classFeatures.push({
-      id: crypto.randomUUID(), name: "Actions & Bonus Actions",
-      description: actionsText, source: "class-feature",
-    })
-  }
-  if (classFeatures.length > 0) result.classFeatures = classFeatures
+  // --- Features (pages 1–3) ---
+  // FeaturesTraits1/2/3 are one continuous text split across PDF pages; concatenate before parsing.
+  // Actions1/2 likewise.
+  const allClassFeatures: Feature[] = []
+  const allSpeciesTraits: Feature[] = []
+  const allFeats: Feature[] = []
 
-  const speciesTraits: Feature[] = []
-  const speciesText = [f("FeaturesTraits2"), f("FeaturesTraits3")].filter(Boolean).join("\n\n")
-  if (speciesText) {
-    speciesTraits.push({
-      id: crypto.randomUUID(), name: "Species Traits & Feats",
-      description: speciesText, source: "species-trait",
-    })
+  const featuresText = [f("FeaturesTraits1"), f("FeaturesTraits2"), f("FeaturesTraits3")]
+    .filter(Boolean).join("\n\n")
+  if (featuresText) {
+    const parsed = parseFeaturesTraitsText(featuresText)
+    allClassFeatures.push(...parsed.classFeatures)
+    allSpeciesTraits.push(...parsed.speciesTraits)
+    allFeats.push(...parsed.feats)
   }
-  if (speciesTraits.length > 0) result.speciesTraits = speciesTraits
+
+  if (allClassFeatures.length > 0) result.classFeatures = allClassFeatures
+  if (allSpeciesTraits.length > 0) result.speciesTraits = allSpeciesTraits
+  if (allFeats.length > 0) result.feats = allFeats
 
   // --- Biography (page 3) ---
   const bioEntries: Array<[string, keyof Pick<Character, "age" | "height" | "weight" | "eyes" | "skin" | "hair" | "alignment" | "size" | "appearance" | "alliesAndOrganizations" | "personalityTraits" | "ideals" | "bonds" | "flaws" | "backstory">]> = [
