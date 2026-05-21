@@ -301,6 +301,96 @@ function SpellDetailPopover(props: { spell: Spell }) {
   )
 }
 
+function getOrdinalSuffix(num: number): string {
+  const suffixes = ["th", "st", "nd", "rd"]
+  const v = num % 100
+  return num + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0])
+}
+
+interface SpellCardProps {
+  spell: Spell
+  castable: () => boolean
+  onCast?: () => void
+  upcastLevels?: () => number[]
+  onCastAtLevel?: (level: number) => void
+  hasHigherSlots?: () => boolean
+  upcastSpellId: () => string | null
+  onUpcastSpellId: (id: string | null) => void
+}
+
+function SpellCard(props: SpellCardProps) {
+  const [concentrationActive, setConcentrationActive] = createSignal(false)
+  const spell = props.spell
+  return (
+    <div class="p-3 border rounded-lg space-y-2 relative">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="font-medium flex items-center gap-1">
+            {spell.name}
+            <SpellDetailPopover spell={spell} />
+          </div>
+          <div class="text-xs text-muted-foreground">
+            {spell.level > 0 ? `${getOrdinalSuffix(spell.level)} level` : "Cantrip"} • {spell.school}
+          </div>
+        </div>
+        <div class="flex flex-col items-end gap-1">
+          <Badge variant="secondary" class="text-xs">Spell</Badge>
+          <Show when={spell.concentration}>
+            <Badge
+              variant={concentrationActive() ? "default" : "outline"}
+              class={`text-xs cursor-pointer select-none${concentrationActive() ? "" : " text-muted-foreground border-muted-foreground/40"}`}
+              onClick={() => setConcentrationActive(v => !v)}
+            >Concentration</Badge>
+          </Show>
+          <Show when={spell.duration && !spell.duration.toLowerCase().includes("instantaneous")}>
+            <Badge variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">
+              {spell.duration.replace(/^concentration,\s*/i, "")}
+            </Badge>
+          </Show>
+        </div>
+      </div>
+      <div class="text-sm space-y-1">
+        <Show when={spell.attackSave}><div><strong>Attack/Save:</strong> {spell.attackSave}</div></Show>
+        <Show when={spell.regain}><div><strong>Regain:</strong> {spell.regain}</div></Show>
+        <Show when={spell.atHigherLevel}><div><strong>At Higher Level:</strong> {spell.atHigherLevel}</div></Show>
+        <div><strong>Range:</strong> {spell.range}</div>
+        <div><strong>Components:</strong> {spell.components}</div>
+      </div>
+      <Show when={spell.regain}>
+        <div class="absolute right-2 bottom-16 px-2 py-1 border-2 border-green-500 rounded text-green-700 font-semibold whitespace-nowrap">{spell.regain}</div>
+      </Show>
+      <Show when={!spell.regain && spell.damage}>
+        <div class="absolute right-2 bottom-16 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">{spell.damage}</div>
+      </Show>
+      <Show when={spell.level > 0 && props.onCast}>
+        <div class="absolute bottom-2 right-2 flex items-center gap-1">
+          <Show when={props.upcastSpellId() === spell.id && props.upcastLevels && props.upcastLevels().length > 0}>
+            <div class="flex gap-1">
+              <For each={props.upcastLevels!()}>
+                {(level) => (
+                  <Button variant="secondary" size="sm" class="h-11 min-w-[44px] px-2 text-xs"
+                    onClick={() => props.onCastAtLevel?.(level)}>
+                    {getOrdinalSuffix(level)}
+                  </Button>
+                )}
+              </For>
+            </div>
+          </Show>
+          <Button variant="outline" size="sm" class="h-11 px-4" disabled={!props.castable()} onClick={props.onCast}>Cast</Button>
+          <Show when={!!spell.atHigherLevel && props.hasHigherSlots?.()}>
+            <Button variant="outline" size="sm" class="h-11 w-11 p-0"
+              aria-label="Upcast"
+              disabled={!props.upcastLevels?.().length}
+              onClick={() => props.onUpcastSpellId(props.upcastSpellId() === spell.id ? null : spell.id)}>
+              <ArrowBigUp class="h-4 w-4" />
+            </Button>
+          </Show>
+        </div>
+      </Show>
+    </div>
+  )
+}
+
 export function ActionsSection(props: ActionsSectionProps) {
   const [isAddActionOpen, setIsAddActionOpen] = createSignal(false)
   const [isAddBonusActionOpen, setIsAddBonusActionOpen] = createSignal(false)
@@ -400,78 +490,6 @@ export function ActionsSection(props: ActionsSectionProps) {
     })
   }
 
-  const SpellCard = (
-    spell: ReturnType<typeof safeSpells>[0],
-    castable: () => boolean,
-    onCast?: () => void,
-    upcastLevels?: () => number[],
-    onCastAtLevel?: (level: number) => void,
-    hasHigherSlots?: () => boolean,
-  ) => (
-    <div class="p-3 border rounded-lg space-y-2 relative">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="font-medium flex items-center gap-1">
-            {spell.name}
-            <SpellDetailPopover spell={spell} />
-          </div>
-          <div class="text-xs text-muted-foreground">
-            {spell.level > 0 ? `${getOrdinalSuffix(spell.level)} level` : "Cantrip"} • {spell.school}
-          </div>
-        </div>
-        <div class="flex flex-col items-end gap-1">
-          <Badge variant="secondary" class="text-xs">Spell</Badge>
-          <Show when={spell.concentration}>
-            <Badge variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">Concentration</Badge>
-          </Show>
-          <Show when={spell.duration && !spell.duration.toLowerCase().includes("instantaneous")}>
-            <Badge variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">
-              {spell.duration.replace(/^concentration,\s*/i, "")}
-            </Badge>
-          </Show>
-        </div>
-      </div>
-      <div class="text-sm space-y-1">
-        <Show when={spell.attackSave}><div><strong>Attack/Save:</strong> {spell.attackSave}</div></Show>
-        <Show when={spell.regain}><div><strong>Regain:</strong> {spell.regain}</div></Show>
-        <Show when={spell.atHigherLevel}><div><strong>At Higher Level:</strong> {spell.atHigherLevel}</div></Show>
-        <div><strong>Range:</strong> {spell.range}</div>
-        <div><strong>Components:</strong> {spell.components}</div>
-      </div>
-      <Show when={spell.regain}>
-        <div class="absolute right-2 bottom-16 px-2 py-1 border-2 border-green-500 rounded text-green-700 font-semibold whitespace-nowrap">{spell.regain}</div>
-      </Show>
-      <Show when={!spell.regain && spell.damage}>
-        <div class="absolute right-2 bottom-16 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">{spell.damage}</div>
-      </Show>
-      <Show when={spell.level > 0 && onCast}>
-        <div class="absolute bottom-2 right-2 flex items-center gap-1">
-          <Show when={upcastSpellId() === spell.id && upcastLevels && upcastLevels().length > 0}>
-            <div class="flex gap-1">
-              <For each={upcastLevels!()}>
-                {(level) => (
-                  <Button variant="secondary" size="sm" class="h-11 min-w-[44px] px-2 text-xs"
-                    onClick={() => onCastAtLevel?.(level)}>
-                    {getOrdinalSuffix(level)}
-                  </Button>
-                )}
-              </For>
-            </div>
-          </Show>
-          <Button variant="outline" size="sm" class="h-11 px-4" disabled={!castable()} onClick={onCast}>Cast</Button>
-          <Show when={!!spell.atHigherLevel && hasHigherSlots?.()}>
-            <Button variant="outline" size="sm" class="h-11 w-11 p-0"
-              aria-label="Upcast"
-              disabled={!upcastLevels?.().length}
-              onClick={() => setUpcastSpellId(upcastSpellId() === spell.id ? null : spell.id)}>
-              <ArrowBigUp class="h-4 w-4" />
-            </Button>
-          </Show>
-        </div>
-      </Show>
-    </div>
-  )
-
   return (
     <Card>
       <CardHeader>
@@ -529,7 +547,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                   const hasHigherSlots = () => ([2,3,4,5,6,7,8,9] as const)
                     .filter(l => l > spell.level)
                     .some(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 })
-                  return SpellCard(spell, canCast, () => castSpell(spell.level), upcastLevels, (level) => { castSpell(level); setUpcastSpellId(null) }, hasHigherSlots)
+                  return <SpellCard spell={spell} castable={canCast} onCast={() => castSpell(spell.level)} upcastLevels={upcastLevels} onCastAtLevel={(level: number) => { castSpell(level); setUpcastSpellId(null) }} hasHigherSlots={hasHigherSlots} upcastSpellId={upcastSpellId} onUpcastSpellId={setUpcastSpellId} />
                 }}
               </For>
               <For each={featureActions()}>
@@ -608,7 +626,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                   const hasHigherSlots = () => ([2,3,4,5,6,7,8,9] as const)
                     .filter(l => l > spell.level)
                     .some(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 })
-                  return SpellCard(spell, canCast, () => castSpell(spell.level), upcastLevels, (level) => { castSpell(level); setUpcastSpellId(null) }, hasHigherSlots)
+                  return <SpellCard spell={spell} castable={canCast} onCast={() => castSpell(spell.level)} upcastLevels={upcastLevels} onCastAtLevel={(level: number) => { castSpell(level); setUpcastSpellId(null) }} hasHigherSlots={hasHigherSlots} upcastSpellId={upcastSpellId} onUpcastSpellId={setUpcastSpellId} />
                 }}
               </For>
               <For each={featureBonuses()}>
@@ -683,7 +701,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                   const hasHigherSlots = () => ([2,3,4,5,6,7,8,9] as const)
                     .filter(l => l > spell.level)
                     .some(l => { const s = props.character.spellSlots[l]; return s && s.total > 0 })
-                  return SpellCard(spell, canCast, () => castSpell(spell.level), upcastLevels, (level) => { castSpell(level); setUpcastSpellId(null) }, hasHigherSlots)
+                  return <SpellCard spell={spell} castable={canCast} onCast={() => castSpell(spell.level)} upcastLevels={upcastLevels} onCastAtLevel={(level: number) => { castSpell(level); setUpcastSpellId(null) }} hasHigherSlots={hasHigherSlots} upcastSpellId={upcastSpellId} onUpcastSpellId={setUpcastSpellId} />
                 }}
               </For>
               <For each={featureReactions()}>
