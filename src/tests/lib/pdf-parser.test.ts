@@ -14,6 +14,7 @@ import {
   parseActionsText,
   mapFieldsToCharacter,
   mergeWithDefault,
+  normalizeCastingTime,
 } from "@/lib/pdf-parser"
 
 vi.mock("pdf-lib", () => ({
@@ -136,6 +137,23 @@ describe("pdf-parser", () => {
     it("normalizes abbreviation CHA", () => expect(parseSpellcastingAbility("CHA")).toBe("charisma"))
     it("returns empty string for unrecognized", () => expect(parseSpellcastingAbility("FOO")).toBe(""))
     it("returns empty string for undefined", () => expect(parseSpellcastingAbility(undefined)).toBe(""))
+  })
+
+  describe("normalizeCastingTime", () => {
+    it("normalizes 'A' to '1 action'", () => expect(normalizeCastingTime("A")).toBe("1 action"))
+    it("normalizes 'Action' to '1 action'", () => expect(normalizeCastingTime("Action")).toBe("1 action"))
+    it("normalizes '1 A' to '1 action'", () => expect(normalizeCastingTime("1 A")).toBe("1 action"))
+    it("normalizes '1 Action' to '1 action'", () => expect(normalizeCastingTime("1 Action")).toBe("1 action"))
+    it("normalizes 'BA' to '1 bonus action'", () => expect(normalizeCastingTime("BA")).toBe("1 bonus action"))
+    it("normalizes 'Bonus Action' to '1 bonus action'", () => expect(normalizeCastingTime("Bonus Action")).toBe("1 bonus action"))
+    it("normalizes '1 BA' to '1 bonus action'", () => expect(normalizeCastingTime("1 BA")).toBe("1 bonus action"))
+    it("normalizes '1 Bonus Action' to '1 bonus action'", () => expect(normalizeCastingTime("1 Bonus Action")).toBe("1 bonus action"))
+    it("normalizes 'R' to '1 reaction'", () => expect(normalizeCastingTime("R")).toBe("1 reaction"))
+    it("normalizes 'Reaction' to '1 reaction'", () => expect(normalizeCastingTime("Reaction")).toBe("1 reaction"))
+    it("normalizes '1 R' to '1 reaction'", () => expect(normalizeCastingTime("1 R")).toBe("1 reaction"))
+    it("passes through already-normalized values", () => expect(normalizeCastingTime("1 action")).toBe("1 action"))
+    it("passes through unrecognized values unchanged", () => expect(normalizeCastingTime("1 minute")).toBe("1 minute"))
+    it("passes through empty string unchanged", () => expect(normalizeCastingTime("")).toBe(""))
   })
 
   describe("countCheckedDeathSaves", () => {

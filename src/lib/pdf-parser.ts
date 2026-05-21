@@ -229,6 +229,15 @@ export function parseSpellcastingAbility(value: string | undefined): keyof Abili
   return ABILITY_ABBREVIATIONS[lower] ?? ""
 }
 
+export function normalizeCastingTime(raw: string): string {
+  const t = raw.trim().toLowerCase()
+  if (!t) return raw
+  if (/^(1\s+)?b(onus)?\s*a(ction)?$/.test(t) || t === "ba") return "1 bonus action"
+  if (/^(1\s+)?r(eaction)?$/.test(t)) return "1 reaction"
+  if (/^(1\s+)?a(ction)?$/.test(t)) return "1 action"
+  return raw
+}
+
 export function countCheckedDeathSaves(fields: Record<string, string | boolean>, prefix: string): number {
   let count = 0
   for (let i = 1; i <= 3; i++) {
@@ -567,7 +576,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
       name: spellName,
       level: levelBySpellIndex[i],
       school: "",
-      castingTime: f(`spellCastingTime${i}`),
+      castingTime: normalizeCastingTime(f(`spellCastingTime${i}`)),
       range: f(`spellRange${i}`),
       components: f(`spellComponents${i}`),
       duration: f(`spellDuration${i}`),
