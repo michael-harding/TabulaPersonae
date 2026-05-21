@@ -232,9 +232,9 @@ export function parseSpellcastingAbility(value: string | undefined): keyof Abili
 export function normalizeCastingTime(raw: string): string {
   const t = raw.trim().toLowerCase()
   if (!t) return raw
-  if (/^(1\s+)?b(onus)?\s*a(ction)?$/.test(t) || t === "ba") return "1 bonus action"
-  if (/^(1\s+)?r(eaction)?$/.test(t)) return "1 reaction"
-  if (/^(1\s+)?a(ction)?$/.test(t)) return "1 action"
+  if (/^(1\s*)?b(onus)?\s*a(ction)?$/.test(t) || t === "ba") return "1 bonus action"
+  if (/^(1\s*)?r(eaction)?$/.test(t)) return "1 reaction"
+  if (/^(1\s*)?a(ction)?$/.test(t)) return "1 action"
   return raw
 }
 
@@ -423,6 +423,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
   if (maxHP) hp.maximum = parseIntField(maxHP)
   const currentHP = f("CurrentHP")
   if (currentHP) hp.current = parseIntField(currentHP)
+  else if (hp.maximum !== undefined) hp.current = hp.maximum
   const tempHP = f("TempHP")
   if (tempHP && tempHP !== "--") hp.temporary = parseIntField(tempHP)
   if (Object.keys(hp).length > 0) result.hitPoints = hp as Character["hitPoints"]
