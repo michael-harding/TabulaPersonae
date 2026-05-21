@@ -87,6 +87,16 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
     }))
   }
 
+  const toggleSkillDisadvantage = (skill: SkillKey) => {
+    setEdited((prev) => ({
+      ...prev,
+      skills: {
+        ...prev.skills,
+        [skill]: { ...prev.skills?.[skill], disadvantage: !prev.skills?.[skill]?.disadvantage },
+      },
+    }))
+  }
+
   const toggleSavingThrow = (ability: AbilityKey) => {
     setEdited((prev) => ({
       ...prev,
@@ -152,15 +162,19 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
             <For each={Object.keys(SKILL_DISPLAY_NAMES) as SkillKey[]}>
               {(skillKey) => {
                 const ability = SKILL_ABILITY_MAP[skillKey]
-                const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
+                const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false, disadvantage: false }
                 const modifier = () => getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
                 return (
                   <div class="break-inside-avoid flex items-center justify-between p-1 rounded hover:bg-gray-500 [&:nth-child(3n)]:mb-3">
                     <div class="flex items-center gap-3 w-full transition-colors duration-150">
                       <Show when={isEditing()}>
                         <div class="flex gap-1">
-                          <Checkbox checked={skill().proficient} onChange={() => toggleSkillProf(skillKey)} title="Proficient" />
-                          <Checkbox checked={skill().expertise} onChange={() => toggleSkillExp(skillKey)} title="Expertise" class="border-secondary data-[checked]:bg-secondary" />
+                          <Tooltip content="Proficiency (adds proficiency bonus)">
+                            <Checkbox checked={skill().proficient} onChange={() => toggleSkillProf(skillKey)} class="border-secondary data-[checked]:bg-secondary" />
+                          </Tooltip>
+                          <Tooltip content="Expertise (doubles proficiency bonus)">
+                            <Checkbox checked={skill().expertise} onChange={() => toggleSkillExp(skillKey)} />
+                          </Tooltip>
                         </div>
                       </Show>
                       <div class="flex-1">
@@ -168,22 +182,49 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                           <span
                             class={`font-medium ${isEditing() ? "cursor-pointer" : ""}`}
                             onClick={() => isEditing() && toggleSkillProf(skillKey)}
-                          >{SKILL_DISPLAY_NAMES[skillKey]}</span>
-                          <span class="text-xs text-muted-foreground">({ABILITY_ABBREVIATIONS[ability]})</span>
-                          <Show when={!isEditing()}>
-                            <div class="flex gap-1">
-                              <Show when={skill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show>
-                              <Show when={skill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show>
-                            </div>
-                          </Show>
+                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={skill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={skill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show></span></Show></span>
                         </div>
                       </div>
                     </div>
-                    <span class="font-semibold text-right min-w-[3rem]">{formatModifier(modifier())}</span>
+                    <div class="flex items-center gap-1 justify-end min-w-[3rem]">
+                      <Show when={isEditing()}>
+                        <button
+                          type="button"
+                          title="Disadvantage"
+                          aria-label="Disadvantage"
+                          onClick={() => toggleSkillDisadvantage(skillKey)}
+                          class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${(skill().disadvantage ?? false) ? "bg-destructive text-destructive-foreground" : "border border-white text-white"}`}
+                        >D</button>
+                      </Show>
+                      <Show when={!isEditing() && (skill().disadvantage ?? false)}>
+                        <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs font-bold leading-none">D</span>
+                      </Show>
+                      <span class="font-semibold">{formatModifier(modifier())}</span>
+                    </div>
                   </div>
                 )
               }}
             </For>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Senses */}
+        <div>
+          <h3 class="font-semibold mb-3">Senses</h3>
+          <div class="grid grid-cols-3 gap-2">
+            {(["perception", "insight", "investigation"] as SkillKey[]).map((skillKey) => {
+              const ability = SKILL_ABILITY_MAP[skillKey]
+              const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
+              const passive = () => 10 + getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
+              return (
+                <div class="flex flex-col items-center p-2 rounded border text-center">
+                  <span class="text-lg font-bold">{passive()}</span>
+                  <span class="text-xs text-muted-foreground">Passive {SKILL_DISPLAY_NAMES[skillKey]}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
 

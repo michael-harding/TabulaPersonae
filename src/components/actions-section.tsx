@@ -1,5 +1,5 @@
 import { createSignal, For, Show } from "solid-js"
-import type { Character, ActionType, Feature } from "@/lib/character-types"
+import type { Character, ActionType, Feature, Spell } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier, safeFeatures } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/mo
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
+import { Popover } from "@kobalte/core/popover"
 import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
 import Trash2 from "lucide-solid/icons/trash-2"
@@ -21,6 +22,7 @@ import Zap from "lucide-solid/icons/zap"
 import Star from "lucide-solid/icons/star"
 import Shield from "lucide-solid/icons/shield"
 import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
+import CircleHelp from "lucide-solid/icons/circle-help"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
@@ -250,6 +252,55 @@ function FeatureActionCard(props: { feature: Feature; onUsesChange: (v: number) 
   )
 }
 
+function SpellDetailPopover(props: { spell: Spell }) {
+  return (
+    <Popover gutter={8}>
+      <Popover.Trigger
+        class="inline-flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Details for ${props.spell.name}`}
+      >
+        <CircleHelp class="w-4 h-4" />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content class="z-50 w-72 rounded-lg border bg-popover p-4 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95">
+          <Popover.Arrow />
+          <div class="space-y-2">
+            <div class="font-semibold text-sm">{props.spell.name}</div>
+            <div class="text-xs text-muted-foreground">
+              {props.spell.level === 0 ? "Cantrip" : `${props.spell.level === 1 ? "1st" : props.spell.level === 2 ? "2nd" : props.spell.level === 3 ? "3rd" : `${props.spell.level}th`}-level`} {props.spell.school}
+              {props.spell.ritual && " (ritual)"}
+              {props.spell.concentration && " · Concentration"}
+            </div>
+            <div class="text-xs space-y-1 border-t pt-2">
+              <div><span class="font-medium">Casting Time:</span> {props.spell.castingTime}</div>
+              <div><span class="font-medium">Range:</span> {props.spell.range}</div>
+              <div><span class="font-medium">Components:</span> {props.spell.components}</div>
+              <div><span class="font-medium">Duration:</span> {props.spell.duration}</div>
+              <Show when={props.spell.attackSave}>
+                <div><span class="font-medium">Attack/Save:</span> {props.spell.attackSave}</div>
+              </Show>
+              <Show when={props.spell.damage}>
+                <div><span class="font-medium">Damage:</span> {props.spell.damage}</div>
+              </Show>
+              <Show when={props.spell.regain}>
+                <div><span class="font-medium">Regain:</span> {props.spell.regain}</div>
+              </Show>
+            </div>
+            <Show when={props.spell.description}>
+              <div class="text-xs border-t pt-2 leading-relaxed">{props.spell.description}</div>
+            </Show>
+            <Show when={props.spell.atHigherLevel}>
+              <div class="text-xs border-t pt-2">
+                <span class="font-medium">At Higher Levels:</span> {props.spell.atHigherLevel}
+              </div>
+            </Show>
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover>
+  )
+}
+
 export function ActionsSection(props: ActionsSectionProps) {
   const [isAddActionOpen, setIsAddActionOpen] = createSignal(false)
   const [isAddBonusActionOpen, setIsAddBonusActionOpen] = createSignal(false)
@@ -366,7 +417,10 @@ export function ActionsSection(props: ActionsSectionProps) {
     <div class="p-3 border rounded-lg space-y-2 relative">
       <div class="flex items-start justify-between">
         <div>
-          <div class="font-medium">{spell.name}</div>
+          <div class="font-medium flex items-center gap-1">
+            {spell.name}
+            <SpellDetailPopover spell={spell} />
+          </div>
           <div class="text-xs text-muted-foreground">
             {spell.level > 0 ? `${getOrdinalSuffix(spell.level)} level` : "Cantrip"} • {spell.school}
           </div>
@@ -438,10 +492,6 @@ export function ActionsSection(props: ActionsSectionProps) {
               <span class="text-sm font-medium">Spell Save DC</span>
             </div>
             <div class="text-2xl font-bold text-primary">{spellSaveDC()}</div>
-          </div>
-          <div class="text-center">
-            <div class="text-sm font-medium mb-1">Ready Actions</div>
-            <div class="text-2xl font-bold text-primary">{attackSpells().length + bonusActionSpells().length + featureActions().length + featureBonuses().length}</div>
           </div>
         </div>
 
@@ -678,19 +728,6 @@ export function ActionsSection(props: ActionsSectionProps) {
               </For>
             </div>
           </Show>
-        </div>
-
-        {/* Quick Actions */}
-        <div class="space-y-3">
-          <h3 class="text-lg font-semibold flex items-center gap-2">
-            <Star class="h-5 w-5 text-primary" />
-            Quick Actions
-          </h3>
-          <div class="flex flex-wrap gap-2">
-            <For each={["Dash","Dodge","Help","Hide","Ready","Search","Use Object"]}>
-              {(action) => <Button variant="outline" size="sm">{action}</Button>}
-            </For>
-          </div>
         </div>
       </CardContent>
 

@@ -19,24 +19,24 @@ export interface SavingThrows {
 }
 
 export interface Skills {
-  acrobatics: { proficient: boolean; expertise: boolean }
-  animalHandling: { proficient: boolean; expertise: boolean }
-  arcana: { proficient: boolean; expertise: boolean }
-  athletics: { proficient: boolean; expertise: boolean }
-  deception: { proficient: boolean; expertise: boolean }
-  history: { proficient: boolean; expertise: boolean }
-  insight: { proficient: boolean; expertise: boolean }
-  intimidation: { proficient: boolean; expertise: boolean }
-  investigation: { proficient: boolean; expertise: boolean }
-  medicine: { proficient: boolean; expertise: boolean }
-  nature: { proficient: boolean; expertise: boolean }
-  perception: { proficient: boolean; expertise: boolean }
-  performance: { proficient: boolean; expertise: boolean }
-  persuasion: { proficient: boolean; expertise: boolean }
-  religion: { proficient: boolean; expertise: boolean }
-  sleightOfHand: { proficient: boolean; expertise: boolean }
-  stealth: { proficient: boolean; expertise: boolean }
-  survival: { proficient: boolean; expertise: boolean }
+  acrobatics: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  animalHandling: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  arcana: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  athletics: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  deception: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  history: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  insight: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  intimidation: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  investigation: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  medicine: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  nature: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  perception: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  performance: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  persuasion: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  religion: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  sleightOfHand: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  stealth: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  survival: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
 }
 
 export type ActionType = 'attack' | 'ability' | 'class-feature' | 'feat' | 'species-ability' | 'other' | string
@@ -236,24 +236,24 @@ export function createDefaultCharacter(): Character {
     },
 
     skills: {
-      acrobatics: { proficient: false, expertise: false },
-      animalHandling: { proficient: false, expertise: false },
-      arcana: { proficient: false, expertise: false },
-      athletics: { proficient: false, expertise: false },
-      deception: { proficient: false, expertise: false },
-      history: { proficient: false, expertise: false },
-      insight: { proficient: false, expertise: false },
-      intimidation: { proficient: false, expertise: false },
-      investigation: { proficient: false, expertise: false },
-      medicine: { proficient: false, expertise: false },
-      nature: { proficient: false, expertise: false },
-      perception: { proficient: false, expertise: false },
-      performance: { proficient: false, expertise: false },
-      persuasion: { proficient: false, expertise: false },
-      religion: { proficient: false, expertise: false },
-      sleightOfHand: { proficient: false, expertise: false },
-      stealth: { proficient: false, expertise: false },
-      survival: { proficient: false, expertise: false },
+      acrobatics: { proficient: false, expertise: false, disadvantage: false },
+      animalHandling: { proficient: false, expertise: false, disadvantage: false },
+      arcana: { proficient: false, expertise: false, disadvantage: false },
+      athletics: { proficient: false, expertise: false, disadvantage: false },
+      deception: { proficient: false, expertise: false, disadvantage: false },
+      history: { proficient: false, expertise: false, disadvantage: false },
+      insight: { proficient: false, expertise: false, disadvantage: false },
+      intimidation: { proficient: false, expertise: false, disadvantage: false },
+      investigation: { proficient: false, expertise: false, disadvantage: false },
+      medicine: { proficient: false, expertise: false, disadvantage: false },
+      nature: { proficient: false, expertise: false, disadvantage: false },
+      perception: { proficient: false, expertise: false, disadvantage: false },
+      performance: { proficient: false, expertise: false, disadvantage: false },
+      persuasion: { proficient: false, expertise: false, disadvantage: false },
+      religion: { proficient: false, expertise: false, disadvantage: false },
+      sleightOfHand: { proficient: false, expertise: false, disadvantage: false },
+      stealth: { proficient: false, expertise: false, disadvantage: false },
+      survival: { proficient: false, expertise: false, disadvantage: false },
     },
 
     armorClass: 10,

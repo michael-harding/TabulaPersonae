@@ -113,11 +113,25 @@ describe("SkillsProficiencies", () => {
       )
       expect(screen.getByText(/no additional proficiencies/i)).toBeInTheDocument()
     })
+
+    it("shows D pip for a skill with disadvantage", () => {
+      const character = makeCharacter({
+        skills: { ...makeCharacter().skills, stealth: { proficient: true, expertise: true, disadvantage: true } },
+      })
+      render(<SkillsProficiencies character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("D")).toBeInTheDocument()
+    })
+
+    it("does not show D pip when no skills have disadvantage", () => {
+      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("D")).not.toBeInTheDocument()
+    })
   })
 
   describe("edit mode — skill proficiency/expertise", () => {
     // In edit mode, checkboxes with title="Proficient" are one per skill (18 total, in skill order).
     // Checkboxes with title="Expertise" are one per skill (18 total, in skill order).
+    // Checkboxes with title="Disadvantage" are one per skill (18 total, in skill order).
     // The first 6 checkboxes (no title) are saving throw proficiency boxes.
 
     it("toggles skill proficiency ON for an unproficient skill", () => {
@@ -174,6 +188,25 @@ describe("SkillsProficiencies", () => {
         expect.objectContaining({
           skills: expect.objectContaining({
             perception: expect.objectContaining({ proficient: true, expertise: true }),
+          }),
+        })
+      )
+    })
+
+    it("toggles skill disadvantage ON (perception)", () => {
+      const onUpdate = vi.fn()
+      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+
+      // perception is index 11 — D buttons are rendered as <button title="Disadvantage">
+      const disadvButtons = screen.getAllByRole("button", { name: "Disadvantage" })
+      fireEvent.click(disadvButtons[11])
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skills: expect.objectContaining({
+            perception: expect.objectContaining({ disadvantage: true }),
           }),
         })
       )
@@ -239,9 +272,9 @@ describe("SkillsProficiencies", () => {
       render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
-      // In edit mode button order: [0]=Save changes, [1]=Cancel, [2]=X for "Common", [3]=X for "Elvish", ...
-      const buttons = screen.getAllByRole("button")
-      fireEvent.click(buttons[2]) // remove "Common"
+      // Remove language buttons have aria-label="Remove language"; first one removes "Common"
+      const removeLangButtons = screen.getAllByRole("button", { name: /remove language/i })
+      fireEvent.click(removeLangButtons[0])
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
 
       const updatedLanguages = onUpdate.mock.calls[0][0].languages
