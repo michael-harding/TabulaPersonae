@@ -81,6 +81,11 @@ export interface Feature {
   description: string
   source: FeatureKind
   actionKind?: ActionKind
+  type?: ActionType
+  range?: string
+  uses?: number
+  maxUses?: number
+  rechargeOn?: 'short-rest' | 'long-rest'
 }
 
 interface ActionBase {

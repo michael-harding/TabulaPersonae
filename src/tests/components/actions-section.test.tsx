@@ -637,11 +637,11 @@ describe("ActionsSection", () => {
       fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Rage" } })
       const typeInput = within(modal).getAllByRole("combobox").find((el) => (el as HTMLInputElement).value !== "Rage")!
       fireEvent.focus(typeInput)
-      fireEvent.click(within(modal).getByRole("option", { name: "Class Feature" }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Ability" }))
       fireEvent.click(within(modal).getByRole("button", { name: /^add action$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          attacks: expect.arrayContaining([expect.objectContaining({ type: "Class Feature" })]),
+          attacks: expect.arrayContaining([expect.objectContaining({ type: "Ability" })]),
         })
       )
     })
@@ -786,6 +786,84 @@ describe("ActionsSection", () => {
         />
       )
       expect(screen.getByText("Take an extra action.")).toBeInTheDocument()
+    })
+
+    it("shows type and range in the feature card detail line", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", type: "class-feature", range: "30 ft" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText(/30 ft/)).toBeInTheDocument()
+    })
+
+    it("shows pip tracker when feature has maxUses > 0", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", maxUses: 3, uses: 0 })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+    })
+
+    it("does not show pip tracker when feature has no maxUses", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+    })
+
+    it("clicking pip calls onUpdate with updated classFeatures uses", () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ id: "cf-1", actionKind: "action", maxUses: 3, uses: 0 })] })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          classFeatures: expect.arrayContaining([expect.objectContaining({ id: "cf-1", uses: 1 })]),
+        })
+      )
+    })
+
+    it("clicking pip calls onUpdate with updated speciesTraits uses", () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActionsSection
+          character={makeCharacter({ speciesTraits: [makeFeature({ id: "st-1", source: "species-trait", actionKind: "action", maxUses: 2, uses: 0 })] })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          speciesTraits: expect.arrayContaining([expect.objectContaining({ id: "st-1", uses: 1 })]),
+        })
+      )
+    })
+
+    it("clicking pip calls onUpdate with updated feats uses", () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActionsSection
+          character={makeCharacter({ feats: [makeFeature({ id: "ft-1", source: "feat", actionKind: "action", maxUses: 2, uses: 0 })] })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          feats: expect.arrayContaining([expect.objectContaining({ id: "ft-1", uses: 1 })]),
+        })
+      )
     })
   })
 })

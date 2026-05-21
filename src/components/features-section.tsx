@@ -1,16 +1,20 @@
 import { createSignal, For, Show } from "solid-js"
-import type { Character, Feature, FeatureKind, ActionKind } from "@/lib/character-types"
+import type { Character, Feature, FeatureKind, ActionKind, ActionType } from "@/lib/character-types"
 import { safeFeatures } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { PipTracker } from "@/components/ui/pip-tracker"
+import { StepperInput } from "@/components/ui/stepper-input"
 import BookOpen from "lucide-solid/icons/book-open"
 import Leaf from "lucide-solid/icons/leaf"
 import Star from "lucide-solid/icons/star"
@@ -48,10 +52,17 @@ const ACTION_KIND_LABELS: Record<ActionKind, string> = {
   'reaction': 'Reaction',
 }
 
+const ACTION_TYPE_LABELS = ['Attack', 'Ability', 'Other']
+
 interface FeatureFormData {
   name: string
   description: string
   actionKind: ActionKind | ''
+  type: string
+  range: string
+  uses: number
+  maxUses: number
+  rechargeOn: '' | 'short-rest' | 'long-rest'
 }
 
 interface FeatureFormProps {
@@ -62,7 +73,7 @@ interface FeatureFormProps {
 
 function FeatureForm(props: FeatureFormProps) {
   const [formData, setFormData] = createSignal<FeatureFormData>(
-    props.initialData ?? { name: '', description: '', actionKind: '' }
+    props.initialData ?? { name: '', description: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '' }
   )
 
   const handleSubmit = (e: Event) => {
@@ -108,6 +119,48 @@ function FeatureForm(props: FeatureFormProps) {
           </SelectContent>
         </Select>
       </div>
+      <Show when={formData().actionKind !== ''}>
+        <div class="space-y-1">
+          <Label for="feature-type">Type</Label>
+          <Combobox
+            value={formData().type}
+            onValueChange={(v) => setFormData((d) => ({ ...d, type: v }))}
+            options={ACTION_TYPE_LABELS}
+          />
+        </div>
+        <div class="space-y-1">
+          <Label for="feature-range">Range</Label>
+          <Input
+            id="feature-range"
+            value={formData().range}
+            onInput={(e) => setFormData((d) => ({ ...d, range: e.currentTarget.value }))}
+            placeholder="5 ft, 30 ft, Touch, Self"
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="space-y-1">
+            <Label for="feature-uses">Current Uses</Label>
+            <NumericInput id="feature-uses" min={0} value={formData().uses}
+              onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
+          </div>
+          <div class="space-y-1">
+            <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
+            <NumericInput id="feature-max-uses" min={0} value={formData().maxUses}
+              onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
+          </div>
+        </div>
+        <div class="space-y-1">
+          <Label for="feature-recharge">Recharge On</Label>
+          <Select value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
+            <SelectTrigger id="feature-recharge"><SelectValue placeholder="None" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">None</SelectItem>
+              <SelectItem value="short-rest">Short Rest</SelectItem>
+              <SelectItem value="long-rest">Long Rest</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </Show>
       <div class="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={props.onCancel}>Cancel</Button>
         <Button type="submit">Save</Button>
@@ -138,6 +191,11 @@ export function FeaturesSection(props: FeaturesSectionProps) {
       description: data.description,
       source: kind,
       actionKind: data.actionKind || undefined,
+      type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
+      range: (data.actionKind && data.range) ? data.range : undefined,
+      uses: (data.actionKind && data.uses) ? data.uses : undefined,
+      maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
+      rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
     }
     props.onUpdate({
       ...props.character,
@@ -153,11 +211,28 @@ export function FeaturesSection(props: FeaturesSectionProps) {
       ...props.character,
       [field]: safeFeatures(props.character[field]).map((f) =>
         f.id === editing.id
-          ? { ...f, name: data.name.trim(), description: data.description, actionKind: data.actionKind || undefined }
+          ? {
+              ...f,
+              name: data.name.trim(),
+              description: data.description,
+              actionKind: data.actionKind || undefined,
+              type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
+              range: (data.actionKind && data.range) ? data.range : undefined,
+              uses: (data.actionKind && data.uses) ? data.uses : undefined,
+              maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
+              rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
+            }
           : f
       ),
     })
     setEditingFeature(null)
+  }
+
+  const handleFeatureUsesChange = (field: SectionField, id: string, v: number) => {
+    props.onUpdate({
+      ...props.character,
+      [field]: safeFeatures(props.character[field]).map((f) => f.id === id ? { ...f, uses: v } : f),
+    })
   }
 
   const handleDelete = (field: SectionField, id: string) => {
@@ -249,6 +324,27 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                           <Show when={feature.description}>
                             <p class="text-sm text-muted-foreground">{feature.description}</p>
                           </Show>
+                          <Show when={(feature.maxUses ?? 0) > 0}>
+                            <Show
+                              when={(feature.maxUses ?? 0) <= 5}
+                              fallback={
+                                <StepperInput
+                                  value={feature.uses ?? 0}
+                                  min={0}
+                                  max={feature.maxUses!}
+                                  onChange={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
+                                />
+                              }
+                            >
+                              <PipTracker
+                                total={feature.maxUses!}
+                                used={feature.uses ?? 0}
+                                onToggle={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
+                                usedTitle="Charge spent (click to restore)"
+                                availableTitle="Charge available (click to use)"
+                              />
+                            </Show>
+                          </Show>
                         </div>
                       )}
                     </For>
@@ -301,6 +397,11 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                       name: feature().name,
                       description: feature().description,
                       actionKind: feature().actionKind ?? '',
+                      type: feature().type ?? '',
+                      range: feature().range ?? '',
+                      uses: feature().uses ?? 0,
+                      maxUses: feature().maxUses ?? 0,
+                      rechargeOn: feature().rechargeOn ?? '',
                     }}
                     onSubmit={(data) => handleUpdate(section.field, data)}
                     onCancel={() => setEditingFeature(null)}

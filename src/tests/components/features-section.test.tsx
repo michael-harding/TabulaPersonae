@@ -396,6 +396,120 @@ describe("FeaturesSection", () => {
     })
   })
 
+  describe("action fields in form", () => {
+    it("does not show type/range/uses/recharge fields when no actionKind is selected", () => {
+      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).queryByRole("combobox")).not.toBeInTheDocument() // type combobox hidden
+      expect(within(modal).queryByLabelText(/^range$/i)).not.toBeInTheDocument()
+      expect(within(modal).queryByLabelText(/max uses/i)).not.toBeInTheDocument()
+      expect(within(modal).queryByLabelText(/recharge on/i)).not.toBeInTheDocument()
+    })
+
+    it("shows type/range/uses/recharge fields after selecting an actionKind", () => {
+      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("button", { name: /used as action/i }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Action" }))
+      expect(within(modal).getByRole("combobox")).toBeInTheDocument() // type combobox
+      expect(within(modal).getByLabelText(/^range$/i)).toBeInTheDocument()
+      expect(within(modal).getByLabelText(/max uses/i)).toBeInTheDocument()
+      expect(within(modal).getByLabelText(/recharge on/i)).toBeInTheDocument()
+    })
+
+    it("saves range and rechargeOn when actionKind is set", () => {
+      const onUpdate = vi.fn()
+      render(<FeaturesSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Lay on Hands" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /used as action/i }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Action" }))
+      fireEvent.input(within(modal).getByLabelText(/^range$/i), { target: { value: "Touch" } })
+      const maxUsesInput = within(modal).getByLabelText(/max uses/i)
+      fireEvent.input(maxUsesInput, { target: { value: "5" } })
+      fireEvent.blur(maxUsesInput)
+      fireEvent.click(within(modal).getByLabelText(/recharge on/i))
+      fireEvent.click(within(modal).getByRole("option", { name: "Long Rest" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          classFeatures: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Lay on Hands",
+              actionKind: "action",
+              range: "Touch",
+              maxUses: 5,
+              rechargeOn: "long-rest",
+            }),
+          ]),
+        })
+      )
+    })
+
+    it("clears action fields when actionKind is unset on edit", () => {
+      const onUpdate = vi.fn()
+      const feature = makeFeature({ name: "Lay on Hands", actionKind: "action", maxUses: 5, rechargeOn: "long-rest" })
+      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /edit lay on hands/i }))
+      fireEvent.click(screen.getByRole("button", { name: /used as action/i }))
+      fireEvent.click(screen.getByRole("option", { name: "Not an action" }))
+      fireEvent.click(screen.getByRole("button", { name: /save/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          classFeatures: expect.arrayContaining([
+            expect.objectContaining({ actionKind: undefined, maxUses: undefined, rechargeOn: undefined }),
+          ]),
+        })
+      )
+    })
+
+    it("pre-fills range and rechargeOn in edit modal for action-type features", () => {
+      const feature = makeFeature({ name: "Lay on Hands", actionKind: "action", range: "Touch", maxUses: 5, rechargeOn: "long-rest" })
+      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /edit lay on hands/i }))
+      expect(screen.getByLabelText(/^range$/i)).toHaveValue("Touch")
+      expect(screen.getByLabelText(/max uses/i)).toHaveValue(5)
+    })
+  })
+
+  describe("uses tracker in feature card", () => {
+    it("shows pip tracker when feature has maxUses > 0", () => {
+      const feature = makeFeature({ actionKind: "action", maxUses: 3, uses: 0 })
+      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+    })
+
+    it("does not show pip tracker when feature has no maxUses", () => {
+      const feature = makeFeature({ actionKind: "action" })
+      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+    })
+
+    it("reflects used pips correctly", () => {
+      const feature = makeFeature({ actionKind: "action", maxUses: 3, uses: 1 })
+      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getAllByTitle("Charge spent (click to restore)")).toHaveLength(1)
+      expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(2)
+    })
+
+    it("calls onUpdate with updated uses when pip is clicked", () => {
+      const onUpdate = vi.fn()
+      const feature = makeFeature({ id: "f-1", actionKind: "action", maxUses: 3, uses: 0 })
+      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          classFeatures: expect.arrayContaining([
+            expect.objectContaining({ id: "f-1", uses: 1 }),
+          ]),
+        })
+      )
+    })
+  })
+
   describe("Delete feature", () => {
     it("calls onUpdate with the feature removed", () => {
       const onUpdate = vi.fn()

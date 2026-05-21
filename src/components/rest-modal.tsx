@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, parseHitDiceSize, rollHitDice } from "@/lib/character-utils"
+import { getAbilityModifier, parseHitDiceSize, rollHitDice, safeFeatures } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -35,6 +35,9 @@ export function RestModal(props: RestModalProps) {
       ...(props.character.attacks ?? []),
       ...(props.character.bonusActions ?? []),
       ...(props.character.reactions ?? []),
+      ...safeFeatures(props.character.classFeatures),
+      ...safeFeatures(props.character.speciesTraits),
+      ...safeFeatures(props.character.feats),
     ]
     if (restType() === "short") return all.filter((a) => a.rechargeOn === "short-rest")
     return all.filter((a) => a.rechargeOn === "short-rest" || a.rechargeOn === "long-rest")
@@ -69,6 +72,9 @@ export function RestModal(props: RestModalProps) {
         attacks: resetMatching(attacks, "short-rest"),
         bonusActions: resetMatching(bonusActions, "short-rest"),
         reactions: resetMatching(reactions, "short-rest"),
+        classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest"),
+        speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest"),
+        feats: resetMatching(safeFeatures(char.feats), "short-rest"),
       })
       if (spent === 0) handleClose()
     } else {
@@ -84,6 +90,9 @@ export function RestModal(props: RestModalProps) {
         attacks: resetMatching(attacks, "short-rest", "long-rest"),
         bonusActions: resetMatching(bonusActions, "short-rest", "long-rest"),
         reactions: resetMatching(reactions, "short-rest", "long-rest"),
+        classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest", "long-rest"),
+        speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest", "long-rest"),
+        feats: resetMatching(safeFeatures(char.feats), "short-rest", "long-rest"),
       })
       handleClose()
     }

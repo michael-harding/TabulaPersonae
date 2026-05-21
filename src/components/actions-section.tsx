@@ -33,9 +33,6 @@ interface ActionsSectionProps {
 const ACTION_TYPES: { value: ActionType; label: string }[] = [
   { value: "attack", label: "Attack" },
   { value: "ability", label: "Ability" },
-  { value: "class-feature", label: "Class Feature" },
-  { value: "feat", label: "Feat" },
-  { value: "species-ability", label: "Species Ability" },
   { value: "other", label: "Other" },
 ]
 
@@ -226,19 +223,29 @@ const FEATURE_SOURCE_LABELS: Record<string, string> = {
   'feat': 'Feat',
 }
 
-function FeatureActionCard(props: { feature: Feature }) {
+function FeatureActionCard(props: { feature: Feature; onUsesChange: (v: number) => void }) {
+  const sourceLabel = () => FEATURE_SOURCE_LABELS[props.feature.source] ?? props.feature.source
   return (
     <div class="p-3 border rounded-lg space-y-2">
       <div class="flex items-start justify-between">
         <div>
           <div class="font-medium">{props.feature.name}</div>
-          <div class="text-xs text-muted-foreground">{FEATURE_SOURCE_LABELS[props.feature.source] ?? props.feature.source}</div>
+          <div class="text-xs text-muted-foreground">
+            {sourceLabel()}
+            {props.feature.type && ` • ${ACTION_TYPE_LABEL[props.feature.type] ?? props.feature.type}`}
+            {props.feature.range && ` • ${props.feature.range}`}
+          </div>
         </div>
-        <Badge variant="secondary" class="text-xs">{FEATURE_SOURCE_LABELS[props.feature.source] ?? props.feature.source}</Badge>
+        <Badge variant="secondary" class="text-xs">{sourceLabel()}</Badge>
       </div>
       <Show when={props.feature.description}>
         <div class="text-xs text-muted-foreground line-clamp-2">{props.feature.description}</div>
       </Show>
+      <ActionUsesTracker
+        uses={props.feature.uses ?? 0}
+        maxUses={props.feature.maxUses ?? 0}
+        onUsesChange={props.onUsesChange}
+      />
     </div>
   )
 }
@@ -337,6 +344,15 @@ export function ActionsSection(props: ActionsSectionProps) {
 
   const handleReactionUsesChange = (id: string, v: number) => {
     props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).map(r => r.id === id ? { ...r, uses: v } : r) })
+  }
+
+  const handleFeatureUsesChange = (feature: Feature, v: number) => {
+    const field = feature.source === 'class-feature' ? 'classFeatures'
+      : feature.source === 'species-trait' ? 'speciesTraits' : 'feats'
+    props.onUpdate({
+      ...props.character,
+      [field]: safeFeatures(props.character[field as 'classFeatures' | 'speciesTraits' | 'feats']).map(f => f.id === feature.id ? { ...f, uses: v } : f),
+    })
   }
 
   const SpellCard = (
@@ -464,7 +480,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                 }}
               </For>
               <For each={featureActions()}>
-                {(feature) => <FeatureActionCard feature={feature} />}
+                {(feature) => <FeatureActionCard feature={feature} onUsesChange={(v) => handleFeatureUsesChange(feature, v)} />}
               </For>
               <For each={props.character.attacks || []}>
                 {(attack) => (
@@ -543,7 +559,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                 }}
               </For>
               <For each={featureBonuses()}>
-                {(feature) => <FeatureActionCard feature={feature} />}
+                {(feature) => <FeatureActionCard feature={feature} onUsesChange={(v) => handleFeatureUsesChange(feature, v)} />}
               </For>
               <For each={props.character.bonusActions || []}>
                 {(bonus) => (
@@ -618,7 +634,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                 }}
               </For>
               <For each={featureReactions()}>
-                {(feature) => <FeatureActionCard feature={feature} />}
+                {(feature) => <FeatureActionCard feature={feature} onUsesChange={(v) => handleFeatureUsesChange(feature, v)} />}
               </For>
               <For each={props.character.reactions || []}>
                 {(reaction) => (

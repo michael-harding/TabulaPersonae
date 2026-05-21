@@ -2,7 +2,7 @@ import { createSignal } from "solid-js"
 import { render, screen, fireEvent, within } from "../test-utils"
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Reaction } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Reaction, Feature } from "@/lib/character-types"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return {
@@ -26,6 +26,10 @@ function makeBonusAction(overrides: Partial<BonusAction> = {}): BonusAction {
 
 function makeReaction(overrides: Partial<Reaction> = {}): Reaction {
   return { id: "r1", name: "Shield", type: "class-feature", description: "", trigger: "Hit", ...overrides }
+}
+
+function makeFeature(overrides: Partial<Feature> = {}): Feature {
+  return { id: "f1", name: "Lay on Hands", description: "", source: "class-feature", ...overrides }
 }
 
 function cleanupPortals() {
@@ -244,6 +248,15 @@ describe("RestModal", () => {
       expect(updated.conditions).toContain("Blinded")
     })
 
+    it("lists class features with rechargeOn 'long-rest' in the long rest features section", () => {
+      const char = makeCharacter({
+        classFeatures: [makeFeature({ name: "Lay on Hands", rechargeOn: "long-rest" })],
+      })
+      openModal(char)
+      switchToLong()
+      expect(within(getDialog()).getByText("Lay on Hands")).toBeInTheDocument()
+    })
+
     it("calls onRest with uses reset for both short-rest and long-rest actions", () => {
       const onRest = vi.fn()
       const char = makeCharacter({
@@ -262,6 +275,63 @@ describe("RestModal", () => {
       expect(updated.attacks![0].uses).toBe(0)
       expect(updated.attacks![1].uses).toBe(0)
       expect(updated.bonusActions![0].uses).toBe(0)
+    })
+
+    it("calls onRest with class feature uses reset on long rest", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        classFeatures: [makeFeature({ id: "f1", rechargeOn: "long-rest", uses: 3, maxUses: 5, actionKind: "action" })],
+      })
+      openModal(char, onRest)
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.classFeatures![0].uses).toBe(0)
+    })
+
+    it("calls onRest with species trait uses reset on long rest", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        speciesTraits: [makeFeature({ id: "s1", source: "species-trait", rechargeOn: "long-rest", uses: 1, maxUses: 2, actionKind: "action" })],
+      })
+      openModal(char, onRest)
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.speciesTraits![0].uses).toBe(0)
+    })
+
+    it("does not reset class feature uses when rechargeOn is long-rest and only short rest is taken", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        classFeatures: [makeFeature({ id: "f1", rechargeOn: "long-rest", uses: 3, maxUses: 5, actionKind: "action" })],
+      })
+      openModal(char, onRest)
+      // stay on short rest (default)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.classFeatures![0].uses).toBe(3)
+    })
+  })
+
+  describe("short rest feature recharge", () => {
+    it("lists class features with rechargeOn 'short-rest' in the recharging section", () => {
+      const char = makeCharacter({
+        classFeatures: [makeFeature({ name: "Second Wind", rechargeOn: "short-rest", actionKind: "action" })],
+      })
+      openModal(char)
+      expect(within(getDialog()).getByText("Second Wind")).toBeInTheDocument()
+    })
+
+    it("calls onRest with class feature uses reset on short rest", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        classFeatures: [makeFeature({ id: "f1", rechargeOn: "short-rest", uses: 2, maxUses: 3, actionKind: "action" })],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.classFeatures![0].uses).toBe(0)
     })
   })
 })
