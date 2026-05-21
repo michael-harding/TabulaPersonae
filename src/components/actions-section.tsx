@@ -333,12 +333,6 @@ export function ActionsSection(props: ActionsSectionProps) {
     (spell.level === 0 ? (spell.known ?? true) : spell.prepared) && spell.castingTime.toLowerCase().includes("reaction")
   )
 
-  const getOrdinalSuffix = (num: number): string => {
-    const suffixes = ["th", "st", "nd", "rd"]
-    const v = num % 100
-    return num + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0])
-  }
-
   const updateSpellSlotUsed = (level: number, used: number) => {
     props.onUpdate({
       ...props.character,
@@ -425,13 +419,22 @@ export function ActionsSection(props: ActionsSectionProps) {
             {spell.level > 0 ? `${getOrdinalSuffix(spell.level)} level` : "Cantrip"} • {spell.school}
           </div>
         </div>
-        <Badge variant="secondary" class="text-xs">Spell</Badge>
+        <div class="flex flex-col items-end gap-1">
+          <Badge variant="secondary" class="text-xs">Spell</Badge>
+          <Show when={spell.concentration}>
+            <Badge variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">Concentration</Badge>
+          </Show>
+          <Show when={spell.duration && !spell.duration.toLowerCase().includes("instantaneous")}>
+            <Badge variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">
+              {spell.duration.replace(/^concentration,\s*/i, "")}
+            </Badge>
+          </Show>
+        </div>
       </div>
       <div class="text-sm space-y-1">
         <Show when={spell.attackSave}><div><strong>Attack/Save:</strong> {spell.attackSave}</div></Show>
         <Show when={spell.regain}><div><strong>Regain:</strong> {spell.regain}</div></Show>
         <Show when={spell.atHigherLevel}><div><strong>At Higher Level:</strong> {spell.atHigherLevel}</div></Show>
-        <div><strong>Attack:</strong> {formatModifier(spellAttackBonus())} to hit</div>
         <div><strong>Range:</strong> {spell.range}</div>
         <div><strong>Components:</strong> {spell.components}</div>
       </div>
