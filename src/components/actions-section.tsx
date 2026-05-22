@@ -230,7 +230,7 @@ function FeatureActionCard(props: { feature: Feature; onUsesChange: (v: number) 
   return (
     <div class="p-3 border rounded-lg space-y-2">
       <div class="flex items-start justify-between">
-        <div>
+        <div class="flex-1 min-w-0">
           <div class="font-medium">{props.feature.name}</div>
           <div class="text-xs text-muted-foreground">
             {sourceLabel()}
@@ -238,7 +238,7 @@ function FeatureActionCard(props: { feature: Feature; onUsesChange: (v: number) 
             {props.feature.range && ` • ${props.feature.range}`}
           </div>
         </div>
-        <Badge variant="secondary" class="text-xs">{sourceLabel()}</Badge>
+        <Badge variant="secondary" class="text-xs shrink-0 ml-2">{sourceLabel()}</Badge>
       </div>
       <Show when={props.feature.description}>
         <div class="text-xs text-muted-foreground line-clamp-2">{props.feature.description}</div>
@@ -322,18 +322,27 @@ function SpellCard(props: SpellCardProps) {
   const [concentrationActive, setConcentrationActive] = createSignal(false)
   const spell = props.spell
   return (
-    <div class="p-3 border rounded-lg space-y-2 relative">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="font-medium flex items-center gap-1">
-            {spell.name}
-            <SpellDetailPopover spell={spell} />
+    <div class="p-3 border rounded-lg flex flex-col gap-2">
+      <div class="flex items-start gap-2">
+        <div class="flex-1 min-w-0 space-y-1">
+          <div>
+            <div class="font-medium flex items-center gap-1">
+              {spell.name}
+              <SpellDetailPopover spell={spell} />
+            </div>
+            <div class="text-xs text-muted-foreground">
+              {spell.level > 0 ? `${getOrdinalSuffix(spell.level)} level` : "Cantrip"} • {spell.school}
+            </div>
           </div>
-          <div class="text-xs text-muted-foreground">
-            {spell.level > 0 ? `${getOrdinalSuffix(spell.level)} level` : "Cantrip"} • {spell.school}
+          <div class="text-sm space-y-1">
+            <Show when={spell.attackSave}><div><strong>Attack/Save:</strong> {spell.attackSave}</div></Show>
+            <Show when={spell.regain}><div><strong>Regain:</strong> {spell.regain}</div></Show>
+            <Show when={spell.atHigherLevel}><div><strong>At Higher Level:</strong> {spell.atHigherLevel}</div></Show>
+            <div><strong>Range:</strong> {spell.range}</div>
+            <div><strong>Components:</strong> {spell.components}</div>
           </div>
         </div>
-        <div class="flex flex-col items-end gap-1">
+        <div class="flex flex-col items-end gap-1 shrink-0">
           <Badge variant="secondary" class="text-xs">Spell</Badge>
           <Show when={spell.concentration}>
             <Badge
@@ -349,44 +358,39 @@ function SpellCard(props: SpellCardProps) {
           </Show>
         </div>
       </div>
-      <div class="text-sm space-y-1">
-        <Show when={spell.attackSave}><div><strong>Attack/Save:</strong> {spell.attackSave}</div></Show>
-        <Show when={spell.regain}><div><strong>Regain:</strong> {spell.regain}</div></Show>
-        <Show when={spell.atHigherLevel}><div><strong>At Higher Level:</strong> {spell.atHigherLevel}</div></Show>
-        <div><strong>Range:</strong> {spell.range}</div>
-        <div><strong>Components:</strong> {spell.components}</div>
+      <div class="flex items-center justify-end gap-2 mt-auto">
+        <Show when={spell.regain}>
+          <div class="px-2 py-1 border-2 border-green-500 rounded text-green-700 font-semibold whitespace-nowrap text-sm">{spell.regain}</div>
+        </Show>
+        <Show when={!spell.regain && spell.damage}>
+          <div class="px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap text-sm">{spell.damage}</div>
+        </Show>
+        <Show when={spell.level > 0 && props.onCast}>
+          <div class="flex items-center gap-1">
+            <Show when={props.upcastSpellId() === spell.id && props.upcastLevels && props.upcastLevels().length > 0}>
+              <div class="flex gap-1">
+                <For each={props.upcastLevels!()}>
+                  {(level) => (
+                    <Button variant="secondary" size="sm" class="h-11 min-w-[44px] px-2 text-xs"
+                      onClick={() => props.onCastAtLevel?.(level)}>
+                      {getOrdinalSuffix(level)}
+                    </Button>
+                  )}
+                </For>
+              </div>
+            </Show>
+            <Button variant="outline" size="sm" class="h-11 px-4" disabled={!props.castable()} onClick={props.onCast}>Cast</Button>
+            <Show when={!!spell.atHigherLevel && props.hasHigherSlots?.()}>
+              <Button variant="outline" size="sm" class="h-11 w-11 p-0"
+                aria-label="Upcast"
+                disabled={!props.upcastLevels?.().length}
+                onClick={() => props.onUpcastSpellId(props.upcastSpellId() === spell.id ? null : spell.id)}>
+                <ArrowBigUp class="h-4 w-4" />
+              </Button>
+            </Show>
+          </div>
+        </Show>
       </div>
-      <Show when={spell.regain}>
-        <div class="absolute right-2 bottom-16 px-2 py-1 border-2 border-green-500 rounded text-green-700 font-semibold whitespace-nowrap">{spell.regain}</div>
-      </Show>
-      <Show when={!spell.regain && spell.damage}>
-        <div class="absolute right-2 bottom-16 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">{spell.damage}</div>
-      </Show>
-      <Show when={spell.level > 0 && props.onCast}>
-        <div class="absolute bottom-2 right-2 flex items-center gap-1">
-          <Show when={props.upcastSpellId() === spell.id && props.upcastLevels && props.upcastLevels().length > 0}>
-            <div class="flex gap-1">
-              <For each={props.upcastLevels!()}>
-                {(level) => (
-                  <Button variant="secondary" size="sm" class="h-11 min-w-[44px] px-2 text-xs"
-                    onClick={() => props.onCastAtLevel?.(level)}>
-                    {getOrdinalSuffix(level)}
-                  </Button>
-                )}
-              </For>
-            </div>
-          </Show>
-          <Button variant="outline" size="sm" class="h-11 px-4" disabled={!props.castable()} onClick={props.onCast}>Cast</Button>
-          <Show when={!!spell.atHigherLevel && props.hasHigherSlots?.()}>
-            <Button variant="outline" size="sm" class="h-11 w-11 p-0"
-              aria-label="Upcast"
-              disabled={!props.upcastLevels?.().length}
-              onClick={() => props.onUpcastSpellId(props.upcastSpellId() === spell.id ? null : spell.id)}>
-              <ArrowBigUp class="h-4 w-4" />
-            </Button>
-          </Show>
-        </div>
-      </Show>
     </div>
   )
 }
@@ -557,11 +561,11 @@ export function ActionsSection(props: ActionsSectionProps) {
                 {(attack) => (
                   <div class="p-3 border rounded-lg space-y-2">
                     <div class="flex items-start justify-between">
-                      <div>
+                      <div class="flex-1 min-w-0">
                         <div class="font-medium">{attack.name}</div>
                         <div class="text-xs text-muted-foreground">{ACTION_TYPE_LABEL[attack.type] ?? attack.type}</div>
                       </div>
-                      <div class="flex items-center gap-2">
+                      <div class="flex items-center gap-2 shrink-0 ml-2">
                         <Badge variant="outline" class="text-xs">{ACTION_TYPE_LABEL[attack.type] ?? attack.type}</Badge>
                         <Tooltip content="Delete attack">
                           <button type="button" class="" aria-label="Delete Attack" onClick={() => handleDeleteAttack(attack.id)}>
@@ -570,8 +574,8 @@ export function ActionsSection(props: ActionsSectionProps) {
                         </Tooltip>
                       </div>
                     </div>
-                    <div class="flex items-center justify-between text-sm">
-                      <div class="flex-1">
+                    <div class="flex items-start justify-between gap-2 text-sm">
+                      <div class="space-y-1">
                         <Show when={attack.attackBonus !== undefined}>
                           <div><strong>Attack:</strong> {formatModifier(attack.attackBonus ?? 0)} to hit</div>
                         </Show>
@@ -580,7 +584,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                         </Show>
                       </div>
                       <Show when={attack.damage}>
-                        <div class="ml-4 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
+                        <div class="shrink-0 px-2 py-1 border-2 border-red-500 rounded text-red-700 font-semibold whitespace-nowrap">
                           {attack.damage} {attack.damageType}
                         </div>
                       </Show>
@@ -636,11 +640,11 @@ export function ActionsSection(props: ActionsSectionProps) {
                 {(bonus) => (
                   <div class="p-3 border rounded-lg space-y-2">
                     <div class="flex items-start justify-between">
-                      <div>
+                      <div class="flex-1 min-w-0">
                         <div class="font-medium">{bonus.name}</div>
                         <div class="text-xs text-muted-foreground">{ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}</div>
                       </div>
-                      <div class="flex items-center gap-2">
+                      <div class="flex items-center gap-2 shrink-0 ml-2">
                         <Badge variant="outline" class="text-xs">{ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}</Badge>
                         <Tooltip content="Delete bonus action">
                           <button type="button" class="" aria-label="Delete Bonus Action" onClick={() => handleDeleteBonusAction(bonus.id)}>
@@ -711,11 +715,11 @@ export function ActionsSection(props: ActionsSectionProps) {
                 {(reaction) => (
                   <div class="p-3 border rounded-lg space-y-2">
                     <div class="flex items-start justify-between">
-                      <div>
+                      <div class="flex-1 min-w-0">
                         <div class="font-medium">{reaction.name}</div>
                         <div class="text-xs text-muted-foreground">{ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}</div>
                       </div>
-                      <div class="flex items-center gap-2">
+                      <div class="flex items-center gap-2 shrink-0 ml-2">
                         <Badge variant="outline" class="text-xs">{ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}</Badge>
                         <Tooltip content="Delete reaction">
                           <button type="button" class="" aria-label="Delete Reaction" onClick={() => handleDeleteReaction(reaction.id)}>
