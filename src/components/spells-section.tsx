@@ -518,15 +518,10 @@ export function SpellsSection(props: SpellsSectionProps) {
                                       </label>
                                       <Badge variant="outline" class="text-xs">{spell.school}</Badge>
                                       <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>
-                                      <Show when={spell.concentration}>
-                                        <Badge variant="secondary" class="text-xs" title="Concentration">C</Badge>
-                                      </Show>
                                       <Show when={spell.ritual}>
                                         <Badge variant="secondary" class="text-xs" title="Ritual">R</Badge>
                                       </Show>
-                                      <Show when={spell.prepared}>
-                                        <Badge variant="secondary" class="text-xs">Prepared</Badge>
-                                      </Show>
+
                                     </div>
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground mb-2">
                                       <Show when={spell.castingTime}><div><span class="font-medium">Time:</span> {spell.castingTime}</div></Show>
