@@ -167,44 +167,40 @@ function SpellForm(props: SpellFormProps) {
         <Textarea id="description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Spell description and effects" rows={4} />
       </div>
 
-      <div class="flex items-center space-x-2">
+      <label class="flex items-center gap-3 cursor-pointer min-h-[44px]">
         <Checkbox
-          id="known"
           checked={formData().known}
           onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
         />
-        <Label for="known">Known</Label>
-      </div>
+        <span class="text-sm font-medium leading-none">Known</span>
+      </label>
 
       <Show when={formData().level > 0}>
-        <div class="flex items-center space-x-2">
+        <label class="flex items-center gap-3 cursor-pointer min-h-[44px]" classList={{ "opacity-50 cursor-not-allowed": !formData().known }}>
           <Checkbox
-            id="prepared"
             checked={formData().prepared}
             disabled={!formData().known}
             onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
           />
-          <Label for="prepared">Prepared</Label>
-        </div>
+          <span class="text-sm font-medium leading-none">Prepared</span>
+        </label>
       </Show>
 
-      <div class="flex items-center gap-6">
-        <div class="flex items-center space-x-2">
+      <div class="flex flex-wrap gap-x-6 gap-y-2">
+        <label class="flex items-center gap-3 cursor-pointer min-h-[44px]">
           <Checkbox
-            id="concentration"
             checked={!!formData().concentration}
             onChange={(checked: boolean) => setFormData((p) => ({ ...p, concentration: checked }))}
           />
-          <Label for="concentration">Concentration</Label>
-        </div>
-        <div class="flex items-center space-x-2">
+          <span class="text-sm font-medium leading-none">Concentration</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer min-h-[44px]">
           <Checkbox
-            id="ritual"
             checked={!!formData().ritual}
             onChange={(checked: boolean) => setFormData((p) => ({ ...p, ritual: checked }))}
           />
-          <Label for="ritual">Ritual</Label>
-        </div>
+          <span class="text-sm font-medium leading-none">Ritual</span>
+        </label>
       </div>
 
       <div class="flex gap-2 pt-4">
