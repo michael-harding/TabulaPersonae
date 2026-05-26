@@ -70,7 +70,9 @@ interface ActionFormData {
 
 interface ActionFormProps {
   kind: ActionKind
+  initialData?: Partial<ActionFormData>
   onSubmit: (data: ActionFormData) => void
+  onDelete?: () => void
   onCancel: () => void
 }
 
@@ -81,18 +83,19 @@ const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + 
 
 function ActionForm(props: ActionFormProps) {
   const kindLabel = KIND_LABELS[props.kind]
+  const isEditing = () => !!props.initialData?.name
   const [formData, setFormData] = createSignal<ActionFormData>({
-    name: "",
-    type: "Ability",
-    attackBonus: 0,
-    damage: "",
-    damageType: "Slashing",
-    range: "",
-    trigger: "",
-    uses: 0,
-    maxUses: 0,
-    rechargeOn: "",
-    description: "",
+    name: props.initialData?.name ?? "",
+    type: props.initialData?.type ?? "Ability",
+    attackBonus: props.initialData?.attackBonus ?? 0,
+    damage: props.initialData?.damage ?? "",
+    damageType: props.initialData?.damageType ?? "Slashing",
+    range: props.initialData?.range ?? "",
+    trigger: props.initialData?.trigger ?? "",
+    uses: props.initialData?.uses ?? 0,
+    maxUses: props.initialData?.maxUses ?? 0,
+    rechargeOn: props.initialData?.rechargeOn ?? "",
+    description: props.initialData?.description ?? "",
   })
 
   const handleSubmit = () => {
@@ -183,8 +186,11 @@ function ActionForm(props: ActionFormProps) {
       </div>
 
       <div class="flex gap-2 justify-end">
+        <Show when={props.onDelete}>
+          <Button variant="destructive" onClick={props.onDelete} class="mr-auto">Delete</Button>
+        </Show>
         <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button onClick={handleSubmit}>Add {kindLabel}</Button>
+        <Button onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel}</Button>
       </div>
     </div>
   )
@@ -211,11 +217,34 @@ function spellAccessors(spell: Spell, spellSlots: Character['spellSlots']) {
 
 type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
 
+type StoredAction = ActionFormData & { id: string }
+
 export function ActionsSection(props: ActionsSectionProps) {
-  const [isAddActionOpen, setIsAddActionOpen] = createSignal(false)
-  const [isAddBonusActionOpen, setIsAddBonusActionOpen] = createSignal(false)
-  const [isAddReactionOpen, setIsAddReactionOpen] = createSignal(false)
-  const [isAddOtherOpen, setIsAddOtherOpen] = createSignal(false)
+  const [isActionModalOpen, setIsActionModalOpen] = createSignal(false)
+  const [isBonusActionModalOpen, setIsBonusActionModalOpen] = createSignal(false)
+  const [isReactionModalOpen, setIsReactionModalOpen] = createSignal(false)
+  const [isOtherModalOpen, setIsOtherModalOpen] = createSignal(false)
+
+  const [editingAttack, setEditingAttack] = createSignal<StoredAction | null>(null)
+  const [editingBonusAction, setEditingBonusAction] = createSignal<StoredAction | null>(null)
+  const [editingReaction, setEditingReaction] = createSignal<StoredAction | null>(null)
+  const [editingOther, setEditingOther] = createSignal<StoredAction | null>(null)
+
+  const openAddAction = () => { setEditingAttack(null); setIsActionModalOpen(true) }
+  const openEditAction = (item: StoredAction) => { setEditingAttack(item); setIsActionModalOpen(true) }
+  const closeActionModal = () => { setIsActionModalOpen(false); setEditingAttack(null) }
+
+  const openAddBonusAction = () => { setEditingBonusAction(null); setIsBonusActionModalOpen(true) }
+  const openEditBonusAction = (item: StoredAction) => { setEditingBonusAction(item); setIsBonusActionModalOpen(true) }
+  const closeBonusActionModal = () => { setIsBonusActionModalOpen(false); setEditingBonusAction(null) }
+
+  const openAddReaction = () => { setEditingReaction(null); setIsReactionModalOpen(true) }
+  const openEditReaction = (item: StoredAction) => { setEditingReaction(item); setIsReactionModalOpen(true) }
+  const closeReactionModal = () => { setIsReactionModalOpen(false); setEditingReaction(null) }
+
+  const openAddOther = () => { setEditingOther(null); setIsOtherModalOpen(true) }
+  const openEditOther = (item: StoredAction) => { setEditingOther(item); setIsOtherModalOpen(true) }
+  const closeOtherModal = () => { setIsOtherModalOpen(false); setEditingOther(null) }
   const [upcastSpellId, setUpcastSpellId] = createSignal<string | null>(null)
   const [expandedSections, setExpandedSections] = createSignal<Set<ActionSection>>(
     new Set(['actions', 'bonus-actions', 'reactions', 'other'])
@@ -282,36 +311,68 @@ export function ActionsSection(props: ActionsSectionProps) {
   const normalizeRechargeOn = (data: ActionFormData) =>
     ({ ...data, rechargeOn: data.rechargeOn || undefined } as const)
 
-  const handleAddAction = (data: ActionFormData) => {
-    props.onUpdate({ ...props.character, attacks: [...(props.character.attacks || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
-    setIsAddActionOpen(false)
+  const handleSaveAction = (data: ActionFormData) => {
+    const editing = editingAttack()
+    if (editing) {
+      props.onUpdate({ ...props.character, attacks: (props.character.attacks || []).map(a => a.id === editing.id ? { ...a, ...normalizeRechargeOn(data) } : a) })
+    } else {
+      props.onUpdate({ ...props.character, attacks: [...(props.character.attacks || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
+    }
+    closeActionModal()
   }
-  const handleDeleteAttack = (id: string) => {
+  const handleDeleteAttack = () => {
+    const id = editingAttack()?.id
+    if (!id) return
     props.onUpdate({ ...props.character, attacks: (props.character.attacks || []).filter((a) => a.id !== id) })
+    closeActionModal()
   }
-  const handleAddBonusAction = (data: ActionFormData) => {
-    props.onUpdate({ ...props.character, bonusActions: [...(props.character.bonusActions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
-    setIsAddBonusActionOpen(false)
+  const handleSaveBonusAction = (data: ActionFormData) => {
+    const editing = editingBonusAction()
+    if (editing) {
+      props.onUpdate({ ...props.character, bonusActions: (props.character.bonusActions || []).map(b => b.id === editing.id ? { ...b, ...normalizeRechargeOn(data) } : b) })
+    } else {
+      props.onUpdate({ ...props.character, bonusActions: [...(props.character.bonusActions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
+    }
+    closeBonusActionModal()
   }
-  const handleDeleteBonusAction = (id: string) => {
+  const handleDeleteBonusAction = () => {
+    const id = editingBonusAction()?.id
+    if (!id) return
     props.onUpdate({ ...props.character, bonusActions: (props.character.bonusActions || []).filter((b) => b.id !== id) })
+    closeBonusActionModal()
   }
-  const handleAddReaction = (data: ActionFormData) => {
-    props.onUpdate({ ...props.character, reactions: [...(props.character.reactions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
-    setIsAddReactionOpen(false)
+  const handleSaveReaction = (data: ActionFormData) => {
+    const editing = editingReaction()
+    if (editing) {
+      props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).map(r => r.id === editing.id ? { ...r, ...normalizeRechargeOn(data) } : r) })
+    } else {
+      props.onUpdate({ ...props.character, reactions: [...(props.character.reactions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
+    }
+    closeReactionModal()
   }
-  const handleAddOther = (data: ActionFormData) => {
-    props.onUpdate({ ...props.character, otherActions: [...(props.character.otherActions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) } as OtherAction] })
-    setIsAddOtherOpen(false)
+  const handleDeleteReaction = () => {
+    const id = editingReaction()?.id
+    if (!id) return
+    props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).filter((r) => r.id !== id) })
+    closeReactionModal()
   }
-  const handleDeleteOther = (id: string) => {
+  const handleSaveOther = (data: ActionFormData) => {
+    const editing = editingOther()
+    if (editing) {
+      props.onUpdate({ ...props.character, otherActions: (props.character.otherActions || []).map(o => o.id === editing.id ? { ...o, ...normalizeRechargeOn(data) } : o) })
+    } else {
+      props.onUpdate({ ...props.character, otherActions: [...(props.character.otherActions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) } as OtherAction] })
+    }
+    closeOtherModal()
+  }
+  const handleDeleteOther = () => {
+    const id = editingOther()?.id
+    if (!id) return
     props.onUpdate({ ...props.character, otherActions: (props.character.otherActions || []).filter((o) => o.id !== id) })
+    closeOtherModal()
   }
   const handleOtherUsesChange = (id: string, v: number) => {
     props.onUpdate({ ...props.character, otherActions: (props.character.otherActions || []).map(o => o.id === id ? { ...o, uses: v } : o) })
-  }
-  const handleDeleteReaction = (id: string) => {
-    props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).filter((r) => r.id !== id) })
   }
   const handleAttackUsesChange = (id: string, v: number) => {
     props.onUpdate({ ...props.character, attacks: (props.character.attacks || []).map(a => a.id === id ? { ...a, uses: v } : a) })
@@ -428,7 +489,7 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featureActions().length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={() => setIsAddActionOpen(true)}>
+            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddAction}>
               <Plus class="h-3 w-3" />
               Add Action
             </Button>
@@ -468,7 +529,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                       maxUses={attack.maxUses ?? 0}
                       rechargeOn={attack.rechargeOn}
                       onUsesChange={(v) => handleAttackUsesChange(attack.id, v)}
-                      onDelete={() => handleDeleteAttack(attack.id)}
+                      onEdit={() => openEditAction(attack as StoredAction)}
                     />
                   )}
                 </For>
@@ -486,7 +547,7 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featureBonuses().length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={() => setIsAddBonusActionOpen(true)}>
+            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddBonusAction}>
               <Plus class="h-3 w-3" />
               Add Bonus Action
             </Button>
@@ -513,7 +574,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                       maxUses={bonus.maxUses ?? 0}
                       rechargeOn={bonus.rechargeOn}
                       onUsesChange={(v) => handleBonusActionUsesChange(bonus.id, v)}
-                      onDelete={() => handleDeleteBonusAction(bonus.id)}
+                      onEdit={() => openEditBonusAction(bonus as StoredAction)}
                     />
                   )}
                 </For>
@@ -531,7 +592,7 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featureReactions().length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={() => setIsAddReactionOpen(true)}>
+            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddReaction}>
               <Plus class="h-3 w-3" />
               Add Reaction
             </Button>
@@ -559,7 +620,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                       maxUses={reaction.maxUses ?? 0}
                       rechargeOn={reaction.rechargeOn}
                       onUsesChange={(v) => handleReactionUsesChange(reaction.id, v)}
-                      onDelete={() => handleDeleteReaction(reaction.id)}
+                      onEdit={() => openEditReaction(reaction as StoredAction)}
                     />
                   )}
                 </For>
@@ -577,7 +638,7 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{featureOthers().length + (props.character.otherActions?.length ?? 0)}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={() => setIsAddOtherOpen(true)}>
+            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddOther}>
               <Plus class="h-3 w-3" />
               Add Other
             </Button>
@@ -603,7 +664,7 @@ export function ActionsSection(props: ActionsSectionProps) {
                       maxUses={other.maxUses ?? 0}
                       rechargeOn={other.rechargeOn}
                       onUsesChange={(v) => handleOtherUsesChange(other.id, v)}
-                      onDelete={() => handleDeleteOther(other.id)}
+                      onEdit={() => openEditOther(other as StoredAction)}
                     />
                   )}
                 </For>
@@ -613,31 +674,31 @@ export function ActionsSection(props: ActionsSectionProps) {
         </Collapsible>
       </CardContent>
 
-      <Modal open={isAddActionOpen()} onOpenChange={setIsAddActionOpen}>
+      <Modal open={isActionModalOpen()} onOpenChange={(open) => { if (!open) closeActionModal() }}>
         <ModalContent class="max-w-md">
-          <ModalHeader><ModalTitle>Add Custom Action</ModalTitle></ModalHeader>
-          <ActionForm kind="action" onSubmit={handleAddAction} onCancel={() => setIsAddActionOpen(false)} />
+          <ModalHeader><ModalTitle>{editingAttack() ? "Edit Action" : "Add Custom Action"}</ModalTitle></ModalHeader>
+          <ActionForm kind="action" initialData={editingAttack() ?? undefined} onSubmit={handleSaveAction} onDelete={editingAttack() ? handleDeleteAttack : undefined} onCancel={closeActionModal} />
         </ModalContent>
       </Modal>
 
-      <Modal open={isAddBonusActionOpen()} onOpenChange={setIsAddBonusActionOpen}>
+      <Modal open={isBonusActionModalOpen()} onOpenChange={(open) => { if (!open) closeBonusActionModal() }}>
         <ModalContent class="max-w-md">
-          <ModalHeader><ModalTitle>Add Custom Bonus Action</ModalTitle></ModalHeader>
-          <ActionForm kind="bonus-action" onSubmit={handleAddBonusAction} onCancel={() => setIsAddBonusActionOpen(false)} />
+          <ModalHeader><ModalTitle>{editingBonusAction() ? "Edit Bonus Action" : "Add Custom Bonus Action"}</ModalTitle></ModalHeader>
+          <ActionForm kind="bonus-action" initialData={editingBonusAction() ?? undefined} onSubmit={handleSaveBonusAction} onDelete={editingBonusAction() ? handleDeleteBonusAction : undefined} onCancel={closeBonusActionModal} />
         </ModalContent>
       </Modal>
 
-      <Modal open={isAddReactionOpen()} onOpenChange={setIsAddReactionOpen}>
+      <Modal open={isReactionModalOpen()} onOpenChange={(open) => { if (!open) closeReactionModal() }}>
         <ModalContent class="max-w-md">
-          <ModalHeader><ModalTitle>Add Custom Reaction</ModalTitle></ModalHeader>
-          <ActionForm kind="reaction" onSubmit={handleAddReaction} onCancel={() => setIsAddReactionOpen(false)} />
+          <ModalHeader><ModalTitle>{editingReaction() ? "Edit Reaction" : "Add Custom Reaction"}</ModalTitle></ModalHeader>
+          <ActionForm kind="reaction" initialData={editingReaction() ?? undefined} onSubmit={handleSaveReaction} onDelete={editingReaction() ? handleDeleteReaction : undefined} onCancel={closeReactionModal} />
         </ModalContent>
       </Modal>
 
-      <Modal open={isAddOtherOpen()} onOpenChange={setIsAddOtherOpen}>
+      <Modal open={isOtherModalOpen()} onOpenChange={(open) => { if (!open) closeOtherModal() }}>
         <ModalContent class="max-w-md">
-          <ModalHeader><ModalTitle>Add Other Ability</ModalTitle></ModalHeader>
-          <ActionForm kind="other" onSubmit={handleAddOther} onCancel={() => setIsAddOtherOpen(false)} />
+          <ModalHeader><ModalTitle>{editingOther() ? "Edit Other Ability" : "Add Other Ability"}</ModalTitle></ModalHeader>
+          <ActionForm kind="other" initialData={editingOther() ?? undefined} onSubmit={handleSaveOther} onDelete={editingOther() ? handleDeleteOther : undefined} onCancel={closeOtherModal} />
         </ModalContent>
       </Modal>
     </Card>

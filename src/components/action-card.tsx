@@ -6,7 +6,7 @@ import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { formatModifier } from "@/lib/character-utils"
 import { Popover } from "@kobalte/core/popover"
-import Trash2 from "lucide-solid/icons/trash-2"
+import Pencil from "lucide-solid/icons/pencil"
 import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
 import CircleHelp from "lucide-solid/icons/circle-help"
 
@@ -66,8 +66,8 @@ export interface ActionCardProps {
   upcastSpellId?: () => string | null
   onUpcastSpellId?: (id: string | null) => void
 
-  // Delete button — omit for spells and features
-  onDelete?: () => void
+  // Edit button — omit for spells and features
+  onEdit?: () => void
 }
 
 export function ActionCard(props: ActionCardProps) {
@@ -191,15 +191,15 @@ export function ActionCard(props: ActionCardProps) {
 
         <div class="flex items-center gap-1 shrink-0">
           <Badge variant="secondary" class="text-xs">{props.badgeLabel}</Badge>
-          <Show when={props.onDelete}>
-            <Tooltip content={`Delete ${props.name}`}>
+          <Show when={props.onEdit}>
+            <Tooltip content={`Edit ${props.name}`}>
               <button
                 type="button"
-                class="text-muted-foreground hover:text-destructive transition-colors"
-                aria-label={`Delete ${props.name}`}
-                onClick={props.onDelete}
+                class="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={`Edit ${props.name}`}
+                onClick={props.onEdit}
               >
-                <Trash2 class="h-4 w-4" />
+                <Pencil class="h-4 w-4" />
               </button>
             </Tooltip>
           </Show>
