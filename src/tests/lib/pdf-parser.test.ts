@@ -691,9 +691,9 @@ describe("pdf-parser", () => {
       expect(result.spells).toEqual([])
       expect(result.proficiencyBonus).toBe(2)
     })
-    it("sets edition to '2014'", () => {
+    it("sets edition to '2024'", () => {
       const result = mergeWithDefault({})
-      expect(result.edition).toBe("2014")
+      expect(result.edition).toBe("2024")
     })
     it("deep-merges abilityScores", () => {
       const result = mergeWithDefault({ abilityScores: { strength: 15 } as any })

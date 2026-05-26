@@ -623,7 +623,7 @@ export function mergeWithDefault(parsed: Partial<Character>): Character {
     ...d,
     ...parsed,
     id: crypto.randomUUID(),
-    edition: "2014",
+    edition: "2024",
     abilityScores: { ...d.abilityScores, ...parsed.abilityScores },
     savingThrows: { ...d.savingThrows, ...parsed.savingThrows },
     skills: mergeSkills(d.skills, parsed.skills),

@@ -260,7 +260,7 @@ describe("PDF parser integration — Urush Greenshield (D&D Beyond export)", () 
       expect(character.name).toBe("Urush Greenshield")
       expect(character.class).toBe("Paladin")
       expect(character.level).toBe(2)
-      expect(character.edition).toBe("2014")
+      expect(character.edition).toBe("2024")
       expect(character.id).toBeTruthy()
 
       // Verify no undefined values anywhere (Firestore would reject them)
