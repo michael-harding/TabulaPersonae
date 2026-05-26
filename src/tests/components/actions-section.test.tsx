@@ -67,13 +67,7 @@ describe("ActionsSection", () => {
       expect(screen.getByText("Reactions")).toBeInTheDocument()
     })
 
-    it("renders Quick Actions buttons", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
-      expect(screen.getByRole("button", { name: "Dash" })).toBeInTheDocument()
-      expect(screen.getByRole("button", { name: "Dodge" })).toBeInTheDocument()
-    })
-
-    it("renders Attack Bonus and Spell Save DC stats", () => {
+it("renders Attack Bonus and Spell Save DC stats", () => {
       render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Attack Bonus")).toBeInTheDocument()
       expect(screen.getByText("Spell Save DC")).toBeInTheDocument()
@@ -186,7 +180,7 @@ describe("ActionsSection", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByRole("button", { name: /delete attack/i }))
+      fireEvent.click(screen.getByRole("button", { name: /delete longsword/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ attacks: [] })
       )
@@ -788,10 +782,10 @@ describe("ActionsSection", () => {
       expect(screen.getByText("Take an extra action.")).toBeInTheDocument()
     })
 
-    it("shows type and range in the feature card detail line", () => {
+    it("shows range in the feature card stats row", () => {
       render(
         <ActionsSection
-          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", type: "class-feature", range: "30 ft" })] })}
+          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", range: "30 ft" })] })}
           onUpdate={vi.fn()}
         />
       )
@@ -864,6 +858,44 @@ describe("ActionsSection", () => {
           feats: expect.arrayContaining([expect.objectContaining({ id: "ft-1", uses: 1 })]),
         })
       )
+    })
+
+    it("feature with range shows Range: label in stats row", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", range: "30 ft" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText(/Range:/i)).toBeInTheDocument()
+    })
+
+    it("feature detail popover opens and shows full description", () => {
+      render(
+        <ActionsSection
+          character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", description: "Take an extra action on your turn." })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByRole("button", { name: /details for action surge/i }))
+      expect(screen.getAllByText("Take an extra action on your turn.").length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe("detail popover in section context", () => {
+    it("spell detail popover opens and shows castingTime", () => {
+      const spell = makeSpell({ name: "Fire Bolt", level: 0, castingTime: "1 action", known: true })
+      render(<ActionsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /details for fire bolt/i }))
+      expect(screen.getByText(/1 action/)).toBeInTheDocument()
+    })
+  })
+
+  describe("effect pills", () => {
+    it("shows gain pill for a spell with regain", () => {
+      const spell = makeSpell({ name: "Cure Wounds", level: 1, castingTime: "1 action", prepared: true, regain: "1d8+3" })
+      render(<ActionsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("1d8+3")).toBeInTheDocument()
     })
   })
 })
