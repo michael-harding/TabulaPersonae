@@ -22,6 +22,7 @@ import { FeaturesSection } from "@/components/features-section"
 import { SheetSettings } from "@/components/sheet-settings"
 import { HeaderMenu } from "@/components/header-menu"
 import { StatsBar } from "@/components/stats-bar"
+import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 export default function CharacterSheet() {
   const params = useParams()
@@ -174,21 +175,42 @@ export default function CharacterSheet() {
               </div>
             </header>
 
-            <main class="max-w-7xl mx-auto p-4">
-              <div class="space-y-6">
-                <ActionsSection character={getChar()} onUpdate={updateCharacter} />
-                <div class="grid gap-6 lg:grid-cols-2">
-                  <AbilityScores character={getChar()} onUpdate={updateCharacter} />
-                  <CombatStats character={getChar()} onUpdate={updateCharacter} />
-                </div>
-                <SkillsProficiencies character={getChar()} onUpdate={updateCharacter} />
-                <SpellsSection character={getChar()} onUpdate={updateCharacter} />
-                <FeaturesSection character={getChar()} onUpdate={updateCharacter} />
-                <EquipmentInventory character={getChar()} onUpdate={updateCharacter} />
-                <CharacterBasicInfo character={getChar()} onUpdate={updateCharacter} />
-                <CharacterNotes character={getChar()} onUpdate={updateCharacter} />
-                <SheetSettings character={getChar()} onUpdate={updateCharacter} />
-              </div>
+            <main class="max-w-7xl mx-auto px-4 pb-4">
+              <TabsRoot defaultValue="combat">
+                <TabsList>
+                  <TabsTrigger value="combat">Combat</TabsTrigger>
+                  <TabsTrigger value="spells">Spells</TabsTrigger>
+                  <TabsTrigger value="features">Features</TabsTrigger>
+                  <TabsTrigger value="inventory">Inventory</TabsTrigger>
+                  <TabsTrigger value="character">Character</TabsTrigger>
+                </TabsList>
+                <TabsContent value="combat">
+                  <div class="space-y-6">
+                    <ActionsSection character={getChar()} onUpdate={updateCharacter} />
+                    <div class="grid gap-6 lg:grid-cols-2">
+                      <AbilityScores character={getChar()} onUpdate={updateCharacter} />
+                      <CombatStats character={getChar()} onUpdate={updateCharacter} />
+                    </div>
+                    <SkillsProficiencies character={getChar()} onUpdate={updateCharacter} />
+                  </div>
+                </TabsContent>
+                <TabsContent value="spells">
+                  <SpellsSection character={getChar()} onUpdate={updateCharacter} />
+                </TabsContent>
+                <TabsContent value="features">
+                  <FeaturesSection character={getChar()} onUpdate={updateCharacter} />
+                </TabsContent>
+                <TabsContent value="inventory">
+                  <EquipmentInventory character={getChar()} onUpdate={updateCharacter} />
+                </TabsContent>
+                <TabsContent value="character">
+                  <div class="space-y-6">
+                    <CharacterBasicInfo character={getChar()} onUpdate={updateCharacter} />
+                    <CharacterNotes character={getChar()} onUpdate={updateCharacter} />
+                    <SheetSettings character={getChar()} onUpdate={updateCharacter} />
+                  </div>
+                </TabsContent>
+              </TabsRoot>
             </main>
 
             <RestModal
