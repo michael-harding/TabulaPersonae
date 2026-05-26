@@ -214,17 +214,19 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
         <div>
           <h3 class="font-semibold mb-3">Senses</h3>
           <div class="grid grid-cols-3 gap-2">
-            {(["perception", "insight", "investigation"] as SkillKey[]).map((skillKey) => {
-              const ability = SKILL_ABILITY_MAP[skillKey]
-              const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
-              const passive = () => 10 + getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
-              return (
-                <div class="flex flex-col items-center p-2 rounded border text-center">
-                  <span class="text-lg font-bold">{passive()}</span>
-                  <span class="text-xs text-muted-foreground">Passive {SKILL_DISPLAY_NAMES[skillKey]}</span>
-                </div>
-              )
-            })}
+            <For each={["perception", "insight", "investigation"] as SkillKey[]}>
+              {(skillKey) => {
+                const ability = SKILL_ABILITY_MAP[skillKey]
+                const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
+                const passive = () => 10 + getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
+                return (
+                  <div class="flex flex-col items-center p-2 rounded border text-center">
+                    <span class="text-lg font-bold">{passive()}</span>
+                    <span class="text-xs text-muted-foreground">Passive {SKILL_DISPLAY_NAMES[skillKey]}</span>
+                  </div>
+                )
+              }}
+            </For>
           </div>
         </div>
 
