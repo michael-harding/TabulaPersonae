@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, within } from "../test-utils"
 import { ActionsSection } from "@/components/actions-section"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -73,11 +73,32 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
       expect(screen.getByText("Spell Save DC")).toBeInTheDocument()
     })
 
-    it("renders the Add Action, Add Bonus Action, Add Reaction buttons", () => {
+    it("renders the Add Action, Add Bonus Action, Add Reaction, Add Other buttons", () => {
       render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /add action/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /add bonus action/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /add reaction/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /add other/i })).toBeInTheDocument()
+    })
+
+    it("opens the Add Other modal when Add Other is clicked and saves a new other action", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add other/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/other name/i), { target: { value: "Sneak Attack" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /add other/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          otherActions: expect.arrayContaining([expect.objectContaining({ name: "Sneak Attack" })]),
+        })
+      )
+    })
+
+    it("renders an existing other action's name", () => {
+      const other = { id: "o1", name: "Sneak Attack", type: "ability" as ActionType, description: "", uses: 0, maxUses: 0 }
+      render(<ActionsSection character={makeCharacter({ otherActions: [other] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Sneak Attack")).toBeInTheDocument()
     })
 
     it("renders an existing attack's name", () => {
@@ -937,6 +958,71 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     it("does not render weapon when weaponStats is absent", () => {
       render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment({ weaponStats: undefined })] })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Longsword")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("collapsible section headers", () => {
+    it("renders all four section headers", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Actions")).toBeInTheDocument()
+      expect(screen.getByText("Bonus Actions")).toBeInTheDocument()
+      expect(screen.getByText("Reactions")).toBeInTheDocument()
+      expect(screen.getByText("Other")).toBeInTheDocument()
+    })
+
+    it("shows action content by default (sections start expanded)", () => {
+      const attack = makeAttack({ name: "Longsword" })
+      render(<ActionsSection character={makeCharacter({ attacks: [attack] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Longsword")).toBeInTheDocument()
+    })
+
+    it("all section trigger buttons start with aria-expanded=true", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Actions").closest("button")).toHaveAttribute("aria-expanded", "true")
+      expect(screen.getByText("Bonus Actions").closest("button")).toHaveAttribute("aria-expanded", "true")
+      expect(screen.getByText("Reactions").closest("button")).toHaveAttribute("aria-expanded", "true")
+      expect(screen.getByText("Other").closest("button")).toHaveAttribute("aria-expanded", "true")
+    })
+
+    it("toggles aria-expanded on the Actions trigger when clicked", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      const trigger = screen.getByText("Actions").closest("button")!
+      expect(trigger).toHaveAttribute("aria-expanded", "true")
+      fireEvent.click(trigger)
+      expect(trigger).toHaveAttribute("aria-expanded", "false")
+      fireEvent.click(trigger)
+      expect(trigger).toHaveAttribute("aria-expanded", "true")
+    })
+
+    it("toggles aria-expanded on the Bonus Actions trigger when clicked", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      const trigger = screen.getByText("Bonus Actions").closest("button")!
+      expect(trigger).toHaveAttribute("aria-expanded", "true")
+      fireEvent.click(trigger)
+      expect(trigger).toHaveAttribute("aria-expanded", "false")
+    })
+
+    it("toggles aria-expanded on the Reactions trigger when clicked", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      const trigger = screen.getByText("Reactions").closest("button")!
+      expect(trigger).toHaveAttribute("aria-expanded", "true")
+      fireEvent.click(trigger)
+      expect(trigger).toHaveAttribute("aria-expanded", "false")
+    })
+
+    it("toggles aria-expanded on the Other trigger when clicked", () => {
+      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      const trigger = screen.getByText("Other").closest("button")!
+      expect(trigger).toHaveAttribute("aria-expanded", "true")
+      fireEvent.click(trigger)
+      expect(trigger).toHaveAttribute("aria-expanded", "false")
+    })
+
+    it("shows a count badge of 1 in the Actions section when one attack is present", () => {
+      const attack = makeAttack({ name: "Longsword" })
+      render(<ActionsSection character={makeCharacter({ attacks: [attack] })} onUpdate={vi.fn()} />)
+      const actionsHeader = screen.getByText("Actions").closest("button")!
+      expect(within(actionsHeader).getByText("1")).toBeInTheDocument()
     })
   })
 })

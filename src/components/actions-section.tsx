@@ -1,5 +1,5 @@
 import { createSignal, For, Show } from "solid-js"
-import type { Character, ActionType, Feature, Spell } from "@/lib/character-types"
+import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
+import { Badge } from "@/components/ui/badge"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
 import Clock from "lucide-solid/icons/clock"
@@ -17,6 +19,7 @@ import Target from "lucide-solid/icons/target"
 import Zap from "lucide-solid/icons/zap"
 import Shield from "lucide-solid/icons/shield"
 import Sparkles from "lucide-solid/icons/sparkles"
+import ChevronDown from "lucide-solid/icons/chevron-down"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { ActionCard } from "@/components/action-card"
 
@@ -42,12 +45,13 @@ export const ACTION_TYPE_LABEL: Record<string, string> = {
   spell: "Ability",
 }
 
-type ActionKind = "action" | "bonus-action" | "reaction"
+type ActionKind = "action" | "bonus-action" | "reaction" | "other"
 
 const KIND_LABELS: Record<ActionKind, string> = {
   action: "Action",
   "bonus-action": "Bonus Action",
   reaction: "Reaction",
+  other: "Other",
 }
 
 interface ActionFormData {
@@ -205,11 +209,24 @@ function spellAccessors(spell: Spell, spellSlots: Character['spellSlots']) {
   return { canCast, upcastLevels, hasHigherSlots }
 }
 
+type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
+
 export function ActionsSection(props: ActionsSectionProps) {
   const [isAddActionOpen, setIsAddActionOpen] = createSignal(false)
   const [isAddBonusActionOpen, setIsAddBonusActionOpen] = createSignal(false)
   const [isAddReactionOpen, setIsAddReactionOpen] = createSignal(false)
+  const [isAddOtherOpen, setIsAddOtherOpen] = createSignal(false)
   const [upcastSpellId, setUpcastSpellId] = createSignal<string | null>(null)
+  const [expandedSections, setExpandedSections] = createSignal<Set<ActionSection>>(
+    new Set(['actions', 'bonus-actions', 'reactions', 'other'])
+  )
+  const toggleSection = (section: ActionSection, open: boolean) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev)
+      open ? next.add(section) : next.delete(section)
+      return next
+    })
+  }
 
   const safeSpells = () => props.character.spells || []
   const spellSaveDC = () => getSpellSaveDC(props.character)
@@ -282,6 +299,16 @@ export function ActionsSection(props: ActionsSectionProps) {
   const handleAddReaction = (data: ActionFormData) => {
     props.onUpdate({ ...props.character, reactions: [...(props.character.reactions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
     setIsAddReactionOpen(false)
+  }
+  const handleAddOther = (data: ActionFormData) => {
+    props.onUpdate({ ...props.character, otherActions: [...(props.character.otherActions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) } as OtherAction] })
+    setIsAddOtherOpen(false)
+  }
+  const handleDeleteOther = (id: string) => {
+    props.onUpdate({ ...props.character, otherActions: (props.character.otherActions || []).filter((o) => o.id !== id) })
+  }
+  const handleOtherUsesChange = (id: string, v: number) => {
+    props.onUpdate({ ...props.character, otherActions: (props.character.otherActions || []).map(o => o.id === id ? { ...o, uses: v } : o) })
   }
   const handleDeleteReaction = (id: string) => {
     props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).filter((r) => r.id !== id) })
@@ -393,146 +420,197 @@ export function ActionsSection(props: ActionsSectionProps) {
         </div>
 
         {/* Actions */}
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold flex items-center gap-2">
+        <Collapsible open={expandedSections().has('actions')} onOpenChange={(open: boolean) => toggleSection('actions', open)}>
+          <div class="flex items-center justify-between pr-1">
+            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
               <Target class="h-5 w-5 text-primary" />
-              Actions
-            </h3>
-            <Button variant="outline" size="sm" class="gap-1" onClick={() => setIsAddActionOpen(true)}>
+              <span class="text-lg font-semibold">Actions</span>
+              <Badge variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featureActions().length}</Badge>
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+            </CollapsibleTrigger>
+            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={() => setIsAddActionOpen(true)}>
               <Plus class="h-3 w-3" />
               Add Action
             </Button>
           </div>
-          <Show when={equippedWeaponAttacks().length > 0 || attackSpells().length > 0 || (props.character.attacks?.length ?? 0) > 0 || featureActions().length > 0}>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <For each={equippedWeaponAttacks()}>
-                {(w) => (
-                  <ActionCard
-                    name={w.name}
-                    badgeLabel="Weapon"
-                    attackBonus={w.attackBonus}
-                    range={w.range}
-                    damage={w.damage}
-                    damageType={w.damageType}
-                    description={w.description}
-                  />
-                )}
-              </For>
-              <For each={attackSpells()}>{(spell) => renderSpell(spell)}</For>
-              <For each={featureActions()}>{(feature) => renderFeature(feature)}</For>
-              <For each={props.character.attacks || []}>
-                {(attack) => (
-                  <ActionCard
-                    name={attack.name}
-                    badgeLabel={ACTION_TYPE_LABEL[attack.type] ?? attack.type}
-                    attackBonus={attack.attackBonus}
-                    range={attack.range}
-                    damage={attack.damage}
-                    damageType={attack.damageType}
-                    description={attack.description}
-                    uses={attack.uses ?? 0}
-                    maxUses={attack.maxUses ?? 0}
-                    rechargeOn={attack.rechargeOn}
-                    onUsesChange={(v) => handleAttackUsesChange(attack.id, v)}
-                    onDelete={() => handleDeleteAttack(attack.id)}
-                  />
-                )}
-              </For>
-            </div>
-          </Show>
-        </div>
+          <CollapsibleContent class="mt-2">
+            <Show
+              when={equippedWeaponAttacks().length > 0 || attackSpells().length > 0 || (props.character.attacks?.length ?? 0) > 0 || featureActions().length > 0}
+              fallback={<div class="text-center py-4 text-muted-foreground text-sm">No actions added yet.</div>}
+            >
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <For each={equippedWeaponAttacks()}>
+                  {(w) => (
+                    <ActionCard
+                      name={w.name}
+                      badgeLabel="Weapon"
+                      attackBonus={w.attackBonus}
+                      range={w.range}
+                      damage={w.damage}
+                      damageType={w.damageType}
+                      description={w.description}
+                    />
+                  )}
+                </For>
+                <For each={attackSpells()}>{(spell) => renderSpell(spell)}</For>
+                <For each={featureActions()}>{(feature) => renderFeature(feature)}</For>
+                <For each={props.character.attacks || []}>
+                  {(attack) => (
+                    <ActionCard
+                      name={attack.name}
+                      badgeLabel={ACTION_TYPE_LABEL[attack.type] ?? attack.type}
+                      attackBonus={attack.attackBonus}
+                      range={attack.range}
+                      damage={attack.damage}
+                      damageType={attack.damageType}
+                      description={attack.description}
+                      uses={attack.uses ?? 0}
+                      maxUses={attack.maxUses ?? 0}
+                      rechargeOn={attack.rechargeOn}
+                      onUsesChange={(v) => handleAttackUsesChange(attack.id, v)}
+                      onDelete={() => handleDeleteAttack(attack.id)}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Bonus Actions */}
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold flex items-center gap-2">
+        <Collapsible open={expandedSections().has('bonus-actions')} onOpenChange={(open: boolean) => toggleSection('bonus-actions', open)}>
+          <div class="flex items-center justify-between pr-1">
+            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
               <Clock class="h-5 w-5 text-primary" />
-              Bonus Actions
-            </h3>
-            <Button variant="outline" size="sm" class="gap-1" onClick={() => setIsAddBonusActionOpen(true)}>
+              <span class="text-lg font-semibold">Bonus Actions</span>
+              <Badge variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featureBonuses().length}</Badge>
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+            </CollapsibleTrigger>
+            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={() => setIsAddBonusActionOpen(true)}>
               <Plus class="h-3 w-3" />
               Add Bonus Action
             </Button>
           </div>
-          <Show when={bonusActionSpells().length > 0 || (props.character.bonusActions?.length ?? 0) > 0 || featureBonuses().length > 0}>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <For each={bonusActionSpells()}>{(spell) => renderSpell(spell)}</For>
-              <For each={featureBonuses()}>{(feature) => renderFeature(feature)}</For>
-              <For each={props.character.bonusActions || []}>
-                {(bonus) => (
-                  <ActionCard
-                    name={bonus.name}
-                    badgeLabel={ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}
-                    attackBonus={bonus.attackBonus}
-                    range={bonus.range}
-                    damage={bonus.damage}
-                    damageType={bonus.damageType}
-                    description={bonus.description}
-                    uses={bonus.uses ?? 0}
-                    maxUses={bonus.maxUses ?? 0}
-                    rechargeOn={bonus.rechargeOn}
-                    onUsesChange={(v) => handleBonusActionUsesChange(bonus.id, v)}
-                    onDelete={() => handleDeleteBonusAction(bonus.id)}
-                  />
-                )}
-              </For>
-            </div>
-          </Show>
-        </div>
+          <CollapsibleContent class="mt-2">
+            <Show
+              when={bonusActionSpells().length > 0 || (props.character.bonusActions?.length ?? 0) > 0 || featureBonuses().length > 0}
+              fallback={<div class="text-center py-4 text-muted-foreground text-sm">No bonus actions added yet.</div>}
+            >
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <For each={bonusActionSpells()}>{(spell) => renderSpell(spell)}</For>
+                <For each={featureBonuses()}>{(feature) => renderFeature(feature)}</For>
+                <For each={props.character.bonusActions || []}>
+                  {(bonus) => (
+                    <ActionCard
+                      name={bonus.name}
+                      badgeLabel={ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}
+                      attackBonus={bonus.attackBonus}
+                      range={bonus.range}
+                      damage={bonus.damage}
+                      damageType={bonus.damageType}
+                      description={bonus.description}
+                      uses={bonus.uses ?? 0}
+                      maxUses={bonus.maxUses ?? 0}
+                      rechargeOn={bonus.rechargeOn}
+                      onUsesChange={(v) => handleBonusActionUsesChange(bonus.id, v)}
+                      onDelete={() => handleDeleteBonusAction(bonus.id)}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Reactions */}
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold flex items-center gap-2">
+        <Collapsible open={expandedSections().has('reactions')} onOpenChange={(open: boolean) => toggleSection('reactions', open)}>
+          <div class="flex items-center justify-between pr-1">
+            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
               <Shield class="h-5 w-5 text-primary" />
-              Reactions
-            </h3>
-            <Button variant="outline" size="sm" class="gap-1" onClick={() => setIsAddReactionOpen(true)}>
+              <span class="text-lg font-semibold">Reactions</span>
+              <Badge variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featureReactions().length}</Badge>
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+            </CollapsibleTrigger>
+            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={() => setIsAddReactionOpen(true)}>
               <Plus class="h-3 w-3" />
               Add Reaction
             </Button>
           </div>
-          <Show when={reactionSpells().length > 0 || (props.character.reactions?.length ?? 0) > 0 || featureReactions().length > 0}>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <For each={reactionSpells()}>{(spell) => renderSpell(spell)}</For>
-              <For each={featureReactions()}>{(feature) => renderFeature(feature)}</For>
-              <For each={props.character.reactions || []}>
-                {(reaction) => (
-                  <ActionCard
-                    name={reaction.name}
-                    badgeLabel={ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}
-                    trigger={reaction.trigger}
-                    attackBonus={reaction.attackBonus}
-                    range={reaction.range}
-                    damage={reaction.damage}
-                    damageType={reaction.damageType}
-                    description={reaction.description}
-                    uses={reaction.uses ?? 0}
-                    maxUses={reaction.maxUses ?? 0}
-                    rechargeOn={reaction.rechargeOn}
-                    onUsesChange={(v) => handleReactionUsesChange(reaction.id, v)}
-                    onDelete={() => handleDeleteReaction(reaction.id)}
-                  />
-                )}
-              </For>
-            </div>
-          </Show>
-        </div>
+          <CollapsibleContent class="mt-2">
+            <Show
+              when={reactionSpells().length > 0 || (props.character.reactions?.length ?? 0) > 0 || featureReactions().length > 0}
+              fallback={<div class="text-center py-4 text-muted-foreground text-sm">No reactions added yet.</div>}
+            >
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <For each={reactionSpells()}>{(spell) => renderSpell(spell)}</For>
+                <For each={featureReactions()}>{(feature) => renderFeature(feature)}</For>
+                <For each={props.character.reactions || []}>
+                  {(reaction) => (
+                    <ActionCard
+                      name={reaction.name}
+                      badgeLabel={ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}
+                      trigger={reaction.trigger}
+                      attackBonus={reaction.attackBonus}
+                      range={reaction.range}
+                      damage={reaction.damage}
+                      damageType={reaction.damageType}
+                      description={reaction.description}
+                      uses={reaction.uses ?? 0}
+                      maxUses={reaction.maxUses ?? 0}
+                      rechargeOn={reaction.rechargeOn}
+                      onUsesChange={(v) => handleReactionUsesChange(reaction.id, v)}
+                      onDelete={() => handleDeleteReaction(reaction.id)}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
+          </CollapsibleContent>
+        </Collapsible>
 
-        <Show when={featureOthers().length > 0}>
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold flex items-center gap-2">
-                <Sparkles class="h-5 w-5 text-primary" />
-                Other
-              </h3>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <For each={featureOthers()}>{(feature) => renderFeature(feature)}</For>
-            </div>
+        {/* Other */}
+        <Collapsible open={expandedSections().has('other')} onOpenChange={(open: boolean) => toggleSection('other', open)}>
+          <div class="flex items-center justify-between pr-1">
+            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
+              <Sparkles class="h-5 w-5 text-primary" />
+              <span class="text-lg font-semibold">Other</span>
+              <Badge variant="secondary">{featureOthers().length + (props.character.otherActions?.length ?? 0)}</Badge>
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+            </CollapsibleTrigger>
+            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={() => setIsAddOtherOpen(true)}>
+              <Plus class="h-3 w-3" />
+              Add Other
+            </Button>
           </div>
-        </Show>
+          <CollapsibleContent class="mt-2">
+            <Show
+              when={featureOthers().length > 0 || (props.character.otherActions?.length ?? 0) > 0}
+              fallback={<div class="text-center py-4 text-muted-foreground text-sm">No other abilities added yet.</div>}
+            >
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <For each={featureOthers()}>{(feature) => renderFeature(feature)}</For>
+                <For each={props.character.otherActions || []}>
+                  {(other) => (
+                    <ActionCard
+                      name={other.name}
+                      badgeLabel={ACTION_TYPE_LABEL[other.type] ?? other.type}
+                      attackBonus={other.attackBonus}
+                      range={other.range}
+                      damage={other.damage}
+                      damageType={other.damageType}
+                      description={other.description}
+                      uses={other.uses ?? 0}
+                      maxUses={other.maxUses ?? 0}
+                      rechargeOn={other.rechargeOn}
+                      onUsesChange={(v) => handleOtherUsesChange(other.id, v)}
+                      onDelete={() => handleDeleteOther(other.id)}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
 
       <Modal open={isAddActionOpen()} onOpenChange={setIsAddActionOpen}>
@@ -553,6 +631,13 @@ export function ActionsSection(props: ActionsSectionProps) {
         <ModalContent class="max-w-md">
           <ModalHeader><ModalTitle>Add Custom Reaction</ModalTitle></ModalHeader>
           <ActionForm kind="reaction" onSubmit={handleAddReaction} onCancel={() => setIsAddReactionOpen(false)} />
+        </ModalContent>
+      </Modal>
+
+      <Modal open={isAddOtherOpen()} onOpenChange={setIsAddOtherOpen}>
+        <ModalContent class="max-w-md">
+          <ModalHeader><ModalTitle>Add Other Ability</ModalTitle></ModalHeader>
+          <ActionForm kind="other" onSubmit={handleAddOther} onCancel={() => setIsAddOtherOpen(false)} />
         </ModalContent>
       </Modal>
     </Card>

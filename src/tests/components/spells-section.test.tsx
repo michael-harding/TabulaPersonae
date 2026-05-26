@@ -218,8 +218,6 @@ describe("SpellsSection", () => {
       const onUpdate = vi.fn()
       const spell = makeSpell({ id: "s1", name: "Fireball", level: 1, prepared: true, known: true })
       render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
-      // Level 1 collapsible is closed by default; click the trigger to reveal spell content
-      fireEvent.click(screen.getByText("1st Level"))
       const checkboxes = screen.getAllByRole("checkbox")
       fireEvent.click(checkboxes[0])
       expect(onUpdate).toHaveBeenCalledWith(
@@ -228,6 +226,23 @@ describe("SpellsSection", () => {
         })
       )
       expect(saveCharacter).toHaveBeenCalled()
+    })
+
+    it("shows level 1 spells without clicking the header first", () => {
+      const spell = makeSpell({ name: "Fireball", level: 1 })
+      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Fireball")).toBeInTheDocument()
+    })
+
+    it("toggles aria-expanded on the level header when clicked", () => {
+      const spell = makeSpell({ name: "Fireball", level: 1 })
+      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      const trigger = screen.getByText("1st Level").closest("button")!
+      expect(trigger).toHaveAttribute("aria-expanded", "true")
+      fireEvent.click(trigger)
+      expect(trigger).toHaveAttribute("aria-expanded", "false")
+      fireEvent.click(trigger)
+      expect(trigger).toHaveAttribute("aria-expanded", "true")
     })
   })
 

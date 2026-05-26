@@ -119,6 +119,8 @@ export interface Reaction extends ActionBase {
   trigger: string
 }
 
+export interface OtherAction extends ActionBase {}
+
 export interface Character {
   id: string
   name: string
@@ -171,6 +173,7 @@ export interface Character {
   attacks: Attack[]
   bonusActions: BonusAction[]
   reactions: Reaction[]
+  otherActions: OtherAction[]
 
   personalityTraits: string
   ideals: string
@@ -301,6 +304,7 @@ export function createDefaultCharacter(): Character {
     attacks: [],
     bonusActions: [],
     reactions: [],
+    otherActions: [],
 
     personalityTraits: "",
     ideals: "",

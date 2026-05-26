@@ -218,7 +218,7 @@ export function SpellsSection(props: SpellsSectionProps) {
   const [searchTerm, setSearchTerm] = createSignal("")
   const [isAddModalOpen, setIsAddModalOpen] = createSignal(false)
   const [editingSpell, setEditingSpell] = createSignal<Spell | null>(null)
-  const [expandedLevels, setExpandedLevels] = createSignal<Set<number>>(new Set([0]))
+  const [expandedLevels, setExpandedLevels] = createSignal<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
   const [isSpellSlotsModalOpen, setIsSpellSlotsModalOpen] = createSignal(false)
 
 
