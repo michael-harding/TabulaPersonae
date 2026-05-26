@@ -170,10 +170,10 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                       <Show when={isEditing()}>
                         <div class="flex gap-1">
                           <Tooltip content="Proficiency (adds proficiency bonus)">
-                            <Checkbox checked={skill().proficient} onChange={() => toggleSkillProf(skillKey)} class="border-secondary data-[checked]:bg-secondary" />
+                            <Checkbox aria-label="Proficient" checked={skill().proficient} onChange={() => toggleSkillProf(skillKey)} class="border-secondary data-[checked]:bg-secondary" />
                           </Tooltip>
                           <Tooltip content="Expertise (doubles proficiency bonus)">
-                            <Checkbox checked={skill().expertise} onChange={() => toggleSkillExp(skillKey)} />
+                            <Checkbox aria-label="Expertise" checked={skill().expertise} onChange={() => toggleSkillExp(skillKey)} />
                           </Tooltip>
                         </div>
                       </Show>

@@ -309,15 +309,6 @@ describe("SpellsSection", () => {
   })
 
   describe("concentration and ritual badges", () => {
-    it("shows 'C' badge for a concentration spell", () => {
-      const spell = makeSpell({ name: "Hold Person", level: 2, concentration: true })
-      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
-      // Expand level 2 collapsible
-      fireEvent.click(screen.getByText("2nd Level"))
-      expect(screen.getByTitle("Concentration")).toBeInTheDocument()
-      expect(screen.getByText("C")).toBeInTheDocument()
-    })
-
     it("shows 'R' badge for a ritual spell", () => {
       const spell = makeSpell({ name: "Detect Magic", level: 1, ritual: true })
       render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)

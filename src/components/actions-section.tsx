@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import type { Character, ActionType, Feature, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, formatModifier, safeFeatures } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, safeFeatures } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -213,6 +213,12 @@ export function ActionsSection(props: ActionsSectionProps) {
   const safeSpells = () => props.character.spells || []
   const spellSaveDC = () => getSpellSaveDC(props.character)
   const spellAttackBonus = () => getSpellAttackBonus(props.character)
+  const spellModifier = () => {
+    const ability = props.character.spellcastingAbility
+    if (!ability) return 0
+    const scores = props.character.abilityScores || { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 }
+    return getAbilityModifier(scores[ability])
+  }
 
   const allFeatures = (): Feature[] => [
     ...safeFeatures(props.character.classFeatures),
@@ -347,7 +353,7 @@ export function ActionsSection(props: ActionsSectionProps) {
         </CardTitle>
       </CardHeader>
       <CardContent class="space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
           <div class="text-center">
             <div class="flex items-center justify-center gap-1 mb-1">
               <Target class="h-4 w-4 text-primary" />
@@ -358,6 +364,20 @@ export function ActionsSection(props: ActionsSectionProps) {
           <div class="text-center">
             <div class="flex items-center justify-center gap-1 mb-1">
               <Zap class="h-4 w-4 text-primary" />
+              <span class="text-sm font-medium">Spell Attack</span>
+            </div>
+            <div class="text-2xl font-bold text-primary">{formatModifier(spellAttackBonus())}</div>
+          </div>
+          <div class="text-center">
+            <div class="flex items-center justify-center gap-1 mb-1">
+              <Zap class="h-4 w-4 text-primary" />
+              <span class="text-sm font-medium">Spell Modifier</span>
+            </div>
+            <div class="text-2xl font-bold text-primary">{formatModifier(spellModifier())}</div>
+          </div>
+          <div class="text-center">
+            <div class="flex items-center justify-center gap-1 mb-1">
+              <Shield class="h-4 w-4 text-primary" />
               <span class="text-sm font-medium">Spell Save DC</span>
             </div>
             <div class="text-2xl font-bold text-primary">{spellSaveDC()}</div>
