@@ -16,6 +16,7 @@ import Clock from "lucide-solid/icons/clock"
 import Target from "lucide-solid/icons/target"
 import Zap from "lucide-solid/icons/zap"
 import Shield from "lucide-solid/icons/shield"
+import Sparkles from "lucide-solid/icons/sparkles"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { ActionCard } from "@/components/action-card"
 
@@ -100,7 +101,7 @@ function ActionForm(props: ActionFormProps) {
     <div class="space-y-4">
       <div>
         <Label for="action-name">{kindLabel} Name</Label>
-        <Input id="action-name" value={formData().name}
+        <Input id="action-name" autofocus value={formData().name}
           onInput={(e) => setFormData(p => ({ ...p, name: e.currentTarget.value }))}
           placeholder={props.kind === "reaction" ? "e.g., Shield, Opportunity Attack" : props.kind === "bonus-action" ? "e.g., Second Wind, Cunning Action" : "e.g., Lay on Hands, Breath Weapon"} />
       </div>
@@ -228,6 +229,7 @@ export function ActionsSection(props: ActionsSectionProps) {
   const featureActions   = () => allFeatures().filter((f) => f.actionKind === 'action')
   const featureBonuses   = () => allFeatures().filter((f) => f.actionKind === 'bonus-action')
   const featureReactions = () => allFeatures().filter((f) => f.actionKind === 'reaction')
+  const featureOthers    = () => allFeatures().filter((f) => f.actionKind === 'other')
 
   const attackSpells = () => safeSpells().filter((spell) =>
     (spell.level === 0 ? (spell.known ?? true) : spell.prepared) &&
@@ -317,7 +319,7 @@ export function ActionsSection(props: ActionsSectionProps) {
         components={spell.components}
         atHigherLevel={spell.atHigherLevel}
         damage={spell.damage}
-        gain={spell.regain}
+        gain={spell.gain}
         description={spell.description}
         spellId={spell.id}
         castable={canCast}
@@ -502,6 +504,20 @@ export function ActionsSection(props: ActionsSectionProps) {
             </div>
           </Show>
         </div>
+
+        <Show when={featureOthers().length > 0}>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold flex items-center gap-2">
+                <Sparkles class="h-5 w-5 text-primary" />
+                Other
+              </h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <For each={featureOthers()}>{(feature) => renderFeature(feature)}</For>
+            </div>
+          </div>
+        </Show>
       </CardContent>
 
       <Modal open={isAddActionOpen()} onOpenChange={setIsAddActionOpen}>

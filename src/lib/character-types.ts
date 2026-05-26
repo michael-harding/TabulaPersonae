@@ -1,5 +1,17 @@
 // D&D Character Data Types
 
+export interface CharacterEntry {
+  id: string
+  name: string
+  description: string
+}
+
+export interface UseableEntry extends CharacterEntry {
+  uses?: number
+  maxUses?: number
+  rechargeOn?: 'short-rest' | 'long-rest'
+}
+
 export interface AbilityScores {
   strength: number
   dexterity: number
@@ -41,20 +53,14 @@ export interface Skills {
 
 export type ActionType = 'attack' | 'ability' | 'class-feature' | 'feat' | 'species-ability' | 'other' | string
 
-export interface Equipment {
-  id: string
-  name: string
+export interface Equipment extends CharacterEntry {
   quantity: number
   weight: number
-  description: string
   equipped: boolean
   type: "weapon" | "armor" | "tool" | "consumable" | "treasure" | "other"
 }
 
-// 'regain' is for spells that can be regained on short/long rest, etc.
-export interface Spell {
-  id: string;
-  name: string;
+export interface Spell extends CharacterEntry {
   level: number;
   school: string;
   castingTime: string;
@@ -63,44 +69,31 @@ export interface Spell {
   duration: string;
   damage?: string;
   attackSave?: string;
-  description: string;
   prepared: boolean;
   known: boolean;
-  regain?: string;
+  gain?: string;
   atHigherLevel?: string;
   concentration?: boolean;
   ritual?: boolean;
 }
 
 export type FeatureKind = 'class-feature' | 'species-trait' | 'feat'
-export type ActionKind = 'action' | 'bonus-action' | 'reaction'
+export type ActionKind = 'action' | 'bonus-action' | 'reaction' | 'other'
 
-export interface Feature {
-  id: string
-  name: string
-  description: string
+export interface Feature extends UseableEntry {
   source: FeatureKind
   actionKind?: ActionKind
   type?: ActionType
   range?: string
-  uses?: number
-  maxUses?: number
-  rechargeOn?: 'short-rest' | 'long-rest'
 }
 
-interface ActionBase {
-  id: string
-  name: string
+interface ActionBase extends UseableEntry {
   type: ActionType
-  description: string
   attackBonus?: number
   damage?: string
   damageType?: string
   range?: string
   trigger?: string
-  uses?: number
-  maxUses?: number
-  rechargeOn?: 'short-rest' | 'long-rest'
 }
 
 export interface Attack extends ActionBase {}

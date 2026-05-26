@@ -50,6 +50,7 @@ const ACTION_KIND_LABELS: Record<ActionKind, string> = {
   'action': 'Action',
   'bonus-action': 'Bonus Action',
   'reaction': 'Reaction',
+  'other': 'Other',
 }
 
 const ACTION_TYPE_LABELS = ['Attack', 'Ability', 'Other']
@@ -116,6 +117,7 @@ function FeatureForm(props: FeatureFormProps) {
             <SelectItem value="action">Action</SelectItem>
             <SelectItem value="bonus-action">Bonus Action</SelectItem>
             <SelectItem value="reaction">Reaction</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
           </SelectContent>
         </Select>
       </div>

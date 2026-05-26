@@ -38,7 +38,7 @@ interface SpellFormData {
   duration: string
   damage?: string
   attackSave?: string
-  regain?: string
+  gain?: string
   atHigherLevel?: string
   description: string
   prepared: boolean
@@ -79,7 +79,7 @@ const defaultSpellForm: SpellFormData = {
   duration: "Instantaneous",
   damage: "",
   attackSave: "",
-  regain: "",
+  gain: "",
   atHigherLevel: "",
   description: "",
   prepared: false,
@@ -107,8 +107,8 @@ function SpellForm(props: SpellFormProps) {
 
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div>
-          <Label for="regain">Regain</Label>
-          <Input id="regain" value={formData().regain || ""} onInput={(e) => setFormData((p) => ({ ...p, regain: e.currentTarget.value }))} placeholder="e.g. 2d4+3 healing" />
+          <Label for="gain">Gain</Label>
+          <Input id="gain" value={formData().gain || ""} onInput={(e) => setFormData((p) => ({ ...p, gain: e.currentTarget.value }))} placeholder="e.g. 2d4+3 healing" />
         </div>
         <div>
           <Label for="spell-damage">Damage</Label>
@@ -276,7 +276,7 @@ export function SpellsSection(props: SpellsSectionProps) {
       known: formData.known,
       damage: formData.damage,
       attackSave: formData.attackSave,
-      regain: formData.regain,
+      gain: formData.gain,
       atHigherLevel: formData.atHigherLevel,
       concentration: formData.concentration,
       ritual: formData.ritual,
@@ -304,7 +304,7 @@ export function SpellsSection(props: SpellsSectionProps) {
       known: formData.known,
       damage: formData.damage,
       attackSave: formData.attackSave,
-      regain: formData.regain,
+      gain: formData.gain,
       atHigherLevel: formData.atHigherLevel,
       concentration: formData.concentration,
       ritual: formData.ritual,
@@ -359,7 +359,7 @@ export function SpellsSection(props: SpellsSectionProps) {
       description: spell.description,
       prepared: spell.prepared || false,
       known: spell.known ?? true,
-      regain: spell.regain || "",
+      gain: spell.gain || "",
       atHigherLevel: spell.atHigherLevel || "",
       concentration: spell.concentration ?? false,
       ritual: spell.ritual ?? false,
@@ -532,7 +532,7 @@ export function SpellsSection(props: SpellsSectionProps) {
                                     <div class="flex flex-wrap gap-4 mb-2">
                                       <Show when={spell.damage}><div class="text-sm font-semibold"><span class="font-medium">Damage:</span> {spell.damage}</div></Show>
                                       <Show when={spell.attackSave}><div class="text-sm font-semibold"><span class="font-medium">Attack/Save:</span> {spell.attackSave}</div></Show>
-                                      <Show when={spell.regain}><div class="text-sm font-semibold"><span class="font-medium">Regain:</span> {spell.regain}</div></Show>
+                                      <Show when={spell.gain}><div class="text-sm font-semibold"><span class="font-medium">Gain:</span> {spell.gain}</div></Show>
                                     </div>
                                     <Show when={spell.description}>
                                       <div class="mb-2">

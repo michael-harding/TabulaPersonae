@@ -892,8 +892,8 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
   })
 
   describe("effect pills", () => {
-    it("shows gain pill for a spell with regain", () => {
-      const spell = makeSpell({ name: "Cure Wounds", level: 1, castingTime: "1 action", prepared: true, regain: "1d8+3" })
+    it("shows gain pill for a spell with gain", () => {
+      const spell = makeSpell({ name: "Cure Wounds", level: 1, castingTime: "1 action", prepared: true, gain: "1d8+3" })
       render(<ActionsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("1d8+3")).toBeInTheDocument()
     })
