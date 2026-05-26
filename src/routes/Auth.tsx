@@ -19,11 +19,11 @@ function ConsentModal(props: { open: boolean; onAgree: () => void; onDecline: ()
   return (
     <DialogPrimitive open={props.open} modal>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay class="fixed inset-0 z-50 bg-black/80 data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0" />
+        <DialogPrimitive.Overlay class="fixed inset-0 z-50 bg-black/80 data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 duration-200" />
         <DialogPrimitive.Content
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
-          class="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] grid gap-4 border bg-background p-6 shadow-lg sm:rounded-lg data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[closed]:zoom-out-95 data-[expanded]:zoom-in-95">
+          class="fixed left-[50%] top-[50%] z-50 w-full max-w-md grid gap-4 border bg-background p-6 shadow-lg sm:rounded-lg data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[expanded]:slide-in-from-left-1/2 data-[expanded]:slide-in-from-top-1/2 data-[closed]:slide-out-to-left-1/2 data-[closed]:slide-out-to-top-1/2 duration-200">
           <DialogPrimitive.Title class="text-lg font-semibold">
             Terms of Use &amp; Privacy Policy
           </DialogPrimitive.Title>
