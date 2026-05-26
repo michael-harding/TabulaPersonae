@@ -55,12 +55,7 @@ export function StatsBar(props: StatsBarProps) {
           <div class="flex items-center gap-1 shrink-0">
             <ShieldIcon class="h-3.5 w-3.5 text-primary" />
             <span class="text-xs text-muted-foreground">AC</span>
-            <span class="text-sm font-bold">
-              {ac()}
-              <Show when={props.character.shield}>
-                <span class="text-xs font-normal text-muted-foreground ml-0.5">+2</span>
-              </Show>
-            </span>
+            <span class="text-sm font-bold">{ac()}</span>
           </div>
 
           <div class="w-px h-4 bg-border shrink-0" />

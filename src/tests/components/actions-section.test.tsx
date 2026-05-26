@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, within } from "../test-utils"
 import { ActionsSection } from "@/components/actions-section"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Reaction, Spell, Feature } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment } from "@/lib/character-types"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -896,6 +896,47 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
       const spell = makeSpell({ name: "Cure Wounds", level: 1, castingTime: "1 action", prepared: true, gain: "1d8+3" })
       render(<ActionsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("1d8+3")).toBeInTheDocument()
+    })
+  })
+
+  describe("derived weapon attacks from equipped equipment", () => {
+    function makeWeaponEquipment(overrides: Partial<Equipment> = {}): Equipment {
+      return {
+        id: "wpn-1",
+        name: "Longsword",
+        quantity: 1,
+        weight: 3,
+        description: "",
+        equipped: true,
+        type: "weapon",
+        weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+        ...overrides,
+      }
+    }
+
+    it("renders equipped weapon name in Actions section", () => {
+      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment()] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Longsword")).toBeInTheDocument()
+    })
+
+    it("shows 'Weapon' badge on derived attack card", () => {
+      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment()] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Weapon")).toBeInTheDocument()
+    })
+
+    it("does not show a delete button on derived weapon attack", () => {
+      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment()] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("button", { name: /delete longsword/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render weapon when not equipped", () => {
+      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment({ equipped: false })] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Longsword")).not.toBeInTheDocument()
+    })
+
+    it("does not render weapon when weaponStats is absent", () => {
+      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment({ weaponStats: undefined })] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Longsword")).not.toBeInTheDocument()
     })
   })
 })

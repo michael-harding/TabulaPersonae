@@ -1,6 +1,6 @@
 import { createSignal, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, parseHitDiceSize } from "@/lib/character-utils"
+import { getSkillModifier, parseHitDiceSize, calculateEquippedAC } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { saveCharacter } from "@/lib/character-storage"
 import { EditableSection } from "@/components/editable-section"
@@ -49,7 +49,6 @@ const toEdit = (c: Character) => ({
   spentHitDice: c.spentHitDice ?? 0,
   hitDiceSize: c.hitDiceSize ?? parseHitDiceSize(c.hitDice ?? "1d8"),
   size: c.size ?? "Medium",
-  shield: c.shield ?? false,
 })
 
 
@@ -130,6 +129,8 @@ export function CombatStats(props: CombatStatsProps) {
   }
 
   const passivePerceptionLabel = () => edition() === "2014" ? "Passive Wisdom (Perception)" : "Passive Perception"
+
+  const equippedAC = () => calculateEquippedAC(props.character)
 
   return (
     <EditableSection
@@ -367,49 +368,32 @@ export function CombatStats(props: CombatStatsProps) {
 
         {/* Other Combat Stats */}
         <div class="grid grid-cols-2 gap-4">
-          {/* AC with optional shield */}
+          {/* AC */}
           <div class="text-center">
-            <Label class="text-sm text-muted-foreground">
-              Armor Class
-              <Show when={edition() === "2024"}>
-                <Show when={!isEditing()}>
-                  <label class="ml-2 inline-flex items-center gap-1 cursor-pointer" title="Shield equipped">
-                    <input
-                      type="checkbox"
-                      checked={!!props.character.shield}
-                      onChange={(e) => {
-                        const updated = { ...props.character, shield: e.currentTarget.checked }
-                        props.onUpdate(updated)
-                        saveCharacter(updated)
-                      }}
-                      class="h-3 w-3 accent-primary"
-                    />
-                    <span class="text-xs">Shield</span>
-                  </label>
-                </Show>
-              </Show>
-            </Label>
+            <Label class="text-sm text-muted-foreground">Armor Class</Label>
             <Show when={isEditing()} fallback={
-              <div class="text-2xl font-bold text-primary mt-1">{props.character.armorClass as number || 10}</div>
+              <div class="mt-1">
+                <div class="text-2xl font-bold text-primary">{equippedAC().ac}</div>
+                <Show when={equippedAC().isEquippedArmor}>
+                  <div class="text-xs text-muted-foreground">{equippedAC().breakdown}</div>
+                </Show>
+              </div>
             }>
-              <div class="space-y-1">
+              <Show
+                when={!equippedAC().isEquippedArmor}
+                fallback={
+                  <div class="mt-1">
+                    <div class="text-xl font-bold text-primary">{equippedAC().ac}</div>
+                    <div class="text-xs text-muted-foreground">From equipped armor</div>
+                  </div>
+                }
+              >
                 <NumericInput
                   value={edited().armorClass}
                   onChange={(v) => setEdited(prev => ({ ...prev, armorClass: v }))}
                   class="text-center text-xl font-bold mt-1"
                 />
-                <Show when={edition() === "2024"}>
-                  <label class="inline-flex items-center gap-1 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!edited().shield}
-                      onChange={(e) => setEdited(prev => ({ ...prev, shield: e.currentTarget.checked }))}
-                      class="h-3 w-3 accent-primary"
-                    />
-                    Shield equipped
-                  </label>
-                </Show>
-              </div>
+              </Show>
             </Show>
           </div>
 

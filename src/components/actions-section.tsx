@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import type { Character, ActionType, Feature, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, safeFeatures } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -221,6 +221,8 @@ export function ActionsSection(props: ActionsSectionProps) {
     return getAbilityModifier(scores[ability])
   }
 
+  const equippedWeaponAttacks = () => getEquippedWeaponAttacks(props.character)
+
   const allFeatures = (): Feature[] => [
     ...safeFeatures(props.character.classFeatures),
     ...safeFeatures(props.character.speciesTraits),
@@ -402,8 +404,21 @@ export function ActionsSection(props: ActionsSectionProps) {
               Add Action
             </Button>
           </div>
-          <Show when={attackSpells().length > 0 || (props.character.attacks?.length ?? 0) > 0 || featureActions().length > 0}>
+          <Show when={equippedWeaponAttacks().length > 0 || attackSpells().length > 0 || (props.character.attacks?.length ?? 0) > 0 || featureActions().length > 0}>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <For each={equippedWeaponAttacks()}>
+                {(w) => (
+                  <ActionCard
+                    name={w.name}
+                    badgeLabel="Weapon"
+                    attackBonus={w.attackBonus}
+                    range={w.range}
+                    damage={w.damage}
+                    damageType={w.damageType}
+                    description={w.description}
+                  />
+                )}
+              </For>
               <For each={attackSpells()}>{(spell) => renderSpell(spell)}</For>
               <For each={featureActions()}>{(feature) => renderFeature(feature)}</For>
               <For each={props.character.attacks || []}>

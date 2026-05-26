@@ -396,34 +396,68 @@ describe("EquipmentInventory", () => {
     })
   })
 
-  describe("Magic Item Attunement (2024 only)", () => {
-    it("renders the attunement section in 2024 mode", () => {
+  describe("Magic Items section", () => {
+    it("renders the Magic Items section heading for both editions", () => {
       render(<EquipmentInventory character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Magic Item Attunement")).toBeInTheDocument()
+      expect(screen.getByText("Magic Items")).toBeInTheDocument()
     })
 
-    it("does not render the attunement section in 2014 mode", () => {
+    it("renders the Magic Items section in 2014 mode too", () => {
       render(<EquipmentInventory character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
-      expect(screen.queryByText("Magic Item Attunement")).not.toBeInTheDocument()
+      expect(screen.getByText("Magic Items")).toBeInTheDocument()
     })
 
-    it("renders 'Add Attuned Item' button when fewer than 3 items attuned", () => {
-      render(<EquipmentInventory character={makeCharacter({ edition: "2024", magicItemAttunement: ["Ring of Protection"] })} onUpdate={vi.fn()} />)
-      expect(screen.getByRole("button", { name: /add attuned item/i })).toBeInTheDocument()
+    it("renders 'Add Magic Item' button", () => {
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: /add magic item/i })).toBeInTheDocument()
     })
 
-    it("hides 'Add Attuned Item' button when 3 items are already attuned", () => {
-      render(<EquipmentInventory character={makeCharacter({ edition: "2024", magicItemAttunement: ["Item A", "Item B", "Item C"] })} onUpdate={vi.fn()} />)
-      expect(screen.queryByRole("button", { name: /add attuned item/i })).not.toBeInTheDocument()
+    it("renders magic item names", () => {
+      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Ring of Protection", description: "", attuned: false }] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Ring of Protection")).toBeInTheDocument()
     })
 
-    it("calls onUpdate with new empty entry when Add Attuned Item is clicked", async () => {
+    it("shows 'Attuned' badge when item is attuned", () => {
+      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Staff of Power", description: "", attuned: true }] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Attuned")).toBeInTheDocument()
+    })
+
+    it("does not show 'Attuned' badge when item is not attuned", () => {
+      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Bag of Holding", description: "", attuned: false }] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Attuned")).not.toBeInTheDocument()
+    })
+
+    it("shows attuned count in heading", () => {
+      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Staff", description: "", attuned: true }] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("(1/3 attuned)")).toBeInTheDocument()
+    })
+
+    it("calls onUpdate and saveCharacter when deleting a magic item", async () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
-      render(<EquipmentInventory character={makeCharacter({ edition: "2024", magicItemAttunement: [] })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /add attuned item/i }))
+      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Ring", description: "", attuned: false }] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /delete ring/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ magicItems: [] }))
+      expect(saveCharacter).toHaveBeenCalled()
+    })
+
+    it("opens Add Magic Item modal when button is clicked", () => {
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      expect(screen.getByRole("dialog")).toBeInTheDocument()
+    })
+  })
+
+  describe("Equipment form type and weapon/armor stats", () => {
+    it("saves type correctly when adding an item", async () => {
+      const { saveCharacter } = await import("@/lib/character-storage")
+      const onUpdate = vi.fn()
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add item/i }))
+      fireEvent.input(screen.getByPlaceholderText("Enter item name"), { target: { value: "Torch" } })
+      fireEvent.click(screen.getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ magicItemAttunement: [""] })
+        expect.objectContaining({ equipment: expect.arrayContaining([expect.objectContaining({ name: "Torch", type: "other" })]) })
       )
       expect(saveCharacter).toHaveBeenCalled()
     })

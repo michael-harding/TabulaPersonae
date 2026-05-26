@@ -58,6 +58,21 @@ export interface Equipment extends CharacterEntry {
   weight: number
   equipped: boolean
   type: "weapon" | "armor" | "tool" | "consumable" | "treasure" | "other"
+  weaponStats?: {
+    damage: string
+    damageType: string
+    weaponRange: string
+    attackAbility: "str" | "dex" | "finesse"
+    proficient: boolean
+  }
+  armorStats?: {
+    baseAC: number
+    armorType: "light" | "medium" | "heavy" | "shield"
+  }
+}
+
+export interface MagicItem extends CharacterEntry {
+  attuned: boolean
 }
 
 export interface Spell extends CharacterEntry {
@@ -187,8 +202,7 @@ export interface Character {
   // 2024-only
   subclass?: string
   size?: string
-  shield?: boolean
-  magicItemAttunement?: string[]
+  magicItems?: MagicItem[]
   classFeatures?: Feature[]
   speciesTraits?: Feature[]
   feats?: Feature[]
@@ -311,7 +325,6 @@ export function createDefaultCharacter(): Character {
 
     subclass: "",
     size: "Medium",
-    shield: false,
     magicItemAttunement: [],
     classFeatures: [],
     speciesTraits: [],

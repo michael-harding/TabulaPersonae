@@ -247,25 +247,6 @@ describe("CombatStats", () => {
     })
   })
 
-  describe("shield (2024 only)", () => {
-    it("renders shield checkbox in 2024 mode", () => {
-      render(<CombatStats character={makeCharacter({ edition: "2024", shield: false })} onUpdate={vi.fn()} />)
-      expect(screen.getByTitle("Shield equipped")).toBeInTheDocument()
-    })
-
-    it("does not render shield checkbox in 2014 mode", () => {
-      render(<CombatStats character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
-      expect(screen.queryByTitle("Shield equipped")).not.toBeInTheDocument()
-    })
-
-    it("toggling shield checkbox calls onUpdate with updated shield value", () => {
-      const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter({ edition: "2024", shield: false })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByTitle("Shield equipped"))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ shield: true }))
-    })
-  })
-
   describe("size (2024 only)", () => {
     it("renders size in 2024 view mode", () => {
       render(<CombatStats character={makeCharacter({ edition: "2024", size: "Large" })} onUpdate={vi.fn()} />)

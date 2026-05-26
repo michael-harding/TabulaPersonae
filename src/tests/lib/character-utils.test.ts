@@ -10,8 +10,10 @@ import {
   SKILL_DISPLAY_NAMES,
   parseHitDiceSize,
   rollHitDice,
+  getEquippedWeaponAttacks,
+  calculateEquippedAC,
 } from "@/lib/character-utils"
-import { createDefaultCharacter, type AbilityScores } from "@/lib/character-types"
+import { createDefaultCharacter, type AbilityScores, type Equipment } from "@/lib/character-types"
 
 describe("Character Utils", () => {
   describe("getAbilityModifier", () => {
@@ -344,5 +346,141 @@ describe("Character Utils", () => {
         expect(total).toBe(rolls.reduce((a, b) => a + b, 0))
       }
     })
+  })
+})
+
+function makeWeaponItem(overrides: Partial<Equipment> = {}): Equipment {
+  return {
+    id: "wpn-1",
+    name: "Longsword",
+    quantity: 1,
+    weight: 3,
+    description: "",
+    equipped: true,
+    type: "weapon",
+    weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+    ...overrides,
+  }
+}
+
+function makeArmorItem(overrides: Partial<Equipment> = {}): Equipment {
+  return {
+    id: "arm-1",
+    name: "Chain Mail",
+    quantity: 1,
+    weight: 55,
+    description: "",
+    equipped: true,
+    type: "armor",
+    armorStats: { baseAC: 16, armorType: "heavy" },
+    ...overrides,
+  }
+}
+
+const baseScores = { strength: 16, dexterity: 14, constitution: 14, intelligence: 10, wisdom: 10, charisma: 10 }
+
+describe("getEquippedWeaponAttacks", () => {
+  it("returns [] when no equipment", () => {
+    const char = { ...createDefaultCharacter(), equipment: [] }
+    expect(getEquippedWeaponAttacks(char)).toEqual([])
+  })
+
+  it("returns [] when weapon is not equipped", () => {
+    const char = { ...createDefaultCharacter(), equipment: [makeWeaponItem({ equipped: false })] }
+    expect(getEquippedWeaponAttacks(char)).toEqual([])
+  })
+
+  it("returns [] when equipped weapon has no weaponStats", () => {
+    const char = { ...createDefaultCharacter(), equipment: [makeWeaponItem({ weaponStats: undefined })] }
+    expect(getEquippedWeaponAttacks(char)).toEqual([])
+  })
+
+  it("derives STR attack: STR 16 (+3), proficient, profBonus 2 → attackBonus 5, damage '1d8+3'", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2, equipment: [makeWeaponItem()] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(5)
+    expect(atk.damage).toBe("1d8+3")
+    expect(atk.damageType).toBe("slashing")
+    expect(atk.range).toBe("5 ft")
+  })
+
+  it("derives DEX attack for a ranged weapon", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem({ weaponStats: { damage: "1d6", damageType: "piercing", weaponRange: "80/320 ft", attackAbility: "dex", proficient: true } })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(4) // DEX +2 + prof +2
+    expect(atk.damage).toBe("1d6+2")
+  })
+
+  it("finesse uses the higher of STR/DEX (DEX wins here)", () => {
+    const scores = { ...baseScores, strength: 12, dexterity: 16 } // STR +1, DEX +3
+    const char = { ...createDefaultCharacter(), abilityScores: scores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem({ weaponStats: { damage: "1d6", damageType: "piercing", weaponRange: "5 ft", attackAbility: "finesse", proficient: true } })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(5) // DEX +3 + prof +2
+    expect(atk.damage).toBe("1d6+3")
+  })
+
+  it("omits proficiency bonus when proficient is false", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem({ weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: false } })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(3) // STR +3 only
+  })
+
+  it("sets isDerived: true on all results", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2, equipment: [makeWeaponItem()] }
+    expect(getEquippedWeaponAttacks(char)[0].isDerived).toBe(true)
+  })
+
+  it("uses 'weapon-' + equipment.id as the attack id", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2, equipment: [makeWeaponItem({ id: "wpn-abc" })] }
+    expect(getEquippedWeaponAttacks(char)[0].id).toBe("weapon-wpn-abc")
+  })
+
+  it("formats negative ability modifier correctly in damage string", () => {
+    const scores = { ...baseScores, strength: 8 } // STR -1
+    const char = { ...createDefaultCharacter(), abilityScores: scores, proficiencyBonus: 2, equipment: [makeWeaponItem()] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.damage).toBe("1d8-1")
+  })
+})
+
+describe("calculateEquippedAC", () => {
+  const defaultChar = { ...createDefaultCharacter(), armorClass: 12, abilityScores: baseScores, equipment: [] }
+
+  it("returns armorClass from character when no armor equipped", () => {
+    expect(calculateEquippedAC(defaultChar).ac).toBe(12)
+    expect(calculateEquippedAC(defaultChar).isEquippedArmor).toBe(false)
+  })
+
+  it("calculates light armor: baseAC + full DEX mod", () => {
+    const char = { ...defaultChar, equipment: [makeArmorItem({ armorStats: { baseAC: 11, armorType: "light" as const } })] }
+    expect(calculateEquippedAC(char).ac).toBe(13) // 11 + DEX +2
+    expect(calculateEquippedAC(char).isEquippedArmor).toBe(true)
+  })
+
+  it("calculates medium armor: baseAC + DEX capped at +2", () => {
+    const highDex = { ...baseScores, dexterity: 18 } // DEX +4, capped to +2
+    const char = { ...defaultChar, abilityScores: highDex, equipment: [makeArmorItem({ armorStats: { baseAC: 13, armorType: "medium" as const } })] }
+    expect(calculateEquippedAC(char).ac).toBe(15) // 13 + 2 (not 4)
+  })
+
+  it("calculates heavy armor: just baseAC, ignores DEX", () => {
+    const char = { ...defaultChar, equipment: [makeArmorItem({ armorStats: { baseAC: 16, armorType: "heavy" as const } })] }
+    expect(calculateEquippedAC(char).ac).toBe(16)
+  })
+
+  it("adds +2 for an equipped shield item", () => {
+    const shieldItem = makeArmorItem({ id: "shld-1", name: "Shield", armorStats: { baseAC: 2, armorType: "shield" as const } })
+    const bodyArmor = makeArmorItem({ armorStats: { baseAC: 16, armorType: "heavy" as const } })
+    const char = { ...defaultChar, equipment: [bodyArmor, shieldItem] }
+    expect(calculateEquippedAC(char).ac).toBe(18)
+  })
+
+  it("ignores unequipped armor items", () => {
+    const char = { ...defaultChar, equipment: [makeArmorItem({ equipped: false })] }
+    expect(calculateEquippedAC(char).isEquippedArmor).toBe(false)
+    expect(calculateEquippedAC(char).ac).toBe(12)
   })
 })
