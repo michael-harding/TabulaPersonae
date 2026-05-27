@@ -90,9 +90,7 @@ export function CombatStats(props: CombatStatsProps) {
     saveCharacter(updated)
   }
 
-  const toggleDeathSave = (type: "successes" | "failures", index: number) => {
-    const current = props.character.deathSaves?.[type] || 0
-    const newValue = Math.max(0, Math.min(3, index < current ? current - 1 : index + 1))
+  const toggleDeathSave = (type: "successes" | "failures", newValue: number) => {
     const updated = { ...props.character, deathSaves: { ...props.character.deathSaves, [type]: newValue } }
     props.onUpdate(updated)
     saveCharacter(updated)
@@ -269,41 +267,31 @@ export function CombatStats(props: CombatStatsProps) {
                 <div class="text-sm font-medium text-green-600 flex items-center gap-1">
                   <CheckCircle class="h-3 w-3" /> Successes
                 </div>
-                <div class="flex gap-1">
-                  <For each={[0, 1, 2]}>
-                    {(i) => (
-                      <button
-                        onClick={() => toggleDeathSave("successes", i)}
-                        class={`w-6 h-6 rounded-full border-2 transition-colors ${i < (props.character.deathSaves?.successes || 0) ? "bg-green-500 border-green-500" : "bg-background border-green-500 hover:bg-green-100"}`}
-                        title={i < (props.character.deathSaves?.successes || 0) ? "Success (click to remove)" : "Click to add success"}
-                      >
-                        <Show when={i < (props.character.deathSaves?.successes || 0)}>
-                          <CheckCircle class="h-4 w-4 text-white mx-auto" />
-                        </Show>
-                      </button>
-                    )}
-                  </For>
-                </div>
+                <PipTracker
+                  total={3}
+                  used={props.character.deathSaves?.successes || 0}
+                  onToggle={(n) => toggleDeathSave("successes", n)}
+                  filledClass="bg-green-500 border-green-500 hover:bg-green-400"
+                  emptyClass="bg-background border-green-500 hover:bg-green-100"
+                  filledIcon={<CheckCircle class="h-4 w-4 text-white" />}
+                  usedTitle="Success (click to remove)"
+                  availableTitle="Click to add success"
+                />
               </div>
               <div class="space-y-2">
                 <div class="text-sm font-medium text-red-600 flex items-center gap-1">
                   <XCircle class="h-3 w-3" /> Failures
                 </div>
-                <div class="flex gap-1">
-                  <For each={[0, 1, 2]}>
-                    {(i) => (
-                      <button
-                        onClick={() => toggleDeathSave("failures", i)}
-                        class={`w-6 h-6 rounded-full border-2 transition-colors ${i < (props.character.deathSaves?.failures || 0) ? "bg-red-500 border-red-500" : "bg-background border-red-500 hover:bg-red-100"}`}
-                        title={i < (props.character.deathSaves?.failures || 0) ? "Failure (click to remove)" : "Click to add failure"}
-                      >
-                        <Show when={i < (props.character.deathSaves?.failures || 0)}>
-                          <XCircle class="h-4 w-4 text-white mx-auto" />
-                        </Show>
-                      </button>
-                    )}
-                  </For>
-                </div>
+                <PipTracker
+                  total={3}
+                  used={props.character.deathSaves?.failures || 0}
+                  onToggle={(n) => toggleDeathSave("failures", n)}
+                  filledClass="bg-red-500 border-red-500 hover:bg-red-400"
+                  emptyClass="bg-background border-red-500 hover:bg-red-100"
+                  filledIcon={<XCircle class="h-4 w-4 text-white" />}
+                  usedTitle="Failure (click to remove)"
+                  availableTitle="Click to add failure"
+                />
               </div>
             </div>
             <Show when={(props.character.deathSaves?.successes || 0) >= 3}>
