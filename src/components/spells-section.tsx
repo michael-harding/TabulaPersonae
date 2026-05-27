@@ -1,4 +1,5 @@
 import { createSignal, For, Show } from "solid-js"
+import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Spell } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
 import { saveCharacter } from "@/lib/character-storage"
@@ -218,7 +219,10 @@ export function SpellsSection(props: SpellsSectionProps) {
   const [searchTerm, setSearchTerm] = createSignal("")
   const [isAddModalOpen, setIsAddModalOpen] = createSignal(false)
   const [editingSpell, setEditingSpell] = createSignal<Spell | null>(null)
-  const [expandedLevels, setExpandedLevels] = createSignal<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
+  const [expandedLevels, setExpandedLevels] = createPersistedSetSignal<number>(
+    `dnd-collapsible-spells-${props.character.id}`,
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  )
   const [isSpellSlotsModalOpen, setIsSpellSlotsModalOpen] = createSignal(false)
 
 

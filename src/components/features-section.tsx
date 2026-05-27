@@ -1,4 +1,5 @@
 import { createSignal, For, Show } from "solid-js"
+import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Feature, FeatureKind, ActionKind, ActionType } from "@/lib/character-types"
 import { safeFeatures } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -174,8 +175,9 @@ function FeatureForm(props: FeatureFormProps) {
 export function FeaturesSection(props: FeaturesSectionProps) {
   const [isAddOpen, setIsAddOpen] = createSignal<FeatureKind | null>(null)
   const [editingFeature, setEditingFeature] = createSignal<Feature | null>(null)
-  const [expandedSections, setExpandedSections] = createSignal<Set<FeatureKind>>(
-    new Set(['class-feature', 'species-trait', 'feat'])
+  const [expandedSections, setExpandedSections] = createPersistedSetSignal<FeatureKind>(
+    `dnd-collapsible-features-${props.character.id}`,
+    ['class-feature', 'species-trait', 'feat']
   )
 
   const toggleExpanded = (kind: FeatureKind, open: boolean) => {

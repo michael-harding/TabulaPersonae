@@ -1,4 +1,5 @@
 import { createSignal, For, Show } from "solid-js"
+import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -246,8 +247,9 @@ export function ActionsSection(props: ActionsSectionProps) {
   const openEditOther = (item: StoredAction) => { setEditingOther(item); setIsOtherModalOpen(true) }
   const closeOtherModal = () => { setIsOtherModalOpen(false); setEditingOther(null) }
   const [upcastSpellId, setUpcastSpellId] = createSignal<string | null>(null)
-  const [expandedSections, setExpandedSections] = createSignal<Set<ActionSection>>(
-    new Set(['actions', 'bonus-actions', 'reactions', 'other'])
+  const [expandedSections, setExpandedSections] = createPersistedSetSignal<ActionSection>(
+    `dnd-collapsible-actions-${props.character.id}`,
+    ['actions', 'bonus-actions', 'reactions', 'other']
   )
   const toggleSection = (section: ActionSection, open: boolean) => {
     setExpandedSections(prev => {
