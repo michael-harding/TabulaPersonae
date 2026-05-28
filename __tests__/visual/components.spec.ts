@@ -127,6 +127,9 @@ test.describe("CharacterNotes component", () => {
     await page.goto(`/character/${testCharacter.id}`)
     await page.waitForLoadState("networkidle")
 
+    await page.getByRole("tab", { name: "Character" }).click()
+    await page.waitForLoadState("networkidle")
+
     const card = page.locator("text=Character Background").locator("..").locator("..")
     await expect(card).toHaveScreenshot("character-notes-populated.png")
   })
@@ -147,6 +150,9 @@ test.describe("CharacterNotes component", () => {
       localStorage.setItem("dnd-skip-auth", "true")
     }, emptyChar)
     await page.goto(`/character/${emptyChar.id}`)
+    await page.waitForLoadState("networkidle")
+
+    await page.getByRole("tab", { name: "Character" }).click()
     await page.waitForLoadState("networkidle")
 
     const card = page.locator("text=Character Background").locator("..").locator("..")
