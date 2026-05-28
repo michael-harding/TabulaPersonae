@@ -170,6 +170,7 @@ export default function CharacterSheet() {
                     onImportCharacter={handleImportCharacter}
                     onImportMultiple={handleImportMultiple}
                     onAllCharacters={() => navigate("/")}
+                    currentCharacter={character() ?? undefined}
                   />
                 </div>
               </div>

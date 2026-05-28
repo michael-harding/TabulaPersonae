@@ -9,7 +9,6 @@ import Plus from "lucide-solid/icons/plus"
 import Scroll from "lucide-solid/icons/scroll"
 import Sword from "lucide-solid/icons/sword"
 import Trash2 from "lucide-solid/icons/trash-2"
-import { ImportExport } from "@/components/import-export"
 import { HeaderMenu } from "@/components/header-menu"
 
 export default function Home() {
@@ -82,12 +81,7 @@ export default function Home() {
     >
       <div class="bg-background p-4">
         <div class="max-w-4xl mx-auto">
-          <div class="flex justify-between items-center mb-4">
-            <ImportExport
-              characters={characters()}
-              onImportCharacter={handleImportCharacter}
-              onImportMultiple={handleImportMultiple}
-            />
+          <div class="flex justify-end mb-4">
             <HeaderMenu
               characters={characters()}
               onImportCharacter={handleImportCharacter}
