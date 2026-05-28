@@ -193,7 +193,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
   })
 
   describe("Delete attack", () => {
-    it("calls onUpdate without the deleted attack when delete button is clicked", () => {
+    it("calls onUpdate without the deleted attack when delete is confirmed via edit modal", () => {
       const onUpdate = vi.fn()
       render(
         <ActionsSection
@@ -201,7 +201,9 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByRole("button", { name: /delete longsword/i }))
+      fireEvent.click(screen.getByRole("button", { name: /edit longsword/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("button", { name: /^delete$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ attacks: [] })
       )

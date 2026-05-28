@@ -192,22 +192,22 @@ describe("ActionCard", () => {
     })
   })
 
-  describe("delete button", () => {
-    it("rendered when onDelete is provided", () => {
-      render(<ActionCard {...makeProps({ onDelete: vi.fn() })} />)
-      expect(screen.getByRole("button", { name: /delete test action/i })).toBeInTheDocument()
+  describe("edit button", () => {
+    it("rendered when onEdit is provided", () => {
+      render(<ActionCard {...makeProps({ onEdit: vi.fn() })} />)
+      expect(screen.getByRole("button", { name: /edit test action/i })).toBeInTheDocument()
     })
 
-    it("not rendered when onDelete is omitted", () => {
+    it("not rendered when onEdit is omitted", () => {
       render(<ActionCard {...makeProps()} />)
-      expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument()
     })
 
-    it("calls onDelete when clicked", () => {
-      const onDelete = vi.fn()
-      render(<ActionCard {...makeProps({ onDelete })} />)
-      fireEvent.click(screen.getByRole("button", { name: /delete test action/i }))
-      expect(onDelete).toHaveBeenCalledOnce()
+    it("calls onEdit when clicked", () => {
+      const onEdit = vi.fn()
+      render(<ActionCard {...makeProps({ onEdit })} />)
+      fireEvent.click(screen.getByRole("button", { name: /edit test action/i }))
+      expect(onEdit).toHaveBeenCalledOnce()
     })
   })
 

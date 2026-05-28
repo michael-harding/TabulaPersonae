@@ -329,7 +329,6 @@ export function createDefaultCharacter(): Character {
 
     subclass: "",
     size: "Medium",
-    magicItemAttunement: [],
     classFeatures: [],
     speciesTraits: [],
     feats: [],
