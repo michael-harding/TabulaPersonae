@@ -248,10 +248,10 @@ export function ActionCard(props: ActionCardProps) {
             <Show when={pill()}>
               {(p) => {
                 const colorClass = p().color === "green"
-                  ? "border-green-500 text-green-700"
+                  ? "border-green-500 text-green-700 dark:text-green-400"
                   : p().color === "blue"
-                  ? "border-blue-500 text-blue-700"
-                  : "border-red-500 text-red-700"
+                  ? "border-blue-500 text-blue-700 dark:text-blue-400"
+                  : "border-red-500 text-red-700 dark:text-red-400"
                 return (
                   <div class={`px-2 py-1 border-2 rounded font-semibold whitespace-nowrap text-sm ${colorClass}`}>
                     {p().text}
