@@ -508,7 +508,7 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
   }
 
   return (
-    <Card>
+    <Card data-sem="equipment-inventory">
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -539,6 +539,7 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
               <div class="text-center space-y-1">
                 <Label class="text-xs font-medium text-muted-foreground">{denom.toUpperCase()}</Label>
                 <CurrencyInput
+                  aria-label={`${denom.toUpperCase()} currency`}
                   min={0}
                   value={props.character.coins?.[denom] ?? 0}
                   onChange={(v) => {

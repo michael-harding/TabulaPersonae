@@ -4,6 +4,7 @@ vi.mock("@/lib/auth-context", () => ({
   AuthContext: {},
 }))
 
+import { axe } from "vitest-axe"
 import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
 import { useAuth } from "@/lib/auth-context"
 import Auth from "@/routes/Auth"
@@ -261,5 +262,14 @@ describe("Auth page — ConsentModal shown for Continue without account", () => 
 
     await waitFor(() => expect(dialogIsOpen()).toBe(false))
     expect(localStorage.getItem("dnd-skip-auth")).toBeNull()
+  })
+})
+
+describe("Auth page — accessibility", () => {
+  it("has no accessibility violations", async () => {
+    setupAuth()
+    const { container } = render(<Auth />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

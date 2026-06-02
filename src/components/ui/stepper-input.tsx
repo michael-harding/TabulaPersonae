@@ -9,6 +9,7 @@ interface StepperInputProps {
   min?: number
   max?: number
   onAtMin?: () => void
+  "aria-label"?: string
 }
 
 export function StepperInput(props: StepperInputProps) {
@@ -20,8 +21,9 @@ export function StepperInput(props: StepperInputProps) {
   }
 
   return (
-    <div class="flex items-stretch">
+    <div data-sem="stepper-input" class="flex items-stretch">
       <Button
+        data-test="stepper-decrease"
         variant="outline"
         size="icon"
         class="h-11 w-11 shrink-0 rounded-r-none border-r-0"
@@ -41,9 +43,11 @@ export function StepperInput(props: StepperInputProps) {
         onChange={props.onChange}
         min={props.min}
         max={props.max}
+        aria-label={props["aria-label"]}
         class="text-center h-11 px-0 py-0 w-[5ch] min-w-[3ch] max-w-[5ch] rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       />
       <Button
+        data-test="stepper-increase"
         variant="outline"
         size="icon"
         class="h-11 w-11 shrink-0 rounded-l-none border-l-0"

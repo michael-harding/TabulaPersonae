@@ -17,7 +17,7 @@ function getOrdinalSuffix(num: number): string {
 
 export function SpellSlotTracker(props: SpellSlotTrackerProps) {
   return (
-    <div class="flex flex-wrap gap-2">
+    <div data-sem="spell-slot-tracker" class="flex flex-wrap gap-2">
       <For each={[1, 2, 3, 4, 5, 6, 7, 8, 9]}>
         {(level) => {
           const slots = () => props.spellSlots[level as keyof SpellSlots]

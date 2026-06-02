@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { SheetSettings } from "@/components/sheet-settings"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -88,5 +89,11 @@ describe("SheetSettings", () => {
       fireEvent.click(screen.getByRole("button", { name: /reset sheet color/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ sheetColor: undefined }))
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<SheetSettings character={baseCharacter} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

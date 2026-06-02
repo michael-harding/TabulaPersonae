@@ -652,7 +652,7 @@ async function extractPdfFields(arrayBuffer: ArrayBuffer | Uint8Array): Promise<
 
     for (let i = 0; i < annots.size(); i++) {
       try {
-        const annot = context.lookup(annots.get(i)) as any
+        const annot = context.lookup(annots.get(i)) as any // pdf-lib's PDFObject has no typed accessor API
         const subtype = annot?.get?.(PDFName.of("Subtype"))?.encodedName
         if (subtype !== "/Widget") continue
 
@@ -661,10 +661,10 @@ async function extractPdfFields(arrayBuffer: ArrayBuffer | Uint8Array): Promise<
         if (!t) continue
 
         // Trim trailing whitespace from field names (D&D Beyond has inconsistent padding)
-        const name = ((t as any).value ?? (t as any).encodedName ?? "").toString().trim()
+        const name = ((t as any).value ?? (t as any).encodedName ?? "").toString().trim() // pdf-lib internal fields not typed
         if (!name) continue
 
-        const rawValue = v ? ((v as any).value ?? (v as any).encodedName ?? "").toString() : ""
+        const rawValue = v ? ((v as any).value ?? (v as any).encodedName ?? "").toString() : "" // pdf-lib internal fields not typed
         result[name] = rawValue
       } catch { /* skip unreadable annotations */ }
     }

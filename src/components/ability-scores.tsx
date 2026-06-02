@@ -51,6 +51,7 @@ export function AbilityScores(props: AbilityScoresProps) {
 
   return (
     <EditableSection
+      data-sem="ability-scores"
       icon={<Zap class="h-5 w-5 text-primary" />}
       title="Ability Scores"
       editTitle="Edit Ability Scores"

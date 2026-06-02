@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { AbilityScores } from "@/components/ability-scores"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -164,5 +165,11 @@ describe("AbilityScores", () => {
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
       expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

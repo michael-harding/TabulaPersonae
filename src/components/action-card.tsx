@@ -107,7 +107,7 @@ export function ActionCard(props: ActionCardProps) {
   const hasUsesTracker = () => (props.maxUses ?? 0) > 0 && !hasCastButtons()
 
   return (
-    <div class="p-3 border rounded-lg flex flex-col gap-2">
+    <div data-sem="action-card" class="p-3 border rounded-lg flex flex-col gap-2">
 
       {/* Row 1 — Header */}
       <div class="flex items-start gap-2">

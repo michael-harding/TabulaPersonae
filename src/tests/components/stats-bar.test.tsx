@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen } from "../test-utils"
 import { StatsBar } from "@/components/stats-bar"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -35,5 +36,11 @@ describe("StatsBar", () => {
     const character = { ...createDefaultCharacter(), hitPoints: undefined as any }
     render(<StatsBar character={character} />)
     expect(screen.getByText(/\/1/)).toBeInTheDocument()
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<StatsBar character={makeCharacter(8, 10)} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

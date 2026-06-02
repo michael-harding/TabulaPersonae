@@ -59,6 +59,8 @@ export function OfflineIndicator() {
   return (
     <Show when={!!user() && status() !== 'online'}>
       <div
+        data-sem="offline-indicator"
+        data-test="offline-indicator"
         class={`fixed bottom-6 right-6 z-50 flex h-11 w-auto cursor-pointer flex-row items-center justify-end overflow-hidden rounded-full shadow-lg transition-[max-width] duration-300 ${BG[status()]} ${expanded() ? 'max-w-xs' : 'max-w-[44px]'}`}
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}

@@ -9,6 +9,7 @@ export function Toast(props: ToastProps) {
   const [local, others] = splitProps(props, ["class", "variant"])
   return (
     <div
+      data-sem="toast"
       class={cn(toastVariants({ variant: local.variant }), local.class)}
       {...others}
     />

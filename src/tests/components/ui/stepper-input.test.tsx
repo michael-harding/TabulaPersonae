@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../../test-utils"
 import { StepperInput } from "@/components/ui/stepper-input"
 
@@ -53,5 +54,11 @@ describe("StepperInput", () => {
     fireEvent.click(screen.getByRole("button", { name: /decrease/i }))
     expect(onAtMin).toHaveBeenCalled()
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<StepperInput value={3} onChange={vi.fn()} aria-label="Test value" />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

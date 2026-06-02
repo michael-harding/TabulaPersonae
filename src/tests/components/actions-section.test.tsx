@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within } from "../test-utils"
 import { ActionsSection } from "@/components/actions-section"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -1026,5 +1027,11 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
       const actionsHeader = screen.getByText("Actions").closest("button")!
       expect(within(actionsHeader).getByText("1")).toBeInTheDocument()
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

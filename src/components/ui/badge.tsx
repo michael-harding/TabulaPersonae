@@ -24,7 +24,7 @@ export type BadgeProps = ComponentProps<"div"> & VariantProps<typeof badgeVarian
 export function Badge(props: BadgeProps) {
   const [local, others] = splitProps(props, ["class", "variant"])
   return (
-    <div class={cn(badgeVariants({ variant: local.variant }), local.class)} {...others} />
+    <div data-sem="badge" class={cn(badgeVariants({ variant: local.variant }), local.class)} {...others} />
   )
 }
 

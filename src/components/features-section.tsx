@@ -247,7 +247,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
   }
 
   return (
-    <Card>
+    <Card data-sem="features-section">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
           <Layers class="h-5 w-5 text-primary" />

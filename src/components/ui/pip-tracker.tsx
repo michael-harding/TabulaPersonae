@@ -25,10 +25,11 @@ export function PipTracker(props: PipTrackerProps) {
   }
 
   return (
-    <div class="flex flex-wrap items-center">
+    <div data-sem="pip-tracker" class="flex flex-wrap items-center">
       <For each={Array.from({ length: props.total }, (_, i) => i)}>
         {(index) => (
           <button
+            data-test={`pip-tracker-slot-${index}`}
             onClick={() => toggle(index)}
             class="w-11 h-11 flex items-center justify-center"
             title={index < props.used ? usedTitle() : availableTitle()}

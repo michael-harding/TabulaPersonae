@@ -6,6 +6,7 @@ interface CurrencyInputProps {
   onAtMin?: () => void
   min?: number
   max?: number
+  "aria-label"?: string
 }
 
 export function CurrencyInput(props: CurrencyInputProps) {
@@ -16,6 +17,7 @@ export function CurrencyInput(props: CurrencyInputProps) {
       onAtMin={props.onAtMin}
       min={props.min}
       max={props.max}
+      aria-label={props["aria-label"]}
     />
   )
 }

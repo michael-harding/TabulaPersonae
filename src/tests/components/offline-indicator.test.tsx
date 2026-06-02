@@ -21,6 +21,7 @@ vi.mock('@/lib/auth-context', () => ({
   })),
 }))
 
+import { axe } from "vitest-axe"
 import { createSignal } from 'solid-js'
 import { render, screen, fireEvent } from '../test-utils'
 import { OfflineIndicator, formatAge } from '@/components/offline-indicator'
@@ -212,5 +213,12 @@ describe('OfflineIndicator', () => {
       const { container } = render(<OfflineIndicator />)
       expect(container.querySelector('.animate-spin')).toBeNull()
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online') as any)
+    const { container } = render(<OfflineIndicator />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

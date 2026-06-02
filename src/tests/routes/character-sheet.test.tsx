@@ -12,6 +12,7 @@ vi.mock("@/lib/theme", () => ({
   setTheme: vi.fn(),
 }))
 
+import { axe } from "vitest-axe"
 import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
 import { createDefaultCharacter } from "@/lib/character-types"
 import CharacterSheet from "@/routes/CharacterSheet"
@@ -86,5 +87,12 @@ describe("CharacterSheet tabs", () => {
     expect(screen.getByRole("heading", { name: /testy mctestface/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("tab", { name: /spells/i }))
     expect(screen.getByRole("heading", { name: /testy mctestface/i })).toBeInTheDocument()
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<CharacterSheet />)
+    await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

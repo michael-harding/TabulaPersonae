@@ -64,7 +64,7 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
   const raceList = () => edition() === "2014" ? RACES : SPECIES
   const inspirationLabel = () => edition() === "2014" ? "Inspiration" : "Heroic Inspiration"
 
-  const updateField = (field: keyof Character, value: any) => {
+  const updateField = (field: keyof Character, value: any) => { // Character fields are heterogeneous; a union of all field types is not usable as an assignment target
     if (field === "class") {
       const spellcastingAbility = CLASS_TO_SPELLCASTING_ABILITY[value] ?? ""
       setEdited((prev) => ({ ...prev, class: value, spellcastingAbility }))
@@ -78,6 +78,7 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
 
   return (
     <EditableSection
+      data-sem="character-basic-info"
       icon={<User class="h-5 w-5 text-primary" />}
       title="Character Information"
       editTitle="Edit Character Information"

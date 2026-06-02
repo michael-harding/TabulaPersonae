@@ -26,6 +26,7 @@ export function ModalContent(props: ComponentProps<typeof DialogPrimitive.Conten
     <DialogPrimitive.Portal>
       <ModalOverlay />
       <DialogPrimitive.Content
+        data-sem="modal-content"
         class={cn(
           "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[expanded]:slide-in-from-left-1/2 data-[expanded]:slide-in-from-top-1/2 data-[closed]:slide-out-to-left-1/2 data-[closed]:slide-out-to-top-1/2 duration-200 sm:rounded-lg max-h-[100dvh] overflow-y-auto",
           local.class

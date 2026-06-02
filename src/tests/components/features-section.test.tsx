@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within } from "../test-utils"
 import { FeaturesSection } from "@/components/features-section"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -554,5 +555,11 @@ describe("FeaturesSection", () => {
         })
       )
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

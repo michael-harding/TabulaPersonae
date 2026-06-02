@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../../test-utils"
 import { SwitchButton } from "@/components/ui/switch-button"
 
@@ -30,5 +31,11 @@ describe("SwitchButton", () => {
     render(<SwitchButton optionA="2014" optionB="2024" value="2014" onChange={onChange} id="test-switch" />)
     fireEvent.click(screen.getByRole("checkbox", { name: /2014 2024/i }))
     expect(onChange).toHaveBeenCalledWith("2024")
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<SwitchButton optionA="2014" optionB="2024" value="2024" onChange={vi.fn()} id="test-switch" />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

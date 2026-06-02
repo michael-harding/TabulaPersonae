@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 export function Card(props: ComponentProps<"div">) {
   const [local, others] = splitProps(props, ["class"])
   return (
-    <div class={cn("rounded-lg border border-primary bg-card text-card-foreground shadow-sm", local.class)} {...others} />
+    <div data-sem="card" class={cn("rounded-lg border border-primary bg-card text-card-foreground shadow-sm", local.class)} {...others} />
   )
 }
 

@@ -32,7 +32,7 @@ export function StatsBar(props: StatsBarProps) {
   const conditions = () => props.character.conditions ?? []
 
   return (
-    <div class="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+    <div data-sem="stats-bar" class="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
       {/* HP progress bar */}
       <div class="relative h-1.5 w-full overflow-hidden bg-secondary/30">
         <div

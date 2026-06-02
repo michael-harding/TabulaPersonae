@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../../test-utils"
 import { Combobox } from "@/components/ui/combobox"
 
@@ -73,5 +74,11 @@ describe("Combobox", () => {
     fireEvent.focus(input)
     const clericOption = screen.getByRole("option", { name: "Cleric" })
     expect(clericOption).toHaveAttribute("aria-selected", "true")
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<Combobox value="Bard" options={OPTIONS} aria-label="Select class" />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

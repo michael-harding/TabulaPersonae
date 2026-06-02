@@ -102,7 +102,7 @@ export default function Home() {
                   <p class="text-muted-foreground">
                     You don't have any characters yet. Create your first character to get started!
                   </p>
-                  <Button onClick={createNewCharacter} size="lg" class="gap-2">
+                  <Button data-test="create-first-character-button" onClick={createNewCharacter} size="lg" class="gap-2">
                     <Plus class="h-5 w-5" />
                     Create Your First Character
                   </Button>
@@ -115,6 +115,7 @@ export default function Home() {
                     {(character) => (
                       <Card class="cursor-pointer hover:shadow-lg transition-shadow relative group">
                         <Button
+                          data-test={`delete-character-button-${character.id}`}
                           variant="ghost"
                           size="sm"
                           aria-label={`Delete ${character.name || "character"}`}
@@ -147,7 +148,7 @@ export default function Home() {
                   </For>
                 </div>
 
-                <Button onClick={createNewCharacter} variant="outline" class="gap-2 bg-transparent">
+                <Button data-test="create-new-character-button" onClick={createNewCharacter} variant="outline" class="gap-2 bg-transparent">
                   <Plus class="h-4 w-4" />
                   Create New Character
                 </Button>

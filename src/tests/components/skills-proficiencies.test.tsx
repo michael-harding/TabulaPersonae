@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within } from "../test-utils"
 import { SkillsProficiencies } from "@/components/skills-proficiencies"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -328,5 +329,11 @@ describe("SkillsProficiencies", () => {
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledTimes(1)
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

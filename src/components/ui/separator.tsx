@@ -11,8 +11,9 @@ export function Separator(props: SeparatorProps) {
   const orientation = () => local.orientation ?? "horizontal"
   return (
     <div
+      data-sem="separator"
       role={local.decorative ?? true ? "none" : "separator"}
-      aria-orientation={orientation()}
+      aria-orientation={!(local.decorative ?? true) ? orientation() : undefined}
       class={cn(
         "shrink-0 bg-border",
         orientation() === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]",

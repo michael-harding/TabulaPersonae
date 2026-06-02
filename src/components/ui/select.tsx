@@ -50,7 +50,7 @@ export function Select(props: SelectRootProps) {
 
   return (
     <SelectContext.Provider value={{ value, onValueChange, open, setOpen, placeholder: () => props.placeholder }}>
-      <div class="relative">
+      <div data-sem="select" class="relative">
         {props.children}
       </div>
     </SelectContext.Provider>

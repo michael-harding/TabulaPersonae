@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../../test-utils"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
@@ -66,5 +67,11 @@ describe("Tabs", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Third" }))
     expect(screen.getByRole("tab", { name: "Third" })).toHaveAttribute("data-selected")
     expect(screen.getByRole("tab", { name: "First" })).not.toHaveAttribute("data-selected")
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<TestTabs defaultValue="first" />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

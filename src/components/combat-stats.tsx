@@ -132,6 +132,7 @@ export function CombatStats(props: CombatStatsProps) {
 
   return (
     <EditableSection
+      data-sem="combat-stats"
       icon={<ShieldIcon class="h-5 w-5 text-primary" />}
       title="Combat Stats"
       isEditing={isEditing()}
@@ -149,10 +150,10 @@ export function CombatStats(props: CombatStatsProps) {
             </Label>
             <Show when={!isEditing()}>
               <div class="flex gap-1">
-                <Button size="sm" variant="outline" onClick={() => adjustHitPoints(-1)} disabled={currentHP() <= 0}>
+                <Button data-test="hp-decrease-button" size="sm" variant="outline" aria-label="Decrease HP" onClick={() => adjustHitPoints(-1)} disabled={currentHP() <= 0}>
                   <Minus class="h-3 w-3" />
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => adjustHitPoints(1)} disabled={currentHP() >= maxHP()}>
+                <Button data-test="hp-increase-button" size="sm" variant="outline" aria-label="Increase HP" onClick={() => adjustHitPoints(1)} disabled={currentHP() >= maxHP()}>
                   <Plus class="h-3 w-3" />
                 </Button>
               </div>
@@ -310,6 +311,7 @@ export function CombatStats(props: CombatStatsProps) {
             <DropdownMenu>
               <DropdownMenuTrigger
                 as="button"
+                data-test="add-condition-button"
                 class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
                 title="Add condition"
               >
@@ -341,6 +343,7 @@ export function CombatStats(props: CombatStatsProps) {
                 {(condition) => (
                   <button
                     type="button"
+                    data-test={`remove-condition-${condition}`}
                     onClick={() => toggleCondition(condition)}
                     class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
                     title="Click to remove"

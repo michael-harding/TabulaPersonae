@@ -13,11 +13,12 @@ export function SwitchButton(props: SwitchButtonProps) {
   const isB = () => props.value === props.optionB
 
   return (
-    <div class="inline-flex items-center rounded-full bg-muted p-0.5">
+    <div data-sem="switch-button" class="inline-flex items-center rounded-full bg-muted p-0.5">
       <input
         class="sr-only"
         type="checkbox"
         id={inputId}
+        data-test={props.id ? `switch-button-${props.id}` : "switch-button"}
         checked={isB()}
         onChange={(e) => props.onChange(e.currentTarget.checked ? props.optionB : props.optionA)}
       />

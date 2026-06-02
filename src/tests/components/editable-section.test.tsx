@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { EditableSection } from "@/components/editable-section"
 
@@ -132,5 +133,13 @@ describe("EditableSection", () => {
       const { container } = renderEdit({ contentClass: "my-custom-class" })
       expect(container.querySelector(".my-custom-class")).toBeInTheDocument()
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(
+      <EditableSection icon={icon} title="Test Section" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onCancel={vi.fn()} />
+    )
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

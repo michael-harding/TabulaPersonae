@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import AxeBuilder from "@axe-core/playwright"
 import { testCharacter, secondCharacter } from "./fixtures"
 
 // All component screenshots are taken by navigating to the full character sheet
@@ -12,6 +13,8 @@ test.describe("CombatStats component", () => {
     }, testCharacter)
     await page.goto(`/character/${testCharacter.id}`)
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
 
     const card = page.locator("text=Combat Stats").locator("..").locator("..")
     await expect(card).toHaveScreenshot("combat-stats-normal-hp.png")
@@ -24,6 +27,8 @@ test.describe("CombatStats component", () => {
     }, secondCharacter)
     await page.goto(`/character/${secondCharacter.id}`)
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
 
     const card = page.locator("text=Combat Stats").locator("..").locator("..")
     await expect(card).toHaveScreenshot("combat-stats-death-saves.png")
@@ -38,6 +43,8 @@ test.describe("AbilityScores component", () => {
     }, testCharacter)
     await page.goto(`/character/${testCharacter.id}`)
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
 
     const card = page.locator("text=Ability Scores").locator("..").locator("..")
     await expect(card).toHaveScreenshot("ability-scores-view.png")
@@ -53,6 +60,9 @@ test.describe("AbilityScores component", () => {
 
     // Open edit mode via the aria-labeled Edit button
     await page.getByRole("button", { name: "Edit" }).first().click()
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
+
     const card = page.locator("text=Edit Ability Scores").locator("..").locator("..")
     await expect(card).toHaveScreenshot("ability-scores-edit.png")
   })
@@ -70,6 +80,8 @@ test.describe("HpProgressBar component", () => {
     }, fullHpChar)
     await page.goto(`/character/${testCharacter.id}`)
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
 
     const bar = page.locator(".sticky.top-0")
     await expect(bar).toHaveScreenshot("hp-bar-full.png")
@@ -86,6 +98,8 @@ test.describe("HpProgressBar component", () => {
     }, halfHpChar)
     await page.goto(`/character/${testCharacter.id}`)
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
 
     const bar = page.locator(".sticky.top-0")
     await expect(bar).toHaveScreenshot("hp-bar-half.png")
@@ -98,6 +112,8 @@ test.describe("HpProgressBar component", () => {
     }, secondCharacter)
     await page.goto(`/character/${secondCharacter.id}`)
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
 
     const bar = page.locator(".sticky.top-0")
     await expect(bar).toHaveScreenshot("hp-bar-zero.png")
@@ -112,6 +128,8 @@ test.describe("SkillsProficiencies component", () => {
     }, testCharacter)
     await page.goto(`/character/${testCharacter.id}`)
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
 
     const card = page.locator("text=Skills & Proficiencies").locator("..").locator("..")
     await expect(card).toHaveScreenshot("skills-with-proficiencies.png")
@@ -129,6 +147,8 @@ test.describe("CharacterNotes component", () => {
 
     await page.getByRole("tab", { name: "Character" }).click()
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
 
     const card = page.locator("text=Character Background").locator("..").locator("..")
     await expect(card).toHaveScreenshot("character-notes-populated.png")
@@ -154,6 +174,8 @@ test.describe("CharacterNotes component", () => {
 
     await page.getByRole("tab", { name: "Character" }).click()
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
 
     const card = page.locator("text=Character Background").locator("..").locator("..")
     await expect(card).toHaveScreenshot("character-notes-empty.png")

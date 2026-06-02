@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../../test-utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 
@@ -74,5 +75,11 @@ describe("NumericInput", () => {
   it("passes extra HTML attributes to the underlying input", () => {
     render(<NumericInput value={0} onChange={vi.fn()} placeholder="Enter number" />)
     expect(screen.getByPlaceholderText("Enter number")).toBeInTheDocument()
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<NumericInput value={5} onChange={vi.fn()} aria-label="Test value" />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

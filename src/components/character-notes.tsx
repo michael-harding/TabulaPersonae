@@ -41,6 +41,7 @@ export function CharacterNotes(props: CharacterNotesProps) {
 
   return (
     <EditableSection
+      data-sem="character-notes"
       icon={<FileText class="h-5 w-5 text-primary" />}
       title="Character Background & Notes"
       editTitle="Edit Character Background & Notes"

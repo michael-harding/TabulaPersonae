@@ -12,7 +12,7 @@ export function Tooltip(props: TooltipProps) {
   const [local, rest] = splitProps(props, ["content", "children", "class"])
   return (
     <TooltipPrimitive gutter={6} {...rest}>
-      <TooltipPrimitive.Trigger as="div" class="inline-flex">
+      <TooltipPrimitive.Trigger as="div" data-sem="tooltip-trigger" class="inline-flex">
         {local.children}
       </TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>

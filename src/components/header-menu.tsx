@@ -142,7 +142,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
       : "Export All Characters"
 
   return (
-    <div class="flex items-center gap-2">
+    <div data-sem="header-menu" class="flex items-center gap-2">
       {user() && (
         <div class="flex items-center gap-2 text-sm text-muted-foreground">
           <User class="h-4 w-4" />
@@ -151,7 +151,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
       )}
 
       <DropdownMenu open={isOpen()} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger class={buttonVariants({ variant: "outline", size: "sm" })}>
+        <DropdownMenuTrigger data-test="header-menu-trigger" aria-label="Open menu" class={buttonVariants({ variant: "outline", size: "sm" })}>
           <Menu class="h-4 w-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="w-56">

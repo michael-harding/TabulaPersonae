@@ -1,3 +1,5 @@
+import { axe } from "vitest-axe"
+
 vi.mock("@/lib/theme", () => ({
   theme: () => "system",
   setTheme: vi.fn(),
@@ -128,5 +130,13 @@ describe("HeaderMenu navigation", () => {
     await waitFor(() => screen.getByRole("menuitem", { name: "All Characters" }))
     await user.click(screen.getByRole("menuitem", { name: "All Characters" }))
     expect(defaultProps.onAllCharacters).toHaveBeenCalled()
+  })
+})
+
+describe("HeaderMenu accessibility", () => {
+  it("has no accessibility violations", async () => {
+    const { container } = render(<HeaderMenu {...defaultProps} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

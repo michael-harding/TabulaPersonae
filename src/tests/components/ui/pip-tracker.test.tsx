@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../../test-utils"
 import { PipTracker } from "@/components/ui/pip-tracker"
 
@@ -61,5 +62,11 @@ describe("PipTracker", () => {
     render(<PipTracker total={3} used={1} onToggle={onToggle} />)
     fireEvent.click(screen.getByTitle("Used slot (click to restore)"))
     expect(onToggle).toHaveBeenCalledWith(0)
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<PipTracker total={3} used={1} onToggle={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

@@ -9,7 +9,7 @@ export function Checkbox(props: CheckboxProps) {
   const [local, rest] = splitProps(props, ["class"])
   const [inputAttrs, others] = splitProps(rest, ["title", "aria-label"])
   return (
-    <CheckboxPrimitive {...others}>
+    <CheckboxPrimitive data-sem="checkbox" {...others}>
       <CheckboxPrimitive.Input {...inputAttrs} />
       <CheckboxPrimitive.Control
         class={cn(

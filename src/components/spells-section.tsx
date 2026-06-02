@@ -375,7 +375,7 @@ export function SpellsSection(props: SpellsSectionProps) {
   )
 
   return (
-    <Card>
+    <Card data-sem="spells-section">
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">

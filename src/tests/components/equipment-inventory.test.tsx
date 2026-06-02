@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within } from "../test-utils"
 import { EquipmentInventory } from "@/components/equipment-inventory"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -461,5 +462,11 @@ describe("EquipmentInventory", () => {
       )
       expect(saveCharacter).toHaveBeenCalled()
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

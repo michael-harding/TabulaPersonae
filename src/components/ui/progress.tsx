@@ -8,6 +8,7 @@ export function Progress(props: ProgressProps) {
   const [local, others] = splitProps(props, ["class", "value"])
   return (
     <ProgressPrimitive
+      data-sem="progress"
       value={local.value as number}
       class={cn("relative h-4 w-full overflow-hidden rounded-full bg-secondary", local.class)}
       {...others}

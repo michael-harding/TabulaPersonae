@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { ActionCard } from "@/components/action-card"
 import type { ActionCardProps } from "@/components/action-card"
@@ -246,5 +247,11 @@ describe("ActionCard", () => {
       fireEvent.click(screen.getByRole("button", { name: /^cast$/i }))
       expect(onCast).toHaveBeenCalledOnce()
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<ActionCard {...makeProps()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

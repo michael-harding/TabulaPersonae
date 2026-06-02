@@ -8,6 +8,7 @@ export function TabsList(props: ComponentProps<typeof TabsPrimitive.List>) {
   const [local, rest] = splitProps(props, ["class"])
   return (
     <TabsPrimitive.List
+      data-sem="tabs-list"
       class={cn("flex flex-wrap border-b border-border", local.class)}
       {...rest}
     />

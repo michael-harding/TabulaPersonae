@@ -439,7 +439,7 @@ export function ActionsSection(props: ActionsSectionProps) {
   )
 
   return (
-    <Card>
+    <Card data-sem="actions-section">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
           <Sword class="h-5 w-5 text-primary" />
@@ -491,7 +491,7 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featureActions().length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddAction}>
+            <Button data-test="add-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddAction}>
               <Plus class="h-3 w-3" />
               Add Action
             </Button>
@@ -549,7 +549,7 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featureBonuses().length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddBonusAction}>
+            <Button data-test="add-bonus-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddBonusAction}>
               <Plus class="h-3 w-3" />
               Add Bonus Action
             </Button>
@@ -594,7 +594,7 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featureReactions().length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddReaction}>
+            <Button data-test="add-reaction-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddReaction}>
               <Plus class="h-3 w-3" />
               Add Reaction
             </Button>
@@ -640,7 +640,7 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{featureOthers().length + (props.character.otherActions?.length ?? 0)}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddOther}>
+            <Button data-test="add-other-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddOther}>
               <Plus class="h-3 w-3" />
               Add Other
             </Button>

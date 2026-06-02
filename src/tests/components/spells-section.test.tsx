@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within } from "../test-utils"
 import { SpellsSection } from "@/components/spells-section"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -412,5 +413,11 @@ describe("SpellsSection", () => {
       render(<SpellsSection character={makeCharacter({ edition: "2024", spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.queryByPlaceholderText(/e\.g\. Wizard/i)).not.toBeInTheDocument()
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

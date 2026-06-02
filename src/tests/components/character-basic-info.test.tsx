@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { CharacterBasicInfo } from "@/components/character-basic-info"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -233,5 +234,11 @@ describe("CharacterBasicInfo", () => {
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ race: "Elf" }))
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<CharacterBasicInfo character={emptyCharacter} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

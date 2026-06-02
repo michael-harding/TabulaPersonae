@@ -83,8 +83,8 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
       } else {
         await signIn(email(), password())
       }
-    } catch (err: any) {
-      setError(getErrorMessage(err.code))
+    } catch (err: unknown) {
+      setError(getErrorMessage((err as { code?: string }).code ?? "unknown"))
     } finally {
       setLoading(false)
     }
@@ -105,8 +105,8 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
     try {
       await resetPassword(email())
       setResetEmailSent(true)
-    } catch (err: any) {
-      setError(getErrorMessage(err.code))
+    } catch (err: unknown) {
+      setError(getErrorMessage((err as { code?: string }).code ?? "unknown"))
     } finally {
       setLoading(false)
     }
@@ -116,6 +116,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
     <div class="space-y-4">
       <div class="flex space-x-1 bg-muted p-1 rounded-lg">
         <button
+          data-test="auth-signin-tab"
           type="button"
           onClick={() => setIsSignUp(false)}
           class={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${!isSignUp() ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
@@ -123,6 +124,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           Sign In
         </button>
         <button
+          data-test="auth-signup-tab"
           type="button"
           onClick={() => setIsSignUp(true)}
           class={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${isSignUp() ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
@@ -135,6 +137,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           <label for="auth-email" class="text-sm font-medium">Email</label>
           <input
             id="auth-email"
+            data-test="auth-email-input"
             type="email"
             placeholder="Enter your email"
             value={email()}
@@ -147,6 +150,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           <label for="auth-password" class="text-sm font-medium">Password</label>
           <input
             id="auth-password"
+            data-test="auth-password-input"
             type="password"
             placeholder={isSignUp() ? "Create a password" : "Enter your password"}
             value={password()}
@@ -160,6 +164,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
             <label for="confirm-password" class="text-sm font-medium">Confirm Password</label>
             <input
               id="confirm-password"
+              data-test="auth-confirm-password-input"
               type="password"
               placeholder="Confirm your password"
               value={confirmPassword()}
@@ -179,6 +184,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           <div class="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">{error()}</div>
         </Show>
         <button
+          data-test="auth-submit-button"
           type="submit"
           disabled={loading()}
           class="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
@@ -186,7 +192,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           {loading() ? "Please wait..." : (isSignUp() ? "Create Account" : "Sign In")}
         </button>
         <Show when={!isSignUp()}>
-          <button type="button" onClick={handlePasswordReset} disabled={loading()} class="text-sm text-muted-foreground hover:text-foreground">
+          <button data-test="auth-reset-password-button" type="button" onClick={handlePasswordReset} disabled={loading()} class="text-sm text-muted-foreground hover:text-foreground">
             Forgot password?
           </button>
         </Show>
@@ -250,7 +256,7 @@ export default function Auth() {
           <Scroll class="h-16 w-16 mx-auto mb-6 text-primary" />
           <h1 class="text-4xl font-bold mb-4 text-foreground">TabulaPersonae</h1>
           <div class="space-y-4">
-            <Button onClick={handleSkipAuth} variant="outline" class="w-full">
+            <Button data-test="auth-skip-button" onClick={handleSkipAuth} variant="outline" class="w-full">
               Continue without account
             </Button>
             <p class="text-sm text-right text-muted-foreground">

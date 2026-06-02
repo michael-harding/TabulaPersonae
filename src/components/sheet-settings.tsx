@@ -28,7 +28,7 @@ export function SheetSettings(props: SheetSettingsProps) {
   const isCustomColor = () => !!sheetColor() && !PRESET_COLORS.some((p) => p.hex === sheetColor())
 
   return (
-    <Card>
+    <Card data-sem="sheet-settings">
       <CardHeader class="pb-3">
         <CardTitle class="flex items-center gap-2 text-base">
           <Settings2 class="h-5 w-5 text-primary" />

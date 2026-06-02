@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import AxeBuilder from "@axe-core/playwright"
 import { testCharacter, secondCharacter } from "./fixtures"
 
 test.describe("Home page", () => {
@@ -9,6 +10,8 @@ test.describe("Home page", () => {
     })
     await page.goto("/")
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
     await expect(page).toHaveScreenshot("home-empty.png", { fullPage: true })
   })
 
@@ -20,6 +23,8 @@ test.describe("Home page", () => {
     }, chars)
     await page.goto("/")
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
     await expect(page).toHaveScreenshot("home-with-characters.png", { fullPage: true })
   })
 })
@@ -28,6 +33,8 @@ test.describe("Auth page", () => {
   test("renders login form", async ({ page }) => {
     await page.goto("/auth")
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
     await expect(page).toHaveScreenshot("auth.png", { fullPage: true })
   })
 })
@@ -40,6 +47,8 @@ test.describe("Character sheet page", () => {
     }, testCharacter)
     await page.goto(`/character/${testCharacter.id}`)
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
     await expect(page).toHaveScreenshot("character-sheet.png", { fullPage: true })
   })
 
@@ -50,6 +59,8 @@ test.describe("Character sheet page", () => {
     }, secondCharacter)
     await page.goto(`/character/${secondCharacter.id}`)
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
     await expect(page).toHaveScreenshot("character-sheet-death-saves.png", { fullPage: true })
   })
 })
@@ -58,6 +69,8 @@ test.describe("418 page", () => {
   test("renders teapot page", async ({ page }) => {
     await page.goto("/418")
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
     await expect(page).toHaveScreenshot("418.png", { fullPage: true })
   })
 })
@@ -66,6 +79,8 @@ test.describe("404 page", () => {
   test("renders not found", async ({ page }) => {
     await page.goto("/nonexistent-route-xyz")
     await page.waitForLoadState("networkidle")
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(a11y.violations).toEqual([])
     await expect(page).toHaveScreenshot("not-found.png", { fullPage: true })
   })
 })

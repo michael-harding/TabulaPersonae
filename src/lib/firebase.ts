@@ -3,6 +3,10 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
 
+// any is required: these are assigned inside the try block below and exported as
+// module-level bindings. Narrowing to FirebaseApp | Auth | Firestore would require
+// null-guards in every consumer (auth-context, firebase-storage, network-status).
+// Consumers are only called after successful init, so the null case never occurs at runtime.
 let app: any;
 let auth: any;
 let db: any;

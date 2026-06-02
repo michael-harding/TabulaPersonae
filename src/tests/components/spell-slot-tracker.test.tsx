@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -92,5 +93,13 @@ describe("SpellSlotTracker", () => {
       />
     )
     expect(screen.getAllByTitle("Available slot (click to use)")).toHaveLength(6)
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(
+      <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 1 } })} onToggle={vi.fn()} />
+    )
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

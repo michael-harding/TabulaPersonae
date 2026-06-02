@@ -118,6 +118,7 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
 
   return (
     <EditableSection
+      data-sem="skills-proficiencies"
       icon={<BookOpen class="h-5 w-5 text-primary" />}
       title="Skills & Proficiencies"
       isEditing={isEditing()}
@@ -128,7 +129,7 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
     >
         {/* Saving Throws */}
         <div>
-          <h3 class="font-semibold mb-3">Saving Throws</h3>
+          <h2 class="font-semibold mb-3">Saving Throws</h2>
           <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
             <For each={Object.keys(ABILITY_ABBREVIATIONS) as AbilityKey[]}>
               {(ability) => {
@@ -157,7 +158,7 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
 
         {/* Skills */}
         <div>
-          <h3 class="font-semibold mb-3">Skills</h3>
+          <h2 class="font-semibold mb-3">Skills</h2>
           <div class="columns-1 sm:columns-2 md:columns-3" style="column-gap: 1rem; column-rule: 1px solid var(--border)">
             <For each={Object.keys(SKILL_DISPLAY_NAMES) as SkillKey[]}>
               {(skillKey) => {
@@ -212,7 +213,7 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
 
         {/* Senses */}
         <div>
-          <h3 class="font-semibold mb-3">Senses</h3>
+          <h2 class="font-semibold mb-3">Senses</h2>
           <div class="grid grid-cols-3 gap-2">
             <For each={["perception", "insight", "investigation"] as SkillKey[]}>
               {(skillKey) => {
@@ -234,7 +235,7 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
 
         {/* Languages */}
         <div>
-          <h3 class="font-semibold mb-3">Languages</h3>
+          <h2 class="font-semibold mb-3">Languages</h2>
           <div class="flex flex-wrap gap-2 mb-3">
             <For each={current().languages ?? []}>
               {(lang) => (
@@ -265,7 +266,7 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
 
         {/* Other Proficiencies */}
         <div>
-          <h3 class="font-semibold mb-3">Other Proficiencies</h3>
+          <h2 class="font-semibold mb-3">Other Proficiencies</h2>
           <div class="flex flex-wrap gap-2 mb-3">
             <For each={current().otherProficiencies ?? []}>
               {(prof) => (

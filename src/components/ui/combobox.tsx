@@ -10,6 +10,7 @@ type ComboboxProps = {
   placeholder?: string
   disabled?: boolean
   class?: string
+  "aria-label"?: string
 }
 
 export function Combobox(props: ComboboxProps) {
@@ -124,7 +125,7 @@ export function Combobox(props: ComboboxProps) {
   onCleanup(() => document.removeEventListener("mousedown", handleOutsideClick))
 
   return (
-    <div ref={containerRef} class={cn("relative", props.class)}>
+    <div data-sem="combobox" ref={containerRef} class={cn("relative", props.class)}>
       <div
         class="flex h-10 w-full items-center rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
       >
@@ -133,6 +134,7 @@ export function Combobox(props: ComboboxProps) {
           type="text"
           role="combobox"
           aria-expanded={open()}
+          aria-label={props["aria-label"]}
           aria-autocomplete="list"
           aria-activedescendant={activeIndex() >= 0 ? `combobox-option-${activeIndex()}` : undefined}
           value={inputValue()}

@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { CharacterNotes } from "@/components/character-notes"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -216,5 +217,11 @@ describe("CharacterNotes", () => {
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ alliesAndOrganizations: "The Harpers" }))
     })
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = render(<CharacterNotes character={emptyCharacter} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })
