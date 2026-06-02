@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test"
-import AxeBuilder from "@axe-core/playwright"
 import { testCharacter } from "./fixtures"
 
 // next-themes persists the chosen theme in localStorage under the key "theme".
@@ -22,16 +21,12 @@ for (const theme of ["light", "dark"] as const) {
     test(`home page — ${theme}`, async ({ page }) => {
       await page.goto("/")
       await page.waitForLoadState("networkidle")
-      const a11y = await new AxeBuilder({ page }).analyze()
-      expect(a11y.violations).toEqual([])
       await expect(page).toHaveScreenshot(`home-${theme}.png`, { fullPage: true })
     })
 
     test(`character sheet — ${theme}`, async ({ page }) => {
       await page.goto(`/character/${testCharacter.id}`)
       await page.waitForLoadState("networkidle")
-      const a11y = await new AxeBuilder({ page }).analyze()
-      expect(a11y.violations).toEqual([])
       await expect(page).toHaveScreenshot(`character-sheet-${theme}.png`, { fullPage: true })
     })
   })

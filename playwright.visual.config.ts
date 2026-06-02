@@ -1,7 +1,9 @@
 import { defineConfig, devices } from "@playwright/test"
 
 export default defineConfig({
-  testDir: "__tests__/e2e",
+  testDir: "__tests__/visual",
+  snapshotDir: "__tests__/visual/__snapshots__",
+  updateSnapshots: "missing",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -21,6 +23,10 @@ export default defineConfig({
           args: ["--no-sandbox", "--disable-setuid-sandbox"],
         },
       },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
     },
   ],
   webServer: {
