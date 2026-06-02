@@ -54,6 +54,49 @@ test.describe("Character sheet page", () => {
   })
 })
 
+test.describe("Character sheet tabs", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript((char) => {
+      localStorage.setItem("dnd-characters", JSON.stringify([char]))
+      localStorage.setItem("dnd-skip-auth", "true")
+      localStorage.setItem(`dnd-collapsible-actions-${char.id}`, JSON.stringify(["actions", "bonus-actions", "reactions", "other"]))
+      localStorage.setItem(`dnd-collapsible-spells-${char.id}`, JSON.stringify([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
+      localStorage.setItem(`dnd-collapsible-features-${char.id}`, JSON.stringify(["class-feature", "species-trait", "feat"]))
+    }, testCharacter)
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+  })
+
+  test("combat tab — actions expanded", async ({ page }) => {
+    await page.getByRole("tab", { name: "Combat" }).click()
+    await expect(page).toHaveScreenshot("character-sheet-tab-combat.png", { fullPage: true })
+  })
+
+  test("spells tab", async ({ page }) => {
+    await page.getByRole("tab", { name: "Spells" }).click()
+    await page.waitForLoadState("networkidle")
+    await expect(page).toHaveScreenshot("character-sheet-tab-spells.png", { fullPage: true })
+  })
+
+  test("features tab", async ({ page }) => {
+    await page.getByRole("tab", { name: "Features" }).click()
+    await page.waitForLoadState("networkidle")
+    await expect(page).toHaveScreenshot("character-sheet-tab-features.png", { fullPage: true })
+  })
+
+  test("inventory tab", async ({ page }) => {
+    await page.getByRole("tab", { name: "Inventory" }).click()
+    await page.waitForLoadState("networkidle")
+    await expect(page).toHaveScreenshot("character-sheet-tab-inventory.png", { fullPage: true })
+  })
+
+  test("character tab", async ({ page }) => {
+    await page.getByRole("tab", { name: "Character" }).click()
+    await page.waitForLoadState("networkidle")
+    await expect(page).toHaveScreenshot("character-sheet-tab-character.png", { fullPage: true })
+  })
+})
+
 test.describe("418 page", () => {
   test("renders teapot page", async ({ page }) => {
     await page.goto("/418")

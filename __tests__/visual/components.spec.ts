@@ -51,8 +51,8 @@ test.describe("AbilityScores component", () => {
     await page.goto(`/character/${testCharacter.id}`)
     await page.waitForLoadState("networkidle")
 
-    // Open edit mode via the aria-labeled Edit button
-    await page.getByRole("button", { name: "Edit" }).first().click()
+    // Open edit mode via the exact aria-label="Edit" button (not "Edit <action name>" variants)
+    await page.getByRole("button", { name: "Edit", exact: true }).first().click()
     const card = page.locator("text=Edit Ability Scores").locator("..").locator("..")
     await expect(card).toHaveScreenshot("ability-scores-edit.png")
   })
