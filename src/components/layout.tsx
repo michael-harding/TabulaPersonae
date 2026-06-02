@@ -8,7 +8,7 @@ export default function Layout(props: ParentProps) {
   return (
     <SyncContext.Provider value={{ syncState, setSyncState }}>
     <div data-sem="page-layout" class="flex min-h-dvh flex-col">
-      <div class="flex flex-1 flex-col">{props.children}</div>
+      <main class="flex flex-1 flex-col">{props.children}</main>
       <OfflineIndicator />
       <footer class="border-t bg-card px-6 py-3 text-center text-sm text-muted-foreground">
         <span>© 2026 Michael Harding</span>

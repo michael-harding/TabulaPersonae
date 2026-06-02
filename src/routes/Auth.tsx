@@ -119,7 +119,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           data-test="auth-signin-tab"
           type="button"
           onClick={() => setIsSignUp(false)}
-          class={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${!isSignUp() ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          class={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${!isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
         >
           Sign In
         </button>
@@ -127,7 +127,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           data-test="auth-signup-tab"
           type="button"
           onClick={() => setIsSignUp(true)}
-          class={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${isSignUp() ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          class={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
         >
           Sign Up
         </button>

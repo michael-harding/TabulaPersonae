@@ -23,13 +23,13 @@ export function SwitchButton(props: SwitchButtonProps) {
         onChange={(e) => props.onChange(e.currentTarget.checked ? props.optionB : props.optionA)}
       />
       <label
-        class={`${LABEL} ${!isB() ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+        class={`${LABEL} ${!isB() ? "bg-primary text-primary-foreground" : "text-white/70"}`}
         for={inputId}
       >
         {props.optionA}
       </label>
       <label
-        class={`${LABEL} ${isB() ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+        class={`${LABEL} ${isB() ? "bg-primary text-primary-foreground" : "text-white/70"}`}
         for={inputId}
       >
         {props.optionB}

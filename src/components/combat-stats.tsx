@@ -165,7 +165,7 @@ export function CombatStats(props: CombatStatsProps) {
               <div class="flex justify-between items-center">
                 <span class="text-2xl font-bold">
                   {currentHP()}
-                  <Show when={tempHP() > 0}><span class="text-accent">+{tempHP()}</span></Show>
+                  <Show when={tempHP() > 0}><span class="text-secondary dark:text-blue-300">+{tempHP()}</span></Show>
                   <span class="text-muted-foreground">/{maxHP()}</span>
                 </span>
                 <span class="text-sm text-muted-foreground">{Math.round(hpPercentage())}%</span>
@@ -265,7 +265,7 @@ export function CombatStats(props: CombatStatsProps) {
             </Label>
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
-                <div class="text-sm font-medium text-green-600 flex items-center gap-1">
+                <div class="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-1">
                   <CheckCircle class="h-3 w-3" /> Successes
                 </div>
                 <PipTracker
@@ -280,7 +280,7 @@ export function CombatStats(props: CombatStatsProps) {
                 />
               </div>
               <div class="space-y-2">
-                <div class="text-sm font-medium text-red-600 flex items-center gap-1">
+                <div class="text-sm font-medium text-red-600 dark:text-red-400 flex items-center gap-1">
                   <XCircle class="h-3 w-3" /> Failures
                 </div>
                 <PipTracker
@@ -296,10 +296,10 @@ export function CombatStats(props: CombatStatsProps) {
               </div>
             </div>
             <Show when={(props.character.deathSaves?.successes || 0) >= 3}>
-              <div class="text-sm text-green-600 font-medium">✓ Stabilized! Character is unconscious but stable.</div>
+              <div class="text-sm text-green-700 dark:text-green-400 font-medium">✓ Stabilized! Character is unconscious but stable.</div>
             </Show>
             <Show when={(props.character.deathSaves?.failures || 0) >= 3}>
-              <div class="text-sm text-red-600 font-medium">✗ Character has died.</div>
+              <div class="text-sm text-red-600 dark:text-red-400 font-medium">✗ Character has died.</div>
             </Show>
           </div>
         </Show>

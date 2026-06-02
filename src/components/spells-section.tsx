@@ -432,10 +432,10 @@ export function SpellsSection(props: SpellsSectionProps) {
         {/* Spell Slots */}
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold flex items-center gap-2">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
               <Circle class="h-5 w-5 text-primary" />
               Spell Slots
-            </h3>
+            </h2>
             <Button variant="outline" size="sm" class="gap-1" onClick={() => setIsSpellSlotsModalOpen(true)}>
               <Settings class="h-3 w-3" />
               Edit Slots
@@ -518,7 +518,7 @@ export function SpellsSection(props: SpellsSectionProps) {
                                             />
                                           </Tooltip>
                                         </Show>
-                                        <h4 class="font-medium">{spell.name}</h4>
+                                        <h3 class="font-medium">{spell.name}</h3>
                                       </label>
                                       <Badge variant="outline" class="text-xs">{spell.school}</Badge>
                                       <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>

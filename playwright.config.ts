@@ -22,6 +22,16 @@ export default defineConfig({
         },
       },
     },
+    {
+      name: "chromium-dark",
+      use: {
+        ...devices["Desktop Chrome"],
+        colorScheme: "dark",
+        launchOptions: {
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        },
+      },
+    },
   ],
   webServer: {
     command: "pnpm dev",

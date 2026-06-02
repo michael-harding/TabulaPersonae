@@ -195,7 +195,7 @@ export function CharacterNotes(props: CharacterNotesProps) {
           <>
             {/* Physical Details */}
             <div>
-              <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Physical Details</h3>
+              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Physical Details</h2>
               <div class="grid grid-cols-3 gap-2">
                 {PHYSICAL_FIELDS.map(({ field, label }) => (
                   <div>
@@ -207,7 +207,7 @@ export function CharacterNotes(props: CharacterNotesProps) {
             </div>
 
             <div>
-              <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Appearance</h3>
+              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Appearance</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
                 <p class="text-sm whitespace-pre-wrap">{current().appearance || "No appearance description yet."}</p>
               </div>
@@ -216,28 +216,28 @@ export function CharacterNotes(props: CharacterNotesProps) {
             <Separator />
 
             <div>
-              <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Personality Traits</h3>
+              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Personality Traits</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
                 <p class="text-sm whitespace-pre-wrap">{current().personalityTraits || "No personality traits defined yet."}</p>
               </div>
             </div>
 
             <div>
-              <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Ideals</h3>
+              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Ideals</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
                 <p class="text-sm whitespace-pre-wrap">{current().ideals || "No ideals defined yet."}</p>
               </div>
             </div>
 
             <div>
-              <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Bonds</h3>
+              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Bonds</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
                 <p class="text-sm whitespace-pre-wrap">{current().bonds || "No bonds defined yet."}</p>
               </div>
             </div>
 
             <div>
-              <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Flaws</h3>
+              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Flaws</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
                 <p class="text-sm whitespace-pre-wrap">{current().flaws || "No flaws defined yet."}</p>
               </div>
@@ -246,7 +246,7 @@ export function CharacterNotes(props: CharacterNotesProps) {
             <Separator />
 
             <div>
-              <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Backstory</h3>
+              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Backstory</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[100px]">
                 <p class="text-sm whitespace-pre-wrap">{current().backstory || "No backstory written yet."}</p>
               </div>
@@ -257,14 +257,14 @@ export function CharacterNotes(props: CharacterNotesProps) {
             {/* 2014-only view */}
             <Show when={edition() === "2014"}>
               <div>
-                <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Allies & Organizations</h3>
+                <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Allies & Organizations</h2>
                 <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
                   <p class="text-sm whitespace-pre-wrap">{current().alliesAndOrganizations || "No allies or organizations listed yet."}</p>
                 </div>
               </div>
 
               <div>
-                <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Treasure</h3>
+                <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Treasure</h2>
                 <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
                   <p class="text-sm whitespace-pre-wrap">{current().treasure || "No treasure listed yet."}</p>
                 </div>
@@ -274,7 +274,7 @@ export function CharacterNotes(props: CharacterNotesProps) {
             </Show>
 
             <div>
-              <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Notes</h3>
+              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Notes</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[100px]">
                 <p class="text-sm whitespace-pre-wrap">{current().notes || "No additional notes yet."}</p>
               </div>

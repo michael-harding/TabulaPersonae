@@ -176,7 +176,7 @@ export default function CharacterSheet() {
               </div>
             </header>
 
-            <main class="max-w-7xl mx-auto px-4 pb-4">
+            <div class="max-w-7xl mx-auto px-4 pb-4">
               <TabsRoot defaultValue="combat">
                 <TabsList>
                   <TabsTrigger value="combat">Combat</TabsTrigger>
@@ -212,7 +212,7 @@ export default function CharacterSheet() {
                   </div>
                 </TabsContent>
               </TabsRoot>
-            </main>
+            </div>
 
             <RestModal
               character={getChar()}

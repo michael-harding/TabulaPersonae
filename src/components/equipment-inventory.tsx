@@ -530,10 +530,10 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
       <CardContent class="space-y-4">
         {/* Coins */}
         <div>
-          <h3 class="font-semibold mb-2 text-sm flex items-center gap-2">
+          <h2 class="font-semibold mb-2 text-sm flex items-center gap-2">
             <Coins class="h-4 w-4 text-primary" />
             Currency
-          </h3>
+          </h2>
           <div class="flex flex-wrap gap-2">
             {(["cp", "sp", "ep", "gp", "pp"] as const).map((denom) => (
               <div class="text-center space-y-1">
@@ -567,11 +567,11 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
         {/* Magic Items */}
         <div>
           <div class="flex items-center justify-between mb-2">
-            <h3 class="font-semibold text-sm flex items-center gap-2">
+            <h2 class="font-semibold text-sm flex items-center gap-2">
               <Gem class="h-4 w-4 text-primary" />
               Magic Items
               <span class="text-xs text-muted-foreground font-normal">({attunedCount()}/3 attuned)</span>
-            </h3>
+            </h2>
             <Button variant="outline" size="sm" class="gap-1" onClick={openAddMagic}>
               <Plus class="h-3 w-3" />
               Add Magic Item
@@ -626,7 +626,7 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
 
         <Show when={equippedItems().length > 0}>
           <div>
-            <h3 class="font-semibold mb-2 text-sm text-muted-foreground">Currently Equipped</h3>
+            <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Currently Equipped</h2>
             <div class="flex flex-wrap gap-1 mb-4">
               <For each={equippedItems()}>
                 {(item) => (
@@ -661,7 +661,7 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                             onChange={() => toggleEquipped(item.id)}
                             title="Toggle equipped"
                           />
-                          <h4 class="font-medium">{item.name}</h4>
+                          <h3 class="font-medium">{item.name}</h3>
                         </label>
                         <Show when={item.equipped}>
                           <Badge variant="secondary" class="text-xs">Equipped</Badge>
