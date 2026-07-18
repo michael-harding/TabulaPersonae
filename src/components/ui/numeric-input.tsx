@@ -32,6 +32,19 @@ export function NumericInput(props: NumericInputProps) {
       max={local.max}
       value={raw()}
       onInput={(e) => setRaw(e.currentTarget.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault()
+          const n = parse(e.currentTarget.value)
+          if (!isNaN(n)) {
+            const v = clamp(n)
+            local.onChange(v)
+            setRaw(String(v))
+          } else {
+            setRaw(String(local.value))
+          }
+        }
+      }}
       onBlur={(e) => {
         const n = parse(e.currentTarget.value)
         if (!isNaN(n)) {
