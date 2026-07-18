@@ -203,16 +203,16 @@ const FEATURE_SOURCE_LABELS: Record<string, string> = {
   'feat': 'Feat',
 }
 
-function spellAccessors(spell: Spell, spellSlots: Character['spellSlots']) {
-  const slotKey = spell.level as keyof typeof spellSlots
-  const slots = () => spellSlots[slotKey]
+function spellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
+  const slotKey = spell.level as keyof Character['spellSlots']
+  const slots = () => getSpellSlots()[slotKey]
   const canCast = () => spell.level > 0 && !!slots() && slots().used < slots().total
   const upcastLevels = () => ([2,3,4,5,6,7,8,9] as const)
     .filter(l => l > spell.level)
-    .filter(l => { const s = spellSlots[l]; return s && s.total > 0 && s.used < s.total })
+    .filter(l => { const s = getSpellSlots()[l]; return s && s.total > 0 && s.used < s.total })
   const hasHigherSlots = () => ([2,3,4,5,6,7,8,9] as const)
     .filter(l => l > spell.level)
-    .some(l => { const s = spellSlots[l]; return s && s.total > 0 })
+    .some(l => { const s = getSpellSlots()[l]; return s && s.total > 0 })
   return { canCast, upcastLevels, hasHigherSlots }
 }
 
@@ -395,7 +395,7 @@ export function ActionsSection(props: ActionsSectionProps) {
   }
 
   const renderSpell = (spell: Spell) => {
-    const { canCast, upcastLevels, hasHigherSlots } = spellAccessors(spell, props.character.spellSlots)
+    const { canCast, upcastLevels, hasHigherSlots } = spellAccessors(spell, () => props.character.spellSlots)
     return (
       <ActionCard
         name={spell.name}

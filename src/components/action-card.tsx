@@ -276,10 +276,10 @@ export function ActionCard(props: ActionCardProps) {
               when={(props.maxUses ?? 0) <= 5}
               fallback={
                 <StepperInput
-                  value={props.uses ?? 0}
+                  value={(props.maxUses ?? 0) - (props.uses ?? 0)}
                   min={0}
                   max={props.maxUses}
-                  onChange={props.onUsesChange!}
+                  onChange={(v) => props.onUsesChange?.((props.maxUses ?? 0) - v)}
                 />
               }
             >

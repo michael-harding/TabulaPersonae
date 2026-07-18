@@ -142,7 +142,7 @@ function FeatureForm(props: FeatureFormProps) {
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div class="space-y-1">
-            <Label for="feature-uses">Current Uses</Label>
+            <Label for="feature-uses">Uses Spent</Label>
             <NumericInput id="feature-uses" min={0} value={formData().uses}
               onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
           </div>
@@ -333,10 +333,10 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                               when={(feature.maxUses ?? 0) <= 5}
                               fallback={
                                 <StepperInput
-                                  value={feature.uses ?? 0}
+                                  value={(feature.maxUses ?? 0) - (feature.uses ?? 0)}
                                   min={0}
                                   max={feature.maxUses!}
-                                  onChange={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
+                                  onChange={(v) => handleFeatureUsesChange(section.field, feature.id, (feature.maxUses ?? 0) - v)}
                                 />
                               }
                             >
