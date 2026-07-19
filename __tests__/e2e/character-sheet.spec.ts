@@ -64,8 +64,9 @@ test.describe("HP quick-adjust buttons", () => {
   test("clicking Decrease HP decrements temp HP first", async ({ page }) => {
     // testCharacter has 5 temp HP; first click absorbs into temp HP → temp HP drops to 4
     await page.getByRole("button", { name: "Decrease HP" }).click()
-    // "+5" temp HP span disappears when temp HP is decremented
     await expect(page.getByText("+5")).not.toBeVisible()
+    // Target the temp HP span specifically — "+4" also matches initiative/spell-attack spans
+    await expect(page.locator('[data-sem="stats-bar"] span.text-secondary')).toHaveText('+4')
   })
 })
 

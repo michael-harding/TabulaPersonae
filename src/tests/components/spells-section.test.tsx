@@ -1,5 +1,5 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 import { SpellsSection } from "@/components/spells-section"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Spell } from "@/lib/character-types"
@@ -25,20 +25,6 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
-}
-
-function cleanupPortals() {
-  // Kobalte portals modals into a body-level div and marks test-container siblings
-  // aria-hidden when open. In jsdom, CSS animationend never fires so modals never
-  // fully unmount — both the portal div and the hidden siblings accumulate. Remove
-  // any body child that either is aria-hidden OR contains a [role="dialog"] element.
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (el.getAttribute("aria-hidden") === "true" || el.querySelector('[role="dialog"]')) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
 }
 
 describe("SpellsSection", () => {

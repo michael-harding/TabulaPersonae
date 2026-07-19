@@ -5,7 +5,7 @@ vi.mock("@/lib/auth-context", () => ({
 }))
 
 import { axe } from "vitest-axe"
-import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
+import { cleanup, render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 import { useAuth } from "@/lib/auth-context"
 import Auth from "@/routes/Auth"
 
@@ -31,18 +31,6 @@ function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
     resetPassword: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   })
-}
-
-function cleanupPortals() {
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (el.getAttribute("aria-hidden") === "true" || el.querySelector('[role="dialog"]')) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
-  document.body.removeAttribute("data-scroll-locked")
-  document.documentElement.removeAttribute("style")
 }
 
 // Kobalte keeps the dialog element in the DOM with data-closed when closed;

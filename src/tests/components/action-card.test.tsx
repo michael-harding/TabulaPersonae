@@ -1,5 +1,5 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+import { render, screen, fireEvent, cleanupPortals } from "../test-utils"
 import { ActionCard } from "@/components/action-card"
 import type { ActionCardProps } from "@/components/action-card"
 
@@ -9,16 +9,6 @@ function makeProps(overrides: Partial<ActionCardProps> = {}): ActionCardProps {
     badgeLabel: "Ability",
     ...overrides,
   }
-}
-
-function cleanupPortals() {
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (el.getAttribute("aria-hidden") === "true" || el.querySelector('[role="dialog"]')) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
 }
 
 describe("ActionCard", () => {

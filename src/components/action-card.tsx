@@ -275,6 +275,7 @@ export function ActionCard(props: ActionCardProps) {
             <Show
               when={(props.maxUses ?? 0) <= 5}
               fallback={
+                // value/onChange are inverted: display shows remaining uses, storage tracks used count
                 <StepperInput
                   value={(props.maxUses ?? 0) - (props.uses ?? 0)}
                   min={0}

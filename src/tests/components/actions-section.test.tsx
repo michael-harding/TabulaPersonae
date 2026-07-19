@@ -1,5 +1,5 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 import { ActionsSection } from "@/components/actions-section"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
@@ -37,16 +37,6 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
     known: true,
     ...overrides,
   }
-}
-
-function cleanupPortals() {
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (el.getAttribute("aria-hidden") === "true" || el.querySelector('[role="dialog"]')) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
 }
 
 describe("ActionsSection", () => {

@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js"
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Feature } from "@/lib/character-types"
@@ -31,20 +31,6 @@ function makeReaction(overrides: Partial<Reaction> = {}): Reaction {
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
   return { id: "f1", name: "Lay on Hands", description: "", source: "class-feature", ...overrides }
-}
-
-function cleanupPortals() {
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (el.getAttribute("aria-hidden") === "true" || el.querySelector('[role="dialog"]')) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
-  document.body.removeAttribute("aria-hidden")
-  Array.from(document.body.children).forEach((child) => {
-    (child as HTMLElement).removeAttribute("aria-hidden")
-  })
 }
 
 describe("RestModal", () => {

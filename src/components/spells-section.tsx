@@ -236,7 +236,16 @@ export function SpellsSection(props: SpellsSectionProps) {
     )
   )
 
-  const spellsByLevel = (levelValue: number) => filteredSpells().filter((spell) => spell.level === levelValue)
+  const spellsByLevelMap = createMemo(() => {
+    const map = new Map<number, Spell[]>()
+    for (const spell of filteredSpells()) {
+      const bucket = map.get(spell.level)
+      if (bucket) bucket.push(spell)
+      else map.set(spell.level, [spell])
+    }
+    return map
+  })
+  const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? []
   const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0))
   const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
   const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))

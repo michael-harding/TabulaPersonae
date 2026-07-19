@@ -332,6 +332,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                             <Show
                               when={(feature.maxUses ?? 0) <= 5}
                               fallback={
+                                // value/onChange are inverted: display shows remaining uses, storage tracks used count
                                 <StepperInput
                                   value={(feature.maxUses ?? 0) - (feature.uses ?? 0)}
                                   min={0}

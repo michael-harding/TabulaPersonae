@@ -1,30 +1,12 @@
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
-import { render, screen, fireEvent, waitFor } from "../test-utils"
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 import { CombatStats } from "@/components/combat-stats"
 import { createDefaultCharacter } from "@/lib/character-types"
 
 vi.mock("@/lib/character-storage", () => ({
   saveCharacter: vi.fn(),
 }))
-
-function cleanupPortals() {
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (
-      el.getAttribute("aria-hidden") === "true" ||
-      el.querySelector('[role="dialog"]') ||
-      el.querySelector('[role="menu"]')
-    ) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
-  document.body.removeAttribute("aria-hidden")
-  Array.from(document.body.children).forEach((child) => {
-    (child as HTMLElement).removeAttribute("aria-hidden")
-  })
-}
 
 function makeCharacter(overrides: Record<string, any> = {}) {
   return {
