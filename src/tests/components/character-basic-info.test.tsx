@@ -236,6 +236,70 @@ describe("CharacterBasicInfo", () => {
     })
   })
 
+  describe("class → spellcasting ability auto-map", () => {
+    it("selecting Wizard from the class dropdown sets spellcastingAbility to intelligence", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterBasicInfo character={emptyCharacter} onUpdate={onUpdate} />)
+      clickEditButton()
+      const inputs = screen.getAllByRole("combobox")
+      const classInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/class/i))!
+      fireEvent.focus(classInput)
+      fireEvent.click(screen.getByRole("option", { name: "Wizard" }))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ class: "Wizard", spellcastingAbility: "intelligence" })
+      )
+    })
+
+    it("selecting Bard sets spellcastingAbility to charisma", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterBasicInfo character={emptyCharacter} onUpdate={onUpdate} />)
+      clickEditButton()
+      const inputs = screen.getAllByRole("combobox")
+      const classInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/class/i))!
+      fireEvent.focus(classInput)
+      fireEvent.click(screen.getByRole("option", { name: "Bard" }))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ class: "Bard", spellcastingAbility: "charisma" })
+      )
+    })
+  })
+
+  describe("XP field in edit mode", () => {
+    it("calls onUpdate with updated experiencePoints when XP changes", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterBasicInfo character={emptyCharacter} onUpdate={onUpdate} />)
+      clickEditButton()
+      const xpInput = screen.getByLabelText(/experience points/i)
+      fireEvent.input(xpInput, { target: { value: "6500" } })
+      fireEvent.blur(xpInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ experiencePoints: 6500 })
+      )
+    })
+  })
+
+  describe("alignment selection", () => {
+    it("calls onUpdate with updated alignment when an alignment option is selected", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterBasicInfo character={emptyCharacter} onUpdate={onUpdate} />)
+      clickEditButton()
+      // The alignment SelectTrigger is the only button with aria-haspopup="listbox"
+      // When alignment is "" (empty), SelectValue renders "" so the button has no text name
+      const alignmentTrigger = screen.getAllByRole("button").find(
+        (btn) => btn.getAttribute("aria-haspopup") === "listbox"
+      )!
+      fireEvent.click(alignmentTrigger)
+      fireEvent.click(screen.getByRole("option", { name: "Chaotic Good" }))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ alignment: "Chaotic Good" })
+      )
+    })
+  })
+
   it("has no accessibility violations", async () => {
     const { container } = render(<CharacterBasicInfo character={emptyCharacter} onUpdate={vi.fn()} />)
     const results = await axe(container)

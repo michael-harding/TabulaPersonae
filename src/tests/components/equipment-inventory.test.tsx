@@ -464,6 +464,113 @@ describe("EquipmentInventory", () => {
     })
   })
 
+  describe("weapon sub-form", () => {
+    it("selecting weapon type reveals weapon stats fields", () => {
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      // Item Type select trigger shows current value "other"
+      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
+      expect(within(modal).getByText("Weapon Stats")).toBeInTheDocument()
+      expect(within(modal).getByLabelText(/damage dice/i)).toBeInTheDocument()
+      expect(within(modal).getByLabelText(/range/i)).toBeInTheDocument()
+      // Kobalte Checkbox renders a <div role="checkbox"> root — use getByText for the label
+      expect(within(modal).getByText(/proficient with this weapon/i)).toBeInTheDocument()
+    })
+
+    it("saving a weapon item includes weaponStats with type weapon in onUpdate", async () => {
+      const { saveCharacter } = await import("@/lib/character-storage")
+      const onUpdate = vi.fn()
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Longsword" } })
+      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Longsword",
+              type: "weapon",
+              weaponStats: expect.objectContaining({ attackAbility: "str" }),
+            }),
+          ]),
+        })
+      )
+      expect(saveCharacter).toHaveBeenCalled()
+    })
+  })
+
+  describe("armor sub-form", () => {
+    it("selecting armor type reveals armor stats fields", () => {
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(screen.getByRole("option", { name: "Armor" }))
+      expect(within(modal).getByText("Armor Stats")).toBeInTheDocument()
+      expect(within(modal).getByLabelText(/base ac/i)).toBeInTheDocument()
+    })
+
+    it("saving an armor item includes armorStats with type armor in onUpdate", async () => {
+      const { saveCharacter } = await import("@/lib/character-storage")
+      const onUpdate = vi.fn()
+      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chain Mail" } })
+      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(screen.getByRole("option", { name: "Armor" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Chain Mail",
+              type: "armor",
+              armorStats: expect.objectContaining({ armorType: "light" }),
+            }),
+          ]),
+        })
+      )
+      expect(saveCharacter).toHaveBeenCalled()
+    })
+  })
+
+  describe("attuned magic item cap", () => {
+    const makeAttuned = (id: string) => ({ id, name: `Item ${id}`, description: "", attuned: true })
+
+    it("disables the attuned checkbox when 3 items are already attuned", () => {
+      render(
+        <EquipmentInventory
+          character={makeCharacter({
+            magicItems: [makeAttuned("1"), makeAttuned("2"), makeAttuned("3")],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      const modal = screen.getByRole("dialog")
+      // Kobalte Checkbox renders <div role="checkbox"> — find by role, check aria-disabled
+      expect(within(modal).getByRole("checkbox")).toBeDisabled()
+    })
+
+    it("shows (3/3 attuned) when at the cap", () => {
+      render(
+        <EquipmentInventory
+          character={makeCharacter({
+            magicItems: [makeAttuned("1"), makeAttuned("2"), makeAttuned("3")],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("(3/3 attuned)")).toBeInTheDocument()
+    })
+  })
+
   it("has no accessibility violations", async () => {
     const { container } = render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)

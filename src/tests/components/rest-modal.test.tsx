@@ -1,4 +1,5 @@
 import { createSignal } from "solid-js"
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within } from "../test-utils"
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -333,5 +334,11 @@ describe("RestModal", () => {
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.classFeatures![0].uses).toBe(0)
     })
+  })
+
+  it("has no accessibility violations when open", async () => {
+    openModal(makeCharacter())
+    const results = await axe(document.body)
+    expect(results.violations).toHaveLength(0)
   })
 })

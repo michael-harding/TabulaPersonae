@@ -1,11 +1,30 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+import userEvent from "@testing-library/user-event"
+import { render, screen, fireEvent, waitFor } from "../test-utils"
 import { CombatStats } from "@/components/combat-stats"
 import { createDefaultCharacter } from "@/lib/character-types"
 
 vi.mock("@/lib/character-storage", () => ({
   saveCharacter: vi.fn(),
 }))
+
+function cleanupPortals() {
+  Array.from(document.body.children).forEach((child) => {
+    const el = child as HTMLElement
+    if (
+      el.getAttribute("aria-hidden") === "true" ||
+      el.querySelector('[role="dialog"]') ||
+      el.querySelector('[role="menu"]')
+    ) {
+      el.remove()
+    }
+  })
+  document.body.removeAttribute("style")
+  document.body.removeAttribute("aria-hidden")
+  Array.from(document.body.children).forEach((child) => {
+    (child as HTMLElement).removeAttribute("aria-hidden")
+  })
+}
 
 function makeCharacter(overrides: Record<string, any> = {}) {
   return {
@@ -25,6 +44,11 @@ function clickEditButton() {
 }
 
 describe("CombatStats", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    cleanupPortals()
+  })
+
   describe("view mode", () => {
     it("renders HP, AC, initiative, speed, and proficiency bonus", () => {
       render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
@@ -376,6 +400,107 @@ describe("CombatStats", () => {
       fireEvent.click(screen.getByRole("option", { name: "Huge" }))
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Huge" }))
+    })
+  })
+
+  describe("temporary HP display", () => {
+    it("shows temp HP value with + prefix when temporary > 0", () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 8 } })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("+8")).toBeInTheDocument()
+    })
+
+    it("does not show temp HP when temporary is 0", () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0 } })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // Scope to the HP display bold element to avoid false match on "+2" initiative
+      const maxSpan = screen.getByText(/\/20/)
+      const hpBold = maxSpan.parentElement!
+      expect(hpBold.textContent).not.toContain("+")
+    })
+  })
+
+  describe("HP clamping in edit mode", () => {
+    it("clamps current HP to maximum when current exceeds maximum on save", () => {
+      const onUpdate = vi.fn()
+      render(
+        <CombatStats
+          character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0 } })}
+          onUpdate={onUpdate}
+        />
+      )
+      clickEditButton()
+      // Set max HP lower than current via max input (index 1)
+      const spinbuttons = screen.getAllByRole("spinbutton")
+      fireEvent.input(spinbuttons[0], { target: { value: "25" } })
+      fireEvent.blur(spinbuttons[0])
+      fireEvent.input(spinbuttons[1], { target: { value: "15" } })
+      fireEvent.blur(spinbuttons[1])
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      const updated = onUpdate.mock.calls[0][0]
+      expect(updated.hitPoints.current).toBeLessThanOrEqual(updated.hitPoints.maximum)
+    })
+  })
+
+  describe("Conditions", () => {
+    it("adds a condition when selected from the dropdown", async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<CombatStats character={makeCharacter()} onUpdate={onUpdate} />)
+      await user.click(screen.getByTitle("Add condition"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Poisoned" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Poisoned" }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ conditions: expect.arrayContaining(["Poisoned"]) })
+      )
+    })
+
+    it("removes a condition when its badge button is clicked", () => {
+      const onUpdate = vi.fn()
+      render(
+        <CombatStats
+          character={makeCharacter({ conditions: ["Poisoned"] })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getByTitle("Click to remove"))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ conditions: [] })
+      )
+    })
+
+    it("shows existing conditions as badge buttons", () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ conditions: ["Blinded", "Prone"] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Blinded")).toBeInTheDocument()
+      expect(screen.getByText("Prone")).toBeInTheDocument()
+    })
+
+    it("can remove one of multiple conditions while keeping others", () => {
+      const onUpdate = vi.fn()
+      render(
+        <CombatStats
+          character={makeCharacter({ conditions: ["Blinded", "Prone"] })}
+          onUpdate={onUpdate}
+        />
+      )
+      // Condition badges each have title="Click to remove"; first one is "Blinded"
+      fireEvent.click(screen.getAllByTitle("Click to remove")[0])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ conditions: ["Prone"] })
+      )
     })
   })
 
