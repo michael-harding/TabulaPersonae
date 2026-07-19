@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js"
-import { render, screen, fireEvent, within } from "../test-utils"
+import { axe } from "vitest-axe"
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Feature } from "@/lib/character-types"
@@ -30,20 +31,6 @@ function makeReaction(overrides: Partial<Reaction> = {}): Reaction {
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
   return { id: "f1", name: "Lay on Hands", description: "", source: "class-feature", ...overrides }
-}
-
-function cleanupPortals() {
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (el.getAttribute("aria-hidden") === "true" || el.querySelector('[role="dialog"]')) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
-  document.body.removeAttribute("aria-hidden")
-  Array.from(document.body.children).forEach((child) => {
-    (child as HTMLElement).removeAttribute("aria-hidden")
-  })
 }
 
 describe("RestModal", () => {
@@ -333,5 +320,11 @@ describe("RestModal", () => {
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.classFeatures![0].uses).toBe(0)
     })
+  })
+
+  it("has no accessibility violations when open", async () => {
+    openModal(makeCharacter())
+    const results = await axe(document.body)
+    expect(results.violations).toHaveLength(0)
   })
 })

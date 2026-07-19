@@ -1,7 +1,7 @@
 import { createSignal, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Feature, FeatureKind, ActionKind, ActionType } from "@/lib/character-types"
-import { safeFeatures } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -142,7 +142,7 @@ function FeatureForm(props: FeatureFormProps) {
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div class="space-y-1">
-            <Label for="feature-uses">Current Uses</Label>
+            <Label for="feature-uses">Uses Spent</Label>
             <NumericInput id="feature-uses" min={0} value={formData().uses}
               onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
           </div>
@@ -332,11 +332,12 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                             <Show
                               when={(feature.maxUses ?? 0) <= 5}
                               fallback={
+                                // value/onChange are inverted: display shows remaining uses, storage tracks used count
                                 <StepperInput
-                                  value={feature.uses ?? 0}
+                                  value={remainingUses(feature.uses, feature.maxUses)}
                                   min={0}
                                   max={feature.maxUses!}
-                                  onChange={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
+                                  onChange={(v) => handleFeatureUsesChange(section.field, feature.id, spentFromRemaining(v, feature.maxUses))}
                                 />
                               }
                             >

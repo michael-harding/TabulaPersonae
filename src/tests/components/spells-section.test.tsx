@@ -1,5 +1,5 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 import { SpellsSection } from "@/components/spells-section"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Spell } from "@/lib/character-types"
@@ -25,20 +25,6 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
-}
-
-function cleanupPortals() {
-  // Kobalte portals modals into a body-level div and marks test-container siblings
-  // aria-hidden when open. In jsdom, CSS animationend never fires so modals never
-  // fully unmount — both the portal div and the hidden siblings accumulate. Remove
-  // any body child that either is aria-hidden OR contains a [role="dialog"] element.
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (el.getAttribute("aria-hidden") === "true" || el.querySelector('[role="dialog"]')) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
 }
 
 describe("SpellsSection", () => {
@@ -398,6 +384,75 @@ describe("SpellsSection", () => {
           spells: expect.arrayContaining([expect.objectContaining({ castingTime: "3 rounds" })]),
         })
       )
+    })
+  })
+
+  describe("known / prepared checkbox logic", () => {
+    it("shows 'Known' checkbox for cantrips (level 0) — not 'Prepared'", () => {
+      const cantrip = makeSpell({ name: "Prestidigitation", level: 0, known: true })
+      render(<SpellsSection character={makeCharacter({ spells: [cantrip] })} onUpdate={vi.fn()} />)
+      // One checkbox visible: the Known toggle for the cantrip
+      const checkboxes = screen.getAllByRole("checkbox")
+      expect(checkboxes).toHaveLength(1)
+    })
+
+    it("shows 'Prepared' checkbox for level 1 spells — not a separate 'Known'", () => {
+      const spell = makeSpell({ name: "Fireball", level: 1, known: true, prepared: false })
+      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      const checkboxes = screen.getAllByRole("checkbox")
+      // One checkbox: the Prepared toggle
+      expect(checkboxes).toHaveLength(1)
+    })
+
+    it("toggling known off for a cantrip sets known: false and prepared: false", async () => {
+      const { saveCharacter } = await import("@/lib/character-storage")
+      const onUpdate = vi.fn()
+      const cantrip = makeSpell({ name: "Fire Bolt", level: 0, known: true, prepared: true })
+      render(<SpellsSection character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("checkbox")[0])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([
+            expect.objectContaining({ known: false, prepared: false }),
+          ]),
+        })
+      )
+      expect(saveCharacter).toHaveBeenCalled()
+    })
+
+    it("toggling known on for an unknown cantrip sets known: true", async () => {
+      const { saveCharacter } = await import("@/lib/character-storage")
+      const onUpdate = vi.fn()
+      const cantrip = makeSpell({ name: "Fire Bolt", level: 0, known: false, prepared: false })
+      render(<SpellsSection character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("checkbox")[0])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([expect.objectContaining({ known: true })]),
+        })
+      )
+      expect(saveCharacter).toHaveBeenCalled()
+    })
+  })
+
+  describe("search by description", () => {
+    it("shows a spell whose description matches the search term even if the name does not", () => {
+      render(
+        <SpellsSection
+          character={makeCharacter({
+            spells: [
+              makeSpell({ id: "s1", name: "Fire Bolt", description: "A mote of fire." }),
+              makeSpell({ id: "s2", name: "Mage Hand", level: 0, description: "A spectral hand." }),
+            ],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      fireEvent.input(screen.getByPlaceholderText("Search spells..."), {
+        target: { value: "spectral" },
+      })
+      expect(screen.queryByText("Fire Bolt")).not.toBeInTheDocument()
+      expect(screen.getByText("Mage Hand")).toBeInTheDocument()
     })
   })
 

@@ -5,6 +5,23 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-19
+
+### Added
+- End-to-end test suite (Playwright) covering tab navigation, HP quick-adjust, death saves, conditions, and axe-core accessibility checks across all tabs
+- Performance tests for character load and interaction timing
+- Vitest benchmarks for `character-utils` functions
+- `NumericInput` now commits the in-progress value on Enter key press
+
+### Changed
+- Action and feature use counters now display **remaining** uses instead of uses spent; the label has been updated from "Current Uses" to "Uses Spent" in the edit dialog to reflect the stored value
+- HP display logic extracted from `CombatStats` into a dedicated `useHpDisplay` hook
+- `createMemo` adopted throughout `ActionsSection`, `SpellsSection`, `FeaturesSection`, and `CombatStats` to avoid redundant reactive recomputation; feature-by-kind filtering consolidated into a single memo pass; spell-by-level lookup converted to a `Map`-backed memo
+
+### Fixed
+- Spell slot reactive accessors now receive a getter function instead of a plain object, ensuring reactivity is tracked correctly when spell slots change
+- Dark-theme visual snapshots regenerated to reflect HP bar geometry updates
+
 ## [1.0.0] - 2026-05-28
 
 Initial release of TabulaPersonae, a D&D 5e/5.5e character sheet web app.

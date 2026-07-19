@@ -1,6 +1,8 @@
-import { createSignal, For, Show } from "solid-js"
+import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Spell } from "@/lib/character-types"
+
+const EMPTY_SPELLS: Spell[] = []
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
 import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -226,19 +228,30 @@ export function SpellsSection(props: SpellsSectionProps) {
   const [isSpellSlotsModalOpen, setIsSpellSlotsModalOpen] = createSignal(false)
 
 
-  const safeSpells = () => props.character.spells || []
-  const filteredSpells = () =>
+  const safeSpells = createMemo(() => props.character.spells || [])
+  const filteredSpells = createMemo(() =>
     safeSpells().filter(
       (spell) =>
         spell.name.toLowerCase().includes(searchTerm().toLowerCase()) ||
         spell.school.toLowerCase().includes(searchTerm().toLowerCase()) ||
         spell.description.toLowerCase().includes(searchTerm().toLowerCase()),
     )
+  )
 
-  const spellsByLevel = (levelValue: number) => filteredSpells().filter((spell) => spell.level === levelValue)
-  const preparedSpells = () => safeSpells().filter((spell) => spell.prepared && spell.level > 0)
-  const spellSaveDC = () => getSpellSaveDC(props.character)
-  const spellAttackBonus = () => getSpellAttackBonus(props.character)
+  const spellsByLevelMap = createMemo(() => {
+    const map = new Map<number, Spell[]>()
+    for (const spell of filteredSpells()) {
+      const bucket = map.get(spell.level)
+      if (bucket) bucket.push(spell)
+      else map.set(spell.level, [spell])
+    }
+    return map
+  })
+  // Must be called inside a reactive context (JSX, effect, memo) — reads spellsByLevelMap()
+  const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? EMPTY_SPELLS
+  const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0))
+  const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
+  const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
 
   const toggleLevelExpanded = (level: number, isOpen: boolean) => {
     setExpandedLevels((prev) => {
@@ -370,9 +383,9 @@ export function SpellsSection(props: SpellsSectionProps) {
     }
   }
 
-  const allSlotsEmpty = () => [1,2,3,4,5,6,7,8,9].every(
+  const allSlotsEmpty = createMemo(() => [1,2,3,4,5,6,7,8,9].every(
     (level) => props.character.spellSlots[level as keyof typeof props.character.spellSlots].total === 0
-  )
+  ))
 
   return (
     <Card data-sem="spells-section">

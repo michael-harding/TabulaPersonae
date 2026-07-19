@@ -15,7 +15,7 @@ vi.mock("@/lib/pdf-parser", () => ({
 }))
 
 import userEvent from "@testing-library/user-event"
-import { cleanup, render, screen, waitFor } from "../test-utils"
+import { cleanup, render, screen, waitFor, cleanupPortals } from "../test-utils"
 import { HeaderMenu } from "@/components/header-menu"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character } from "@/lib/character-types"
@@ -28,20 +28,6 @@ const defaultProps = {
   onImportCharacter: vi.fn(),
   onImportMultiple: vi.fn(),
   onAllCharacters: vi.fn(),
-}
-
-function cleanupPortals() {
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (el.getAttribute("aria-hidden") === "true" || el.querySelector('[role="dialog"]') || el.querySelector('[role="menu"]')) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
-  document.body.removeAttribute("aria-hidden")
-  Array.from(document.body.children).forEach((child) => {
-    (child as HTMLElement).removeAttribute("aria-hidden")
-  })
 }
 
 async function openMenu(extraProps: Partial<typeof defaultProps & { currentCharacter?: Character }> = {}) {

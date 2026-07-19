@@ -1,5 +1,5 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 import { ActionsSection } from "@/components/actions-section"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
@@ -37,16 +37,6 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
     known: true,
     ...overrides,
   }
-}
-
-function cleanupPortals() {
-  Array.from(document.body.children).forEach((child) => {
-    const el = child as HTMLElement
-    if (el.getAttribute("aria-hidden") === "true" || el.querySelector('[role="dialog"]')) {
-      el.remove()
-    }
-  })
-  document.body.removeAttribute("style")
 }
 
 describe("ActionsSection", () => {
@@ -553,24 +543,24 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
         expect(screen.getByRole("button", { name: /decrease/i })).toBeInTheDocument()
       })
 
-      it("clicking + calls onUpdate with uses + 1", () => {
+      it("clicking + (more available) calls onUpdate with uses - 1", () => {
         const onUpdate = vi.fn()
         render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 2, maxUses: 8 })] })} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /increase/i }))
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
-            bonusActions: expect.arrayContaining([expect.objectContaining({ id: "ba-1", uses: 3 })]),
+            bonusActions: expect.arrayContaining([expect.objectContaining({ id: "ba-1", uses: 1 })]),
           })
         )
       })
 
-      it("clicking - calls onUpdate with uses - 1", () => {
+      it("clicking - (fewer available) calls onUpdate with uses + 1", () => {
         const onUpdate = vi.fn()
         render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 2, maxUses: 8 })] })} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /decrease/i }))
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
-            bonusActions: expect.arrayContaining([expect.objectContaining({ id: "ba-1", uses: 1 })]),
+            bonusActions: expect.arrayContaining([expect.objectContaining({ id: "ba-1", uses: 3 })]),
           })
         )
       })

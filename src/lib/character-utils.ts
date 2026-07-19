@@ -259,3 +259,11 @@ export function calculateEquippedAC(
 
   return { ac, breakdown, isEquippedArmor: true }
 }
+
+export function remainingUses(used: number | undefined, max: number | undefined): number {
+  return (max ?? 0) - (used ?? 0)
+}
+
+export function spentFromRemaining(remaining: number, max: number | undefined): number {
+  return (max ?? 0) - remaining
+}
