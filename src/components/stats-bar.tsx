@@ -1,6 +1,7 @@
 import { Show, For, createMemo } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
+import { useHpDisplay } from "@/hooks/use-hp-display"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Zap from "lucide-solid/icons/zap"
 import Sword from "lucide-solid/icons/sword"
@@ -11,18 +12,7 @@ interface StatsBarProps {
 }
 
 export function StatsBar(props: StatsBarProps) {
-  const currentHp = createMemo(() => props.character.hitPoints?.current ?? 0)
-  const maxHp = createMemo(() => props.character.hitPoints?.maximum ?? 1)
-  const tempHp = createMemo(() => props.character.hitPoints?.temporary ?? 0)
-  const hpPercentage = createMemo(() => Math.max(0, Math.min(100, maxHp() > 0 ? (currentHp() / maxHp()) * 100 : 0)))
-  const hpColor = createMemo(() => {
-    const pct = hpPercentage()
-    if (pct >= 67) return "bg-green-500 dark:bg-green-700"
-    if (pct >= 34) return "bg-yellow-500 dark:bg-yellow-600"
-    return "bg-red-600"
-  })
-  const tempHpWidth = createMemo(() => Math.min(tempHp() / maxHp() * 100, 100))
-  const tempHpLeft = createMemo(() => Math.min(hpPercentage(), 100 - tempHpWidth()))
+  const { currentHp, maxHp, tempHp, hpPercentage, hpColor, tempHpWidth, tempHpLeft } = useHpDisplay(() => props.character)
 
   const ac = createMemo(() => props.character.armorClass ?? 10)
   const initiative = createMemo(() => props.character.initiative ?? 0)
@@ -98,7 +88,7 @@ export function StatsBar(props: StatsBarProps) {
         <div class="flex items-center gap-1.5 shrink-0">
           <Heart class="h-3.5 w-3.5 text-destructive shrink-0" />
           <span class="text-sm font-bold whitespace-nowrap">
-            {currentHp()}
+            <span data-test="current-hp">{currentHp()}</span>
             <Show when={tempHp() > 0}>
               <span class="text-secondary dark:text-blue-300">+{tempHp()}</span>
             </Show>

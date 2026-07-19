@@ -1,6 +1,7 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getSkillModifier, parseHitDiceSize, calculateEquippedAC } from "@/lib/character-utils"
+import { useHpDisplay } from "@/hooks/use-hp-display"
 import { DIE_SIZES } from "@/lib/dice"
 import { saveCharacter } from "@/lib/character-storage"
 import { EditableSection } from "@/components/editable-section"
@@ -96,18 +97,10 @@ export function CombatStats(props: CombatStatsProps) {
     saveCharacter(updated)
   }
 
-  const currentHP = createMemo(() => props.character.hitPoints?.current ?? 0)
-  const maxHP = createMemo(() => props.character.hitPoints?.maximum ?? 1)
-  const tempHP = createMemo(() => props.character.hitPoints?.temporary ?? 0)
-  const hpPercentage = createMemo(() => maxHP() > 0 ? (currentHP() / maxHP()) * 100 : 0)
-  const hpColor = createMemo(() => {
-    const pct = hpPercentage()
-    if (pct >= 67) return "bg-green-500 dark:bg-green-700"
-    if (pct >= 34) return "bg-yellow-500 dark:bg-yellow-600"
-    return "bg-red-600"
-  })
-  const tempHpWidth = createMemo(() => Math.min(tempHP() / maxHP() * 100, 100))
-  const tempHpLeft = createMemo(() => Math.min(hpPercentage(), 100 - tempHpWidth()))
+  const {
+    currentHp: currentHP, maxHp: maxHP, tempHp: tempHP,
+    hpPercentage, hpColor, tempHpWidth, tempHpLeft,
+  } = useHpDisplay(() => props.character)
 
   const toggleCondition = (condition: string) => {
     const current = props.character.conditions ?? []

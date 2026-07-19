@@ -57,8 +57,7 @@ test.describe("HP quick-adjust buttons", () => {
   test("clicking Increase HP increments the displayed HP", async ({ page }) => {
     // testCharacter starts at 38/44; clicking + raises current to 39
     await page.getByRole("button", { name: "Increase HP" }).click()
-    // Use .first() — "39" can appear in both the compact and full HP displays
-    await expect(page.locator("text=39").first()).toBeVisible()
+    await expect(page.locator('[data-test="current-hp"]')).toHaveText("39")
   })
 
   test("clicking Decrease HP decrements temp HP first", async ({ page }) => {

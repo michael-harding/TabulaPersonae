@@ -1,6 +1,8 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Spell } from "@/lib/character-types"
+
+const EMPTY_SPELLS: Spell[] = []
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
 import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -245,7 +247,8 @@ export function SpellsSection(props: SpellsSectionProps) {
     }
     return map
   })
-  const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? []
+  // Must be called inside a reactive context (JSX, effect, memo) — reads spellsByLevelMap()
+  const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? EMPTY_SPELLS
   const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0))
   const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
   const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))

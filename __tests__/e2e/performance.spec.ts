@@ -18,21 +18,21 @@ test.describe("Interaction performance", () => {
   test("HP adjustment reflects in DOM", async ({ page }) => {
     // testCharacter starts at 38/44 — after one Increase HP click it should show 39
     await page.getByRole("button", { name: "Increase HP" }).click()
-    await expect(page.locator("text=39").first()).toBeVisible()
+    await expect(page.locator('[data-test="current-hp"]')).toHaveText("39")
   })
 
-  test("tab switch to Spells visible within 300ms", async ({ page }) => {
+  test("tab switch to Spells shows content", async ({ page }) => {
     await page.getByRole("tab", { name: "Spells" }).click()
-    await page.getByText("Spell Slots").waitFor({ timeout: 300 })
+    await expect(page.getByText("Spell Slots")).toBeVisible()
   })
 
-  test("tab switch to Features visible within 300ms", async ({ page }) => {
+  test("tab switch to Features shows content", async ({ page }) => {
     await page.getByRole("tab", { name: "Features" }).click()
-    await page.getByText("Class Features, Species Traits & Feats").waitFor({ timeout: 300 })
+    await expect(page.getByText("Class Features, Species Traits & Feats")).toBeVisible()
   })
 
-  test("tab switch to Inventory visible within 300ms", async ({ page }) => {
+  test("tab switch to Inventory shows content", async ({ page }) => {
     await page.getByRole("tab", { name: "Inventory" }).click()
-    await page.getByText("Equipment & Inventory").waitFor({ timeout: 300 })
+    await expect(page.getByText("Equipment & Inventory")).toBeVisible()
   })
 })

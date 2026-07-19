@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { formatModifier } from "@/lib/character-utils"
+import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
 import { Popover } from "@kobalte/core/popover"
 import Pencil from "lucide-solid/icons/pencil"
 import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
@@ -277,10 +277,10 @@ export function ActionCard(props: ActionCardProps) {
               fallback={
                 // value/onChange are inverted: display shows remaining uses, storage tracks used count
                 <StepperInput
-                  value={(props.maxUses ?? 0) - (props.uses ?? 0)}
+                  value={remainingUses(props.uses, props.maxUses)}
                   min={0}
                   max={props.maxUses}
-                  onChange={(v) => props.onUsesChange?.((props.maxUses ?? 0) - v)}
+                  onChange={(v) => props.onUsesChange!(spentFromRemaining(v, props.maxUses))}
                 />
               }
             >
