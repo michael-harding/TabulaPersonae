@@ -1,4 +1,4 @@
-import { createSignal, Show, For } from "solid-js"
+import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getSkillModifier, parseHitDiceSize, calculateEquippedAC } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
@@ -59,7 +59,7 @@ export function CombatStats(props: CombatStatsProps) {
   const handleSave = () => { props.onUpdate(edited()); saveCharacter(edited()); setIsEditing(false) }
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
-  const edition = () => props.character.edition ?? "2024"
+  const edition = createMemo(() => props.character.edition ?? "2024")
 
   const updateHP = (field: "current" | "maximum" | "temporary", value: number) =>
     setEdited((prev) => {
@@ -96,18 +96,18 @@ export function CombatStats(props: CombatStatsProps) {
     saveCharacter(updated)
   }
 
-  const currentHP = () => props.character.hitPoints?.current ?? 0
-  const maxHP = () => props.character.hitPoints?.maximum ?? 1
-  const tempHP = () => props.character.hitPoints?.temporary ?? 0
-  const hpPercentage = () => maxHP() > 0 ? (currentHP() / maxHP()) * 100 : 0
-  const hpColor = () => {
+  const currentHP = createMemo(() => props.character.hitPoints?.current ?? 0)
+  const maxHP = createMemo(() => props.character.hitPoints?.maximum ?? 1)
+  const tempHP = createMemo(() => props.character.hitPoints?.temporary ?? 0)
+  const hpPercentage = createMemo(() => maxHP() > 0 ? (currentHP() / maxHP()) * 100 : 0)
+  const hpColor = createMemo(() => {
     const pct = hpPercentage()
     if (pct >= 67) return "bg-green-500 dark:bg-green-700"
     if (pct >= 34) return "bg-yellow-500 dark:bg-yellow-600"
     return "bg-red-600"
-  }
-  const tempHpWidth = () => Math.min(tempHP() / maxHP() * 100, 100)
-  const tempHpLeft = () => Math.min(hpPercentage(), 100 - tempHpWidth())
+  })
+  const tempHpWidth = createMemo(() => Math.min(tempHP() / maxHP() * 100, 100))
+  const tempHpLeft = createMemo(() => Math.min(hpPercentage(), 100 - tempHpWidth()))
 
   const toggleCondition = (condition: string) => {
     const current = props.character.conditions ?? []
@@ -119,16 +119,16 @@ export function CombatStats(props: CombatStatsProps) {
     saveCharacter(updated)
   }
 
-  const passivePerception = () => {
+  const passivePerception = createMemo(() => {
     const wis = props.character.abilityScores?.wisdom ?? 10
     const prof = props.character.proficiencyBonus ?? 2
     const percSkill = props.character.skills?.perception
     return 10 + getSkillModifier(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
-  }
+  })
 
-  const passivePerceptionLabel = () => edition() === "2014" ? "Passive Wisdom (Perception)" : "Passive Perception"
+  const passivePerceptionLabel = createMemo(() => edition() === "2014" ? "Passive Wisdom (Perception)" : "Passive Perception")
 
-  const equippedAC = () => calculateEquippedAC(props.character)
+  const equippedAC = createMemo(() => calculateEquippedAC(props.character))
 
   return (
     <EditableSection

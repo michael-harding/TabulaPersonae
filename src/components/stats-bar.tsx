@@ -1,4 +1,4 @@
-import { Show, For } from "solid-js"
+import { Show, For, createMemo } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
 import ShieldIcon from "lucide-solid/icons/shield"
@@ -11,25 +11,25 @@ interface StatsBarProps {
 }
 
 export function StatsBar(props: StatsBarProps) {
-  const currentHp = () => props.character.hitPoints?.current ?? 0
-  const maxHp = () => props.character.hitPoints?.maximum ?? 1
-  const tempHp = () => props.character.hitPoints?.temporary ?? 0
-  const hpPercentage = () => Math.max(0, Math.min(100, maxHp() > 0 ? (currentHp() / maxHp()) * 100 : 0))
-  const hpColor = () => {
+  const currentHp = createMemo(() => props.character.hitPoints?.current ?? 0)
+  const maxHp = createMemo(() => props.character.hitPoints?.maximum ?? 1)
+  const tempHp = createMemo(() => props.character.hitPoints?.temporary ?? 0)
+  const hpPercentage = createMemo(() => Math.max(0, Math.min(100, maxHp() > 0 ? (currentHp() / maxHp()) * 100 : 0)))
+  const hpColor = createMemo(() => {
     const pct = hpPercentage()
     if (pct >= 67) return "bg-green-500 dark:bg-green-700"
     if (pct >= 34) return "bg-yellow-500 dark:bg-yellow-600"
     return "bg-red-600"
-  }
-  const tempHpWidth = () => Math.min(tempHp() / maxHp() * 100, 100)
-  const tempHpLeft = () => Math.min(hpPercentage(), 100 - tempHpWidth())
+  })
+  const tempHpWidth = createMemo(() => Math.min(tempHp() / maxHp() * 100, 100))
+  const tempHpLeft = createMemo(() => Math.min(hpPercentage(), 100 - tempHpWidth()))
 
-  const ac = () => props.character.armorClass ?? 10
-  const initiative = () => props.character.initiative ?? 0
-  const hasSpellcasting = () => !!props.character.spellcastingAbility
-  const spellSaveDC = () => getSpellSaveDC(props.character)
-  const hitBonus = () => getSpellAttackBonus(props.character)
-  const conditions = () => props.character.conditions ?? []
+  const ac = createMemo(() => props.character.armorClass ?? 10)
+  const initiative = createMemo(() => props.character.initiative ?? 0)
+  const hasSpellcasting = createMemo(() => !!props.character.spellcastingAbility)
+  const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
+  const hitBonus = createMemo(() => getSpellAttackBonus(props.character))
+  const conditions = createMemo(() => props.character.conditions ?? [])
 
   return (
     <div data-sem="stats-bar" class="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">

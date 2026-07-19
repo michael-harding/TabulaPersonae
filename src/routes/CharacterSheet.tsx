@@ -1,4 +1,5 @@
 import { createSignal, createEffect, onCleanup, Show } from "solid-js"
+import { createStore, reconcile } from "solid-js/store"
 import { useParams, useNavigate } from "@solidjs/router"
 import { type Character } from "@/lib/character-types"
 import { useStorageManager } from "@/lib/storage-manager"
@@ -32,13 +33,13 @@ export default function CharacterSheet() {
 
   const syncCtx = useSyncState()
 
-  const [character, setCharacter] = createSignal<Character | null>(null)
+  const [charStore, setCharStore] = createStore<{ data: Character | null }>({ data: null })
   const [characters, setCharacters] = createSignal<Character[]>([])
   const [isLoading, setIsLoading] = createSignal(true)
   const [isRestOpen, setIsRestOpen] = createSignal(false)
 
   createEffect(() => {
-    const name = character()?.name
+    const name = charStore.data?.name
     document.title = name ? `${name} | TabulaPersonae` : "TabulaPersonae"
   })
 
@@ -56,12 +57,12 @@ export default function CharacterSheet() {
         setCharacters(allChars)
         const found = allChars.find((c) => c.id === id)
         if (found) {
-          setCharacter(found)
+          setCharStore("data", reconcile(found))
         } else {
           // Fallback for characters created offline and not yet in the query cache
           const single = await sm.getCharacter(id!)
           if (single) {
-            setCharacter(single)
+            setCharStore("data", reconcile(single))
           } else {
             navigate("/404")
           }
@@ -89,7 +90,7 @@ export default function CharacterSheet() {
     if (next.hitPoints.current === 1) {
       next = { ...next, deathSaves: { successes: 0, failures: 0 } }
     }
-    setCharacter(next)
+    setCharStore("data", reconcile(next))
     try {
       await storageManager().saveCharacter(next)
     } catch (error) {
@@ -123,7 +124,7 @@ export default function CharacterSheet() {
         </div>
       }
     >
-      <Show when={character()}>
+      <Show when={charStore.data}>
         {(getChar) => (
           <div class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
             <StatsBar character={getChar()} />
@@ -170,7 +171,7 @@ export default function CharacterSheet() {
                     onImportCharacter={handleImportCharacter}
                     onImportMultiple={handleImportMultiple}
                     onAllCharacters={() => navigate("/")}
-                    currentCharacter={character() ?? undefined}
+                    currentCharacter={charStore.data ?? undefined}
                   />
                 </div>
               </div>

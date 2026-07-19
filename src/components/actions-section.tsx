@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js"
+import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
@@ -259,40 +259,40 @@ export function ActionsSection(props: ActionsSectionProps) {
     })
   }
 
-  const safeSpells = () => props.character.spells || []
-  const spellSaveDC = () => getSpellSaveDC(props.character)
-  const spellAttackBonus = () => getSpellAttackBonus(props.character)
-  const spellModifier = () => {
+  const safeSpells = createMemo(() => props.character.spells || [])
+  const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
+  const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
+  const spellModifier = createMemo(() => {
     const ability = props.character.spellcastingAbility
     if (!ability) return 0
     const scores = props.character.abilityScores || { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 }
     return getAbilityModifier(scores[ability])
-  }
+  })
 
-  const equippedWeaponAttacks = () => getEquippedWeaponAttacks(props.character)
+  const equippedWeaponAttacks = createMemo(() => getEquippedWeaponAttacks(props.character))
 
-  const allFeatures = (): Feature[] => [
+  const allFeatures = createMemo((): Feature[] => [
     ...safeFeatures(props.character.classFeatures),
     ...safeFeatures(props.character.speciesTraits),
     ...safeFeatures(props.character.feats),
-  ]
-  const featureActions   = () => allFeatures().filter((f) => f.actionKind === 'action')
-  const featureBonuses   = () => allFeatures().filter((f) => f.actionKind === 'bonus-action')
-  const featureReactions = () => allFeatures().filter((f) => f.actionKind === 'reaction')
-  const featureOthers    = () => allFeatures().filter((f) => f.actionKind === 'other')
+  ])
+  const featureActions   = createMemo(() => allFeatures().filter((f) => f.actionKind === 'action'))
+  const featureBonuses   = createMemo(() => allFeatures().filter((f) => f.actionKind === 'bonus-action'))
+  const featureReactions = createMemo(() => allFeatures().filter((f) => f.actionKind === 'reaction'))
+  const featureOthers    = createMemo(() => allFeatures().filter((f) => f.actionKind === 'other'))
 
-  const attackSpells = () => safeSpells().filter((spell) =>
+  const attackSpells = createMemo(() => safeSpells().filter((spell) =>
     (spell.level === 0 ? (spell.known ?? true) : spell.prepared) &&
     spell.castingTime.toLowerCase().includes("1 action") &&
     !spell.castingTime.toLowerCase().includes("bonus") &&
     !spell.castingTime.toLowerCase().includes("reaction")
-  )
-  const bonusActionSpells = () => safeSpells().filter((spell) =>
+  ))
+  const bonusActionSpells = createMemo(() => safeSpells().filter((spell) =>
     (spell.level === 0 ? (spell.known ?? true) : spell.prepared) && spell.castingTime.toLowerCase().includes("bonus")
-  )
-  const reactionSpells = () => safeSpells().filter((spell) =>
+  ))
+  const reactionSpells = createMemo(() => safeSpells().filter((spell) =>
     (spell.level === 0 ? (spell.known ?? true) : spell.prepared) && spell.castingTime.toLowerCase().includes("reaction")
-  )
+  ))
 
   const updateSpellSlotUsed = (level: number, used: number) => {
     props.onUpdate({
