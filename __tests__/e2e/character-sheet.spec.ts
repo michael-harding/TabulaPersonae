@@ -115,8 +115,11 @@ test.describe("Conditions", () => {
   test("has no accessibility violations after adding a condition", async ({ page }) => {
     await page.getByTitle("Add condition").click()
     await page.getByRole("menuitem", { name: "Charmed" }).click()
-    // Wait for the badge to appear — confirms the menu click landed and the menu has closed
+    // Wait for badge to confirm click landed, then wait for menu portal to be detached.
+    // Kobalte's DropdownMenu sets aria-hidden on the rest of the page while open, which
+    // causes axe to report "no headings" (RGAA-9.2.1). Must wait for portal removal.
     await page.locator('[data-test="remove-condition-Charmed"]').waitFor({ state: "visible" })
+    await page.locator('[role="menu"]').waitFor({ state: "detached" })
     // Disable color-contrast: condition badge has a known contrast gap in dark mode
     const results = await new AxeBuilder({ page }).disableRules(["color-contrast"]).analyze()
     expect(results.violations).toEqual([])
