@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils
 import { FeaturesSection } from "@/components/features-section"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Feature } from "@/lib/character-types"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
   return {
@@ -551,5 +552,47 @@ describe("FeaturesSection", () => {
     const { container } = render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("readOnly mode", () => {
+    const feature = makeFeature({ name: "Action Surge" })
+
+    function renderReadOnly(overrides: Partial<Character> = {}) {
+      return render(
+        <ReadOnlyProvider value={true}>
+          <FeaturesSection character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+    }
+
+    it("does not render the Add Class Feature button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add class feature/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the Add Species Trait button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add species trait/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the Add Feat button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add feat/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render edit buttons for existing features", () => {
+      renderReadOnly({ classFeatures: [feature] })
+      expect(screen.queryByRole("button", { name: /edit action surge/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render delete buttons for existing features", () => {
+      renderReadOnly({ classFeatures: [feature] })
+      expect(screen.queryByRole("button", { name: /delete action surge/i })).not.toBeInTheDocument()
+    })
+
+    it("still renders the feature name", () => {
+      renderReadOnly({ classFeatures: [feature] })
+      expect(screen.getByText("Action Surge")).toBeInTheDocument()
+    })
   })
 })

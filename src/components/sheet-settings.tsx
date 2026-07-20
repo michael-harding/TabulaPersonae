@@ -1,10 +1,12 @@
-import { For, Show } from "solid-js"
+import { For, Show, createResource } from "solid-js"
+import QRCode from "qrcode"
 import type { Character } from "@/lib/character-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SwitchButton } from "@/components/ui/switch-button"
 import Settings2 from "lucide-solid/icons/settings-2"
 import Pipette from "lucide-solid/icons/pipette"
+import Share2 from "lucide-solid/icons/share-2"
 
 interface SheetSettingsProps {
   character: Character
@@ -23,6 +25,11 @@ const PRESET_COLORS = [
 export function SheetSettings(props: SheetSettingsProps) {
   const edition = () => props.character.edition ?? "2024"
   const sheetColor = () => props.character.sheetColor
+  const shareUrl = () =>
+    props.character.isPublic ? `${window.location.origin}/share/${props.character.id}` : null
+  const [qrDataUrl] = createResource(shareUrl, (url) =>
+    QRCode.toDataURL(url, { width: 160, margin: 1 })
+  )
 
   const isPresetSelected = (hex: string) => sheetColor() === hex
   const isCustomColor = () => !!sheetColor() && !PRESET_COLORS.some((p) => p.hex === sheetColor())
@@ -100,6 +107,56 @@ export function SheetSettings(props: SheetSettingsProps) {
               </button>
             </Show>
           </div>
+        </div>
+
+        <div class="border-t pt-4 mt-1">
+          <div class="flex items-center gap-2 mb-3">
+            <Share2 class="h-4 w-4 text-primary" />
+            <Label class="text-sm font-medium">Public Sharing</Label>
+          </div>
+          <div class="flex items-center gap-3 mb-3">
+            <Label class="text-sm whitespace-nowrap">Share publicly</Label>
+            <SwitchButton
+              optionA="Off"
+              optionB="On"
+              value={props.character.isPublic ? "On" : "Off"}
+              onChange={(v) => props.onUpdate({ ...props.character, isPublic: v === "On" })}
+              id="sheet-settings-share-switch"
+            />
+          </div>
+          <Show when={props.character.isPublic && shareUrl()}>
+            {(getUrl) => (
+              <div class="space-y-3">
+                <div class="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={getUrl()}
+                    aria-label="Share URL"
+                    class="flex-1 h-9 rounded-md border bg-muted px-3 text-xs text-muted-foreground select-all"
+                    onClick={(e) => e.currentTarget.select()}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Copy share link"
+                    class="h-9 px-3 rounded-md border text-xs hover:bg-accent transition-colors whitespace-nowrap"
+                    onClick={() => navigator.clipboard.writeText(getUrl())}
+                  >
+                    Copy link
+                  </button>
+                </div>
+                <Show when={qrDataUrl()}>
+                  <img
+                    src={qrDataUrl()!}
+                    alt="QR code for share link"
+                    width={160}
+                    height={160}
+                    class="rounded-md border"
+                  />
+                </Show>
+              </div>
+            )}
+          </Show>
         </div>
       </CardContent>
     </Card>

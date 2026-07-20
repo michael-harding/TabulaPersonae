@@ -69,4 +69,29 @@ describe("PipTracker", () => {
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
+
+  describe("readOnly mode", () => {
+    it("renders no buttons when readOnly=true", () => {
+      render(<PipTracker total={4} used={1} onToggle={vi.fn()} readOnly />)
+      expect(screen.queryAllByRole("button")).toHaveLength(0)
+    })
+
+    it("does not call onToggle when pips are clicked", () => {
+      const onToggle = vi.fn()
+      const { container } = render(
+        <PipTracker total={3} used={1} onToggle={onToggle} readOnly />
+      )
+      container.querySelectorAll('[data-sem="pip-tracker"] > span').forEach((pip) =>
+        fireEvent.click(pip)
+      )
+      expect(onToggle).not.toHaveBeenCalled()
+    })
+
+    it("renders the correct number of pip spans", () => {
+      const { container } = render(
+        <PipTracker total={4} used={2} onToggle={vi.fn()} readOnly />
+      )
+      expect(container.querySelectorAll('[data-sem="pip-tracker"] > span')).toHaveLength(4)
+    })
+  })
 })

@@ -1,4 +1,5 @@
 import { createSignal, Show, For } from "solid-js"
+import { useReadOnly } from "@/lib/read-only-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
@@ -71,6 +72,7 @@ export interface ActionCardProps {
 }
 
 export function ActionCard(props: ActionCardProps) {
+  const isReadOnly = useReadOnly()
   const [concentrationActive, setConcentrationActive] = createSignal(false)
 
   const spellSubtitle = () => {
@@ -191,7 +193,7 @@ export function ActionCard(props: ActionCardProps) {
 
         <div class="flex items-center gap-1 shrink-0">
           <Badge variant="secondary" class="text-xs">{props.badgeLabel}</Badge>
-          <Show when={props.onEdit}>
+          <Show when={props.onEdit && !isReadOnly}>
             <Tooltip content={`Edit ${props.name}`}>
               <button
                 type="button"
@@ -234,8 +236,8 @@ export function ActionCard(props: ActionCardProps) {
             <Show when={props.concentration}>
               <Badge
                 variant={concentrationActive() ? "default" : "outline"}
-                class={`text-xs cursor-pointer select-none${concentrationActive() ? "" : " text-muted-foreground border-muted-foreground/40"}`}
-                onClick={() => setConcentrationActive(v => !v)}
+                class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground border-muted-foreground/40"}${!isReadOnly ? " cursor-pointer" : ""}`}
+                onClick={isReadOnly ? undefined : () => setConcentrationActive(v => !v)}
               >
                 Concentration
               </Badge>
@@ -269,7 +271,7 @@ export function ActionCard(props: ActionCardProps) {
       </Show>
 
       {/* Row 4 — Footer */}
-      <Show when={hasCastButtons() || hasUsesTracker()}>
+      <Show when={hasUsesTracker() || (hasCastButtons() && !isReadOnly)}>
         <div class="flex items-center justify-between gap-2 mt-auto">
           <Show when={hasUsesTracker()}>
             <Show
@@ -281,6 +283,7 @@ export function ActionCard(props: ActionCardProps) {
                   min={0}
                   max={props.maxUses}
                   onChange={(v) => props.onUsesChange!(spentFromRemaining(v, props.maxUses))}
+                  readOnly={isReadOnly}
                 />
               }
             >
@@ -290,10 +293,11 @@ export function ActionCard(props: ActionCardProps) {
                 onToggle={props.onUsesChange!}
                 usedTitle="Charge spent (click to restore)"
                 availableTitle="Charge available (click to use)"
+                readOnly={isReadOnly}
               />
             </Show>
           </Show>
-          <Show when={hasCastButtons()}>
+          <Show when={hasCastButtons() && !isReadOnly}>
             <div class="flex items-center gap-1 ml-auto">
               <Show when={props.upcastSpellId?.() === props.spellId && props.upcastLevels && props.upcastLevels().length > 0}>
                 <div class="flex gap-1">

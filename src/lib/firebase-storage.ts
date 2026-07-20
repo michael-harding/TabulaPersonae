@@ -150,6 +150,20 @@ export function subscribeToCharacter(
   )
 }
 
+export async function getPublicCharacterFromFirebase(id: string): Promise<Character | null> {
+  try {
+    const characterRef = doc(db, CHARACTERS_COLLECTION, id)
+    const characterSnap = await getDoc(characterRef)
+    if (!characterSnap.exists()) return null
+    const data = characterSnap.data()
+    if (!data.isPublic) return null
+    return { ...data, id: characterSnap.id } as Character
+  } catch (error) {
+    console.error('Failed to get public character:', error)
+    return null
+  }
+}
+
 export async function deleteCharacterFromFirebase(id: string, userId: string): Promise<boolean> {
   try {
     const characterRef = doc(db, CHARACTERS_COLLECTION, id);

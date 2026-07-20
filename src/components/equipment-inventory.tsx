@@ -26,6 +26,7 @@ import Search from "lucide-solid/icons/search"
 import Scale from "lucide-solid/icons/scale"
 import Gem from "lucide-solid/icons/gem"
 import Coins from "lucide-solid/icons/coins"
+import { useReadOnly } from "@/lib/read-only-context"
 
 interface EquipmentInventoryProps {
   character: Character
@@ -350,6 +351,7 @@ function MagicItemForm(props: MagicItemFormProps) {
 }
 
 export function EquipmentInventory(props: EquipmentInventoryProps) {
+  const isReadOnly = useReadOnly()
   const [searchTerm, setSearchTerm] = createSignal("")
   const [modalOpen, setModalOpen] = createSignal(false)
   const [editingItem, setEditingItem] = createSignal<Equipment | null>(null)
@@ -520,10 +522,12 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
               <Scale class="h-3 w-3" />
               {totalWeight()} lbs
             </Badge>
-            <Button size="sm" class="gap-2" onClick={openAdd}>
-              <Plus class="h-4 w-4" />
-              Add Item
-            </Button>
+            <Show when={!isReadOnly}>
+              <Button size="sm" class="gap-2" onClick={openAdd}>
+                <Plus class="h-4 w-4" />
+                Add Item
+              </Button>
+            </Show>
           </div>
         </CardTitle>
       </CardHeader>
@@ -538,25 +542,34 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
             {(["cp", "sp", "ep", "gp", "pp"] as const).map((denom) => (
               <div class="text-center space-y-1">
                 <Label class="text-xs font-medium text-muted-foreground">{denom.toUpperCase()}</Label>
-                <CurrencyInput
-                  aria-label={`${denom.toUpperCase()} currency`}
-                  min={0}
-                  value={props.character.coins?.[denom] ?? 0}
-                  onChange={(v) => {
-                    const updated = { ...props.character, coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...props.character.coins, [denom]: v } }
-                    props.onUpdate(updated)
-                    saveCharacter(updated)
-                  }}
-                  onAtMin={() => {
-                    const currentCoins = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...props.character.coins }
-                    const result = cascadeDecrement(currentCoins, denom)
-                    if (result) {
-                      const updated = { ...props.character, coins: result }
+                <Show
+                  when={!isReadOnly}
+                  fallback={
+                    <div class="h-11 w-16 flex items-center justify-center border rounded-md text-sm font-medium">
+                      {props.character.coins?.[denom] ?? 0}
+                    </div>
+                  }
+                >
+                  <CurrencyInput
+                    aria-label={`${denom.toUpperCase()} currency`}
+                    min={0}
+                    value={props.character.coins?.[denom] ?? 0}
+                    onChange={(v) => {
+                      const updated = { ...props.character, coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...props.character.coins, [denom]: v } }
                       props.onUpdate(updated)
                       saveCharacter(updated)
-                    }
-                  }}
-                />
+                    }}
+                    onAtMin={() => {
+                      const currentCoins = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...props.character.coins }
+                      const result = cascadeDecrement(currentCoins, denom)
+                      if (result) {
+                        const updated = { ...props.character, coins: result }
+                        props.onUpdate(updated)
+                        saveCharacter(updated)
+                      }
+                    }}
+                  />
+                </Show>
               </div>
             ))}
           </div>
@@ -572,10 +585,12 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
               Magic Items
               <span class="text-xs text-muted-foreground font-normal">({attunedCount()}/3 attuned)</span>
             </h2>
-            <Button variant="outline" size="sm" class="gap-1" onClick={openAddMagic}>
-              <Plus class="h-3 w-3" />
-              Add Magic Item
-            </Button>
+            <Show when={!isReadOnly}>
+              <Button variant="outline" size="sm" class="gap-1" onClick={openAddMagic}>
+                <Plus class="h-3 w-3" />
+                Add Magic Item
+              </Button>
+            </Show>
           </div>
           <Show when={safeMagicItems().length > 0}>
             <div class="space-y-2">
@@ -593,18 +608,20 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                         <p class="text-xs text-muted-foreground truncate">{item.description}</p>
                       </Show>
                     </div>
-                    <div class="flex items-center gap-1 shrink-0 ml-2">
-                      <Tooltip content={`Edit ${item.name}`}>
-                        <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEditMagic(item)}>
-                          <Edit class="h-4 w-4" />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip content={`Delete ${item.name}`}>
-                        <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteMagicItem(item.id)}>
-                          <Trash2 class="h-4 w-4" />
-                        </Button>
-                      </Tooltip>
-                    </div>
+                    <Show when={!isReadOnly}>
+                      <div class="flex items-center gap-1 shrink-0 ml-2">
+                        <Tooltip content={`Edit ${item.name}`}>
+                          <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEditMagic(item)}>
+                            <Edit class="h-4 w-4" />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={`Delete ${item.name}`}>
+                          <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteMagicItem(item.id)}>
+                            <Trash2 class="h-4 w-4" />
+                          </Button>
+                        </Tooltip>
+                      </div>
+                    </Show>
                   </div>
                 )}
               </For>
@@ -656,11 +673,13 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                     <div class="flex-1">
                       <div class="flex items-center gap-2 flex-wrap">
                         <label class="flex items-center gap-2 cursor-pointer">
-                          <Checkbox
-                            checked={item.equipped || false}
-                            onChange={() => toggleEquipped(item.id)}
-                            title="Toggle equipped"
-                          />
+                          <Show when={!isReadOnly}>
+                            <Checkbox
+                              checked={item.equipped || false}
+                              onChange={() => toggleEquipped(item.id)}
+                              title="Toggle equipped"
+                            />
+                          </Show>
                           <h3 class="font-medium">{item.name}</h3>
                         </label>
                         <Show when={item.equipped}>
@@ -684,44 +703,51 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                         <p class="text-sm text-muted-foreground mt-1">{item.description}</p>
                       </Show>
                     </div>
-                    <div class="flex items-center gap-2">
-                      <Tooltip content={`Edit ${item.name}`}>
-                        <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
-                          <Edit class="h-4 w-4" />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip content={`Delete ${item.name}`}>
-                        <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
-                          <Trash2 class="h-4 w-4" />
-                        </Button>
-                      </Tooltip>
-                    </div>
+                    <Show when={!isReadOnly}>
+                      <div class="flex items-center gap-2">
+                        <Tooltip content={`Edit ${item.name}`}>
+                          <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
+                            <Edit class="h-4 w-4" />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={`Delete ${item.name}`}>
+                          <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
+                            <Trash2 class="h-4 w-4" />
+                          </Button>
+                        </Tooltip>
+                      </div>
+                    </Show>
                   </div>
 
                   <div class="flex items-center justify-between text-sm text-muted-foreground">
                     <div class="flex items-center gap-4">
                       <div class="flex items-center gap-2">
                         <Label class="text-xs">Qty:</Label>
-                        <div class="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            disabled={item.quantity <= 1}
-                            class="h-6 w-6 p-0"
-                          >
-                            -
-                          </Button>
-                          <span class="w-8 text-center">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            class="h-6 w-6 p-0"
-                          >
-                            +
-                          </Button>
-                        </div>
+                        <Show
+                          when={!isReadOnly}
+                          fallback={<span class="w-8 text-center">{item.quantity}</span>}
+                        >
+                          <div class="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              disabled={item.quantity <= 1}
+                              class="h-6 w-6 p-0"
+                            >
+                              -
+                            </Button>
+                            <span class="w-8 text-center">{item.quantity}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              class="h-6 w-6 p-0"
+                            >
+                              +
+                            </Button>
+                          </div>
+                        </Show>
                       </div>
                       <Show when={item.weight && item.weight > 0}>
                         <div>

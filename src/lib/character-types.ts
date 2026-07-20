@@ -214,6 +214,8 @@ export interface Character {
   spellcastingClass?: string
   alliesAndOrganizations?: string
   treasure?: string
+
+  isPublic?: boolean
 }
 
 export function createDefaultCharacter(): Character {

@@ -2,6 +2,7 @@ import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { CharacterBasicInfo } from "@/components/character-basic-info"
 import { createDefaultCharacter } from "@/lib/character-types"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 const emptyCharacter = createDefaultCharacter()
 
@@ -304,5 +305,35 @@ describe("CharacterBasicInfo", () => {
     const { container } = render(<CharacterBasicInfo character={emptyCharacter} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("readOnly mode", () => {
+    it("does not render the heroic inspiration checkbox", () => {
+      render(
+        <ReadOnlyProvider value={true}>
+          <CharacterBasicInfo character={emptyCharacter} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+      expect(screen.queryByLabelText(/heroic inspiration/i)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/^inspiration$/i)).not.toBeInTheDocument()
+    })
+
+    it("still renders the character name display", () => {
+      render(
+        <ReadOnlyProvider value={true}>
+          <CharacterBasicInfo character={populatedCharacter} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+      expect(screen.getByText("Aragorn")).toBeInTheDocument()
+    })
+
+    it("does not render the Edit button", () => {
+      render(
+        <ReadOnlyProvider value={true}>
+          <CharacterBasicInfo character={emptyCharacter} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+      expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument()
+    })
   })
 })

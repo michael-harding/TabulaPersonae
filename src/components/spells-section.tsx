@@ -30,6 +30,7 @@ import Target from "lucide-solid/icons/target"
 import Circle from "lucide-solid/icons/circle"
 import Settings from "lucide-solid/icons/settings"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
+import { useReadOnly } from "@/lib/read-only-context"
 
 interface SpellFormData {
   name: string
@@ -218,6 +219,7 @@ function SpellForm(props: SpellFormProps) {
 }
 
 export function SpellsSection(props: SpellsSectionProps) {
+  const isReadOnly = useReadOnly()
   const [searchTerm, setSearchTerm] = createSignal("")
   const [isAddModalOpen, setIsAddModalOpen] = createSignal(false)
   const [editingSpell, setEditingSpell] = createSignal<Spell | null>(null)
@@ -395,10 +397,12 @@ export function SpellsSection(props: SpellsSectionProps) {
             <Sparkles class="h-5 w-5 text-primary" />
             Spells
           </div>
-          <Button size="sm" class="gap-2" onClick={() => setIsAddModalOpen(true)}>
-            <Plus class="h-4 w-4" />
-            Add Spell
-          </Button>
+          <Show when={!isReadOnly}>
+            <Button size="sm" class="gap-2" onClick={() => setIsAddModalOpen(true)}>
+              <Plus class="h-4 w-4" />
+              Add Spell
+            </Button>
+          </Show>
         </CardTitle>
       </CardHeader>
       <CardContent class="space-y-4">
@@ -449,10 +453,12 @@ export function SpellsSection(props: SpellsSectionProps) {
               <Circle class="h-5 w-5 text-primary" />
               Spell Slots
             </h2>
-            <Button variant="outline" size="sm" class="gap-1" onClick={() => setIsSpellSlotsModalOpen(true)}>
-              <Settings class="h-3 w-3" />
-              Edit Slots
-            </Button>
+            <Show when={!isReadOnly}>
+              <Button variant="outline" size="sm" class="gap-1" onClick={() => setIsSpellSlotsModalOpen(true)}>
+                <Settings class="h-3 w-3" />
+                Edit Slots
+              </Button>
+            </Show>
           </div>
 
           <SpellSlotTracker spellSlots={props.character.spellSlots} onToggle={updateSpellSlotUsed} />
@@ -514,22 +520,24 @@ export function SpellsSection(props: SpellsSectionProps) {
                                   <div class="flex-1">
                                     <div class="flex items-center gap-2 mb-1">
                                       <label class="flex items-center gap-2 cursor-pointer">
-                                        <Show when={spell.level === 0}>
-                                          <Tooltip content="Known">
-                                            <Checkbox
-                                              checked={spell.known ?? true}
-                                              onChange={() => toggleKnown(spell.id)}
-                                            />
-                                          </Tooltip>
-                                        </Show>
-                                        <Show when={spell.level > 0}>
-                                          <Tooltip content="Prepared">
-                                            <Checkbox
-                                              checked={spell.prepared || false}
-                                              disabled={!(spell.known ?? true)}
-                                              onChange={() => togglePrepared(spell.id)}
-                                            />
-                                          </Tooltip>
+                                        <Show when={!isReadOnly}>
+                                          <Show when={spell.level === 0}>
+                                            <Tooltip content="Known">
+                                              <Checkbox
+                                                checked={spell.known ?? true}
+                                                onChange={() => toggleKnown(spell.id)}
+                                              />
+                                            </Tooltip>
+                                          </Show>
+                                          <Show when={spell.level > 0}>
+                                            <Tooltip content="Prepared">
+                                              <Checkbox
+                                                checked={spell.prepared || false}
+                                                disabled={!(spell.known ?? true)}
+                                                onChange={() => togglePrepared(spell.id)}
+                                              />
+                                            </Tooltip>
+                                          </Show>
                                         </Show>
                                         <h3 class="font-medium">{spell.name}</h3>
                                       </label>
@@ -558,18 +566,20 @@ export function SpellsSection(props: SpellsSectionProps) {
                                       </div>
                                     </Show>
                                   </div>
-                                  <div class="flex items-center gap-2 ml-4">
-                                    <Tooltip content="Edit spell">
-                                      <Button variant="ghost" size="sm" aria-label="Edit spell" onClick={() => setEditingSpell(spell)}>
-                                        <Edit class="h-4 w-4" />
-                                      </Button>
-                                    </Tooltip>
-                                    <Tooltip content="Delete spell">
-                                      <Button variant="ghost" size="sm" aria-label="Delete spell" onClick={() => handleDeleteSpell(spell.id)}>
-                                        <Trash2 class="h-4 w-4" />
-                                      </Button>
-                                    </Tooltip>
-                                  </div>
+                                  <Show when={!isReadOnly}>
+                                    <div class="flex items-center gap-2 ml-4">
+                                      <Tooltip content="Edit spell">
+                                        <Button variant="ghost" size="sm" aria-label="Edit spell" onClick={() => setEditingSpell(spell)}>
+                                          <Edit class="h-4 w-4" />
+                                        </Button>
+                                      </Tooltip>
+                                      <Tooltip content="Delete spell">
+                                        <Button variant="ghost" size="sm" aria-label="Delete spell" onClick={() => handleDeleteSpell(spell.id)}>
+                                          <Trash2 class="h-4 w-4" />
+                                        </Button>
+                                      </Tooltip>
+                                    </div>
+                                  </Show>
                                 </div>
                               </div>
                             )}

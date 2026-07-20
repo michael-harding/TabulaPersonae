@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils
 import { ActionsSection } from "@/components/actions-section"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -1023,5 +1024,40 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     const { container } = render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("readOnly mode", () => {
+    function renderReadOnly(overrides: Partial<Character> = {}) {
+      return render(
+        <ReadOnlyProvider value={true}>
+          <ActionsSection character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+    }
+
+    it("does not render the Add Action button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add action/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the Add Bonus Action button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add bonus action/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the Add Reaction button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add reaction/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the Add Other button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add other/i })).not.toBeInTheDocument()
+    })
+
+    it("still renders existing action cards", () => {
+      renderReadOnly({ attacks: [makeAttack({ name: "Longsword" })] })
+      expect(screen.getByText("Longsword")).toBeInTheDocument()
+    })
   })
 })

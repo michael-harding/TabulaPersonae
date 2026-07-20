@@ -1,6 +1,7 @@
 import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { EditableSection } from "@/components/editable-section"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 const icon = <span>icon</span>
 
@@ -141,5 +142,44 @@ describe("EditableSection", () => {
     )
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("readOnly mode", () => {
+    function renderReadOnly(overrides: Record<string, any> = {}) {
+      return render(
+        <ReadOnlyProvider value={true}>
+          <EditableSection
+            icon={icon}
+            title="Test Section"
+            isEditing={false}
+            onEdit={vi.fn()}
+            onSave={vi.fn()}
+            onCancel={vi.fn()}
+            {...overrides}
+          />
+        </ReadOnlyProvider>
+      )
+    }
+
+    it("does not render the Edit button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument()
+    })
+
+    it("still renders the title", () => {
+      renderReadOnly()
+      expect(screen.getByText("Test Section")).toBeInTheDocument()
+    })
+
+    it("still renders children content", () => {
+      render(
+        <ReadOnlyProvider value={true}>
+          <EditableSection icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onCancel={vi.fn()}>
+            <span>display content</span>
+          </EditableSection>
+        </ReadOnlyProvider>
+      )
+      expect(screen.getByText("display content")).toBeInTheDocument()
+    })
   })
 })

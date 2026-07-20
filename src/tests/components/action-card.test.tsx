@@ -2,6 +2,7 @@ import { axe } from "vitest-axe"
 import { render, screen, fireEvent, cleanupPortals } from "../test-utils"
 import { ActionCard } from "@/components/action-card"
 import type { ActionCardProps } from "@/components/action-card"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 function makeProps(overrides: Partial<ActionCardProps> = {}): ActionCardProps {
   return {
@@ -243,5 +244,38 @@ describe("ActionCard", () => {
     const { container } = render(<ActionCard {...makeProps()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("readOnly mode", () => {
+    function renderReadOnly(props: Partial<ActionCardProps> = {}) {
+      return render(
+        <ReadOnlyProvider value={true}>
+          <ActionCard {...makeProps(props)} />
+        </ReadOnlyProvider>
+      )
+    }
+
+    it("does not render the edit button even when onEdit is provided", () => {
+      renderReadOnly({ onEdit: vi.fn() })
+      expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the Cast button when onCast is provided", () => {
+      renderReadOnly({ onCast: vi.fn(), castable: () => true })
+      expect(screen.queryByRole("button", { name: /^cast$/i })).not.toBeInTheDocument()
+    })
+
+    it("renders PipTracker uses as non-interactive spans when maxUses is set", () => {
+      renderReadOnly({ maxUses: 3, uses: 0, onUsesChange: vi.fn() })
+      expect(screen.queryByRole("button", { name: /charge/i })).not.toBeInTheDocument()
+      expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+    })
+
+    it("renders StepperInput without ± buttons when maxUses is large", () => {
+      renderReadOnly({ maxUses: 8, uses: 0, onUsesChange: vi.fn() })
+      expect(screen.queryByRole("button", { name: /increase/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /decrease/i })).not.toBeInTheDocument()
+      expect(screen.getByRole("spinbutton")).toBeInTheDocument()
+    })
   })
 })

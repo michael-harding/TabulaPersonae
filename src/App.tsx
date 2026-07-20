@@ -14,6 +14,7 @@ const CharacterSheet = lazy(() => import('./routes/CharacterSheet'))
 const TabSettings = lazy(() => import('./routes/TabSettings'))
 const NotFound = lazy(() => import('./routes/NotFound'))
 const Teapot = lazy(() => import('./routes/Teapot'))
+const PublicCharacterSheet = lazy(() => import('./routes/PublicCharacterSheet'))
 const TermsOfUse = lazy(() => import('./routes/TermsOfUse'))
 const PrivacyPolicy = lazy(() => import('./routes/PrivacyPolicy'))
 
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/auth" component={Auth} />
           <Route path="/character/:id" component={CharacterSheet} />
           <Route path="/settings/tabs" component={TabSettings} />
+          <Route path="/share/:id" component={PublicCharacterSheet} />
           <Route path="/418" component={Teapot} />
           <Route path="/terms" component={TermsOfUse} />
           <Route path="/privacy" component={PrivacyPolicy} />

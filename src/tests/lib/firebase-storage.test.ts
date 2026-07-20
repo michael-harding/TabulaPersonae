@@ -34,6 +34,7 @@ import {
   getCharacterFromFirebase,
   subscribeToCharacter,
   getTabConfigFromFirebase,
+  getPublicCharacterFromFirebase,
 } from '@/lib/firebase-storage'
 
 const mockGetDocs = vi.mocked(getDocs)
@@ -58,6 +59,51 @@ function makeDocSnap(exists: boolean, data?: object) {
     data: () => data ?? {},
   } as any
 }
+
+describe('getPublicCharacterFromFirebase', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns character data when doc exists and isPublic is true', async () => {
+    const publicCharData = { ...charData, isPublic: true }
+    mockGetDoc.mockResolvedValue(makeDocSnap(true, publicCharData))
+
+    const result = await getPublicCharacterFromFirebase('char-1')
+
+    expect(result).not.toBeNull()
+    expect(result?.id).toBe('char-1')
+    expect((result as any).name).toBe('Thorin')
+  })
+
+  it('returns null when document does not exist', async () => {
+    mockGetDoc.mockResolvedValue(makeDocSnap(false))
+
+    const result = await getPublicCharacterFromFirebase('char-1')
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null when isPublic is false', async () => {
+    const privateCharData = { ...charData, isPublic: false }
+    mockGetDoc.mockResolvedValue(makeDocSnap(true, privateCharData))
+
+    const result = await getPublicCharacterFromFirebase('char-1')
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null and logs console.error when getDoc throws', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetDoc.mockRejectedValue(new Error('Network error'))
+
+    const result = await getPublicCharacterFromFirebase('char-1')
+
+    expect(result).toBeNull()
+    expect(errorSpy).toHaveBeenCalledOnce()
+    errorSpy.mockRestore()
+  })
+})
 
 describe('getCharactersFromFirebase', () => {
   beforeEach(() => {
