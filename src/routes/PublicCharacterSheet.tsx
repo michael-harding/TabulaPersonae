@@ -1,5 +1,5 @@
 import { createSignal, createEffect, Show, For } from "solid-js"
-import { useParams, A } from "@solidjs/router"
+import { useParams, useSearchParams, A } from "@solidjs/router"
 import { type Character } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -20,9 +20,21 @@ const PUBLIC_TAB_CONFIG = {
 
 export default function PublicCharacterSheet() {
   const params = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const validTabIds = PUBLIC_TAB_CONFIG.tabs.map((t) => t.id)
+  const tabParam = Array.isArray(searchParams.tab) ? searchParams.tab[0] : searchParams.tab
+  const initialTab =
+    (tabParam && validTabIds.includes(tabParam) ? tabParam : null) ??
+    PUBLIC_TAB_CONFIG.tabs[0]?.id ??
+    ""
   const [character, setCharacter] = createSignal<Character | null>(null)
   const [isLoading, setIsLoading] = createSignal(true)
-  const [activeTab, setActiveTab] = createSignal(PUBLIC_TAB_CONFIG.tabs[0]?.id ?? "")
+  const [activeTab, setActiveTab] = createSignal(initialTab)
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId)
+    setSearchParams({ tab: tabId }, { replace: true })
+  }
 
   createEffect(() => {
     document.title = "TabulaPersonae"
@@ -91,7 +103,7 @@ export default function PublicCharacterSheet() {
               </header>
 
               <div class="max-w-7xl mx-auto px-4 pb-4">
-                <TabsRoot value={activeTab()} onChange={setActiveTab}>
+                <TabsRoot value={activeTab()} onChange={handleTabChange}>
                   <div class="flex items-center border-b border-border">
                     <TabsList class="border-b-0 flex-1">
                       <For each={PUBLIC_TAB_CONFIG.tabs}>
