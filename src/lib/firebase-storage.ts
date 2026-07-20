@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Character } from './character-types';
+import { isValidTabConfig } from './tab-config-types';
 import type { UserTabConfig } from './tab-config-types';
 
 const CHARACTERS_COLLECTION = 'characters';
@@ -181,7 +182,8 @@ export async function getTabConfigFromFirebase(userId: string): Promise<UserTabC
       : await getDocFromCache(settingsRef);
     if (!snap.exists()) return null;
     const data = snap.data();
-    return (data?.tabConfig as UserTabConfig) ?? null;
+    const raw = data?.tabConfig;
+    return isValidTabConfig(raw) ? raw : null;
   } catch (error) {
     console.error('Failed to get tab config from Firebase:', error);
     return null;

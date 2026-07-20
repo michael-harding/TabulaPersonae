@@ -62,6 +62,15 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+// Also mock use-toast so toast() calls don't throw in jsdom
+vi.mock("@/hooks/use-toast", () => ({
+  toast: vi.fn(),
+  useToast: () => ({ toasts: () => [], toast: vi.fn(), dismiss: vi.fn() }),
+}))
+
+import { toast } from "@/hooks/use-toast"
+const mockToast = vi.mocked(toast)
+
 describe("TabConfigProvider — anonymous user", () => {
   it("uses DEFAULT_TAB_CONFIG when no localStorage entry exists", async () => {
     let ctx!: ReturnType<typeof useTabConfig>
@@ -139,5 +148,64 @@ describe("TabConfigProvider — authenticated user", () => {
     })
     expect(localStorage.getItem(TAB_CONFIG_KEY)).toBeNull()
     expect(ctx.tabConfig().tabs[0].label).toBe("Custom")
+  })
+
+  it("preserves localStorage and shows toast when migration Firebase write fails", async () => {
+    mockSaveTabConfig.mockResolvedValue(false)
+    localStorage.setItem(TAB_CONFIG_KEY, JSON.stringify(customConfig))
+    let ctx!: ReturnType<typeof useTabConfig>
+    renderProvider((c) => { ctx = c })
+
+    await waitFor(() => {
+      expect(mockSaveTabConfig).toHaveBeenCalledWith(customConfig, "user-123")
+    })
+    // localStorage must NOT be cleared when the write failed
+    expect(localStorage.getItem(TAB_CONFIG_KEY)).not.toBeNull()
+    // Toast should have been shown
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" }))
+    // Local state is still updated from the local config
+    expect(ctx.tabConfig().tabs[0].label).toBe("Custom")
+  })
+
+  it("shows a toast when saveTabConfig Firebase write fails", async () => {
+    mockSaveTabConfig.mockResolvedValue(false)
+    let ctx!: ReturnType<typeof useTabConfig>
+    renderProvider((c) => { ctx = c })
+    await waitFor(() => expect(ctx).toBeTruthy())
+
+    await ctx.saveTabConfig(customConfig)
+
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" }))
+    // Optimistic update is kept even after failure
+    expect(ctx.tabConfig().tabs[0].label).toBe("Custom")
+  })
+
+  it("uses DEFAULT_TAB_CONFIG when Firebase returns a malformed object", async () => {
+    mockGetTabConfig.mockResolvedValue({ notATabs: true } as any)
+    let ctx!: ReturnType<typeof useTabConfig>
+    renderProvider((c) => { ctx = c })
+    await waitFor(() => {
+      expect(ctx.tabConfig().tabs).toHaveLength(DEFAULT_TAB_CONFIG.tabs.length)
+    })
+  })
+})
+
+describe("TabConfigProvider — invalid localStorage data", () => {
+  it("falls back to DEFAULT_TAB_CONFIG when localStorage contains malformed JSON", async () => {
+    localStorage.setItem(TAB_CONFIG_KEY, "{{not valid json{{")
+    let ctx!: ReturnType<typeof useTabConfig>
+    renderProvider((c) => { ctx = c })
+    await waitFor(() => {
+      expect(ctx.tabConfig().tabs).toHaveLength(DEFAULT_TAB_CONFIG.tabs.length)
+    })
+  })
+
+  it("falls back to DEFAULT_TAB_CONFIG when localStorage contains valid JSON with wrong shape", async () => {
+    localStorage.setItem(TAB_CONFIG_KEY, JSON.stringify({ notTabs: [] }))
+    let ctx!: ReturnType<typeof useTabConfig>
+    renderProvider((c) => { ctx = c })
+    await waitFor(() => {
+      expect(ctx.tabConfig().tabs).toHaveLength(DEFAULT_TAB_CONFIG.tabs.length)
+    })
   })
 })

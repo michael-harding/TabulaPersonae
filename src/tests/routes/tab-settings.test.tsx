@@ -185,4 +185,31 @@ describe("TabSettings page", () => {
       )
     })
   })
+
+  it("delete button is enabled when multiple tabs exist", () => {
+    render(<TabSettings />)
+    const deleteButtons = screen.getAllByRole("button", { name: /delete tab/i })
+    expect(deleteButtons.length).toBe(2)
+    deleteButtons.forEach((btn) => expect(btn).not.toBeDisabled())
+  })
+
+  it("delete button is disabled when only one tab remains", () => {
+    currentConfig = {
+      tabs: [{ id: "tab-combat", label: "Combat", modules: ["actions" as const] }],
+    }
+    render(<TabSettings />)
+    const deleteButton = screen.getByRole("button", { name: /delete tab/i })
+    expect(deleteButton).toBeDisabled()
+  })
+
+  it("clicking the disabled delete button on the last tab does not call saveTabConfig", () => {
+    currentConfig = {
+      tabs: [{ id: "tab-combat", label: "Combat", modules: [] }],
+    }
+    render(<TabSettings />)
+    const deleteButton = screen.getByRole("button", { name: /delete tab/i })
+    expect(deleteButton).toBeDisabled()
+    fireEvent.click(deleteButton)
+    expect(mockSaveTabConfig).not.toHaveBeenCalled()
+  })
 })

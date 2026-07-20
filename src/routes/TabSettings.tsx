@@ -86,6 +86,7 @@ interface SortableTabRowProps {
   onAddModule: (moduleId: ModuleId) => void
   onRemoveModule: (moduleId: ModuleId) => void
   onReorderModules: (fromIndex: number, toIndex: number) => void
+  disableDelete: boolean
 }
 
 function SortableTabRow(props: SortableTabRowProps) {
@@ -100,7 +101,8 @@ function SortableTabRow(props: SortableTabRowProps) {
     if (!droppable) return
     const from = moduleIds().indexOf(draggable.id as ModuleId)
     const to = moduleIds().indexOf(droppable.id as ModuleId)
-    if (from !== to) props.onReorderModules(from, to)
+    if (from < 0 || to < 0 || from === to) return
+    props.onReorderModules(from, to)
   }
 
   const availableModules = () => ALL_MODULE_IDS.filter((m) => !props.tab.modules.includes(m))
@@ -173,7 +175,8 @@ function SortableTabRow(props: SortableTabRowProps) {
             <button
               type="button"
               onClick={props.onDelete}
-              class="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+              disabled={props.disableDelete}
+              class="text-muted-foreground hover:text-destructive transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
               aria-label="Delete tab"
             >
               <Trash2 class="h-4 w-4" />
@@ -299,11 +302,10 @@ export default function TabSettings() {
     if (!droppable) return
     const fromIndex = tabIds().indexOf(draggable.id as string)
     const toIndex = tabIds().indexOf(droppable.id as string)
-    if (fromIndex !== toIndex) {
-      const reordered = [...tabs()]
-      reordered.splice(toIndex, 0, reordered.splice(fromIndex, 1)[0])
-      updateTabs(reordered)
-    }
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return
+    const reordered = [...tabs()]
+    reordered.splice(toIndex, 0, reordered.splice(fromIndex, 1)[0])
+    updateTabs(reordered)
   }
 
   const toggleExpanded = (tabId: string, open: boolean) => {
@@ -350,6 +352,7 @@ export default function TabSettings() {
                   onAddModule={(moduleId) => addModule(tab.id, moduleId)}
                   onRemoveModule={(moduleId) => removeModule(tab.id, moduleId)}
                   onReorderModules={(from, to) => reorderModules(tab.id, from, to)}
+                  disableDelete={tabs().length <= 1}
                 />
               )}
             </For>
