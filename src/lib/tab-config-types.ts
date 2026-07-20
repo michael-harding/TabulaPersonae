@@ -20,17 +20,28 @@ export interface UserTabConfig {
   tabs: TabConfig[]
 }
 
+const VALID_MODULE_IDS = new Set<string>([
+  'actions', 'ability-scores', 'combat-stats', 'skills',
+  'spells', 'features', 'inventory', 'character-info',
+  'notes', 'sheet-settings',
+] satisfies ModuleId[])
+
 export function isValidTabConfig(data: unknown): data is UserTabConfig {
   if (!data || typeof data !== 'object') return false
   const d = data as Record<string, unknown>
   if (!Array.isArray(d.tabs)) return false
   return d.tabs.every(
-    (tab) =>
-      tab &&
-      typeof tab === 'object' &&
-      typeof (tab as Record<string, unknown>).id === 'string' &&
-      typeof (tab as Record<string, unknown>).label === 'string' &&
-      Array.isArray((tab as Record<string, unknown>).modules),
+    (tab) => {
+      const t = tab as Record<string, unknown>
+      return (
+        tab &&
+        typeof tab === 'object' &&
+        typeof t.id === 'string' &&
+        typeof t.label === 'string' &&
+        Array.isArray(t.modules) &&
+        (t.modules as unknown[]).every((m) => typeof m === 'string' && VALID_MODULE_IDS.has(m))
+      )
+    },
   )
 }
 

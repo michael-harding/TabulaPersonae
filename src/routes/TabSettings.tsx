@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js"
+import { createSignal, createEffect, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import {
   DragDropProvider,
@@ -62,12 +62,12 @@ function SortableModuleRow(props: SortableModuleRowProps) {
       >
         <GripVertical class="h-4 w-4" />
       </button>
-      <span class="flex-1 text-sm">{MODULE_REGISTRY[props.moduleId].label}</span>
+      <span class="flex-1 text-sm">{MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}</span>
       <button
         type="button"
         onClick={props.onRemove}
         class="text-muted-foreground hover:text-destructive transition-colors"
-        aria-label={`Remove ${MODULE_REGISTRY[props.moduleId].label}`}
+        aria-label={`Remove ${MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}`}
       >
         <X class="h-4 w-4" />
       </button>
@@ -93,7 +93,10 @@ function SortableTabRow(props: SortableTabRowProps) {
   // eslint-disable-next-line solid/reactivity
   const sortable = createSortable(props.tab.id)
   const [renaming, setRenaming] = createSignal(false)
-  const [renameValue, setRenameValue] = createSignal(props.tab.label)
+  const [renameValue, setRenameValue] = createSignal("")
+  createEffect(() => {
+    if (!renaming()) setRenameValue(props.tab.label)
+  })
 
   const moduleIds = () => props.tab.modules
 
@@ -249,9 +252,16 @@ export default function TabSettings() {
   const navigate = useNavigate()
   const { tabConfig, saveTabConfig } = useTabConfig()
 
-  const [expandedTabs, setExpandedTabs] = createSignal<Set<string>>(
-    new Set(tabConfig().tabs.slice(0, 1).map((t) => t.id)),
-  )
+  const [expandedTabs, setExpandedTabs] = createSignal<Set<string>>(new Set())
+  createEffect(() => {
+    const tabs = tabConfig().tabs
+    const validIds = new Set(tabs.map((t) => t.id))
+    setExpandedTabs((prev) => {
+      const filtered = new Set([...prev].filter((id) => validIds.has(id)))
+      if (filtered.size === 0 && tabs.length > 0) filtered.add(tabs[0].id)
+      return filtered
+    })
+  })
   const [addingTab, setAddingTab] = createSignal(false)
   const [newTabLabel, setNewTabLabel] = createSignal("")
 
@@ -271,6 +281,7 @@ export default function TabSettings() {
   }
 
   const deleteTab = (tabId: string) => {
+    if (tabs().length <= 1) return
     updateTabs(tabs().filter((t) => t.id !== tabId))
     setExpandedTabs((prev) => { const next = new Set(prev); next.delete(tabId); return next })
   }

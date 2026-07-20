@@ -37,35 +37,42 @@ export const TabConfigProvider: ParentComponent = (props) => {
     const u = user()
     let cancelled = false
     onCleanup(() => { cancelled = true })
-
-    if (u) {
-      const localRaw = localStorage.getItem(TAB_CONFIG_KEY)
-      if (localRaw) {
-        // Migrate anonymous config to Firebase on login
-        const localConfig = parseLocalConfig(localRaw)
-        saveTabConfigToFirebase(localConfig, u.uid).then((saved) => {
+    ;(async () => {
+      if (u) {
+        const localRaw = localStorage.getItem(TAB_CONFIG_KEY)
+        if (localRaw) {
+          const localConfig = parseLocalConfig(localRaw)
+          const existingFirebaseConfig = await getTabConfigFromFirebase(u.uid)
           if (cancelled) return
-          if (saved) {
+          if (existingFirebaseConfig) {
+            // Cloud already has a config — prefer it and discard the anonymous local copy
             localStorage.removeItem(TAB_CONFIG_KEY)
+            setTabConfig(existingFirebaseConfig)
           } else {
-            toast({
-              title: 'Settings sync failed',
-              description: 'Could not upload your settings to the cloud. Your local settings are preserved.',
-              variant: 'destructive',
-            })
+            // No cloud config yet — migrate the local anonymous config
+            const saved = await saveTabConfigToFirebase(localConfig, u.uid)
+            if (cancelled) return
+            if (saved) {
+              localStorage.removeItem(TAB_CONFIG_KEY)
+            } else {
+              toast({
+                title: 'Settings sync failed',
+                description: 'Could not upload your settings to the cloud. Your local settings are preserved.',
+                variant: 'destructive',
+              })
+            }
+            setTabConfig(localConfig)
           }
-          setTabConfig(localConfig)
-        })
-      } else {
-        getTabConfigFromFirebase(u.uid).then((firebaseConfig) => {
+        } else {
+          const firebaseConfig = await getTabConfigFromFirebase(u.uid)
           if (cancelled) return
           setTabConfig(firebaseConfig ?? DEFAULT_TAB_CONFIG)
-        })
+        }
+      } else {
+        const stored = localStorage.getItem(TAB_CONFIG_KEY)
+        setTabConfig(stored ? parseLocalConfig(stored) : DEFAULT_TAB_CONFIG)
       }
-    } else {
-      const stored = localStorage.getItem(TAB_CONFIG_KEY)
-      setTabConfig(stored ? parseLocalConfig(stored) : DEFAULT_TAB_CONFIG)
-    }
+    })()
   })
 
   const saveTabConfig = async (config: UserTabConfig) => {

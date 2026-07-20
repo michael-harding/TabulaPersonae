@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup, Show, For } from "solid-js"
+import { createSignal, createMemo, createEffect, onCleanup, Show, For } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { useParams, useNavigate } from "@solidjs/router"
 import { type Character } from "@/lib/character-types"
@@ -24,6 +24,13 @@ export default function CharacterSheet() {
   const { user, skipAuth, loading: authLoading } = useAuth()
   const storageManager = useStorageManager()
   const { tabConfig } = useTabConfig()
+  const [_activeTab, _setActiveTab] = createSignal('')
+  const activeTab = createMemo(() => {
+    const tabs = tabConfig().tabs
+    const current = _activeTab()
+    if (!current || !tabs.some((t) => t.id === current)) return tabs[0]?.id ?? ''
+    return current
+  })
 
   const syncCtx = useSyncState()
 
@@ -172,7 +179,7 @@ export default function CharacterSheet() {
             </header>
 
             <div class="max-w-7xl mx-auto px-4 pb-4">
-              <TabsRoot defaultValue={tabConfig().tabs[0]?.id ?? ''}>
+              <TabsRoot value={activeTab()} onChange={_setActiveTab}>
                 <div class="flex items-center border-b border-border">
                   <TabsList class="border-b-0 flex-1">
                     <For each={tabConfig().tabs}>

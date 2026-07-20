@@ -180,6 +180,22 @@ describe("TabConfigProvider — authenticated user", () => {
     expect(ctx.tabConfig().tabs[0].label).toBe("Custom")
   })
 
+  it("prefers existing Firebase config over local config and does not overwrite Firebase", async () => {
+    const firebaseConfig: UserTabConfig = {
+      tabs: [{ id: "fb-tab", label: "Cloud Tab", modules: ["spells"] }],
+    }
+    mockGetTabConfig.mockResolvedValue(firebaseConfig)
+    localStorage.setItem(TAB_CONFIG_KEY, JSON.stringify(customConfig))
+    let ctx!: ReturnType<typeof useTabConfig>
+    renderProvider((c) => { ctx = c })
+
+    await waitFor(() => {
+      expect(ctx.tabConfig().tabs[0].label).toBe("Cloud Tab")
+    })
+    expect(mockSaveTabConfig).not.toHaveBeenCalled()
+    expect(localStorage.getItem(TAB_CONFIG_KEY)).toBeNull()
+  })
+
   it("uses DEFAULT_TAB_CONFIG when Firebase returns a malformed object", async () => {
     mockGetTabConfig.mockResolvedValue({ notATabs: true } as any)
     let ctx!: ReturnType<typeof useTabConfig>

@@ -185,7 +185,12 @@ export async function getTabConfigFromFirebase(userId: string): Promise<UserTabC
     const raw = data?.tabConfig;
     return isValidTabConfig(raw) ? raw : null;
   } catch (error) {
-    console.error('Failed to get tab config from Firebase:', error);
+    const fe = error as { code?: string; message?: string }
+    if (fe?.code === 'unavailable') {
+      console.debug('Tab config not in Firestore cache (offline):', fe.message)
+    } else {
+      console.error('Failed to get tab config from Firebase:', error)
+    }
     return null;
   }
 }
