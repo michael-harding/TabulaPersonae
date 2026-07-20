@@ -25,6 +25,7 @@
   "dependencies": {
     "@kobalte/core": "^0.13.11",
     "@solidjs/router": "^0.15.4",
+    "@thisbeyond/solid-dnd": "^0.7.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.13.0",
