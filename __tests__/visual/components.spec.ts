@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { testCharacter, secondCharacter } from "./fixtures"
+import { testCharacter, secondCharacter, publicCharacter } from "./fixtures"
 
 // All component screenshots are taken by navigating to the full character sheet
 // and scoping the screenshot to a specific card element.
@@ -157,5 +157,46 @@ test.describe("CharacterNotes component", () => {
 
     const card = page.locator("text=Character Background").locator("..").locator("..")
     await expect(card).toHaveScreenshot("character-notes-empty.png")
+  })
+})
+
+test.describe("ActionCard uses tracker — interactive vs read-only", () => {
+  test("pip tracker — interactive (normal character sheet)", async ({ page }) => {
+    // testCharacter.otherActions has "Speak with Animals" with uses:3/maxUses:3
+    await page.addInitScript((char) => {
+      localStorage.setItem("dnd-characters", JSON.stringify([char]))
+      localStorage.setItem("dnd-skip-auth", "true")
+      localStorage.setItem(`dnd-collapsible-actions-${char.id}`, JSON.stringify(["actions", "bonus-actions", "reactions", "other"]))
+    }, testCharacter)
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+    await page.getByRole("tab", { name: "Combat" }).click()
+    await page.waitForLoadState("networkidle")
+    const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Speak with Animals" })
+    await expect(card).toHaveScreenshot("action-card-pip-tracker-interactive.png")
+  })
+
+  test("pip tracker — read-only (public share page)", async ({ page }) => {
+    await page.addInitScript(({ id, data }) => {
+      localStorage.setItem(`dnd-public-char-${id}`, JSON.stringify(data))
+    }, { id: publicCharacter.id, data: publicCharacter })
+    await page.goto(`/share/${publicCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+    await page.getByRole("tab", { name: "Combat" }).click()
+    await page.waitForLoadState("networkidle")
+    const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Dark One's Blessing" })
+    await expect(card).toHaveScreenshot("action-card-pip-tracker-readonly.png")
+  })
+
+  test("stepper — read-only (public share page)", async ({ page }) => {
+    await page.addInitScript(({ id, data }) => {
+      localStorage.setItem(`dnd-public-char-${id}`, JSON.stringify(data))
+    }, { id: publicCharacter.id, data: publicCharacter })
+    await page.goto(`/share/${publicCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+    await page.getByRole("tab", { name: "Combat" }).click()
+    await page.waitForLoadState("networkidle")
+    const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Fiendish Resilience" })
+    await expect(card).toHaveScreenshot("action-card-stepper-readonly.png")
   })
 })

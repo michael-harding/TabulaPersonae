@@ -306,6 +306,37 @@ export const secondCharacter: Character = {
   deathSaves: { successes: 1, failures: 2 },
 }
 
+/** Public character used for /share/:id visual tests. Has isPublic:true and uses trackers. */
+export const publicCharacter: Character = {
+  ...testCharacter,
+  id: "visual-public-char-1",
+  name: "Zara Moonwhisper",
+  race: "Tiefling",
+  class: "Warlock",
+  level: 7,
+  isPublic: true,
+  otherActions: [
+    {
+      id: "oa-vis-1",
+      name: "Dark One's Blessing",
+      type: "class-feature",
+      description: "Regain HP equal to Cha modifier + Warlock level when you reduce a hostile creature to 0 HP.",
+      uses: 1,
+      maxUses: 3,
+      rechargeOn: "short-rest",
+    },
+    {
+      id: "oa-vis-2",
+      name: "Fiendish Resilience",
+      type: "class-feature",
+      description: "Choose one damage type. You gain resistance to that damage type until you use this feature again.",
+      uses: 0,
+      maxUses: 8,
+      rechargeOn: "long-rest",
+    },
+  ],
+}
+
 /** Inject characters + skip-auth into localStorage before page load */
 export function seedLocalStorage(characters: Character[]) {
   localStorage.setItem("dnd-characters", JSON.stringify(characters))

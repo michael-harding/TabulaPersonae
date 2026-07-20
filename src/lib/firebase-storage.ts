@@ -151,6 +151,14 @@ export function subscribeToCharacter(
 }
 
 export async function getPublicCharacterFromFirebase(id: string): Promise<Character | null> {
+  // Dev-only: seed a public character via localStorage["dnd-public-char-{id}"] to skip Firebase.
+  // Set to JSON.stringify(character) to return a character, or "null" to simulate not-found.
+  if (import.meta.env.DEV) {
+    const seed = localStorage.getItem(`dnd-public-char-${id}`)
+    if (seed !== null) {
+      try { return JSON.parse(seed) as Character | null } catch { /* fall through */ }
+    }
+  }
   try {
     const characterRef = doc(db, CHARACTERS_COLLECTION, id)
     const characterSnap = await getDoc(characterRef)
