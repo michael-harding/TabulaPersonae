@@ -35,6 +35,20 @@ vi.mock("@/lib/storage-manager", () => ({
   useStorageManager: () => () => (globalThis as any).mockStorageManager,
 }))
 
+// Mock tab-config-context so components that call useTabConfig() don't need a real provider.
+// useTabConfig is a vi.fn() so individual tests can call .mockReturnValue() to supply a
+// custom config without touching any other test files.
+vi.mock("@/lib/tab-config-context", async () => {
+  const { DEFAULT_TAB_CONFIG } = await import("@/lib/tab-config-types")
+  return {
+    useTabConfig: vi.fn(() => ({
+      tabConfig: () => DEFAULT_TAB_CONFIG,
+      saveTabConfig: vi.fn().mockResolvedValue(undefined),
+    })),
+    TabConfigProvider: ({ children }: any) => children,
+  }
+})
+
 // Mock @solidjs/router for tests
 vi.mock("@solidjs/router", () => ({
   useNavigate: () => vi.fn(),

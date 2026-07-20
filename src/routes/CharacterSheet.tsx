@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup, Show } from "solid-js"
+import { createSignal, createMemo, createEffect, onCleanup, Show, For } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { useParams, useNavigate } from "@solidjs/router"
 import { type Character } from "@/lib/character-types"
@@ -6,21 +6,14 @@ import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import { subscribeToCharacter } from "@/lib/firebase-storage"
 import { useSyncState } from "@/lib/sync-context"
+import { useTabConfig } from "@/lib/tab-config-context"
+import { MODULE_REGISTRY } from "@/lib/module-registry"
 import Scroll from "lucide-solid/icons/scroll"
 import Sunrise from "lucide-solid/icons/sunrise"
 import FlameKindling from "lucide-solid/icons/flame-kindling"
+import Settings from "lucide-solid/icons/settings"
 import { Tooltip } from "@/components/ui/tooltip"
 import { RestModal } from "@/components/rest-modal"
-import { CharacterBasicInfo } from "@/components/character-basic-info"
-import { AbilityScores } from "@/components/ability-scores"
-import { CombatStats } from "@/components/combat-stats"
-import { SkillsProficiencies } from "@/components/skills-proficiencies"
-import { ActionsSection } from "@/components/actions-section"
-import { SpellsSection } from "@/components/spells-section"
-import { EquipmentInventory } from "@/components/equipment-inventory"
-import { CharacterNotes } from "@/components/character-notes"
-import { FeaturesSection } from "@/components/features-section"
-import { SheetSettings } from "@/components/sheet-settings"
 import { HeaderMenu } from "@/components/header-menu"
 import { StatsBar } from "@/components/stats-bar"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -30,6 +23,14 @@ export default function CharacterSheet() {
   const navigate = useNavigate()
   const { user, skipAuth, loading: authLoading } = useAuth()
   const storageManager = useStorageManager()
+  const { tabConfig } = useTabConfig()
+  const [_activeTab, _setActiveTab] = createSignal('')
+  const activeTab = createMemo(() => {
+    const tabs = tabConfig().tabs
+    const current = _activeTab()
+    if (!current || !tabs.some((t) => t.id === current)) return tabs[0]?.id ?? ''
+    return current
+  })
 
   const syncCtx = useSyncState()
 
@@ -178,40 +179,35 @@ export default function CharacterSheet() {
             </header>
 
             <div class="max-w-7xl mx-auto px-4 pb-4">
-              <TabsRoot defaultValue="combat">
-                <TabsList>
-                  <TabsTrigger value="combat">Combat</TabsTrigger>
-                  <TabsTrigger value="spells">Spells</TabsTrigger>
-                  <TabsTrigger value="features">Features</TabsTrigger>
-                  <TabsTrigger value="inventory">Inventory</TabsTrigger>
-                  <TabsTrigger value="character">Character</TabsTrigger>
-                </TabsList>
-                <TabsContent value="combat">
-                  <div class="space-y-6">
-                    <ActionsSection character={getChar()} onUpdate={updateCharacter} />
-                    <div class="grid gap-6 lg:grid-cols-2">
-                      <AbilityScores character={getChar()} onUpdate={updateCharacter} />
-                      <CombatStats character={getChar()} onUpdate={updateCharacter} />
-                    </div>
-                    <SkillsProficiencies character={getChar()} onUpdate={updateCharacter} />
-                  </div>
-                </TabsContent>
-                <TabsContent value="spells">
-                  <SpellsSection character={getChar()} onUpdate={updateCharacter} />
-                </TabsContent>
-                <TabsContent value="features">
-                  <FeaturesSection character={getChar()} onUpdate={updateCharacter} />
-                </TabsContent>
-                <TabsContent value="inventory">
-                  <EquipmentInventory character={getChar()} onUpdate={updateCharacter} />
-                </TabsContent>
-                <TabsContent value="character">
-                  <div class="space-y-6">
-                    <CharacterBasicInfo character={getChar()} onUpdate={updateCharacter} />
-                    <CharacterNotes character={getChar()} onUpdate={updateCharacter} />
-                    <SheetSettings character={getChar()} onUpdate={updateCharacter} />
-                  </div>
-                </TabsContent>
+              <TabsRoot value={activeTab()} onChange={_setActiveTab}>
+                <div class="flex items-center border-b border-border">
+                  <TabsList class="border-b-0 flex-1">
+                    <For each={tabConfig().tabs}>
+                      {(tab) => <TabsTrigger value={tab.id}>{tab.label}</TabsTrigger>}
+                    </For>
+                  </TabsList>
+                  <Tooltip content="Configure Tabs">
+                    <button
+                      type="button"
+                      aria-label="Configure tabs"
+                      onClick={() => navigate('/settings/tabs')}
+                      class="px-3 py-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                    >
+                      <Settings class="h-4 w-4" />
+                    </button>
+                  </Tooltip>
+                </div>
+                <For each={tabConfig().tabs}>
+                  {(tab) => (
+                    <TabsContent value={tab.id}>
+                      <div class="space-y-6">
+                        <For each={tab.modules}>
+                          {(moduleId) => MODULE_REGISTRY[moduleId]?.render({ character: getChar(), onUpdate: updateCharacter })}
+                        </For>
+                      </div>
+                    </TabsContent>
+                  )}
+                </For>
               </TabsRoot>
             </div>
 

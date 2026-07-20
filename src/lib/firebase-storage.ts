@@ -16,6 +16,8 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Character } from './character-types';
+import { isValidTabConfig } from './tab-config-types';
+import type { UserTabConfig } from './tab-config-types';
 
 const CHARACTERS_COLLECTION = 'characters';
 
@@ -156,5 +158,39 @@ export async function deleteCharacterFromFirebase(id: string, userId: string): P
   } catch (error) {
     console.error('Failed to delete character from Firebase:', error);
     return false;
+  }
+}
+
+const USER_SETTINGS_COLLECTION = 'userSettings';
+
+export async function saveTabConfigToFirebase(config: UserTabConfig, userId: string): Promise<boolean> {
+  try {
+    const settingsRef = doc(db, USER_SETTINGS_COLLECTION, userId);
+    await setDoc(settingsRef, { tabConfig: config }, { merge: true });
+    return true;
+  } catch (error) {
+    console.error('Failed to save tab config to Firebase:', error);
+    return false;
+  }
+}
+
+export async function getTabConfigFromFirebase(userId: string): Promise<UserTabConfig | null> {
+  try {
+    const settingsRef = doc(db, USER_SETTINGS_COLLECTION, userId);
+    const snap = navigator.onLine
+      ? await getDoc(settingsRef)
+      : await getDocFromCache(settingsRef);
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    const raw = data?.tabConfig;
+    return isValidTabConfig(raw) ? raw : null;
+  } catch (error) {
+    const fe = error as { code?: string; message?: string }
+    if (fe?.code === 'unavailable') {
+      console.debug('Tab config not in Firestore cache (offline):', fe.message)
+    } else {
+      console.error('Failed to get tab config from Firebase:', error)
+    }
+    return null;
   }
 }

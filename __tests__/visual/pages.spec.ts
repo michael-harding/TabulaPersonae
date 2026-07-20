@@ -97,6 +97,27 @@ test.describe("Character sheet tabs", () => {
   })
 })
 
+test.describe("Tab Settings page", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("dnd-skip-auth", "true")
+    })
+  })
+
+  test("default config — first tab expanded", async ({ page }) => {
+    await page.goto("/settings/tabs")
+    await page.waitForLoadState("networkidle")
+    await expect(page).toHaveScreenshot("tab-settings-default.png", { fullPage: true })
+  })
+
+  test("add tab form", async ({ page }) => {
+    await page.goto("/settings/tabs")
+    await page.waitForLoadState("networkidle")
+    await page.getByRole("button", { name: /add tab/i }).click()
+    await expect(page).toHaveScreenshot("tab-settings-add-tab-form.png", { fullPage: true })
+  })
+})
+
 test.describe("418 page", () => {
   test("renders teapot page", async ({ page }) => {
     await page.goto("/418")

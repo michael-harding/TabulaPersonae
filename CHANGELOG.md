@@ -5,6 +5,19 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-20
+
+### Added
+- **Tab Settings page** — CRUD UI for creating, renaming, reordering, and deleting character sheet tabs; accessible via the gear icon on the character sheet
+- **Dynamic tab system** — character sheet tabs are now user-configurable; each tab holds a custom selection of content modules (Actions, Combat Stats, Spells, etc.)
+- **Module registry** — central `MODULE_REGISTRY` maps all 10 sheet modules to labels, descriptions, and render functions; tabs reference modules by stable ID
+- **Drag-and-drop module ordering** — modules within a tab can be reordered via drag handles using `@thisbeyond/solid-dnd`
+- **Tab config persistence** — tab layout saved to Firestore (`userSettings/{userId}`) for signed-in users; localStorage fallback for guests; offline reads use Firestore cache
+- **Tab config validation** — runtime schema guard (`isValidTabConfig`) rejects corrupt or outdated Firestore data before it can affect the UI
+- New Firestore security rules for the `userSettings` collection (owner-only read/write)
+- Integration and unit tests for `TabConfigProvider`, `TabSettings` page, and Firebase persistence helpers
+- Visual regression snapshots for the Tab Settings page in light and dark themes (Chromium + Firefox)
+
 ## [1.1.0] - 2026-07-19
 
 ### Added

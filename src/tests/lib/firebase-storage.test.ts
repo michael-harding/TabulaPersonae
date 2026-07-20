@@ -33,6 +33,7 @@ import {
   getCharactersFromFirebase,
   getCharacterFromFirebase,
   subscribeToCharacter,
+  getTabConfigFromFirebase,
 } from '@/lib/firebase-storage'
 
 const mockGetDocs = vi.mocked(getDocs)
@@ -130,6 +131,35 @@ describe('getCharacterFromFirebase', () => {
     const result = await getCharacterFromFirebase('char-1', userId)
 
     expect(result).toBeNull()
+  })
+})
+
+describe('getTabConfigFromFirebase', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns null without console.error when offline and cache throws unavailable', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const cacheError = Object.assign(new Error('unavailable'), { code: 'unavailable' })
+    mockGetDocFromCache.mockRejectedValue(cacheError)
+    const errorSpy = vi.spyOn(console, 'error')
+
+    const result = await getTabConfigFromFirebase('user-123')
+
+    expect(result).toBeNull()
+    expect(errorSpy).not.toHaveBeenCalled()
+  })
+
+  it('logs console.error for unexpected errors', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    mockGetDoc.mockRejectedValue(new Error('Permission denied'))
+    const errorSpy = vi.spyOn(console, 'error')
+
+    const result = await getTabConfigFromFirebase('user-123')
+
+    expect(result).toBeNull()
+    expect(errorSpy).toHaveBeenCalledOnce()
   })
 })
 

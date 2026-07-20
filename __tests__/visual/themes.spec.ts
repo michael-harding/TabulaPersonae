@@ -29,5 +29,11 @@ for (const theme of ["light", "dark"] as const) {
       await page.waitForLoadState("networkidle")
       await expect(page).toHaveScreenshot(`character-sheet-${theme}.png`, { fullPage: true })
     })
+
+    test(`tab settings — ${theme}`, async ({ page }) => {
+      await page.goto("/settings/tabs")
+      await page.waitForLoadState("networkidle")
+      await expect(page).toHaveScreenshot(`tab-settings-${theme}.png`, { fullPage: true })
+    })
   })
 }
