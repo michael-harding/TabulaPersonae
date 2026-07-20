@@ -15,7 +15,11 @@ vi.mock("@/lib/theme", () => ({
 import { axe } from "vitest-axe"
 import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
 import { createDefaultCharacter } from "@/lib/character-types"
+import { useTabConfig } from "@/lib/tab-config-context"
+import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
 import CharacterSheet from "@/routes/CharacterSheet"
+
+const mockUseTabConfig = vi.mocked(useTabConfig)
 
 const testCharacter = { ...createDefaultCharacter(), id: "test-id", name: "Testy McTestface" }
 
@@ -23,6 +27,11 @@ beforeEach(() => {
   vi.clearAllMocks()
   cleanup()
   ;(globalThis as any).mockStorageManager.getCharacters.mockResolvedValue([testCharacter])
+  // Restore default config before each test (vi.clearAllMocks resets mock state)
+  mockUseTabConfig.mockReturnValue({
+    tabConfig: () => DEFAULT_TAB_CONFIG,
+    saveTabConfig: vi.fn().mockResolvedValue(undefined),
+  })
 })
 
 afterEach(() => {
@@ -33,6 +42,33 @@ async function renderAndLoad() {
   render(<CharacterSheet />)
   await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
 }
+
+describe("CharacterSheet tab settings integration", () => {
+  it("renders a Configure tabs button in the tab bar area", async () => {
+    await renderAndLoad()
+    expect(screen.getByRole("button", { name: /configure tabs/i })).toBeInTheDocument()
+  })
+
+  it("renders only the tabs returned by tabConfig()", async () => {
+    mockUseTabConfig.mockReturnValue({
+      tabConfig: () => ({ tabs: [{ id: "custom-1", label: "My Custom Tab", modules: [] }] }),
+      saveTabConfig: vi.fn(),
+    })
+    render(<CharacterSheet />)
+    await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
+    expect(screen.getByRole("tab", { name: /my custom tab/i })).toBeInTheDocument()
+    expect(screen.queryByRole("tab", { name: /combat/i })).not.toBeInTheDocument()
+  })
+
+  it("renders an empty tab panel without crashing when a tab has no modules", async () => {
+    mockUseTabConfig.mockReturnValue({
+      tabConfig: () => ({ tabs: [{ id: "empty-tab", label: "Empty", modules: [] }] }),
+      saveTabConfig: vi.fn(),
+    })
+    render(<CharacterSheet />)
+    await waitFor(() => expect(screen.getByRole("tab", { name: /empty/i })).toBeInTheDocument())
+  })
+})
 
 describe("CharacterSheet tabs", () => {
   it("renders all five tab triggers", async () => {
