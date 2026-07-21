@@ -241,6 +241,38 @@ describe("CombatStats", () => {
       render(<CombatStats character={char} onUpdate={vi.fn()} />)
       expect(screen.getByText("14")).toBeInTheDocument()
     })
+
+    it("shows formula tooltip for passive perception when focused", async () => {
+      const char = makeCharacter({
+        abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14 },
+        skills: { ...createDefaultCharacter().skills, perception: { proficient: true, expertise: false } },
+        proficiencyBonus: 2,
+      })
+      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      // In view mode, focusable triggers are: AC (index 0), Passive Perception (index 1)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[1])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      // Wis 14 → +2, proficient with prof +2 → 10 + 2 + 2 = 14
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Wis +2 + Prof +2 = 14")
+    })
+  })
+
+  describe("AC tooltip", () => {
+    it("shows 'Base armor class' tooltip for manually-set AC in view mode", async () => {
+      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      // AC is the first focusable trigger in view mode
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Base armor class")
+    })
+
+    it("does not show always-visible AC breakdown text below the value", () => {
+      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      // The breakdown moved to tooltip — should not be visible inline anymore
+      expect(screen.queryByText(/DEX/)).not.toBeInTheDocument()
+    })
   })
 
   describe("hit dice and spent hit dice", () => {

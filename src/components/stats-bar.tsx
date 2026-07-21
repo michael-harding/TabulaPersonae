@@ -1,6 +1,7 @@
 import { Show, For, createMemo } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier } from "@/lib/character-utils"
+import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Zap from "lucide-solid/icons/zap"
@@ -19,6 +20,16 @@ export function StatsBar(props: StatsBarProps) {
   const hasSpellcasting = createMemo(() => !!props.character.spellcastingAbility)
   const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
   const hitBonus = createMemo(() => getSpellAttackBonus(props.character))
+  const spellTooltip = createMemo(() => {
+    const ability = props.character.spellcastingAbility
+    if (!ability) return ""
+    const abilityScores = props.character.abilityScores ?? {}
+    const score = (abilityScores as Record<string, number>)[ability] ?? 10
+    const abilityMod = getAbilityModifier(score)
+    const prof = props.character.proficiencyBonus ?? 2
+    const abilityAbbr = ability.slice(0, 3).toUpperCase()
+    return `Spell Hit: ${abilityAbbr} ${formatModifier(abilityMod)} + Prof +${prof} = ${formatModifier(hitBonus())} · DC: 8 + ${abilityAbbr} ${formatModifier(abilityMod)} + Prof +${prof} = ${spellSaveDC()}`
+  })
   const conditions = createMemo(() => props.character.conditions ?? [])
 
   return (
@@ -60,13 +71,15 @@ export function StatsBar(props: StatsBarProps) {
           {/* Hit/DC — only if spellcasting ability set */}
           <Show when={hasSpellcasting()}>
             <div class="w-px h-4 bg-border shrink-0" />
-            <div class="flex items-center gap-1 shrink-0">
-              <Sword class="h-3.5 w-3.5 text-primary" />
-              <span class="text-sm font-bold">{formatModifier(hitBonus())}</span>
-              <span class="text-xs text-muted-foreground">Hit</span>
-              <span class="text-xs text-muted-foreground mx-0.5">/</span>
-              <span class="text-sm font-bold">DC {spellSaveDC()}</span>
-            </div>
+            <Tooltip content={spellTooltip()} triggerFocusable>
+              <div class="flex items-center gap-1 shrink-0">
+                <Sword class="h-3.5 w-3.5 text-primary" />
+                <span class="text-sm font-bold">{formatModifier(hitBonus())}</span>
+                <span class="text-xs text-muted-foreground">Hit</span>
+                <span class="text-xs text-muted-foreground mx-0.5">/</span>
+                <span class="text-sm font-bold">DC {spellSaveDC()}</span>
+              </div>
+            </Tooltip>
           </Show>
 
           {/* Conditions */}

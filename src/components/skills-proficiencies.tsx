@@ -1,6 +1,6 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
 import { EditableSection } from "@/components/editable-section"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -135,6 +135,10 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
               {(ability) => {
                 const isProficient = () => current().savingThrows?.[ability] ?? false
                 const modifier = () => getSavingThrowModifier(current().abilityScores[ability], current().proficiencyBonus, isProficient())
+                const abilityMod = () => getAbilityModifier(current().abilityScores[ability])
+                const saveTooltip = () => isProficient()
+                  ? `${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())} + Prof +${current().proficiencyBonus} = ${formatModifier(modifier())}`
+                  : `${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())}`
                 return (
                   <div class="flex items-center justify-between p-2 rounded border">
                     <label class={`flex items-center gap-2 ${isEditing() ? "cursor-pointer" : "cursor-default"}`}>
@@ -146,7 +150,9 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                         <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
                       </Show>
                     </label>
-                    <span class="font-semibold">{formatModifier(modifier())}</span>
+                    <Tooltip content={saveTooltip()} triggerFocusable>
+                      <span class="font-semibold">{formatModifier(modifier())}</span>
+                    </Tooltip>
                   </div>
                 )
               }}
@@ -165,6 +171,13 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                 const ability = SKILL_ABILITY_MAP[skillKey]
                 const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false, disadvantage: false }
                 const modifier = () => getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
+                const abilityMod = () => getAbilityModifier(current().abilityScores[ability])
+                const skillTooltip = () => {
+                  const parts = [`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())}`]
+                  if (skill().proficient) parts.push(`Prof +${current().proficiencyBonus}`)
+                  if (skill().expertise) parts.push(`Exp +${current().proficiencyBonus}`)
+                  return parts.join(" + ") + (parts.length > 1 ? ` = ${formatModifier(modifier())}` : "")
+                }
                 return (
                   <div class="break-inside-avoid flex items-center justify-between p-1 rounded hover:bg-gray-500 [&:nth-child(3n)]:mb-3">
                     <div class="flex items-center gap-3 w-full transition-colors duration-150">
@@ -200,7 +213,9 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                       <Show when={!isEditing() && (skill().disadvantage ?? false)}>
                         <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs font-bold leading-none">D</span>
                       </Show>
-                      <span class="font-semibold">{formatModifier(modifier())}</span>
+                      <Tooltip content={skillTooltip()} triggerFocusable>
+                        <span class="font-semibold">{formatModifier(modifier())}</span>
+                      </Tooltip>
                     </div>
                   </div>
                 )
@@ -219,12 +234,16 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
               {(skillKey) => {
                 const ability = SKILL_ABILITY_MAP[skillKey]
                 const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
-                const passive = () => 10 + getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
+                const skillMod = () => getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
+                const passive = () => 10 + skillMod()
+                const passiveTooltip = () => `10 + ${SKILL_DISPLAY_NAMES[skillKey]} ${formatModifier(skillMod())} = ${passive()}`
                 return (
-                  <div class="flex flex-col items-center p-2 rounded border text-center">
-                    <span class="text-lg font-bold">{passive()}</span>
-                    <span class="text-xs text-muted-foreground">Passive {SKILL_DISPLAY_NAMES[skillKey]}</span>
-                  </div>
+                  <Tooltip content={passiveTooltip()} triggerFocusable>
+                    <div class="flex flex-col items-center p-2 rounded border text-center">
+                      <span class="text-lg font-bold">{passive()}</span>
+                      <span class="text-xs text-muted-foreground">Passive {SKILL_DISPLAY_NAMES[skillKey]}</span>
+                    </div>
+                  </Tooltip>
                 )
               }}
             </For>

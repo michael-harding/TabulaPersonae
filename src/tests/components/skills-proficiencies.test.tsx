@@ -1,5 +1,5 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within } from "../test-utils"
+import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
 import { SkillsProficiencies } from "@/components/skills-proficiencies"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { getSkillModifier, getSavingThrowModifier, formatModifier } from "@/lib/character-utils"
@@ -335,5 +335,70 @@ describe("SkillsProficiencies", () => {
     const { container } = render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("calculation tooltips", () => {
+    // Trigger DOM order: 6 saving throws, 18 skills, 3 passive senses = 27 total
+    // Skill order (Object.keys of SKILL_DISPLAY_NAMES):
+    //   acrobatics(6), animalHandling(7), arcana(8), athletics(9), deception(10),
+    //   history(11), insight(12), intimidation(13), investigation(14), medicine(15),
+    //   nature(16), perception(17), performance(18), persuasion(19), religion(20),
+    //   sleightOfHand(21), stealth(22), survival(23)
+    // Senses: perception(24), insight(25), investigation(26)
+
+    beforeEach(() => cleanupPortals())
+
+    it("renders 27 focusable tooltip triggers in view mode (6 saves + 18 skills + 3 senses)", () => {
+      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      expect(triggers).toHaveLength(27)
+    })
+
+    it("shows ability mod + proficiency bonus for a proficient saving throw", async () => {
+      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      // STR (index 0) is proficient: Str +3 + Prof +3 = +6
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Str +3 + Prof +3 = +6")
+    })
+
+    it("shows only ability modifier for a non-proficient saving throw", async () => {
+      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      // DEX (index 1) is not proficient: just Dex +2
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[1])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +2")
+      expect(screen.getByRole("tooltip").textContent).not.toContain("Prof")
+    })
+
+    it("shows expertise bonus in skill modifier tooltip", async () => {
+      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      // Stealth at index 22 (6 saves + 16 skill): Dex +2 + Prof +3 + Exp +3 = +8
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[22])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +2 + Prof +3 + Exp +3 = +8")
+    })
+
+    it("shows only ability modifier for a skill with no proficiency", async () => {
+      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      // Acrobatics at index 6: Dex +2 (no proficiency in makeCharacter)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[6])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +2")
+      expect(screen.getByRole("tooltip").textContent).not.toContain("Prof")
+    })
+
+    it("shows passive skill formula in the senses section tooltip", async () => {
+      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      // Passive Perception at index 24: Wis 8 → -1, no prof → 10 + (-1) = 9
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[24])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Perception -1 = 9")
+    })
   })
 })

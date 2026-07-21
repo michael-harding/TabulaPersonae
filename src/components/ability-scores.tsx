@@ -4,6 +4,7 @@ import { getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/li
 import { EditableSection } from "@/components/editable-section"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip } from "@/components/ui/tooltip"
 import Zap from "lucide-solid/icons/zap"
 
 interface AbilityScoresProps {
@@ -90,21 +91,31 @@ export function AbilityScores(props: AbilityScoresProps) {
                       </label>
                     </div>
                   ) : (
-                    <div class="ring-1 ring-black rounded-lg p-3">
-                      <div class="text-2xl font-bold text-primary">{score()}</div>
-                      <div class="text-lg font-semibold text-foreground">{formatModifier(modifier())}</div>
-                    </div>
+                    <Tooltip
+                      content={`(${score()} − 10) / 2 = ${formatModifier(modifier())}`}
+                      triggerFocusable
+                    >
+                      <div class="ring-1 ring-black rounded-lg p-3">
+                        <div class="text-2xl font-bold text-primary">{score()}</div>
+                        <div class="text-lg font-semibold text-foreground">{formatModifier(modifier())}</div>
+                      </div>
+                    </Tooltip>
                   )}
                   {!isEditing() && isProfSave() && (
-                    <div class="space-y-1">
-                      <div class="text-xs">Saving Throw</div>
-                      <div class="flex items-center justify-center gap-1">
-                        <span class="font-medium">
-                          {formatModifier(getSavingThrowModifier(safeScores()[ability], props.character.proficiencyBonus, true))}
-                        </span>
-                        <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
+                    <Tooltip
+                      content={`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(modifier())} + Prof +${props.character.proficiencyBonus} = ${formatModifier(getSavingThrowModifier(safeScores()[ability], props.character.proficiencyBonus, true))}`}
+                      triggerFocusable
+                    >
+                      <div class="space-y-1">
+                        <div class="text-xs">Saving Throw</div>
+                        <div class="flex items-center justify-center gap-1">
+                          <span class="font-medium">
+                            {formatModifier(getSavingThrowModifier(safeScores()[ability], props.character.proficiencyBonus, true))}
+                          </span>
+                          <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
+                        </div>
                       </div>
-                    </div>
+                    </Tooltip>
                   )}
                 </div>
               )

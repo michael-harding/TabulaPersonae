@@ -1,9 +1,10 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, parseHitDiceSize, calculateEquippedAC } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, parseHitDiceSize, calculateEquippedAC } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { DIE_SIZES } from "@/lib/dice"
 import { saveCharacter } from "@/lib/character-storage"
+import { Tooltip } from "@/components/ui/tooltip"
 import { EditableSection } from "@/components/editable-section"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -122,6 +123,21 @@ export function CombatStats(props: CombatStatsProps) {
     const prof = props.character.proficiencyBonus ?? 2
     const percSkill = props.character.skills?.perception
     return 10 + getSkillModifier(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
+  })
+
+  const passivePerceptionTooltip = createMemo(() => {
+    const wis = props.character.abilityScores?.wisdom ?? 10
+    const prof = props.character.proficiencyBonus ?? 2
+    const percSkill = props.character.skills?.perception
+    const skillMod = getSkillModifier(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
+    const wisMod = getAbilityModifier(wis)
+    const parts = [`Wis ${wisMod >= 0 ? "+" : ""}${wisMod}`]
+    if (percSkill?.expertise) {
+      parts.push(`Prof +${prof}`, `Exp +${prof}`)
+    } else if (percSkill?.proficient) {
+      parts.push(`Prof +${prof}`)
+    }
+    return `10 + ${parts.join(" + ")} = ${passivePerception()}`
   })
 
   const passivePerceptionLabel = createMemo(() => edition() === "2014" ? "Passive Wisdom (Perception)" : "Passive Perception")
@@ -374,12 +390,12 @@ export function CombatStats(props: CombatStatsProps) {
           <div class="text-center">
             <Label class="text-sm text-muted-foreground">Armor Class</Label>
             <Show when={isEditing()} fallback={
-              <div class="mt-1">
-                <div class="text-2xl font-bold text-primary">{equippedAC().ac}</div>
-                <Show when={equippedAC().isEquippedArmor}>
-                  <div class="text-xs text-muted-foreground">{equippedAC().breakdown}</div>
-                </Show>
-              </div>
+              <Tooltip
+                content={equippedAC().isEquippedArmor ? equippedAC().breakdown : "Base armor class"}
+                triggerFocusable
+              >
+                <div class="text-2xl font-bold text-primary mt-1">{equippedAC().ac}</div>
+              </Tooltip>
             }>
               <Show
                 when={!equippedAC().isEquippedArmor}
@@ -421,7 +437,9 @@ export function CombatStats(props: CombatStatsProps) {
           {/* Passive Perception — both editions */}
           <div class="text-center">
             <Label class="text-sm text-muted-foreground">{passivePerceptionLabel()}</Label>
-            <div class="text-2xl font-bold text-primary mt-1">{passivePerception()}</div>
+            <Tooltip content={passivePerceptionTooltip()} triggerFocusable>
+              <div class="text-2xl font-bold text-primary mt-1">{passivePerception()}</div>
+            </Tooltip>
           </div>
 
           {/* Size — 2024 only */}

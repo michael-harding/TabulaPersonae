@@ -1,5 +1,5 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 import { AbilityScores } from "@/components/ability-scores"
 import { createDefaultCharacter } from "@/lib/character-types"
 
@@ -171,5 +171,42 @@ describe("AbilityScores", () => {
     const { container } = render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("calculation tooltips", () => {
+    beforeEach(() => cleanupPortals())
+
+    it("renders a focusable trigger for each ability card and each proficient saving throw in view mode", () => {
+      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      // 6 ability cards + 1 STR saving throw (only STR is proficient in makeCharacter)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      expect(triggers).toHaveLength(7)
+    })
+
+    it("shows ability modifier formula in tooltip when card is focused", async () => {
+      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      // STR card is the first focusable trigger (contains "+3" modifier, score 16)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("(16 − 10) / 2 = +3")
+    })
+
+    it("shows saving throw formula in tooltip when the saving throw section is focused", async () => {
+      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      // STR saving throw trigger is at index 1 (after the STR ability card at index 0)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[1])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      // STR 16 → +3, Prof +3 → total +6
+      expect(screen.getByRole("tooltip")).toHaveTextContent("STR +3 + Prof +3 = +6")
+    })
+
+    it("does not render focusable tooltip triggers in edit mode", () => {
+      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      expect(triggers).toHaveLength(0)
+    })
   })
 })
