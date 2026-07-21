@@ -49,7 +49,7 @@ export function StepperInput(props: StepperInputProps) {
         max={props.max}
         aria-label={props["aria-label"]}
         disabled={props.readOnly}
-        class="text-center h-11 px-0 py-0 w-[5ch] min-w-[3ch] max-w-[5ch] rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        class={`text-center h-11 px-0 py-0 w-[5ch] min-w-[3ch] max-w-[5ch] ${props.readOnly ? "rounded-md" : "rounded-none"} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
       />
       <Show when={!props.readOnly}>
         <Button

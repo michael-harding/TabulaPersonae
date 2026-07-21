@@ -77,3 +77,8 @@ export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
 }
 
 export const ALL_MODULE_IDS = Object.keys(MODULE_REGISTRY) as ModuleId[]
+
+export const PUBLIC_SAFE_MODULE_IDS = new Set<ModuleId>([
+  'actions', 'ability-scores', 'combat-stats', 'skills',
+  'spells', 'features', 'inventory', 'character-info', 'notes',
+])

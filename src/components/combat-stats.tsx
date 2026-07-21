@@ -72,6 +72,7 @@ export function CombatStats(props: CombatStatsProps) {
     })
 
   const adjustHitPoints = (amount: number) => {
+    if (isReadOnly) return
     const currentHP = props.character.hitPoints?.current ?? 0
     const maxHP = props.character.hitPoints?.maximum ?? 1
     const tempHP = props.character.hitPoints?.temporary ?? 0
@@ -94,6 +95,7 @@ export function CombatStats(props: CombatStatsProps) {
   }
 
   const toggleDeathSave = (type: "successes" | "failures", newValue: number) => {
+    if (isReadOnly) return
     const updated = { ...props.character, deathSaves: { ...props.character.deathSaves, [type]: newValue } }
     props.onUpdate(updated)
     saveCharacter(updated)
@@ -105,6 +107,7 @@ export function CombatStats(props: CombatStatsProps) {
   } = useHpDisplay(() => props.character)
 
   const toggleCondition = (condition: string) => {
+    if (isReadOnly) return
     const current = props.character.conditions ?? []
     const next = current.includes(condition)
       ? current.filter((c) => c !== condition)

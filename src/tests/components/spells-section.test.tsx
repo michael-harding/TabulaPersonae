@@ -519,5 +519,22 @@ describe("SpellsSection", () => {
       renderReadOnly()
       expect(screen.getByPlaceholderText("Search spells...")).toBeInTheDocument()
     })
+
+    it("does not show the 'Click Edit Slots' instruction when spell slots are empty", () => {
+      renderReadOnly()
+      expect(screen.getByText("No spell slots configured.")).toBeInTheDocument()
+      expect(screen.queryByText(/click.*edit slots/i)).not.toBeInTheDocument()
+    })
+
+    it("renders spellcastingClass as static text for 2014-edition characters", () => {
+      renderReadOnly({ edition: "2014", spells: [spell], spellcastingClass: "Wizard" })
+      expect(screen.queryByRole("textbox", { name: /spellcasting class/i })).not.toBeInTheDocument()
+      expect(screen.getByText("Wizard")).toBeInTheDocument()
+    })
+
+    it("does not render a spinbutton for spellcastingClass in 2014-edition read-only mode", () => {
+      renderReadOnly({ edition: "2014", spells: [spell] })
+      expect(screen.queryByPlaceholderText("e.g. Wizard")).not.toBeInTheDocument()
+    })
   })
 })

@@ -78,5 +78,17 @@ describe("StepperInput", () => {
       render(<StepperInput value={7} onChange={vi.fn()} readOnly />)
       expect(screen.getByRole("spinbutton")).toHaveValue(7)
     })
+
+    it("applies rounded-md class to the input when readOnly=true", () => {
+      render(<StepperInput value={3} onChange={vi.fn()} readOnly />)
+      expect(screen.getByRole("spinbutton").className).toContain("rounded-md")
+      expect(screen.getByRole("spinbutton").className).not.toContain("rounded-none")
+    })
+
+    it("applies rounded-none class to the input when not readOnly", () => {
+      render(<StepperInput value={3} onChange={vi.fn()} />)
+      expect(screen.getByRole("spinbutton").className).toContain("rounded-none")
+      expect(screen.getByRole("spinbutton").className).not.toContain("rounded-md")
+    })
   })
 })

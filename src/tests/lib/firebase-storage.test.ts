@@ -103,6 +103,24 @@ describe('getPublicCharacterFromFirebase', () => {
     expect(errorSpy).toHaveBeenCalledOnce()
     errorSpy.mockRestore()
   })
+
+  describe('DEV localStorage seed', () => {
+    const key = 'dnd-public-char-char-1'
+    afterEach(() => { localStorage.removeItem(key) })
+
+    it('returns null when seed character has isPublic: false', async () => {
+      localStorage.setItem(key, JSON.stringify({ ...charData, isPublic: false }))
+      const result = await getPublicCharacterFromFirebase('char-1')
+      expect(result).toBeNull()
+    })
+
+    it('returns character when seed character has isPublic: true', async () => {
+      localStorage.setItem(key, JSON.stringify({ ...charData, isPublic: true }))
+      const result = await getPublicCharacterFromFirebase('char-1')
+      expect(result).not.toBeNull()
+      expect((result as any).name).toBe('Thorin')
+    })
+  })
 })
 
 describe('getCharactersFromFirebase', () => {

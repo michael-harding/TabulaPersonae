@@ -1,10 +1,10 @@
-import { createSignal, createEffect, Show, For } from "solid-js"
+import { createSignal, createEffect, onCleanup, Show, For } from "solid-js"
 import { useParams, useSearchParams, A } from "@solidjs/router"
 import { type Character } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
-import { MODULE_REGISTRY } from "@/lib/module-registry"
+import { MODULE_REGISTRY, PUBLIC_SAFE_MODULE_IDS } from "@/lib/module-registry"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { StatsBar } from "@/components/stats-bar"
@@ -14,7 +14,7 @@ import Lock from "lucide-solid/icons/lock"
 const PUBLIC_TAB_CONFIG = {
   tabs: DEFAULT_TAB_CONFIG.tabs.map((tab) => ({
     ...tab,
-    modules: tab.modules.filter((m) => m !== "sheet-settings"),
+    modules: tab.modules.filter((m) => PUBLIC_SAFE_MODULE_IDS.has(m)),
   })),
 }
 
@@ -39,13 +39,18 @@ export default function PublicCharacterSheet() {
   createEffect(() => {
     document.title = "TabulaPersonae"
     const id = params.id
+    setIsLoading(true)
     if (!id) { setIsLoading(false); return }
+    let cancelled = false
+    onCleanup(() => { cancelled = true })
     getPublicCharacterFromFirebase(id)
       .then((char) => {
-        setCharacter(char)
-        if (char) document.title = `${char.name} | TabulaPersonae`
+        if (!cancelled) {
+          setCharacter(char)
+          if (char) document.title = `${char.name} | TabulaPersonae`
+        }
       })
-      .finally(() => setIsLoading(false))
+      .finally(() => { if (!cancelled) setIsLoading(false) })
   })
 
   return (

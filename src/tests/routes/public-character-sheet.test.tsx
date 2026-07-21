@@ -37,6 +37,14 @@ async function renderAndLoad() {
   await waitFor(() => expect(screen.queryByText(/loading character/i)).not.toBeInTheDocument())
 }
 
+describe("PublicCharacterSheet — loading state", () => {
+  it("shows the loading spinner while the fetch is in flight", () => {
+    mockGetPublic.mockImplementation(() => new Promise(() => {}))
+    render(<PublicCharacterSheet />)
+    expect(screen.getByText(/loading character/i)).toBeInTheDocument()
+  })
+})
+
 describe("PublicCharacterSheet", () => {
   describe("not found / private", () => {
     it("shows the not-found message when getPublicCharacterFromFirebase returns null", async () => {
@@ -91,6 +99,11 @@ describe("PublicCharacterSheet", () => {
       await renderAndLoad()
       expect(screen.queryByRole("button", { name: /increase hp/i })).not.toBeInTheDocument()
       expect(screen.queryByRole("button", { name: /decrease hp/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the sheet settings card", async () => {
+      await renderAndLoad()
+      expect(screen.queryByText("Sheet Settings")).not.toBeInTheDocument()
     })
 
     it("has no accessibility violations", async () => {

@@ -2,6 +2,7 @@ import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { SheetSettings } from "@/components/sheet-settings"
 import { createDefaultCharacter } from "@/lib/character-types"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 const baseCharacter = createDefaultCharacter()
 const char2014 = { ...baseCharacter, edition: "2014" as const }
@@ -135,6 +136,17 @@ describe("SheetSettings", () => {
     it("does not show the Copy link button when isPublic is false", () => {
       render(<SheetSettings character={charPrivate} onUpdate={vi.fn()} />)
       expect(screen.queryByRole("button", { name: /copy share link/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe("read-only mode", () => {
+    it("renders nothing when wrapped in ReadOnlyProvider", () => {
+      const { container } = render(
+        <ReadOnlyProvider value={true}>
+          <SheetSettings character={baseCharacter} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+      expect(container.firstChild).toBeNull()
     })
   })
 

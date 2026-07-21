@@ -411,16 +411,21 @@ export function SpellsSection(props: SpellsSectionProps) {
             <Show when={(props.character.edition ?? "2024") === "2014"}>
               <div class="flex items-center gap-2">
                 <span class="text-sm font-medium text-muted-foreground">Spellcasting Class:</span>
-                <Input
-                  class="h-7 w-40 text-sm"
-                  value={props.character.spellcastingClass || ""}
-                  onInput={(e) => {
-                    const updated = { ...props.character, spellcastingClass: e.currentTarget.value }
-                    props.onUpdate(updated)
-                    saveCharacter(updated)
-                  }}
-                  placeholder="e.g. Wizard"
-                />
+                <Show
+                  when={!isReadOnly}
+                  fallback={<span class="text-sm">{props.character.spellcastingClass || ""}</span>}
+                >
+                  <Input
+                    class="h-7 w-40 text-sm"
+                    value={props.character.spellcastingClass || ""}
+                    onInput={(e) => {
+                      const updated = { ...props.character, spellcastingClass: e.currentTarget.value }
+                      props.onUpdate(updated)
+                      saveCharacter(updated)
+                    }}
+                    placeholder="e.g. Wizard"
+                  />
+                </Show>
               </div>
             </Show>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
@@ -466,7 +471,9 @@ export function SpellsSection(props: SpellsSectionProps) {
           <Show when={allSlotsEmpty()}>
             <div class="text-center py-4 text-muted-foreground">
               <p>No spell slots configured.</p>
-              <p class="text-sm">Click "Edit Slots" to add spell slots for your character.</p>
+              <Show when={!isReadOnly}>
+                <p class="text-sm">Click "Edit Slots" to add spell slots for your character.</p>
+              </Show>
             </div>
           </Show>
         </div>

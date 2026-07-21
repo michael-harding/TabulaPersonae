@@ -156,7 +156,11 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
   if (import.meta.env.DEV) {
     const seed = localStorage.getItem(`dnd-public-char-${id}`)
     if (seed !== null) {
-      try { return JSON.parse(seed) as Character | null } catch { /* fall through */ }
+      try {
+        const parsed = JSON.parse(seed) as Character | null
+        if (parsed && !parsed.isPublic) return null
+        return parsed
+      } catch { /* fall through */ }
     }
   }
   try {
