@@ -53,6 +53,7 @@ vi.mock("@/lib/tab-config-context", async () => {
 vi.mock("@solidjs/router", () => ({
   useNavigate: () => vi.fn(),
   useParams: () => ({ id: "test-id" }),
+  useSearchParams: () => [{}, vi.fn()],
   A: ({ href, children }: any) => <a href={href}>{children}</a>,
   Router: ({ children }: any) => children,
   Route: () => null,

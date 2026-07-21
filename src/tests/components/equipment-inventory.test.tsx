@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils
 import { EquipmentInventory } from "@/components/equipment-inventory"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 vi.mock("@/lib/character-storage", () => ({ saveCharacter: vi.fn() }))
 
@@ -565,5 +566,53 @@ describe("EquipmentInventory", () => {
     const { container } = render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("readOnly mode", () => {
+    const item = makeItem({ name: "Rope" })
+
+    function renderReadOnly(overrides: Partial<Character> = {}) {
+      return render(
+        <ReadOnlyProvider value={true}>
+          <EquipmentInventory character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+    }
+
+    it("does not render the Add Item button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add item/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the Add Magic Item button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add magic item/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render per-item edit buttons", () => {
+      renderReadOnly({ equipment: [item] })
+      expect(screen.queryByRole("button", { name: /edit rope/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render per-item delete buttons", () => {
+      renderReadOnly({ equipment: [item] })
+      expect(screen.queryByRole("button", { name: /delete rope/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render quantity ± buttons", () => {
+      renderReadOnly({ equipment: [item] })
+      expect(screen.queryByRole("button", { name: "+" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "-" })).not.toBeInTheDocument()
+    })
+
+    it("still renders the item name", () => {
+      renderReadOnly({ equipment: [item] })
+      expect(screen.getByText("Rope")).toBeInTheDocument()
+    })
+
+    it("renders coin values as static text rather than inputs", () => {
+      renderReadOnly({ coins: { cp: 0, sp: 0, ep: 0, gp: 10, pp: 0 } })
+      expect(screen.queryAllByRole("spinbutton")).toHaveLength(0)
+    })
   })
 })

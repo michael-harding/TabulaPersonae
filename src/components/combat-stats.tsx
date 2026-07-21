@@ -13,6 +13,7 @@ import { Combobox } from "@/components/ui/combobox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
+import { useReadOnly } from "@/lib/read-only-context"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
 import Plus from "lucide-solid/icons/plus"
@@ -54,6 +55,7 @@ const toEdit = (c: Character) => ({
 
 
 export function CombatStats(props: CombatStatsProps) {
+  const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
   const [edited, setEdited] = createSignal(toEdit(props.character))
 
@@ -70,6 +72,7 @@ export function CombatStats(props: CombatStatsProps) {
     })
 
   const adjustHitPoints = (amount: number) => {
+    if (isReadOnly) return
     const currentHP = props.character.hitPoints?.current ?? 0
     const maxHP = props.character.hitPoints?.maximum ?? 1
     const tempHP = props.character.hitPoints?.temporary ?? 0
@@ -92,6 +95,7 @@ export function CombatStats(props: CombatStatsProps) {
   }
 
   const toggleDeathSave = (type: "successes" | "failures", newValue: number) => {
+    if (isReadOnly) return
     const updated = { ...props.character, deathSaves: { ...props.character.deathSaves, [type]: newValue } }
     props.onUpdate(updated)
     saveCharacter(updated)
@@ -103,6 +107,7 @@ export function CombatStats(props: CombatStatsProps) {
   } = useHpDisplay(() => props.character)
 
   const toggleCondition = (condition: string) => {
+    if (isReadOnly) return
     const current = props.character.conditions ?? []
     const next = current.includes(condition)
       ? current.filter((c) => c !== condition)
@@ -141,7 +146,7 @@ export function CombatStats(props: CombatStatsProps) {
               <Heart class="h-4 w-4 text-destructive" />
               Hit Points
             </Label>
-            <Show when={!isEditing()}>
+            <Show when={!isEditing() && !isReadOnly}>
               <div class="flex gap-1">
                 <Button data-test="hp-decrease-button" size="sm" variant="outline" aria-label="Decrease HP" onClick={() => adjustHitPoints(-1)} disabled={currentHP() <= 0}>
                   <Minus class="h-3 w-3" />
@@ -270,6 +275,7 @@ export function CombatStats(props: CombatStatsProps) {
                   filledIcon={<CheckCircle class="h-4 w-4 text-white" />}
                   usedTitle="Success (click to remove)"
                   availableTitle="Click to add success"
+                  readOnly={isReadOnly}
                 />
               </div>
               <div class="space-y-2">
@@ -285,6 +291,7 @@ export function CombatStats(props: CombatStatsProps) {
                   filledIcon={<XCircle class="h-4 w-4 text-white" />}
                   usedTitle="Failure (click to remove)"
                   availableTitle="Click to add failure"
+                  readOnly={isReadOnly}
                 />
               </div>
             </div>
@@ -301,31 +308,33 @@ export function CombatStats(props: CombatStatsProps) {
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <Label class="text-sm text-muted-foreground">Conditions</Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                as="button"
-                data-test="add-condition-button"
-                class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
-                title="Add condition"
-              >
-                <Plus class="h-3 w-3" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <For each={CONDITIONS}>
-                  {(condition) => (
-                    <DropdownMenuItem
-                      onSelect={() => toggleCondition(condition)}
-                      class={(props.character.conditions ?? []).includes(condition) ? "text-primary font-medium" : ""}
-                    >
-                      {condition}
-                      <Show when={(props.character.conditions ?? []).includes(condition)}>
-                        <span class="ml-auto text-primary">✓</span>
-                      </Show>
-                    </DropdownMenuItem>
-                  )}
-                </For>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Show when={!isReadOnly}>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  as="button"
+                  data-test="add-condition-button"
+                  class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+                  title="Add condition"
+                >
+                  <Plus class="h-3 w-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <For each={CONDITIONS}>
+                    {(condition) => (
+                      <DropdownMenuItem
+                        onSelect={() => toggleCondition(condition)}
+                        class={(props.character.conditions ?? []).includes(condition) ? "text-primary font-medium" : ""}
+                      >
+                        {condition}
+                        <Show when={(props.character.conditions ?? []).includes(condition)}>
+                          <span class="ml-auto text-primary">✓</span>
+                        </Show>
+                      </DropdownMenuItem>
+                    )}
+                  </For>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </Show>
           </div>
           <div class="flex flex-wrap gap-1.5 min-h-[1.5rem]">
             <Show
@@ -334,16 +343,25 @@ export function CombatStats(props: CombatStatsProps) {
             >
               <For each={props.character.conditions ?? []}>
                 {(condition) => (
-                  <button
-                    type="button"
-                    data-test={`remove-condition-${condition}`}
-                    onClick={() => toggleCondition(condition)}
-                    class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
-                    title="Click to remove"
+                  <Show
+                    when={!isReadOnly}
+                    fallback={
+                      <span class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-destructive/15 text-destructive">
+                        {condition}
+                      </span>
+                    }
                   >
-                    {condition}
-                    <X class="h-2.5 w-2.5" />
-                  </button>
+                    <button
+                      type="button"
+                      data-test={`remove-condition-${condition}`}
+                      onClick={() => toggleCondition(condition)}
+                      class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
+                      title="Click to remove"
+                    >
+                      {condition}
+                      <X class="h-2.5 w-2.5" />
+                    </button>
+                  </Show>
                 )}
               </For>
             </Show>

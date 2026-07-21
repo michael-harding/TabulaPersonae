@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import User from "lucide-solid/icons/user"
+import { useReadOnly } from "@/lib/read-only-context"
 
 interface CharacterBasicInfoProps {
   character: Character
@@ -53,6 +54,7 @@ const toEdit = (c: Character) => ({
 })
 
 export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
+  const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
   const [edited, setEdited] = createSignal(toEdit(props.character))
   createEffect(on(() => props.character.id, () => {
@@ -87,19 +89,21 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
       onSave={handleSave}
       onCancel={handleCancel}
       headerExtra={
-        <div class="flex items-center gap-3">
-          <div class="flex items-center gap-2">
-            <Label for="heroic-inspiration-toggle" class="text-xs font-medium">{inspirationLabel()}</Label>
-            <input
-              id="heroic-inspiration-toggle"
-              type="checkbox"
-              checked={!!props.character.heroicInspiration}
-              onChange={(e) => props.onUpdate({ ...props.character, heroicInspiration: e.currentTarget.checked })}
-              class="accent-primary h-4 w-4"
-              style={{ "accent-color": "#eab308" }}
-            />
+        <Show when={!isReadOnly}>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+              <Label for="heroic-inspiration-toggle" class="text-xs font-medium">{inspirationLabel()}</Label>
+              <input
+                id="heroic-inspiration-toggle"
+                type="checkbox"
+                checked={!!props.character.heroicInspiration}
+                onChange={(e) => props.onUpdate({ ...props.character, heroicInspiration: e.currentTarget.checked })}
+                class="accent-primary h-4 w-4"
+                style={{ "accent-color": "#eab308" }}
+              />
+            </div>
           </div>
-        </div>
+        </Show>
       }
       contentClass="space-y-4"
     >

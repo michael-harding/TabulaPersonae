@@ -25,6 +25,7 @@ import Pencil from "lucide-solid/icons/pencil"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
 import Layers from "lucide-solid/icons/layers"
+import { useReadOnly } from "@/lib/read-only-context"
 
 interface FeaturesSectionProps {
   character: Character
@@ -173,6 +174,7 @@ function FeatureForm(props: FeatureFormProps) {
 }
 
 export function FeaturesSection(props: FeaturesSectionProps) {
+  const isReadOnly = useReadOnly()
   const [isAddOpen, setIsAddOpen] = createSignal<FeatureKind | null>(null)
   const [editingFeature, setEditingFeature] = createSignal<Feature | null>(null)
   const [expandedSections, setExpandedSections] = createPersistedSetSignal<FeatureKind>(
@@ -270,15 +272,17 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                     <Badge variant="secondary">{features().length}</Badge>
                     <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
                   </CollapsibleTrigger>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="gap-1 h-7 ml-2"
-                    onClick={() => setIsAddOpen(section.kind)}
-                  >
-                    <Plus class="h-3 w-3" />
-                    Add {section.singular}
-                  </Button>
+                  <Show when={!isReadOnly}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="gap-1 h-7 ml-2"
+                      onClick={() => setIsAddOpen(section.kind)}
+                    >
+                      <Plus class="h-3 w-3" />
+                      Add {section.singular}
+                    </Button>
+                  </Show>
                 </div>
                 <CollapsibleContent class="space-y-2 mt-1 px-1">
                   <Show
@@ -302,28 +306,30 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                                 </Badge>
                               </Show>
                             </div>
-                            <div class="flex items-center gap-1 shrink-0">
-                              <Tooltip content={`Edit ${section.singular}`}>
-                                <button
-                                  type="button"
-                                  aria-label={`Edit ${feature.name}`}
-                                  onClick={() => setEditingFeature(feature)}
-                                  class="text-muted-foreground hover:text-foreground"
-                                >
-                                  <Pencil class="h-4 w-4" />
-                                </button>
-                              </Tooltip>
-                              <Tooltip content={`Delete ${section.singular}`}>
-                                <button
-                                  type="button"
-                                  aria-label={`Delete ${feature.name}`}
-                                  onClick={() => handleDelete(section.field, feature.id)}
-                                  class="text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash2 class="h-4 w-4" />
-                                </button>
-                              </Tooltip>
-                            </div>
+                            <Show when={!isReadOnly}>
+                              <div class="flex items-center gap-1 shrink-0">
+                                <Tooltip content={`Edit ${section.singular}`}>
+                                  <button
+                                    type="button"
+                                    aria-label={`Edit ${feature.name}`}
+                                    onClick={() => setEditingFeature(feature)}
+                                    class="text-muted-foreground hover:text-foreground"
+                                  >
+                                    <Pencil class="h-4 w-4" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip content={`Delete ${section.singular}`}>
+                                  <button
+                                    type="button"
+                                    aria-label={`Delete ${feature.name}`}
+                                    onClick={() => handleDelete(section.field, feature.id)}
+                                    class="text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 class="h-4 w-4" />
+                                  </button>
+                                </Tooltip>
+                              </div>
+                            </Show>
                           </div>
                           <Show when={feature.description}>
                             <p class="text-sm text-muted-foreground">{feature.description}</p>
@@ -338,6 +344,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                                   min={0}
                                   max={feature.maxUses!}
                                   onChange={(v) => handleFeatureUsesChange(section.field, feature.id, spentFromRemaining(v, feature.maxUses))}
+                                  readOnly={isReadOnly}
                                 />
                               }
                             >
@@ -347,6 +354,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                                 onToggle={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
                                 usedTitle="Charge spent (click to restore)"
                                 availableTitle="Charge available (click to use)"
+                                readOnly={isReadOnly}
                               />
                             </Show>
                           </Show>

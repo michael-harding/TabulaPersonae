@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 import { CombatStats } from "@/components/combat-stats"
 import { createDefaultCharacter } from "@/lib/character-types"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 vi.mock("@/lib/character-storage", () => ({
   saveCharacter: vi.fn(),
@@ -490,5 +491,41 @@ describe("CombatStats", () => {
     const { container } = render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("readOnly mode", () => {
+    function renderReadOnly(overrides: Record<string, any> = {}) {
+      return render(
+        <ReadOnlyProvider value={true}>
+          <CombatStats character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+    }
+
+    it("does not render the HP increase button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /increase hp/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the HP decrease button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /decrease hp/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the Add condition button", () => {
+      renderReadOnly()
+      expect(screen.queryByTitle("Add condition")).not.toBeInTheDocument()
+    })
+
+    it("renders existing conditions as non-interactive spans", () => {
+      renderReadOnly({ conditions: ["Poisoned"] })
+      expect(screen.getByText("Poisoned")).toBeInTheDocument()
+      expect(screen.queryByTitle("Click to remove")).not.toBeInTheDocument()
+    })
+
+    it("still renders HP values", () => {
+      renderReadOnly()
+      expect(screen.getByText(/\/20/)).toBeInTheDocument()
+    })
   })
 })

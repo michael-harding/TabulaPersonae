@@ -150,6 +150,34 @@ export function subscribeToCharacter(
   )
 }
 
+export async function getPublicCharacterFromFirebase(id: string): Promise<Character | null> {
+  // Dev-only: seed a public character via localStorage["dnd-public-char-{id}"] to skip Firebase.
+  // Set to JSON.stringify(character) to return a character, or "null" to simulate not-found.
+  if (import.meta.env.DEV) {
+    const seed = localStorage.getItem(`dnd-public-char-${id}`)
+    if (seed !== null) {
+      try {
+        const parsed = JSON.parse(seed) as Character | null
+        if (parsed && !parsed.isPublic) return null
+        return parsed
+      } catch { /* fall through */ }
+    }
+  }
+  try {
+    const characterRef = doc(db, CHARACTERS_COLLECTION, id)
+    const characterSnap = navigator.onLine
+      ? await getDoc(characterRef)
+      : await getDocFromCache(characterRef)
+    if (!characterSnap.exists()) return null
+    const data = characterSnap.data()
+    if (!data.isPublic) return null
+    return { ...data, id: characterSnap.id } as Character
+  } catch (error) {
+    console.error('Failed to get public character:', error)
+    return null
+  }
+}
+
 export async function deleteCharacterFromFirebase(id: string, userId: string): Promise<boolean> {
   try {
     const characterRef = doc(db, CHARACTERS_COLLECTION, id);

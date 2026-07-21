@@ -61,4 +61,34 @@ describe("StepperInput", () => {
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
+
+  describe("readOnly mode", () => {
+    it("hides the ± buttons when readOnly=true", () => {
+      render(<StepperInput value={3} onChange={vi.fn()} readOnly />)
+      expect(screen.queryByRole("button", { name: /decrease/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /increase/i })).not.toBeInTheDocument()
+    })
+
+    it("disables the numeric input when readOnly=true", () => {
+      render(<StepperInput value={5} onChange={vi.fn()} readOnly />)
+      expect(screen.getByRole("spinbutton")).toBeDisabled()
+    })
+
+    it("still displays the value when readOnly=true", () => {
+      render(<StepperInput value={7} onChange={vi.fn()} readOnly />)
+      expect(screen.getByRole("spinbutton")).toHaveValue(7)
+    })
+
+    it("applies rounded-md class to the input when readOnly=true", () => {
+      render(<StepperInput value={3} onChange={vi.fn()} readOnly />)
+      expect(screen.getByRole("spinbutton").className).toContain("rounded-md")
+      expect(screen.getByRole("spinbutton").className).not.toContain("rounded-none")
+    })
+
+    it("applies rounded-none class to the input when not readOnly", () => {
+      render(<StepperInput value={3} onChange={vi.fn()} />)
+      expect(screen.getByRole("spinbutton").className).toContain("rounded-none")
+      expect(screen.getByRole("spinbutton").className).not.toContain("rounded-md")
+    })
+  })
 })

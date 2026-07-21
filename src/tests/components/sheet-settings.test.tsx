@@ -2,11 +2,14 @@ import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
 import { SheetSettings } from "@/components/sheet-settings"
 import { createDefaultCharacter } from "@/lib/character-types"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 const baseCharacter = createDefaultCharacter()
 const char2014 = { ...baseCharacter, edition: "2014" as const }
 const charWithColor = { ...baseCharacter, sheetColor: "#ef4444" }
 const charWithCustomColor = { ...baseCharacter, sheetColor: "#123456" }
+const charPublic = { ...baseCharacter, id: "char-abc", isPublic: true }
+const charPrivate = { ...baseCharacter, id: "char-abc", isPublic: false }
 
 describe("SheetSettings", () => {
   describe("edition switch", () => {
@@ -88,6 +91,62 @@ describe("SheetSettings", () => {
       render(<SheetSettings character={charWithColor} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /reset sheet color/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ sheetColor: undefined }))
+    })
+  })
+
+  describe("share toggle", () => {
+    it("renders a 'Share publicly' label and Off/On switch", () => {
+      render(<SheetSettings character={charPrivate} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Share publicly")).toBeInTheDocument()
+      expect(screen.getByText("Off")).toBeInTheDocument()
+      expect(screen.getByText("On")).toBeInTheDocument()
+    })
+
+    it("calls onUpdate with isPublic: true when Off→On toggle is clicked", () => {
+      const onUpdate = vi.fn()
+      render(<SheetSettings character={charPrivate} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("checkbox", { name: /off on/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ isPublic: true }))
+    })
+
+    it("calls onUpdate with isPublic: false when On→Off toggle is clicked", () => {
+      const onUpdate = vi.fn()
+      render(<SheetSettings character={charPublic} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("checkbox", { name: /off on/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ isPublic: false }))
+    })
+
+    it("shows the share URL input when isPublic is true", () => {
+      render(<SheetSettings character={charPublic} onUpdate={vi.fn()} />)
+      const urlInput = screen.getByLabelText("Share URL")
+      expect(urlInput).toBeInTheDocument()
+      expect((urlInput as HTMLInputElement).value).toContain("/share/char-abc")
+    })
+
+    it("does not show the share URL when isPublic is false", () => {
+      render(<SheetSettings character={charPrivate} onUpdate={vi.fn()} />)
+      expect(screen.queryByLabelText("Share URL")).not.toBeInTheDocument()
+    })
+
+    it("shows a Copy link button when isPublic is true", () => {
+      render(<SheetSettings character={charPublic} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: /copy share link/i })).toBeInTheDocument()
+    })
+
+    it("does not show the Copy link button when isPublic is false", () => {
+      render(<SheetSettings character={charPrivate} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("button", { name: /copy share link/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe("read-only mode", () => {
+    it("renders nothing when wrapped in ReadOnlyProvider", () => {
+      const { container } = render(
+        <ReadOnlyProvider value={true}>
+          <SheetSettings character={baseCharacter} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+      expect(container.firstChild).toBeNull()
     })
   })
 

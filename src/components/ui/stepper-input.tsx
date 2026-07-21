@@ -1,3 +1,4 @@
+import { Show } from "solid-js"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Button } from "@/components/ui/button"
 import Minus from "lucide-solid/icons/minus"
@@ -10,6 +11,7 @@ interface StepperInputProps {
   max?: number
   onAtMin?: () => void
   "aria-label"?: string
+  readOnly?: boolean
 }
 
 export function StepperInput(props: StepperInputProps) {
@@ -22,40 +24,45 @@ export function StepperInput(props: StepperInputProps) {
 
   return (
     <div data-sem="stepper-input" class="flex items-stretch">
-      <Button
-        data-test="stepper-decrease"
-        variant="outline"
-        size="icon"
-        class="h-11 w-11 shrink-0 rounded-r-none border-r-0"
-        onClick={() => {
-          if (props.min !== undefined && props.value <= props.min) {
-            props.onAtMin?.()
-          } else {
-            props.onChange(clamp(props.value - 1))
-          }
-        }}
-        aria-label="Decrease"
-      >
-        <Minus class="h-3 w-3" />
-      </Button>
+      <Show when={!props.readOnly}>
+        <Button
+          data-test="stepper-decrease"
+          variant="outline"
+          size="icon"
+          class="h-11 w-11 shrink-0 rounded-r-none border-r-0"
+          onClick={() => {
+            if (props.min !== undefined && props.value <= props.min) {
+              props.onAtMin?.()
+            } else {
+              props.onChange(clamp(props.value - 1))
+            }
+          }}
+          aria-label="Decrease"
+        >
+          <Minus class="h-3 w-3" />
+        </Button>
+      </Show>
       <NumericInput
         value={props.value}
         onChange={props.onChange}
         min={props.min}
         max={props.max}
         aria-label={props["aria-label"]}
-        class="text-center h-11 px-0 py-0 w-[5ch] min-w-[3ch] max-w-[5ch] rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        disabled={props.readOnly}
+        class={`text-center h-11 px-0 py-0 w-[5ch] min-w-[3ch] max-w-[5ch] ${props.readOnly ? "rounded-md" : "rounded-none"} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
       />
-      <Button
-        data-test="stepper-increase"
-        variant="outline"
-        size="icon"
-        class="h-11 w-11 shrink-0 rounded-l-none border-l-0"
-        onClick={() => props.onChange(clamp(props.value + 1))}
-        aria-label="Increase"
-      >
-        <Plus class="h-3 w-3" />
-      </Button>
+      <Show when={!props.readOnly}>
+        <Button
+          data-test="stepper-increase"
+          variant="outline"
+          size="icon"
+          class="h-11 w-11 shrink-0 rounded-l-none border-l-0"
+          onClick={() => props.onChange(clamp(props.value + 1))}
+          aria-label="Increase"
+        >
+          <Plus class="h-3 w-3" />
+        </Button>
+      </Show>
     </div>
   )
 }

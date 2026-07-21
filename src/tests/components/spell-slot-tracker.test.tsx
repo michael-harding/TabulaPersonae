@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "../test-utils"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character } from "@/lib/character-types"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 type SpellSlots = Character["spellSlots"]
 
@@ -101,5 +102,33 @@ describe("SpellSlotTracker", () => {
     )
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("readOnly mode", () => {
+    it("renders pips as non-interactive spans (no buttons) when readOnly context is active", () => {
+      render(
+        <ReadOnlyProvider value={true}>
+          <SpellSlotTracker
+            spellSlots={makeSpellSlots({ 1: { total: 3, used: 1 } })}
+            onToggle={vi.fn()}
+          />
+        </ReadOnlyProvider>
+      )
+      expect(screen.queryAllByRole("button")).toHaveLength(0)
+      expect(screen.queryAllByTitle("Available slot (click to use)")).toHaveLength(2)
+      expect(screen.queryAllByTitle("Used slot (click to restore)")).toHaveLength(1)
+    })
+
+    it("still renders the level label when readOnly", () => {
+      render(
+        <ReadOnlyProvider value={true}>
+          <SpellSlotTracker
+            spellSlots={makeSpellSlots({ 2: { total: 2, used: 0 } })}
+            onToggle={vi.fn()}
+          />
+        </ReadOnlyProvider>
+      )
+      expect(screen.getByText("2nd")).toBeInTheDocument()
+    })
   })
 })

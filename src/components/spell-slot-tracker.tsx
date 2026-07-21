@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { PipTracker } from "@/components/ui/pip-tracker"
+import { useReadOnly } from "@/lib/read-only-context"
 
 type SpellSlots = Character["spellSlots"]
 
@@ -16,6 +17,8 @@ function getOrdinalSuffix(num: number): string {
 }
 
 export function SpellSlotTracker(props: SpellSlotTrackerProps) {
+  const isReadOnly = useReadOnly()
+
   return (
     <div data-sem="spell-slot-tracker" class="flex flex-wrap gap-2">
       <For each={[1, 2, 3, 4, 5, 6, 7, 8, 9]}>
@@ -29,6 +32,7 @@ export function SpellSlotTracker(props: SpellSlotTrackerProps) {
                   total={slots().total}
                   used={slots().used}
                   onToggle={(newUsed) => props.onToggle(level, newUsed)}
+                  readOnly={isReadOnly}
                 />
               </div>
             </Show>

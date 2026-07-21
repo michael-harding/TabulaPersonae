@@ -1,4 +1,4 @@
-import { For } from "solid-js"
+import { For, Show } from "solid-js"
 import type { JSX } from "solid-js"
 
 interface PipTrackerProps {
@@ -11,6 +11,7 @@ interface PipTrackerProps {
   emptyClass?: string
   filledIcon?: JSX.Element
   emptyIcon?: JSX.Element
+  readOnly?: boolean
 }
 
 export function PipTracker(props: PipTrackerProps) {
@@ -18,6 +19,7 @@ export function PipTracker(props: PipTrackerProps) {
   const availableTitle = () => props.availableTitle ?? "Available slot (click to use)"
   const filledClass = () => props.filledClass ?? "bg-primary border-primary hover:bg-primary/80"
   const emptyClass = () => props.emptyClass ?? "bg-muted border-muted-foreground"
+  const filledClassReadOnly = () => props.filledClass ?? "bg-primary border-primary"
 
   const toggle = (index: number) => {
     const newUsed = index < props.used ? props.used - 1 : props.used + 1
@@ -28,16 +30,27 @@ export function PipTracker(props: PipTrackerProps) {
     <div data-sem="pip-tracker" class="flex flex-wrap items-center">
       <For each={Array.from({ length: props.total }, (_, i) => i)}>
         {(index) => (
-          <button
-            data-test={`pip-tracker-slot-${index}`}
-            onClick={() => toggle(index)}
-            class="w-11 h-11 flex items-center justify-center"
-            title={index < props.used ? usedTitle() : availableTitle()}
+          <Show
+            when={!props.readOnly}
+            fallback={
+              <span class="w-11 h-11 flex items-center justify-center" title={index < props.used ? usedTitle() : availableTitle()}>
+                <span class={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${index < props.used ? filledClassReadOnly() : emptyClass()}`}>
+                  {index < props.used ? props.filledIcon : props.emptyIcon}
+                </span>
+              </span>
+            }
           >
-            <span class={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${index < props.used ? filledClass() : emptyClass()}`}>
-              {index < props.used ? props.filledIcon : props.emptyIcon}
-            </span>
-          </button>
+            <button
+              data-test={`pip-tracker-slot-${index}`}
+              onClick={() => toggle(index)}
+              class="w-11 h-11 flex items-center justify-center"
+              title={index < props.used ? usedTitle() : availableTitle()}
+            >
+              <span class={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${index < props.used ? filledClass() : emptyClass()}`}>
+                {index < props.used ? props.filledIcon : props.emptyIcon}
+              </span>
+            </button>
+          </Show>
         )}
       </For>
     </div>

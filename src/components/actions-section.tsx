@@ -23,6 +23,7 @@ import Sparkles from "lucide-solid/icons/sparkles"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { ActionCard } from "@/components/action-card"
+import { useReadOnly } from "@/lib/read-only-context"
 
 interface ActionsSectionProps {
   character: Character
@@ -221,6 +222,7 @@ type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
 type StoredAction = ActionFormData & { id: string }
 
 export function ActionsSection(props: ActionsSectionProps) {
+  const isReadOnly = useReadOnly()
   const [isActionModalOpen, setIsActionModalOpen] = createSignal(false)
   const [isBonusActionModalOpen, setIsBonusActionModalOpen] = createSignal(false)
   const [isReactionModalOpen, setIsReactionModalOpen] = createSignal(false)
@@ -497,10 +499,12 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featuresByKind().actions.length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button data-test="add-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddAction}>
-              <Plus class="h-3 w-3" />
-              Add Action
-            </Button>
+            <Show when={!isReadOnly}>
+              <Button data-test="add-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddAction}>
+                <Plus class="h-3 w-3" />
+                Add Action
+              </Button>
+            </Show>
           </div>
           <CollapsibleContent class="mt-2">
             <Show
@@ -555,10 +559,12 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featuresByKind().bonuses.length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button data-test="add-bonus-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddBonusAction}>
-              <Plus class="h-3 w-3" />
-              Add Bonus Action
-            </Button>
+            <Show when={!isReadOnly}>
+              <Button data-test="add-bonus-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddBonusAction}>
+                <Plus class="h-3 w-3" />
+                Add Bonus Action
+              </Button>
+            </Show>
           </div>
           <CollapsibleContent class="mt-2">
             <Show
@@ -600,10 +606,12 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featuresByKind().reactions.length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button data-test="add-reaction-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddReaction}>
-              <Plus class="h-3 w-3" />
-              Add Reaction
-            </Button>
+            <Show when={!isReadOnly}>
+              <Button data-test="add-reaction-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddReaction}>
+                <Plus class="h-3 w-3" />
+                Add Reaction
+              </Button>
+            </Show>
           </div>
           <CollapsibleContent class="mt-2">
             <Show
@@ -646,10 +654,12 @@ export function ActionsSection(props: ActionsSectionProps) {
               <Badge variant="secondary">{featuresByKind().others.length + (props.character.otherActions?.length ?? 0)}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
-            <Button data-test="add-other-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddOther}>
-              <Plus class="h-3 w-3" />
-              Add Other
-            </Button>
+            <Show when={!isReadOnly}>
+              <Button data-test="add-other-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddOther}>
+                <Plus class="h-3 w-3" />
+                Add Other
+              </Button>
+            </Show>
           </div>
           <CollapsibleContent class="mt-2">
             <Show

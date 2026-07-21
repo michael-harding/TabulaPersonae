@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils
 import { SpellsSection } from "@/components/spells-section"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Spell } from "@/lib/character-types"
+import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 vi.mock("@/lib/character-storage", () => ({ saveCharacter: vi.fn() }))
 
@@ -474,5 +475,66 @@ describe("SpellsSection", () => {
     const { container } = render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("readOnly mode", () => {
+    const spell = makeSpell({ id: "s1", name: "Fire Bolt", level: 0, known: true })
+    const level1Spell = makeSpell({ id: "s2", name: "Fireball", level: 1, prepared: true, known: true })
+
+    function renderReadOnly(overrides: Partial<Character> = {}) {
+      return render(
+        <ReadOnlyProvider value={true}>
+          <SpellsSection character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+    }
+
+    it("does not render the Add Spell button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /add spell/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render the Edit Slots button", () => {
+      renderReadOnly()
+      expect(screen.queryByRole("button", { name: /edit slots/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render per-spell edit and delete buttons", () => {
+      renderReadOnly({ spells: [spell] })
+      expect(screen.queryByRole("button", { name: /edit fire bolt/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /delete fire bolt/i })).not.toBeInTheDocument()
+    })
+
+    it("does not render known/prepared checkboxes", () => {
+      renderReadOnly({ spells: [spell, level1Spell] })
+      expect(screen.queryAllByRole("checkbox")).toHaveLength(0)
+    })
+
+    it("still renders the spell name", () => {
+      renderReadOnly({ spells: [spell] })
+      expect(screen.getByText("Fire Bolt")).toBeInTheDocument()
+    })
+
+    it("still renders the search input", () => {
+      renderReadOnly()
+      expect(screen.getByPlaceholderText("Search spells...")).toBeInTheDocument()
+    })
+
+    it("does not show the 'Click Edit Slots' instruction when spell slots are empty", () => {
+      renderReadOnly()
+      expect(screen.getByText("No spell slots configured.")).toBeInTheDocument()
+      expect(screen.queryByText(/click.*edit slots/i)).not.toBeInTheDocument()
+    })
+
+    it("renders spellcastingClass as static text for 2014-edition characters", () => {
+      renderReadOnly({ edition: "2014", spells: [spell], spellcastingClass: "Wizard" })
+      expect(screen.queryByRole("textbox", { name: /spellcasting class/i })).not.toBeInTheDocument()
+      expect(screen.getByText("Wizard")).toBeInTheDocument()
+    })
+
+    it("does not render a spinbutton for spellcastingClass in 2014-edition read-only mode", () => {
+      renderReadOnly({ edition: "2014", spells: [spell] })
+      expect(screen.queryByPlaceholderText("e.g. Wizard")).not.toBeInTheDocument()
+    })
   })
 })
