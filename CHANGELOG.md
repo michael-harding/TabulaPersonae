@@ -5,6 +5,19 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-21
+
+### Added
+- **Public character sharing** — owners can toggle "Share publicly" in Sheet Settings to generate a shareable `/share/:id` URL and QR code; the link works without an account
+- **Read-only mode** — a `ReadOnlyContext` propagated through every sheet component suppresses all edit controls, save buttons, and settings panels when a character is viewed publicly; a "Read-only" badge appears in the public header
+- **`/share/:id` route** — `PublicCharacterSheet` page loads character data, respects the `?tab=<id>` query parameter for deep-linking to a specific tab, and updates the browser title to the character name
+- **Offline support for public shares** — `getPublicCharacterFromFirebase` falls back to `getDocFromCache` when the device has no network
+- **QR code generation** — share panel generates a QR code image for the share URL via the `qrcode` library
+- New `isPublic` field on the `Character` type
+- Updated Firestore rules: unauthenticated `get` is now allowed on characters where `isPublic == true`; `list` remains auth-gated
+- Unit tests for all components updated to exercise read-only rendering paths
+- Visual regression snapshots for the public share page across Chromium and Firefox in light/dark themes and all tabs (default, character, combat, features, inventory, spells)
+
 ## [1.2.0] - 2026-07-20
 
 ### Added
