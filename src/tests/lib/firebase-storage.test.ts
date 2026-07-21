@@ -65,18 +65,43 @@ describe('getPublicCharacterFromFirebase', () => {
     vi.clearAllMocks()
   })
 
-  it('returns character data when doc exists and isPublic is true', async () => {
+  it('calls getDoc when online and returns character when isPublic is true', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     const publicCharData = { ...charData, isPublic: true }
     mockGetDoc.mockResolvedValue(makeDocSnap(true, publicCharData))
 
     const result = await getPublicCharacterFromFirebase('char-1')
 
+    expect(mockGetDoc).toHaveBeenCalledOnce()
+    expect(mockGetDocFromCache).not.toHaveBeenCalled()
     expect(result).not.toBeNull()
     expect(result?.id).toBe('char-1')
     expect((result as any).name).toBe('Thorin')
   })
 
+  it('calls getDocFromCache when offline and returns character when isPublic is true', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const publicCharData = { ...charData, isPublic: true }
+    mockGetDocFromCache.mockResolvedValue(makeDocSnap(true, publicCharData))
+
+    const result = await getPublicCharacterFromFirebase('char-1')
+
+    expect(mockGetDocFromCache).toHaveBeenCalledOnce()
+    expect(mockGetDoc).not.toHaveBeenCalled()
+    expect(result).not.toBeNull()
+  })
+
+  it('returns null when offline and cache miss throws', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    mockGetDocFromCache.mockRejectedValue(new Error('No cache'))
+
+    const result = await getPublicCharacterFromFirebase('char-1')
+
+    expect(result).toBeNull()
+  })
+
   it('returns null when document does not exist', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     mockGetDoc.mockResolvedValue(makeDocSnap(false))
 
     const result = await getPublicCharacterFromFirebase('char-1')
@@ -85,6 +110,7 @@ describe('getPublicCharacterFromFirebase', () => {
   })
 
   it('returns null when isPublic is false', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     const privateCharData = { ...charData, isPublic: false }
     mockGetDoc.mockResolvedValue(makeDocSnap(true, privateCharData))
 
@@ -94,6 +120,7 @@ describe('getPublicCharacterFromFirebase', () => {
   })
 
   it('returns null and logs console.error when getDoc throws', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockGetDoc.mockRejectedValue(new Error('Network error'))
 

@@ -12,10 +12,12 @@ import Scroll from "lucide-solid/icons/scroll"
 import Lock from "lucide-solid/icons/lock"
 
 const PUBLIC_TAB_CONFIG = {
-  tabs: DEFAULT_TAB_CONFIG.tabs.map((tab) => ({
-    ...tab,
-    modules: tab.modules.filter((m) => PUBLIC_SAFE_MODULE_IDS.has(m)),
-  })),
+  tabs: DEFAULT_TAB_CONFIG.tabs
+    .map((tab) => ({
+      ...tab,
+      modules: tab.modules.filter((m) => PUBLIC_SAFE_MODULE_IDS.has(m)),
+    }))
+    .filter((tab) => tab.modules.length > 0),
 }
 
 export default function PublicCharacterSheet() {
@@ -39,10 +41,10 @@ export default function PublicCharacterSheet() {
   createEffect(() => {
     document.title = "TabulaPersonae"
     const id = params.id
-    setIsLoading(true)
     if (!id) { setIsLoading(false); return }
+    setIsLoading(true)
     let cancelled = false
-    onCleanup(() => { cancelled = true })
+    onCleanup(() => { cancelled = true; document.title = "TabulaPersonae" })
     getPublicCharacterFromFirebase(id)
       .then((char) => {
         if (!cancelled) {

@@ -1,4 +1,4 @@
-import { For, Show, createResource } from "solid-js"
+import { For, Show, createResource, createSignal } from "solid-js"
 import QRCode from "qrcode"
 import type { Character } from "@/lib/character-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,6 +33,7 @@ export function SheetSettings(props: SheetSettingsProps) {
   const [qrDataUrl] = createResource(shareUrl, (url) =>
     QRCode.toDataURL(url, { width: 160, margin: 1 })
   )
+  const [copied, setCopied] = createSignal(false)
 
   const isPresetSelected = (hex: string) => sheetColor() === hex
   const isCustomColor = () => !!sheetColor() && !PRESET_COLORS.some((p) => p.hex === sheetColor())
@@ -143,11 +144,18 @@ export function SheetSettings(props: SheetSettingsProps) {
                     type="button"
                     aria-label="Copy share link"
                     class="h-9 px-3 rounded-md border text-xs hover:bg-accent transition-colors whitespace-nowrap"
-                    onClick={() => navigator.clipboard.writeText(getUrl())}
+                    onClick={() => {
+                      navigator.clipboard.writeText(getUrl())
+                        .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+                        .catch(() => {})
+                    }}
                   >
-                    Copy link
+                    {copied() ? "Copied!" : "Copy link"}
                   </button>
                 </div>
+                <Show when={qrDataUrl.error}>
+                  <p class="text-xs text-destructive">Failed to generate QR code.</p>
+                </Show>
                 <Show when={qrDataUrl()}>
                   <img
                     src={qrDataUrl()!}

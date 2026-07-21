@@ -280,6 +280,7 @@ export function SpellsSection(props: SpellsSectionProps) {
   const updateSpellSlotUsed = (level: number, used: number) => updateSpellSlots(level, "used", used)
 
   const handleAddSpell = (formData: SpellFormData) => {
+    if (isReadOnly) return
     if (!formData.name.trim()) return
     const newSpell: Spell = {
       id: crypto.randomUUID(),
@@ -307,6 +308,7 @@ export function SpellsSection(props: SpellsSectionProps) {
   }
 
   const handleUpdateSpell = (formData: SpellFormData) => {
+    if (isReadOnly) return
     const spell = editingSpell()
     if (!spell || !formData.name.trim()) return
     const updatedSpell: Spell = {
@@ -335,12 +337,14 @@ export function SpellsSection(props: SpellsSectionProps) {
   }
 
   const handleDeleteSpell = (spellId: string) => {
+    if (isReadOnly) return
     const updated = { ...props.character, spells: safeSpells().filter((spell) => spell.id !== spellId) }
     props.onUpdate(updated)
     saveCharacter(updated)
   }
 
   const togglePrepared = (spellId: string) => {
+    if (isReadOnly) return
     const updated = {
       ...props.character,
       spells: safeSpells().map((spell) => (spell.id === spellId ? { ...spell, prepared: !spell.prepared } : spell)),
@@ -350,6 +354,7 @@ export function SpellsSection(props: SpellsSectionProps) {
   }
 
   const toggleKnown = (spellId: string) => {
+    if (isReadOnly) return
     const updated = {
       ...props.character,
       spells: safeSpells().map((spell) =>

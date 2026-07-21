@@ -165,7 +165,9 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
   }
   try {
     const characterRef = doc(db, CHARACTERS_COLLECTION, id)
-    const characterSnap = await getDoc(characterRef)
+    const characterSnap = navigator.onLine
+      ? await getDoc(characterRef)
+      : await getDocFromCache(characterRef)
     if (!characterSnap.exists()) return null
     const data = characterSnap.data()
     if (!data.isPublic) return null
