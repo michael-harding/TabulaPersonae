@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import FileText from "lucide-solid/icons/file-text"
 
 interface CharacterNotesProps {
@@ -209,7 +210,9 @@ export function CharacterNotes(props: CharacterNotesProps) {
             <div>
               <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Appearance</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().appearance || "No appearance description yet."}</p>
+                <Show when={current().appearance} fallback={<p class="text-sm text-muted-foreground">No appearance description yet.</p>}>
+                  <MarkdownContent text={current().appearance!} />
+                </Show>
               </div>
             </div>
 
@@ -218,28 +221,36 @@ export function CharacterNotes(props: CharacterNotesProps) {
             <div>
               <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Personality Traits</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().personalityTraits || "No personality traits defined yet."}</p>
+                <Show when={current().personalityTraits} fallback={<p class="text-sm text-muted-foreground">No personality traits defined yet.</p>}>
+                  <MarkdownContent text={current().personalityTraits!} />
+                </Show>
               </div>
             </div>
 
             <div>
               <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Ideals</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().ideals || "No ideals defined yet."}</p>
+                <Show when={current().ideals} fallback={<p class="text-sm text-muted-foreground">No ideals defined yet.</p>}>
+                  <MarkdownContent text={current().ideals!} />
+                </Show>
               </div>
             </div>
 
             <div>
               <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Bonds</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().bonds || "No bonds defined yet."}</p>
+                <Show when={current().bonds} fallback={<p class="text-sm text-muted-foreground">No bonds defined yet.</p>}>
+                  <MarkdownContent text={current().bonds!} />
+                </Show>
               </div>
             </div>
 
             <div>
               <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Flaws</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().flaws || "No flaws defined yet."}</p>
+                <Show when={current().flaws} fallback={<p class="text-sm text-muted-foreground">No flaws defined yet.</p>}>
+                  <MarkdownContent text={current().flaws!} />
+                </Show>
               </div>
             </div>
 
@@ -248,7 +259,9 @@ export function CharacterNotes(props: CharacterNotesProps) {
             <div>
               <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Backstory</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[100px]">
-                <p class="text-sm whitespace-pre-wrap">{current().backstory || "No backstory written yet."}</p>
+                <Show when={current().backstory} fallback={<p class="text-sm text-muted-foreground">No backstory written yet.</p>}>
+                  <MarkdownContent text={current().backstory!} />
+                </Show>
               </div>
             </div>
 
@@ -259,14 +272,18 @@ export function CharacterNotes(props: CharacterNotesProps) {
               <div>
                 <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Allies & Organizations</h2>
                 <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                  <p class="text-sm whitespace-pre-wrap">{current().alliesAndOrganizations || "No allies or organizations listed yet."}</p>
+                  <Show when={current().alliesAndOrganizations} fallback={<p class="text-sm text-muted-foreground">No allies or organizations listed yet.</p>}>
+                    <MarkdownContent text={current().alliesAndOrganizations!} />
+                  </Show>
                 </div>
               </div>
 
               <div>
                 <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Treasure</h2>
                 <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                  <p class="text-sm whitespace-pre-wrap">{current().treasure || "No treasure listed yet."}</p>
+                  <Show when={current().treasure} fallback={<p class="text-sm text-muted-foreground">No treasure listed yet.</p>}>
+                    <MarkdownContent text={current().treasure!} />
+                  </Show>
                 </div>
               </div>
 
@@ -276,7 +293,9 @@ export function CharacterNotes(props: CharacterNotesProps) {
             <div>
               <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Notes</h2>
               <div class="bg-muted/50 rounded-lg p-3 min-h-[100px]">
-                <p class="text-sm whitespace-pre-wrap">{current().notes || "No additional notes yet."}</p>
+                <Show when={current().notes} fallback={<p class="text-sm text-muted-foreground">No additional notes yet.</p>}>
+                  <MarkdownContent text={current().notes!} />
+                </Show>
               </div>
             </div>
           </>

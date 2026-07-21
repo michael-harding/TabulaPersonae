@@ -13,6 +13,7 @@ import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/mo
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
@@ -332,7 +333,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                             </Show>
                           </div>
                           <Show when={feature.description}>
-                            <p class="text-sm text-muted-foreground">{feature.description}</p>
+                            <MarkdownContent text={feature.description!} class="text-muted-foreground" />
                           </Show>
                           <Show when={(feature.maxUses ?? 0) > 0}>
                             <Show

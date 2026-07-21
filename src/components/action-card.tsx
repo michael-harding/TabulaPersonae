@@ -7,6 +7,7 @@ import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
 import { Popover } from "@kobalte/core/popover"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import Pencil from "lucide-solid/icons/pencil"
 import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
 import CircleHelp from "lucide-solid/icons/circle-help"
@@ -174,7 +175,9 @@ export function ActionCard(props: ActionCardProps) {
                       </Show>
                     </div>
                     <Show when={props.description}>
-                      <div class="text-xs border-t pt-2 leading-relaxed">{props.description}</div>
+                      <div class="border-t pt-2">
+                        <MarkdownContent text={props.description!} class="text-xs leading-relaxed" />
+                      </div>
                     </Show>
                     <Show when={props.atHigherLevel}>
                       <div class="text-xs border-t pt-2">

@@ -27,6 +27,7 @@ import Scale from "lucide-solid/icons/scale"
 import Gem from "lucide-solid/icons/gem"
 import Coins from "lucide-solid/icons/coins"
 import { useReadOnly } from "@/lib/read-only-context"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 
 interface EquipmentInventoryProps {
   character: Character
@@ -700,7 +701,7 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
                         </p>
                       </Show>
                       <Show when={item.description}>
-                        <p class="text-sm text-muted-foreground mt-1">{item.description}</p>
+                        <MarkdownContent text={item.description!} class="text-muted-foreground mt-1" />
                       </Show>
                     </div>
                     <Show when={!isReadOnly}>

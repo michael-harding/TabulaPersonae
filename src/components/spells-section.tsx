@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import Sparkles from "lucide-solid/icons/sparkles"
 import Plus from "lucide-solid/icons/plus"
 import Edit from "lucide-solid/icons/edit"
@@ -574,7 +575,7 @@ export function SpellsSection(props: SpellsSectionProps) {
                                     <Show when={spell.description}>
                                       <div class="mb-2">
                                         <span class="font-medium">Description:</span>
-                                        <pre class="text-sm text-muted-foreground" style={{ "white-space": "pre-wrap" }}>{spell.description}</pre>
+                                        <MarkdownContent text={spell.description!} class="text-muted-foreground" />
                                       </div>
                                     </Show>
                                   </div>
