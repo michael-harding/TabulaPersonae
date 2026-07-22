@@ -88,7 +88,7 @@ export function StatsBar(props: StatsBarProps) {
             <div class="flex items-center gap-1.5 flex-wrap">
               <For each={conditions()}>
                 {(condition) => (
-                  <span class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-destructive/15 text-destructive">
+                  <span class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-destructive text-destructive-foreground">
                     {condition}
                   </span>
                 )}
