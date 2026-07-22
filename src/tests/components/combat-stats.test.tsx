@@ -249,9 +249,9 @@ describe("CombatStats", () => {
         proficiencyBonus: 2,
       })
       render(<CombatStats character={char} onUpdate={vi.fn()} />)
-      // In view mode, focusable triggers are: AC (index 0), Passive Perception (index 1)
+      // In view mode, focusable triggers are: AC (0), Initiative (1), Proficiency Bonus (2), Passive Perception (3)
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[1])
+      fireEvent.focus(triggers[3])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // Wis 14 → +2, proficient with prof +2 → 10 + 2 + 2 = 14
       expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Wis +2 + Prof +2 = 14")
@@ -578,10 +578,10 @@ describe("CombatStats", () => {
   })
 
   describe("calculated initiative", () => {
-    it("shows 'Use DEX mod' option in edit mode", () => {
+    it("shows a custom-value toggle button in edit mode", () => {
       render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(screen.getByText(/use dex mod/i)).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /(custom|calculated) initiative/i })).toBeInTheDocument()
     })
 
     it("shows DEX-derived value as read-only when useCalculatedInitiative is true in edit mode", () => {
@@ -626,10 +626,10 @@ describe("CombatStats", () => {
   })
 
   describe("calculated proficiency bonus", () => {
-    it("shows 'From level' option in edit mode", () => {
+    it("shows a custom-value toggle button in edit mode", () => {
       render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(screen.getByText(/from level/i)).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /(custom|calculated) proficiency bonus/i })).toBeInTheDocument()
     })
 
     it("saves level-derived proficiency bonus on save when flag is enabled", () => {
@@ -660,10 +660,32 @@ describe("CombatStats", () => {
   })
 
   describe("calculated armor class", () => {
-    it("shows 'Use calculated' checkbox for both AC and passive perception in edit mode", () => {
+    it("shows a custom-value toggle button for AC, initiative, proficiency bonus, and passive perception in edit mode", () => {
       render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(screen.getAllByText(/use calculated/i)).toHaveLength(2)
+      expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(4)
+    })
+
+    it("shows a tooltip on the AC value in edit mode when not custom", async () => {
+      render(
+        <CombatStats character={makeCharacter({ useCalculatedArmorClass: true })} onUpdate={vi.fn()} />
+      )
+      clickEditButton()
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      expect(triggers.length).toBeGreaterThan(0)
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+    })
+
+    it("hides the tooltip trigger for a field once it is switched to custom in edit mode", () => {
+      render(
+        <CombatStats character={makeCharacter({ useCalculatedArmorClass: true })} onUpdate={vi.fn()} />
+      )
+      clickEditButton()
+      const triggersBefore = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]').length
+      fireEvent.click(screen.getByRole("button", { name: /use custom armor class/i }))
+      const triggersAfter = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]').length
+      expect(triggersAfter).toBe(triggersBefore - 1)
     })
 
     it("shows AC as read-only text by default (useCalculatedArmorClass defaults to true)", () => {
@@ -708,14 +730,14 @@ describe("CombatStats", () => {
       expect(screen.getByText("13")).toBeInTheDocument()
     })
 
-    it("shows 'Manual armor class override' tooltip in view mode when flag is false", async () => {
+    it("shows 'Custom' tooltip in view mode when flag is false", async () => {
       render(
         <CombatStats character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={vi.fn()} />
       )
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Manual armor class override")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
   })
 
@@ -774,7 +796,7 @@ describe("CombatStats", () => {
       expect(screen.getByText("17")).toBeInTheDocument()
     })
 
-    it("shows 'Manual passive perception override' tooltip in view mode when flag is false", async () => {
+    it("shows 'Custom' tooltip in view mode when flag is false", async () => {
       render(
         <CombatStats
           character={makeCharacter({ useCalculatedPassivePerception: false })}
@@ -782,9 +804,67 @@ describe("CombatStats", () => {
         />
       )
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[3])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
+    })
+  })
+
+  describe("initiative tooltip", () => {
+    it("shows Dex modifier formula tooltip when calculated", async () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ useCalculatedInitiative: true })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // Default ability scores → Dex 10 → modifier +0
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[1])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Manual passive perception override")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +0")
+    })
+
+    it("shows 'Custom' tooltip when flag is false", async () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ useCalculatedInitiative: false })}
+          onUpdate={vi.fn()}
+        />
+      )
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[1])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
+    })
+  })
+
+  describe("proficiency bonus tooltip", () => {
+    it("shows level formula tooltip when calculated", async () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ useCalculatedProficiencyBonus: true })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // Default level 1 → getProficiencyBonus(1) = +2
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[2])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Level 1 = +2")
+    })
+
+    it("shows 'Custom' tooltip when flag is false", async () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ useCalculatedProficiencyBonus: false })}
+          onUpdate={vi.fn()}
+        />
+      )
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[2])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
   })
 

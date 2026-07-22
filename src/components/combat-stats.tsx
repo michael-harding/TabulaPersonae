@@ -1,10 +1,9 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, parseHitDiceSize, calculateEquippedAC } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getProficiencyBonus, parseHitDiceSize, calculateEquippedAC, formatModifier } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { DIE_SIZES } from "@/lib/dice"
 import { saveCharacter } from "@/lib/character-storage"
-import { Tooltip } from "@/components/ui/tooltip"
 import { EditableSection } from "@/components/editable-section"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -14,7 +13,7 @@ import { Combobox } from "@/components/ui/combobox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { Checkbox } from "@/components/ui/checkbox"
+import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useReadOnly } from "@/lib/read-only-context"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
@@ -185,39 +184,13 @@ export function CombatStats(props: CombatStatsProps) {
 
   const passivePerceptionLabel = createMemo(() => edition() === "2014" ? "Passive Wisdom (Perception)" : "Passive Perception")
 
-  const calcInitiative = createMemo(() => getAbilityModifier(edited().abilityScores?.dexterity ?? 10))
-  const calcProfBonus = createMemo(() => getProficiencyBonus(edited().level ?? 1))
-
-  const effectiveInitiative = createMemo(() =>
-    props.character.useCalculatedInitiative
-      ? getAbilityModifier(props.character.abilityScores?.dexterity ?? 10)
-      : props.character.initiative ?? 0
-  )
-  const effectiveProfBonus = createMemo(() =>
-    props.character.useCalculatedProficiencyBonus
-      ? getProficiencyBonus(props.character.level ?? 1)
-      : props.character.proficiencyBonus ?? 2
-  )
+  const calcInitiative = createMemo(() => getAbilityModifier(props.character.abilityScores?.dexterity ?? 10))
+  const calcProfBonus = createMemo(() => getProficiencyBonus(props.character.level ?? 1))
+  const initiativeTooltip = createMemo(() => `Dex ${formatModifier(calcInitiative())}`)
+  const profBonusTooltip = createMemo(() => `Level ${props.character.level ?? 1} = ${formatModifier(calcProfBonus())}`)
 
   const equippedAC = createMemo(() => calculateEquippedAC(props.character))
-
-  const effectiveAC = createMemo(() =>
-    (props.character.useCalculatedArmorClass ?? true)
-      ? equippedAC().ac
-      : props.character.armorClass ?? 10
-  )
-
-  const effectivePassivePerception = createMemo(() =>
-    (props.character.useCalculatedPassivePerception ?? true)
-      ? passivePerception()
-      : (props.character.passivePerception ?? passivePerception())
-  )
-
-  const effectivePassivePerceptionTooltip = createMemo(() =>
-    (props.character.useCalculatedPassivePerception ?? true)
-      ? passivePerceptionTooltip()
-      : "Manual passive perception override"
-  )
+  const acTooltip = createMemo(() => (equippedAC().isEquippedArmor ? equippedAC().breakdown : "Base armor class"))
 
   return (
     <EditableSection
@@ -475,78 +448,34 @@ export function CombatStats(props: CombatStatsProps) {
           {/* AC */}
           <div class="text-center">
             <Label class="text-sm text-muted-foreground">Armor Class</Label>
-            <Show when={isEditing()} fallback={
-              <div>
-                <Tooltip
-                  content={
-                    (props.character.useCalculatedArmorClass ?? true)
-                      ? (equippedAC().isEquippedArmor ? equippedAC().breakdown : "Base armor class")
-                      : "Manual armor class override"
-                  }
-                  triggerFocusable
-                >
-                  <div class="text-2xl font-bold text-primary mt-1">{effectiveAC()}</div>
-                </Tooltip>
-              </div>
-            }>
-              <div class="space-y-1 mt-1">
-                <div class="flex justify-center">
-                  <Checkbox
-                    label="Use calculated"
-                    checked={edited().useCalculatedArmorClass ?? true}
-                    onChange={(checked: boolean) => setEdited(prev => ({ ...prev, useCalculatedArmorClass: checked }))}
-                    aria-label="Use calculated armor class"
-                  />
-                </div>
-                <Show
-                  when={!(edited().useCalculatedArmorClass ?? true)}
-                  fallback={
-                    <div class="text-xl font-bold text-primary text-center">{equippedAC().ac}</div>
-                  }
-                >
-                  <NumericInput
-                    value={edited().armorClass}
-                    onChange={(v) => setEdited(prev => ({ ...prev, armorClass: v }))}
-                    class="text-center"
-                  />
-                </Show>
-              </div>
-            </Show>
+            <CalculatedValue
+              class="mt-1"
+              label="armor class"
+              editable={isEditing()}
+              custom={!(isEditing() ? (edited().useCalculatedArmorClass ?? true) : (props.character.useCalculatedArmorClass ?? true))}
+              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedArmorClass: !custom }))}
+              value={isEditing() ? edited().armorClass : (props.character.armorClass ?? 10)}
+              onValueChange={(v) => setEdited(prev => ({ ...prev, armorClass: v }))}
+              calculatedValue={equippedAC().ac}
+              calculatedTooltip={acTooltip()}
+            />
           </div>
 
           {/* Initiative */}
           <div class="text-center">
             <Label class="text-sm text-muted-foreground">Initiative</Label>
-            <Show when={isEditing()} fallback={
-              <div class="text-2xl font-bold text-primary mt-1">
-                {effectiveInitiative() >= 0 ? "+" : ""}{effectiveInitiative()}
-              </div>
-            }>
-              <div class="space-y-1 mt-1">
-                <div class="flex justify-center">
-                  <Checkbox
-                    label="Use DEX mod"
-                    checked={edited().useCalculatedInitiative}
-                    onChange={(checked: boolean) => setEdited(prev => ({ ...prev, useCalculatedInitiative: checked }))}
-                    aria-label="Use DEX modifier for initiative"
-                  />
-                </div>
-                <Show
-                  when={!edited().useCalculatedInitiative}
-                  fallback={
-                    <div class="text-xl font-bold text-primary text-center">
-                      {calcInitiative() >= 0 ? "+" : ""}{calcInitiative()}
-                    </div>
-                  }
-                >
-                  <NumericInput
-                    value={edited().initiative}
-                    onChange={(v) => setEdited(prev => ({ ...prev, initiative: v }))}
-                    class="text-center"
-                  />
-                </Show>
-              </div>
-            </Show>
+            <CalculatedValue
+              class="mt-1"
+              label="initiative"
+              editable={isEditing()}
+              custom={!(isEditing() ? edited().useCalculatedInitiative : props.character.useCalculatedInitiative)}
+              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedInitiative: !custom }))}
+              value={isEditing() ? edited().initiative : (props.character.initiative ?? 0)}
+              onValueChange={(v) => setEdited(prev => ({ ...prev, initiative: v }))}
+              calculatedValue={calcInitiative()}
+              calculatedTooltip={initiativeTooltip()}
+              format={formatModifier}
+            />
           </div>
 
           {/* Speed */}
@@ -566,67 +495,34 @@ export function CombatStats(props: CombatStatsProps) {
           {/* Proficiency Bonus */}
           <div class="text-center">
             <Label class="text-sm text-muted-foreground">Proficiency Bonus</Label>
-            <Show when={isEditing()} fallback={
-              <div class="text-2xl font-bold text-primary mt-1">+{effectiveProfBonus()}</div>
-            }>
-              <div class="space-y-1 mt-1">
-                <div class="flex justify-center">
-                  <Checkbox
-                    label="From level"
-                    checked={edited().useCalculatedProficiencyBonus}
-                    onChange={(checked: boolean) => setEdited(prev => ({ ...prev, useCalculatedProficiencyBonus: checked }))}
-                    aria-label="Calculate proficiency bonus from level"
-                  />
-                </div>
-                <Show
-                  when={!edited().useCalculatedProficiencyBonus}
-                  fallback={
-                    <div class="text-xl font-bold text-primary text-center">+{calcProfBonus()}</div>
-                  }
-                >
-                  <NumericInput
-                    value={edited().proficiencyBonus}
-                    onChange={(v) => setEdited(prev => ({ ...prev, proficiencyBonus: v }))}
-                    class="text-center"
-                  />
-                </Show>
-              </div>
-            </Show>
+            <CalculatedValue
+              class="mt-1"
+              label="proficiency bonus"
+              editable={isEditing()}
+              custom={!(isEditing() ? edited().useCalculatedProficiencyBonus : props.character.useCalculatedProficiencyBonus)}
+              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedProficiencyBonus: !custom }))}
+              value={isEditing() ? edited().proficiencyBonus : (props.character.proficiencyBonus ?? 2)}
+              onValueChange={(v) => setEdited(prev => ({ ...prev, proficiencyBonus: v }))}
+              calculatedValue={calcProfBonus()}
+              calculatedTooltip={profBonusTooltip()}
+              format={formatModifier}
+            />
           </div>
 
           {/* Passive Perception — both editions */}
           <div class="text-center">
             <Label class="text-sm text-muted-foreground">{passivePerceptionLabel()}</Label>
-            <Show when={isEditing()} fallback={
-              <div>
-                <Tooltip content={effectivePassivePerceptionTooltip()} triggerFocusable>
-                  <div class="text-2xl font-bold text-primary mt-1">{effectivePassivePerception()}</div>
-                </Tooltip>
-              </div>
-            }>
-              <div class="space-y-1 mt-1">
-                <div class="flex justify-center">
-                  <Checkbox
-                    label="Use calculated"
-                    checked={edited().useCalculatedPassivePerception ?? true}
-                    onChange={(checked: boolean) => setEdited(prev => ({ ...prev, useCalculatedPassivePerception: checked }))}
-                    aria-label="Use calculated passive perception"
-                  />
-                </div>
-                <Show
-                  when={!(edited().useCalculatedPassivePerception ?? true)}
-                  fallback={
-                    <div class="text-xl font-bold text-primary text-center">{passivePerception()}</div>
-                  }
-                >
-                  <NumericInput
-                    value={edited().passivePerception ?? passivePerception()}
-                    onChange={(v) => setEdited(prev => ({ ...prev, passivePerception: v }))}
-                    class="text-center"
-                  />
-                </Show>
-              </div>
-            </Show>
+            <CalculatedValue
+              class="mt-1"
+              label="passive perception"
+              editable={isEditing()}
+              custom={!(isEditing() ? (edited().useCalculatedPassivePerception ?? true) : (props.character.useCalculatedPassivePerception ?? true))}
+              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedPassivePerception: !custom }))}
+              value={isEditing() ? (edited().passivePerception ?? passivePerception()) : (props.character.passivePerception ?? passivePerception())}
+              onValueChange={(v) => setEdited(prev => ({ ...prev, passivePerception: v }))}
+              calculatedValue={passivePerception()}
+              calculatedTooltip={passivePerceptionTooltip()}
+            />
           </div>
 
           {/* Size — 2024 only */}
