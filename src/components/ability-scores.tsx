@@ -94,8 +94,9 @@ export function AbilityScores(props: AbilityScoresProps) {
                     <Tooltip
                       content={`(${score()} − 10) / 2 = ${formatModifier(modifier())}`}
                       triggerFocusable
+                      triggerClass="w-full"
                     >
-                      <div class="ring-1 ring-black rounded-lg p-3">
+                      <div class="ring-1 ring-black rounded-lg p-3 w-full">
                         <div class="text-2xl font-bold text-primary">{score()}</div>
                         <div class="text-lg font-semibold text-foreground">{formatModifier(modifier())}</div>
                       </div>
@@ -105,8 +106,9 @@ export function AbilityScores(props: AbilityScoresProps) {
                     <Tooltip
                       content={`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(modifier())} + Prof +${props.character.proficiencyBonus} = ${formatModifier(getSavingThrowModifier(safeScores()[ability], props.character.proficiencyBonus, true))}`}
                       triggerFocusable
+                      triggerClass="w-full"
                     >
-                      <div class="space-y-1">
+                      <div class="space-y-1 w-full">
                         <div class="text-xs">Saving Throw</div>
                         <div class="flex items-center justify-center gap-1">
                           <span class="font-medium">

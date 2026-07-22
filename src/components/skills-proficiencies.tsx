@@ -238,8 +238,8 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
                 const passive = () => 10 + skillMod()
                 const passiveTooltip = () => `10 + ${SKILL_DISPLAY_NAMES[skillKey]} ${formatModifier(skillMod())} = ${passive()}`
                 return (
-                  <Tooltip content={passiveTooltip()} triggerFocusable>
-                    <div class="flex flex-col items-center p-2 rounded border text-center">
+                  <Tooltip content={passiveTooltip()} triggerFocusable triggerClass="w-full">
+                    <div class="flex flex-col items-center p-2 rounded border text-center w-full">
                       <span class="text-lg font-bold">{passive()}</span>
                       <span class="text-xs text-muted-foreground">Passive {SKILL_DISPLAY_NAMES[skillKey]}</span>
                     </div>

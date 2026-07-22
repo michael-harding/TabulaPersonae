@@ -6,17 +6,18 @@ type TooltipProps = {
   content: JSX.Element
   children: JSX.Element
   class?: string
+  triggerClass?: string
   triggerFocusable?: boolean
 } & Omit<ComponentProps<typeof TooltipPrimitive>, "children">
 
 export function Tooltip(props: TooltipProps) {
-  const [local, rest] = splitProps(props, ["content", "children", "class", "triggerFocusable"])
+  const [local, rest] = splitProps(props, ["content", "children", "class", "triggerClass", "triggerFocusable"])
   return (
     <TooltipPrimitive gutter={6} {...rest}>
       <TooltipPrimitive.Trigger
         as="div"
         data-sem="tooltip-trigger"
-        class="inline-flex"
+        class={cn("inline-flex", local.triggerClass)}
         tabIndex={local.triggerFocusable ? 0 : undefined}
         role={local.triggerFocusable ? "group" : undefined}
       >
