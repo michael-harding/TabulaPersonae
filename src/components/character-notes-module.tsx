@@ -1,6 +1,6 @@
 import { createSignal, createEffect, on, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { EditableSection } from "@/components/editable-section"
+import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -8,12 +8,12 @@ import { Separator } from "@/components/ui/separator"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import FileText from "lucide-solid/icons/file-text"
 
-interface CharacterNotesProps {
+interface CharacterNotesModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
 
-export function CharacterNotes(props: CharacterNotesProps) {
+export function CharacterNotesModule(props: CharacterNotesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
   const [editedCharacter, setEditedCharacter] = createSignal(props.character)
 
@@ -41,8 +41,8 @@ export function CharacterNotes(props: CharacterNotesProps) {
   ]
 
   return (
-    <EditableSection
-      data-sem="character-notes"
+    <EditableModule
+      data-sem="character-notes-module"
       icon={<FileText class="h-5 w-5 text-primary" />}
       title="Character Background & Notes"
       editTitle="Edit Character Background & Notes"
@@ -300,6 +300,6 @@ export function CharacterNotes(props: CharacterNotesProps) {
             </div>
           </>
         )}
-    </EditableSection>
+    </EditableModule>
   )
 }

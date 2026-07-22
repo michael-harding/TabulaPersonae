@@ -29,7 +29,7 @@ import Coins from "lucide-solid/icons/coins"
 import { useReadOnly } from "@/lib/read-only-context"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 
-interface EquipmentInventoryProps {
+interface EquipmentInventoryModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
@@ -351,7 +351,7 @@ function MagicItemForm(props: MagicItemFormProps) {
   )
 }
 
-export function EquipmentInventory(props: EquipmentInventoryProps) {
+export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const isReadOnly = useReadOnly()
   const [searchTerm, setSearchTerm] = createSignal("")
   const [modalOpen, setModalOpen] = createSignal(false)
@@ -511,7 +511,7 @@ export function EquipmentInventory(props: EquipmentInventoryProps) {
   }
 
   return (
-    <Card data-sem="equipment-inventory">
+    <Card data-sem="equipment-inventory-module">
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">

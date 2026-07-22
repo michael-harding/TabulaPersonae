@@ -1,6 +1,6 @@
 import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
-import { SkillsProficiencies } from "@/components/skills-proficiencies"
+import { SkillsProficienciesModule } from "@/components/skills-proficiencies-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { getSkillModifier, getSavingThrowModifier, formatModifier } from "@/lib/character-utils"
 
@@ -47,10 +47,10 @@ function clickEditButton() {
 // nature(10), perception(11), performance(12), persuasion(13), religion(14),
 // sleightOfHand(15), stealth(16), survival(17)
 
-describe("SkillsProficiencies", () => {
+describe("SkillsProficienciesModule", () => {
   describe("view mode", () => {
     it("renders all 6 saving throws", () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Str")).toBeInTheDocument()
       expect(screen.getByText("Dex")).toBeInTheDocument()
       expect(screen.getByText("Con")).toBeInTheDocument()
@@ -60,7 +60,7 @@ describe("SkillsProficiencies", () => {
     })
 
     it("renders all 18 skills", () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Acrobatics")).toBeInTheDocument()
       expect(screen.getByText("Athletics")).toBeInTheDocument()
       expect(screen.getByText("Stealth")).toBeInTheDocument()
@@ -69,18 +69,18 @@ describe("SkillsProficiencies", () => {
     })
 
     it("shows Prof badge for proficient skills in view mode", () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getAllByText("Prof").length).toBeGreaterThan(0)
     })
 
     it("shows Exp badge for expert skills in view mode", () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Exp")).toBeInTheDocument()
     })
 
     it("shows correct modifier for a proficient saving throw", () => {
       const character = makeCharacter()
-      render(<SkillsProficiencies character={character} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       // Strength: str=16 → mod +3, proficient so +3 bonus → +6
       const expected = formatModifier(getSavingThrowModifier(16, 3, true))
       expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
@@ -88,26 +88,26 @@ describe("SkillsProficiencies", () => {
 
     it("shows correct modifier for an expert skill", () => {
       const character = makeCharacter()
-      render(<SkillsProficiencies character={character} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       // Stealth (dex=14 → +2, expertise: +2 + 2×3 = +8)
       const expected = formatModifier(getSkillModifier(14, 3, true, true))
       expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
     })
 
     it("renders languages", () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Common")).toBeInTheDocument()
       expect(screen.getByText("Elvish")).toBeInTheDocument()
     })
 
     it("renders other proficiencies", () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Smith's Tools")).toBeInTheDocument()
     })
 
     it("shows 'No additional proficiencies' when list is empty", () => {
       render(
-        <SkillsProficiencies
+        <SkillsProficienciesModule
           character={makeCharacter({ otherProficiencies: [] })}
           onUpdate={vi.fn()}
         />
@@ -119,12 +119,12 @@ describe("SkillsProficiencies", () => {
       const character = makeCharacter({
         skills: { ...makeCharacter().skills, stealth: { proficient: true, expertise: true, disadvantage: true } },
       })
-      render(<SkillsProficiencies character={character} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       expect(screen.getByText("D")).toBeInTheDocument()
     })
 
     it("does not show D pip when no skills have disadvantage", () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.queryByText("D")).not.toBeInTheDocument()
     })
   })
@@ -137,7 +137,7 @@ describe("SkillsProficiencies", () => {
 
     it("toggles skill proficiency ON for an unproficient skill", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
       // perception is index 11 — currently not proficient
@@ -156,7 +156,7 @@ describe("SkillsProficiencies", () => {
 
     it("toggling proficiency OFF clears expertise (stealth)", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
       // stealth is index 16 — currently proficient + expert
@@ -177,7 +177,7 @@ describe("SkillsProficiencies", () => {
 
     it("toggling expertise ON sets proficiency to true (perception)", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
       // perception is index 11 — currently neither proficient nor expert
@@ -196,7 +196,7 @@ describe("SkillsProficiencies", () => {
 
     it("toggles skill disadvantage ON (perception)", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
       // perception is index 11 — D buttons are rendered as <button title="Disadvantage">
@@ -215,7 +215,7 @@ describe("SkillsProficiencies", () => {
 
     it("toggles saving throw proficiency", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
       // First 6 checkboxes (no title): strength(0), dexterity(1), ...
@@ -235,7 +235,7 @@ describe("SkillsProficiencies", () => {
   describe("edit mode — languages", () => {
     it("adds a language via the add button", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
       const langInput = screen.getByPlaceholderText("Add language")
@@ -253,7 +253,7 @@ describe("SkillsProficiencies", () => {
 
     it("adds a language via the Enter key", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
       const langInput = screen.getByPlaceholderText("Add language")
@@ -270,7 +270,7 @@ describe("SkillsProficiencies", () => {
 
     it("removes a language when its X button is clicked", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
       // Remove language buttons have aria-label="Remove language"; first one removes "Common"
@@ -287,7 +287,7 @@ describe("SkillsProficiencies", () => {
   describe("edit mode — other proficiencies", () => {
     it("adds a proficiency via the add button", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
       const profInput = screen.getByPlaceholderText(/add proficiency/i)
@@ -306,14 +306,14 @@ describe("SkillsProficiencies", () => {
   describe("cancel and save", () => {
     it("cancel does not call onUpdate", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
     it("cancel restores view mode", () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
       // Back in view mode: checkboxes are gone
@@ -324,7 +324,7 @@ describe("SkillsProficiencies", () => {
 
     it("save calls onUpdate with updated character", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledTimes(1)
@@ -332,7 +332,7 @@ describe("SkillsProficiencies", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+    const { container } = render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -349,13 +349,13 @@ describe("SkillsProficiencies", () => {
     beforeEach(() => cleanupPortals())
 
     it("renders 27 focusable tooltip triggers in view mode (6 saves + 18 skills + 3 senses)", () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       expect(triggers).toHaveLength(27)
     })
 
     it("shows ability mod + proficiency bonus for a proficient saving throw", async () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // STR (index 0) is proficient: Str +3 + Prof +3 = +6
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
@@ -364,7 +364,7 @@ describe("SkillsProficiencies", () => {
     })
 
     it("shows only ability modifier for a non-proficient saving throw", async () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // DEX (index 1) is not proficient: just Dex +2
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[1])
@@ -374,7 +374,7 @@ describe("SkillsProficiencies", () => {
     })
 
     it("shows expertise bonus in skill modifier tooltip", async () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // Stealth at index 22 (6 saves + 16 skill): Dex +2 + Prof +3 + Exp +3 = +8
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[22])
@@ -383,7 +383,7 @@ describe("SkillsProficiencies", () => {
     })
 
     it("shows only ability modifier for a skill with no proficiency", async () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // Acrobatics at index 6: Dex +2 (no proficiency in makeCharacter)
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[6])
@@ -393,7 +393,7 @@ describe("SkillsProficiencies", () => {
     })
 
     it("shows passive skill formula in the senses section tooltip", async () => {
-      render(<SkillsProficiencies character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // Passive Perception at index 24: Wis 8 → -1, no prof → 10 + (-1) = 9
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[24])

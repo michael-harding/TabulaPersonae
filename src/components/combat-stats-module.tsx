@@ -4,7 +4,7 @@ import { getSkillModifier, getAbilityModifier, getProficiencyBonus, parseHitDice
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { DIE_SIZES } from "@/lib/dice"
 import { saveCharacter } from "@/lib/character-storage"
-import { EditableSection } from "@/components/editable-section"
+import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -30,7 +30,7 @@ const CONDITIONS = [
   "Poisoned", "Prone", "Restrained", "Stunned", "Unconscious",
 ]
 
-interface CombatStatsProps {
+interface CombatStatsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
@@ -70,7 +70,7 @@ const toEdit = (c: Character) => {
 }
 
 
-export function CombatStats(props: CombatStatsProps) {
+export function CombatStatsModule(props: CombatStatsModuleProps) {
   const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
   const [edited, setEdited] = createSignal(toEdit(props.character))
@@ -193,8 +193,8 @@ export function CombatStats(props: CombatStatsProps) {
   const acTooltip = createMemo(() => (equippedAC().isEquippedArmor ? equippedAC().breakdown : "Base armor class"))
 
   return (
-    <EditableSection
-      data-sem="combat-stats"
+    <EditableModule
+      data-sem="combat-stats-module"
       icon={<ShieldIcon class="h-5 w-5 text-primary" />}
       title="Combat Stats"
       isEditing={isEditing()}
@@ -543,6 +543,6 @@ export function CombatStats(props: CombatStatsProps) {
           </Show>
         </div>
 
-    </EditableSection>
+    </EditableModule>
   )
 }

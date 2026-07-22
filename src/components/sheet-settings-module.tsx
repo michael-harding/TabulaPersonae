@@ -9,7 +9,7 @@ import Settings2 from "lucide-solid/icons/settings-2"
 import Pipette from "lucide-solid/icons/pipette"
 import Share2 from "lucide-solid/icons/share-2"
 
-interface SheetSettingsProps {
+interface SheetSettingsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
@@ -23,7 +23,7 @@ const PRESET_COLORS = [
   { name: "Gold", hex: "#eab308" },
 ]
 
-export function SheetSettings(props: SheetSettingsProps) {
+export function SheetSettingsModule(props: SheetSettingsModuleProps) {
   const isReadOnly = useReadOnly()
   if (isReadOnly) return null
   const edition = () => props.character.edition ?? "2024"
@@ -39,7 +39,7 @@ export function SheetSettings(props: SheetSettingsProps) {
   const isCustomColor = () => !!sheetColor() && !PRESET_COLORS.some((p) => p.hex === sheetColor())
 
   return (
-    <Card data-sem="sheet-settings">
+    <Card data-sem="sheet-settings-module">
       <CardHeader class="pb-3">
         <CardTitle class="flex items-center gap-2 text-base">
           <Settings2 class="h-5 w-5 text-primary" />

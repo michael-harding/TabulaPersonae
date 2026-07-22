@@ -1,16 +1,16 @@
 import type { JSXElement } from 'solid-js'
 import type { Character } from '@/lib/character-types'
 import type { ModuleId } from '@/lib/tab-config-types'
-import { ActionsSection } from '@/components/actions-section'
-import { AbilityScores } from '@/components/ability-scores'
-import { CombatStats } from '@/components/combat-stats'
-import { SkillsProficiencies } from '@/components/skills-proficiencies'
-import { SpellsSection } from '@/components/spells-section'
-import { FeaturesSection } from '@/components/features-section'
-import { EquipmentInventory } from '@/components/equipment-inventory'
-import { CharacterBasicInfo } from '@/components/character-basic-info'
-import { CharacterNotes } from '@/components/character-notes'
-import { SheetSettings } from '@/components/sheet-settings'
+import { ActionsModule } from '@/components/actions-module'
+import { AbilityScoresModule } from '@/components/ability-scores-module'
+import { CombatStatsModule } from '@/components/combat-stats-module'
+import { SkillsProficienciesModule } from '@/components/skills-proficiencies-module'
+import { SpellsModule } from '@/components/spells-module'
+import { FeaturesModule } from '@/components/features-module'
+import { EquipmentInventoryModule } from '@/components/equipment-inventory-module'
+import { CharacterBasicInfoModule } from '@/components/character-basic-info-module'
+import { CharacterNotesModule } from '@/components/character-notes-module'
+import { SheetSettingsModule } from '@/components/sheet-settings-module'
 
 export interface ModuleProps {
   character: Character
@@ -29,61 +29,61 @@ export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
     label: 'Actions & Attacks',
     description: 'Weapon attacks, bonus actions, reactions, and other actions',
     publicSafe: true,
-    render: (props) => <ActionsSection {...props} />,
+    render: (props) => <ActionsModule {...props} />,
   },
   'ability-scores': {
     label: 'Ability Scores',
     description: 'Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma',
     publicSafe: true,
-    render: (props) => <AbilityScores {...props} />,
+    render: (props) => <AbilityScoresModule {...props} />,
   },
   'combat-stats': {
     label: 'Combat Stats',
     description: 'Armor class, hit points, speed, initiative, hit dice, and death saves',
     publicSafe: true,
-    render: (props) => <CombatStats {...props} />,
+    render: (props) => <CombatStatsModule {...props} />,
   },
   'skills': {
     label: 'Skills & Proficiencies',
     description: 'Skill checks, saving throws, and proficiency bonuses',
     publicSafe: true,
-    render: (props) => <SkillsProficiencies {...props} />,
+    render: (props) => <SkillsProficienciesModule {...props} />,
   },
   'spells': {
     label: 'Spells',
     description: 'Spell slots, prepared spells, and spellcasting stats',
     publicSafe: true,
-    render: (props) => <SpellsSection {...props} />,
+    render: (props) => <SpellsModule {...props} />,
   },
   'features': {
     label: 'Features & Traits',
     description: 'Class features, species traits, and feats',
     publicSafe: true,
-    render: (props) => <FeaturesSection {...props} />,
+    render: (props) => <FeaturesModule {...props} />,
   },
   'inventory': {
     label: 'Inventory',
     description: 'Equipment, weapons, and magic items',
     publicSafe: true,
-    render: (props) => <EquipmentInventory {...props} />,
+    render: (props) => <EquipmentInventoryModule {...props} />,
   },
   'character-info': {
     label: 'Character Info',
     description: 'Name, race, class, background, alignment, and appearance',
     publicSafe: true,
-    render: (props) => <CharacterBasicInfo {...props} />,
+    render: (props) => <CharacterBasicInfoModule {...props} />,
   },
   'notes': {
     label: 'Notes',
     description: 'Personality traits, ideals, bonds, flaws, backstory, and notes',
     publicSafe: true,
-    render: (props) => <CharacterNotes {...props} />,
+    render: (props) => <CharacterNotesModule {...props} />,
   },
   'sheet-settings': {
     label: 'Sheet Settings',
     description: 'Edition (2014/2024) and sheet color theme',
     publicSafe: false,
-    render: (props) => <SheetSettings {...props} />,
+    render: (props) => <SheetSettingsModule {...props} />,
   },
 }
 

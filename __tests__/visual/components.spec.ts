@@ -4,7 +4,7 @@ import { testCharacter, secondCharacter, publicCharacter } from "./fixtures"
 // All component screenshots are taken by navigating to the full character sheet
 // and scoping the screenshot to a specific card element.
 
-test.describe("CombatStats component", () => {
+test.describe("CombatStatsModule component", () => {
   test("normal HP state", async ({ page }) => {
     await page.addInitScript((char) => {
       localStorage.setItem("dnd-characters", JSON.stringify([char]))
@@ -30,7 +30,7 @@ test.describe("CombatStats component", () => {
   })
 })
 
-test.describe("AbilityScores component", () => {
+test.describe("AbilityScoresModule component", () => {
   test("view mode", async ({ page }) => {
     await page.addInitScript((char) => {
       localStorage.setItem("dnd-characters", JSON.stringify([char]))
@@ -104,7 +104,7 @@ test.describe("HpProgressBar component", () => {
   })
 })
 
-test.describe("SkillsProficiencies component", () => {
+test.describe("SkillsProficienciesModule component", () => {
   test("with proficiencies and expertise", async ({ page }) => {
     await page.addInitScript((char) => {
       localStorage.setItem("dnd-characters", JSON.stringify([char]))
@@ -118,7 +118,7 @@ test.describe("SkillsProficiencies component", () => {
   })
 })
 
-test.describe("CharacterNotes component", () => {
+test.describe("CharacterNotesModule component", () => {
   test("populated notes", async ({ page }) => {
     await page.addInitScript((char) => {
       localStorage.setItem("dnd-characters", JSON.stringify([char]))

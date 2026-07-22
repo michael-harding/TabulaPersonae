@@ -1,6 +1,6 @@
 import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
-import { EquipmentInventory } from "@/components/equipment-inventory"
+import { EquipmentInventoryModule } from "@/components/equipment-inventory-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -24,7 +24,7 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
 }
 
-describe("EquipmentInventory", () => {
+describe("EquipmentInventoryModule", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     cleanupPortals()
@@ -32,40 +32,40 @@ describe("EquipmentInventory", () => {
 
   describe("empty inventory", () => {
     it("renders the Equipment & Inventory heading", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Equipment & Inventory")).toBeInTheDocument()
     })
 
     it("shows 0 lbs total weight badge", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("0 lbs")).toBeInTheDocument()
     })
 
     it("renders the Add Item button", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /add item/i })).toBeInTheDocument()
     })
 
     it("shows the empty state message", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("No equipment added yet.")).toBeInTheDocument()
     })
 
     it("renders the search input", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByPlaceholderText("Search equipment...")).toBeInTheDocument()
     })
   })
 
   describe("with items", () => {
     it("renders the item name", () => {
-      render(<EquipmentInventory character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Torch")).toBeInTheDocument()
     })
 
     it("calculates total weight correctly (weight × quantity)", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ weight: 5, quantity: 2 })] })}
           onUpdate={vi.fn()}
         />
@@ -75,7 +75,7 @@ describe("EquipmentInventory", () => {
 
     it("shows 'Currently Equipped' section when items are equipped", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ equipped: true })] })}
           onUpdate={vi.fn()}
         />
@@ -85,7 +85,7 @@ describe("EquipmentInventory", () => {
 
     it("does not show 'Currently Equipped' section when no items are equipped", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ equipped: false })] })}
           onUpdate={vi.fn()}
         />
@@ -95,7 +95,7 @@ describe("EquipmentInventory", () => {
 
     it("shows 'Equipped' badge on equipped items", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ equipped: true })] })}
           onUpdate={vi.fn()}
         />
@@ -105,7 +105,7 @@ describe("EquipmentInventory", () => {
 
     it("shows item description when present", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ description: "50 feet of rope" })] })}
           onUpdate={vi.fn()}
         />
@@ -115,7 +115,7 @@ describe("EquipmentInventory", () => {
 
     it("shows item quantity", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ quantity: 3 })] })}
           onUpdate={vi.fn()}
         />
@@ -125,7 +125,7 @@ describe("EquipmentInventory", () => {
 
     it("shows weight display when weight > 0", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ weight: 5, quantity: 1 })] })}
           onUpdate={vi.fn()}
         />
@@ -137,7 +137,7 @@ describe("EquipmentInventory", () => {
   describe("search filter", () => {
     it("filters items by name", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({
             equipment: [
               makeItem({ id: "i1", name: "Rope" }),
@@ -156,7 +156,7 @@ describe("EquipmentInventory", () => {
 
     it("shows 'No items match your search.' when no results", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Rope" })] })}
           onUpdate={vi.fn()}
         />
@@ -173,7 +173,7 @@ describe("EquipmentInventory", () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ quantity: 2 })] })}
           onUpdate={onUpdate}
         />
@@ -191,7 +191,7 @@ describe("EquipmentInventory", () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ quantity: 3 })] })}
           onUpdate={onUpdate}
         />
@@ -207,7 +207,7 @@ describe("EquipmentInventory", () => {
 
     it("the - button is disabled when quantity is 1", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ quantity: 1 })] })}
           onUpdate={vi.fn()}
         />
@@ -221,7 +221,7 @@ describe("EquipmentInventory", () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ equipped: false })] })}
           onUpdate={onUpdate}
         />
@@ -238,13 +238,13 @@ describe("EquipmentInventory", () => {
 
   describe("Add Item modal", () => {
     it("opens the Add New Item modal when Add Item is clicked", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add item/i }))
       expect(screen.getByText("Add New Item")).toBeInTheDocument()
     })
 
     it("closes the modal when Cancel is clicked", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /cancel/i }))
@@ -253,7 +253,7 @@ describe("EquipmentInventory", () => {
 
     it("does not call onUpdate when name is empty", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
@@ -263,7 +263,7 @@ describe("EquipmentInventory", () => {
     it("calls onUpdate and saveCharacter with the new item on valid submit", async () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Shield" } })
@@ -278,7 +278,7 @@ describe("EquipmentInventory", () => {
 
     it("sets type to 'other' for new items added via modal", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Shield" } })
@@ -294,7 +294,7 @@ describe("EquipmentInventory", () => {
   describe("Edit Item modal", () => {
     it("opens the Edit Item modal when the edit icon button is clicked", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })}
           onUpdate={vi.fn()}
         />
@@ -305,7 +305,7 @@ describe("EquipmentInventory", () => {
 
     it("pre-fills the form with existing item data", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Torch", quantity: 5 })] })}
           onUpdate={vi.fn()}
         />
@@ -318,7 +318,7 @@ describe("EquipmentInventory", () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })}
           onUpdate={onUpdate}
         />
@@ -341,7 +341,7 @@ describe("EquipmentInventory", () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Rope" })] })}
           onUpdate={onUpdate}
         />
@@ -356,7 +356,7 @@ describe("EquipmentInventory", () => {
 
   describe("Coins", () => {
     it("renders CP, SP, EP, GP, PP labels", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("CP")).toBeInTheDocument()
       expect(screen.getByText("SP")).toBeInTheDocument()
       expect(screen.getByText("EP")).toBeInTheDocument()
@@ -365,7 +365,7 @@ describe("EquipmentInventory", () => {
     })
 
     it("shows 0 for all coin denominations by default", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       const spinbuttons = screen.getAllByRole("spinbutton")
       // First 5 spinbuttons are coin fields (CP SP EP GP PP)
       spinbuttons.slice(0, 5).forEach((input) => {
@@ -376,7 +376,7 @@ describe("EquipmentInventory", () => {
     it("calls onUpdate with updated GP when GP field changes", async () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       const spinbuttons = screen.getAllByRole("spinbutton")
       // GP is the 4th coin field (index 3)
       fireEvent.input(spinbuttons[3], { target: { value: "50" } })
@@ -390,51 +390,51 @@ describe("EquipmentInventory", () => {
 
   describe("Magic Items section", () => {
     it("renders the Magic Items section heading for both editions", () => {
-      render(<EquipmentInventory character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Magic Items")).toBeInTheDocument()
     })
 
     it("renders the Magic Items section in 2014 mode too", () => {
-      render(<EquipmentInventory character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Magic Items")).toBeInTheDocument()
     })
 
     it("renders 'Add Magic Item' button", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /add magic item/i })).toBeInTheDocument()
     })
 
     it("renders magic item names", () => {
-      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Ring of Protection", description: "", attuned: false }] })} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Ring of Protection", description: "", attuned: false }] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Ring of Protection")).toBeInTheDocument()
     })
 
     it("shows 'Attuned' badge when item is attuned", () => {
-      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Staff of Power", description: "", attuned: true }] })} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Staff of Power", description: "", attuned: true }] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Attuned")).toBeInTheDocument()
     })
 
     it("does not show 'Attuned' badge when item is not attuned", () => {
-      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Bag of Holding", description: "", attuned: false }] })} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Bag of Holding", description: "", attuned: false }] })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Attuned")).not.toBeInTheDocument()
     })
 
     it("shows attuned count in heading", () => {
-      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Staff", description: "", attuned: true }] })} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Staff", description: "", attuned: true }] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("(1/3 attuned)")).toBeInTheDocument()
     })
 
     it("calls onUpdate and saveCharacter when deleting a magic item", async () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
-      render(<EquipmentInventory character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Ring", description: "", attuned: false }] })} onUpdate={onUpdate} />)
+      render(<EquipmentInventoryModule character={makeCharacter({ magicItems: [{ id: "mi-1", name: "Ring", description: "", attuned: false }] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /delete ring/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ magicItems: [] }))
       expect(saveCharacter).toHaveBeenCalled()
     })
 
     it("opens Add Magic Item modal when button is clicked", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
       expect(screen.getByRole("dialog")).toBeInTheDocument()
     })
@@ -444,7 +444,7 @@ describe("EquipmentInventory", () => {
     it("saves type correctly when adding an item", async () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add item/i }))
       fireEvent.input(screen.getByPlaceholderText("Enter item name"), { target: { value: "Torch" } })
       fireEvent.click(screen.getByRole("button", { name: /add item/i }))
@@ -457,7 +457,7 @@ describe("EquipmentInventory", () => {
 
   describe("weapon sub-form", () => {
     it("selecting weapon type reveals weapon stats fields", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       // Item Type select trigger shows current value "other"
@@ -473,7 +473,7 @@ describe("EquipmentInventory", () => {
     it("saving a weapon item includes weaponStats with type weapon in onUpdate", async () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Longsword" } })
@@ -497,7 +497,7 @@ describe("EquipmentInventory", () => {
 
   describe("armor sub-form", () => {
     it("selecting armor type reveals armor stats fields", () => {
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: "other" }))
@@ -509,7 +509,7 @@ describe("EquipmentInventory", () => {
     it("saving an armor item includes armorStats with type armor in onUpdate", async () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
-      render(<EquipmentInventory character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chain Mail" } })
@@ -536,7 +536,7 @@ describe("EquipmentInventory", () => {
 
     it("disables the attuned checkbox when 3 items are already attuned", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({
             magicItems: [makeAttuned("1"), makeAttuned("2"), makeAttuned("3")],
           })}
@@ -551,7 +551,7 @@ describe("EquipmentInventory", () => {
 
     it("shows (3/3 attuned) when at the cap", () => {
       render(
-        <EquipmentInventory
+        <EquipmentInventoryModule
           character={makeCharacter({
             magicItems: [makeAttuned("1"), makeAttuned("2"), makeAttuned("3")],
           })}
@@ -563,7 +563,7 @@ describe("EquipmentInventory", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<EquipmentInventory character={makeCharacter()} onUpdate={vi.fn()} />)
+    const { container } = render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -574,7 +574,7 @@ describe("EquipmentInventory", () => {
     function renderReadOnly(overrides: Partial<Character> = {}) {
       return render(
         <ReadOnlyProvider value={true}>
-          <EquipmentInventory character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+          <EquipmentInventoryModule character={makeCharacter(overrides)} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
       )
     }

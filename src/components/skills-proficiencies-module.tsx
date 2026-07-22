@@ -1,7 +1,7 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getSkillModifier, getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
-import { EditableSection } from "@/components/editable-section"
+import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -38,12 +38,12 @@ const SKILL_DISPLAY_NAMES: Record<keyof Character["skills"], string> = {
 type AbilityKey = keyof Character["abilityScores"]
 type SkillKey = keyof Character["skills"]
 
-interface SkillsProficienciesProps {
+interface SkillsProficienciesModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
 
-export function SkillsProficiencies(props: SkillsProficienciesProps) {
+export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
   const [edited, setEdited] = createSignal(props.character)
   const [newLanguage, setNewLanguage] = createSignal("")
@@ -117,8 +117,8 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
   }
 
   return (
-    <EditableSection
-      data-sem="skills-proficiencies"
+    <EditableModule
+      data-sem="skills-proficiencies-module"
       icon={<BookOpen class="h-5 w-5 text-primary" />}
       title="Skills & Proficiencies"
       isEditing={isEditing()}
@@ -315,6 +315,6 @@ export function SkillsProficiencies(props: SkillsProficienciesProps) {
           </Show>
         </div>
 
-    </EditableSection>
+    </EditableModule>
   )
 }

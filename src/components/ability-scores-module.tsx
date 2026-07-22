@@ -1,13 +1,13 @@
 import { createSignal, createEffect, on, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
-import { EditableSection } from "@/components/editable-section"
+import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip } from "@/components/ui/tooltip"
 import Zap from "lucide-solid/icons/zap"
 
-interface AbilityScoresProps {
+interface AbilityScoresModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
@@ -27,7 +27,7 @@ const DEFAULT_SAVES = { strength: false, dexterity: false, constitution: false, 
 
 type AbilityKey = keyof typeof DEFAULT_SCORES
 
-export function AbilityScores(props: AbilityScoresProps) {
+export function AbilityScoresModule(props: AbilityScoresModuleProps) {
   const safeScores = () => props.character.abilityScores || DEFAULT_SCORES
   const safeSaves = () => props.character.savingThrows || DEFAULT_SAVES
 
@@ -51,8 +51,8 @@ export function AbilityScores(props: AbilityScoresProps) {
   }
 
   return (
-    <EditableSection
-      data-sem="ability-scores"
+    <EditableModule
+      data-sem="ability-scores-module"
       icon={<Zap class="h-5 w-5 text-primary" />}
       title="Ability Scores"
       editTitle="Edit Ability Scores"
@@ -124,6 +124,6 @@ export function AbilityScores(props: AbilityScoresProps) {
             }}
           </For>
         </div>
-    </EditableSection>
+    </EditableModule>
   )
 }

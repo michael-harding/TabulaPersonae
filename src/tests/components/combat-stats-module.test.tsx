@@ -1,7 +1,7 @@
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
 import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
-import { CombatStats } from "@/components/combat-stats"
+import { CombatStatsModule } from "@/components/combat-stats-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
@@ -26,7 +26,7 @@ function clickEditButton() {
   fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
 
-describe("CombatStats", () => {
+describe("CombatStatsModule", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     cleanupPortals()
@@ -34,7 +34,7 @@ describe("CombatStats", () => {
 
   describe("view mode", () => {
     it("renders HP, AC, initiative, speed, and proficiency bonus", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // HP: "10" and "/20" appear in the display
       expect(screen.getByText(/\/20/)).toBeInTheDocument()
       // AC
@@ -46,13 +46,13 @@ describe("CombatStats", () => {
     })
 
     it("hides death saves section when HP > 0", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.queryByText(/death saves/i)).not.toBeInTheDocument()
     })
 
     it("shows death saves section when HP is 0", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 0, maximum: 20, temporary: 0 } })}
           onUpdate={vi.fn()}
         />
@@ -64,7 +64,7 @@ describe("CombatStats", () => {
 
     it("shows stabilized message when successes >= 3", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({
             hitPoints: { current: 0, maximum: 20, temporary: 0 },
             deathSaves: { successes: 3, failures: 0 },
@@ -77,7 +77,7 @@ describe("CombatStats", () => {
 
     it("shows died message when failures >= 3", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({
             hitPoints: { current: 0, maximum: 20, temporary: 0 },
             deathSaves: { successes: 0, failures: 3 },
@@ -93,7 +93,7 @@ describe("CombatStats", () => {
     it("increases HP by 1 when + button clicked", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0 } })}
           onUpdate={onUpdate}
         />
@@ -111,7 +111,7 @@ describe("CombatStats", () => {
     it("decreases HP by 1 when - button clicked", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0 } })}
           onUpdate={onUpdate}
         />
@@ -127,7 +127,7 @@ describe("CombatStats", () => {
 
     it("minus button is disabled when HP is 0", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 0, maximum: 20, temporary: 0 } })}
           onUpdate={vi.fn()}
         />
@@ -139,7 +139,7 @@ describe("CombatStats", () => {
 
     it("plus button is disabled when HP equals maxHP", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 20, maximum: 20, temporary: 0 } })}
           onUpdate={vi.fn()}
         />
@@ -153,7 +153,7 @@ describe("CombatStats", () => {
     it("increments death save successes when an unfilled circle is clicked", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 0, maximum: 20, temporary: 0 } })}
           onUpdate={onUpdate}
         />
@@ -169,7 +169,7 @@ describe("CombatStats", () => {
     it("decrements death save successes when a filled circle is clicked", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({
             hitPoints: { current: 0, maximum: 20, temporary: 0 },
             deathSaves: { successes: 2, failures: 0 },
@@ -188,7 +188,7 @@ describe("CombatStats", () => {
     it("increments death save failures when an unfilled circle is clicked", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 0, maximum: 20, temporary: 0 } })}
           onUpdate={onUpdate}
         />
@@ -204,7 +204,7 @@ describe("CombatStats", () => {
     it("decrements death save failures when a filled circle is clicked", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({
             hitPoints: { current: 0, maximum: 20, temporary: 0 },
             deathSaves: { successes: 0, failures: 1 },
@@ -223,12 +223,12 @@ describe("CombatStats", () => {
 
   describe("passive perception", () => {
     it("renders 'Passive Perception' in 2024 mode", () => {
-      render(<CombatStats character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Passive Perception")).toBeInTheDocument()
     })
 
     it("renders 'Passive Wisdom (Perception)' in 2014 mode", () => {
-      render(<CombatStats character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Passive Wisdom (Perception)")).toBeInTheDocument()
     })
 
@@ -238,7 +238,7 @@ describe("CombatStats", () => {
         skills: { ...createDefaultCharacter().skills, perception: { proficient: true, expertise: false } },
         proficiencyBonus: 2,
       })
-      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
       expect(screen.getByText("14")).toBeInTheDocument()
     })
 
@@ -248,7 +248,7 @@ describe("CombatStats", () => {
         skills: { ...createDefaultCharacter().skills, perception: { proficient: true, expertise: false } },
         proficiencyBonus: 2,
       })
-      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
       // In view mode, focusable triggers are: AC (0), Initiative (1), Proficiency Bonus (2), Passive Perception (3)
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[3])
@@ -260,7 +260,7 @@ describe("CombatStats", () => {
 
   describe("AC tooltip", () => {
     it("shows 'Base armor class' tooltip for manually-set AC in view mode", async () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // AC is the first focusable trigger in view mode
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
@@ -269,7 +269,7 @@ describe("CombatStats", () => {
     })
 
     it("does not show always-visible AC breakdown text below the value", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // The breakdown moved to tooltip — should not be visible inline anymore
       expect(screen.queryByText(/DEX/)).not.toBeInTheDocument()
     })
@@ -277,12 +277,12 @@ describe("CombatStats", () => {
 
   describe("size (2024 only)", () => {
     it("renders size in 2024 view mode", () => {
-      render(<CombatStats character={makeCharacter({ edition: "2024", size: "Large" })} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024", size: "Large" })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Large")).toBeInTheDocument()
     })
 
     it("does not render size in 2014 mode", () => {
-      render(<CombatStats character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Size")).not.toBeInTheDocument()
     })
   })
@@ -291,7 +291,7 @@ describe("CombatStats", () => {
     // In edit mode HP spinbuttons: current, max, temp, temp-max HP = 4 minimum
 
     it("shows HP number inputs when edit button is clicked", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       // At least 4 number inputs visible (current / max / temp / temp-max)
       expect(screen.getAllByRole("spinbutton").length).toBeGreaterThanOrEqual(4)
@@ -299,7 +299,7 @@ describe("CombatStats", () => {
 
     it("calls onUpdate with edited current HP on save", () => {
       const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
       // spinbutton[0] = current HP (displays "10")
       const currentInput = screen.getAllByRole("spinbutton")[0]
@@ -315,7 +315,7 @@ describe("CombatStats", () => {
 
     it("reverts to original values on cancel without calling onUpdate", () => {
       const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
       const currentInput = screen.getAllByRole("spinbutton")[0]
       fireEvent.input(currentInput, { target: { value: "3" } })
@@ -327,14 +327,14 @@ describe("CombatStats", () => {
 
   describe("hit dice section", () => {
     it("does not show hit dice section in view mode", () => {
-      render(<CombatStats character={makeCharacter({ hitDice: "1d8", level: 4, spentHitDice: 1 })} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", level: 4, spentHitDice: 1 })} onUpdate={vi.fn()} />)
       expect(screen.queryByText(/die type/i)).not.toBeInTheDocument()
       expect(screen.queryByText(/spent hit dice/i)).not.toBeInTheDocument()
       expect(screen.queryByText(/available/i)).not.toBeInTheDocument()
     })
 
     it("shows hit dice section in edit mode", () => {
-      render(<CombatStats character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByText(/die type/i)).toBeInTheDocument()
       expect(screen.getByRole("button", { name: "8" })).toBeInTheDocument()
@@ -343,7 +343,7 @@ describe("CombatStats", () => {
 
   describe("hit dice section — edit mode", () => {
     it("renders a 'Die Type' label and select trigger button in edit mode", () => {
-      render(<CombatStats character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByText(/die type/i)).toBeInTheDocument()
       // Kobalte Select trigger renders as a button showing the current value
@@ -351,7 +351,7 @@ describe("CombatStats", () => {
     })
 
     it("renders 'Spent Hit Dice' label and stepper buttons when level > 5", () => {
-      render(<CombatStats character={makeCharacter({ level: 8, spentHitDice: 2, hitDice: "1d10" })} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter({ level: 8, spentHitDice: 2, hitDice: "1d10" })} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByText(/spent hit dice/i)).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
@@ -359,7 +359,7 @@ describe("CombatStats", () => {
 
     it("saves the updated hitDiceSize on save", () => {
       const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={onUpdate} />)
+      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={onUpdate} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -371,7 +371,7 @@ describe("CombatStats", () => {
   describe("size combobox (2024)", () => {
     it("saves a custom size value typed into the Size combobox", () => {
       const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
       clickEditButton()
       const sizeInput = screen.getAllByRole("combobox").find(
         (el) => (el as HTMLInputElement).value === "Medium"
@@ -385,7 +385,7 @@ describe("CombatStats", () => {
 
     it("saves a predefined size option selected from the dropdown", () => {
       const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
       clickEditButton()
       const sizeInput = screen.getAllByRole("combobox").find(
         (el) => (el as HTMLInputElement).value === "Medium"
@@ -400,7 +400,7 @@ describe("CombatStats", () => {
   describe("temporary HP display", () => {
     it("shows temp HP value with + prefix when temporary > 0", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 8 } })}
           onUpdate={vi.fn()}
         />
@@ -410,7 +410,7 @@ describe("CombatStats", () => {
 
     it("does not show temp HP when temporary is 0", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0 } })}
           onUpdate={vi.fn()}
         />
@@ -426,7 +426,7 @@ describe("CombatStats", () => {
     it("clamps current HP to maximum when current exceeds maximum on save", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0 } })}
           onUpdate={onUpdate}
         />
@@ -448,7 +448,7 @@ describe("CombatStats", () => {
     it("adds a condition when selected from the dropdown", async () => {
       const user = userEvent.setup()
       const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
       await user.click(screen.getByTitle("Add condition"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Poisoned" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Poisoned" }))
@@ -460,7 +460,7 @@ describe("CombatStats", () => {
     it("removes a condition when its badge button is clicked", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ conditions: ["Poisoned"] })}
           onUpdate={onUpdate}
         />
@@ -473,7 +473,7 @@ describe("CombatStats", () => {
 
     it("shows existing conditions as badge buttons", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ conditions: ["Blinded", "Prone"] })}
           onUpdate={vi.fn()}
         />
@@ -485,7 +485,7 @@ describe("CombatStats", () => {
     it("can remove one of multiple conditions while keeping others", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ conditions: ["Blinded", "Prone"] })}
           onUpdate={onUpdate}
         />
@@ -501,7 +501,7 @@ describe("CombatStats", () => {
   describe("temporary maximum HP", () => {
     it("adds temporaryMaximum to the displayed max HP", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0, temporaryMaximum: 5 } })}
           onUpdate={vi.fn()}
         />
@@ -510,7 +510,7 @@ describe("CombatStats", () => {
     })
 
     it("renders a Temp Max HP input in edit mode", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByText(/temp max hp/i)).toBeInTheDocument()
     })
@@ -518,7 +518,7 @@ describe("CombatStats", () => {
     it("clamps current HP to effective max (base + tempMax) on save", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 20, maximum: 15, temporary: 0, temporaryMaximum: 3 } })}
           onUpdate={onUpdate}
         />
@@ -531,7 +531,7 @@ describe("CombatStats", () => {
 
     it("handles negative temporaryMaximum (curse scenario)", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0, temporaryMaximum: -5 } })}
           onUpdate={vi.fn()}
         />
@@ -541,7 +541,7 @@ describe("CombatStats", () => {
 
     it("increase HP button is disabled when currentHP equals effective max", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ hitPoints: { current: 25, maximum: 20, temporary: 0, temporaryMaximum: 5 } })}
           onUpdate={vi.fn()}
         />
@@ -553,13 +553,13 @@ describe("CombatStats", () => {
 
   describe("temp HP control in view mode", () => {
     it("renders a Temp HP stepper in view mode when not read-only", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("spinbutton", { name: /set temporary hit points/i })).toBeInTheDocument()
     })
 
     it("calls onUpdate immediately when stepper + button is clicked", () => {
       const onUpdate = vi.fn()
-      render(<CombatStats character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
       // StepperInput uses aria-label="Increase"; HP button uses aria-label="Increase HP"
       fireEvent.click(screen.getByRole("button", { name: "Increase" }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -570,7 +570,7 @@ describe("CombatStats", () => {
     it("hides Temp HP stepper in read-only mode", () => {
       render(
         <ReadOnlyProvider value={true}>
-          <CombatStats character={makeCharacter()} onUpdate={vi.fn()} />
+          <CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
       )
       expect(screen.queryByRole("spinbutton", { name: /set temporary hit points/i })).not.toBeInTheDocument()
@@ -579,7 +579,7 @@ describe("CombatStats", () => {
 
   describe("calculated initiative", () => {
     it("shows a custom-value toggle button in edit mode", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByRole("button", { name: /(custom|calculated) initiative/i })).toBeInTheDocument()
     })
@@ -589,7 +589,7 @@ describe("CombatStats", () => {
         abilityScores: { ...makeCharacter().abilityScores, dexterity: 14 },
         useCalculatedInitiative: true,
       })
-      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
       clickEditButton()
       // NumericInput for initiative should not be present; DEX 14 → +2 displayed as text
       const spinbuttons = screen.getAllByRole("spinbutton")
@@ -605,7 +605,7 @@ describe("CombatStats", () => {
         useCalculatedInitiative: true,
         initiative: 0,
       })
-      render(<CombatStats character={char} onUpdate={onUpdate} />)
+      render(<CombatStatsModule character={char} onUpdate={onUpdate} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -619,7 +619,7 @@ describe("CombatStats", () => {
         useCalculatedInitiative: true,
         initiative: 0,
       })
-      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
       // DEX 18 → +4 (distinct from proficiency bonus +3)
       expect(screen.getByText("+4")).toBeInTheDocument()
     })
@@ -627,7 +627,7 @@ describe("CombatStats", () => {
 
   describe("calculated proficiency bonus", () => {
     it("shows a custom-value toggle button in edit mode", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByRole("button", { name: /(custom|calculated) proficiency bonus/i })).toBeInTheDocument()
     })
@@ -639,7 +639,7 @@ describe("CombatStats", () => {
         useCalculatedProficiencyBonus: true,
         proficiencyBonus: 2,
       })
-      render(<CombatStats character={char} onUpdate={onUpdate} />)
+      render(<CombatStatsModule character={char} onUpdate={onUpdate} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -653,7 +653,7 @@ describe("CombatStats", () => {
         useCalculatedProficiencyBonus: true,
         proficiencyBonus: 2,
       })
-      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
       // level 9 → +4
       expect(screen.getByText("+4")).toBeInTheDocument()
     })
@@ -661,14 +661,14 @@ describe("CombatStats", () => {
 
   describe("calculated armor class", () => {
     it("shows a custom-value toggle button for AC, initiative, proficiency bonus, and passive perception in edit mode", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(4)
     })
 
     it("shows a tooltip on the AC value in edit mode when not custom", async () => {
       render(
-        <CombatStats character={makeCharacter({ useCalculatedArmorClass: true })} onUpdate={vi.fn()} />
+        <CombatStatsModule character={makeCharacter({ useCalculatedArmorClass: true })} onUpdate={vi.fn()} />
       )
       clickEditButton()
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
@@ -679,7 +679,7 @@ describe("CombatStats", () => {
 
     it("hides the tooltip trigger for a field once it is switched to custom in edit mode", () => {
       render(
-        <CombatStats character={makeCharacter({ useCalculatedArmorClass: true })} onUpdate={vi.fn()} />
+        <CombatStatsModule character={makeCharacter({ useCalculatedArmorClass: true })} onUpdate={vi.fn()} />
       )
       clickEditButton()
       const triggersBefore = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]').length
@@ -689,7 +689,7 @@ describe("CombatStats", () => {
     })
 
     it("shows AC as read-only text by default (useCalculatedArmorClass defaults to true)", () => {
-      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       // armorClass: 15 should not appear as a spinbutton value
       const values = screen.getAllByRole("spinbutton").map((s) => (s as HTMLInputElement).value)
@@ -698,7 +698,7 @@ describe("CombatStats", () => {
 
     it("shows AC NumericInput when useCalculatedArmorClass is false", () => {
       render(
-        <CombatStats character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={vi.fn()} />
+        <CombatStatsModule character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={vi.fn()} />
       )
       clickEditButton()
       const values = screen.getAllByRole("spinbutton").map((s) => (s as HTMLInputElement).value)
@@ -708,7 +708,7 @@ describe("CombatStats", () => {
     it("saves manual armorClass when useCalculatedArmorClass is false", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={onUpdate} />
+        <CombatStatsModule character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={onUpdate} />
       )
       clickEditButton()
       const acInput = screen.getAllByRole("spinbutton").find(
@@ -722,7 +722,7 @@ describe("CombatStats", () => {
 
     it("shows manual AC in view mode when useCalculatedArmorClass is false", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ armorClass: 13, useCalculatedArmorClass: false })}
           onUpdate={vi.fn()}
         />
@@ -732,7 +732,7 @@ describe("CombatStats", () => {
 
     it("shows 'Custom' tooltip in view mode when flag is false", async () => {
       render(
-        <CombatStats character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={vi.fn()} />
+        <CombatStatsModule character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={vi.fn()} />
       )
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
@@ -748,7 +748,7 @@ describe("CombatStats", () => {
         skills: { ...createDefaultCharacter().skills, perception: { proficient: true, expertise: false } },
         proficiencyBonus: 2,
       })
-      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
       clickEditButton()
       // PP = 14: appears as text but not as a spinbutton value
       expect(screen.getByText("14")).toBeInTheDocument()
@@ -758,7 +758,7 @@ describe("CombatStats", () => {
 
     it("shows PP NumericInput when useCalculatedPassivePerception is false", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ useCalculatedPassivePerception: false, passivePerception: 12 })}
           onUpdate={vi.fn()}
         />
@@ -771,7 +771,7 @@ describe("CombatStats", () => {
     it("saves manually entered passivePerception when flag is false", () => {
       const onUpdate = vi.fn()
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ useCalculatedPassivePerception: false, passivePerception: 12 })}
           onUpdate={onUpdate}
         />
@@ -788,7 +788,7 @@ describe("CombatStats", () => {
 
     it("shows manual passivePerception in view mode when flag is false", () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ useCalculatedPassivePerception: false, passivePerception: 17 })}
           onUpdate={vi.fn()}
         />
@@ -798,7 +798,7 @@ describe("CombatStats", () => {
 
     it("shows 'Custom' tooltip in view mode when flag is false", async () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ useCalculatedPassivePerception: false })}
           onUpdate={vi.fn()}
         />
@@ -813,7 +813,7 @@ describe("CombatStats", () => {
   describe("initiative tooltip", () => {
     it("shows Dex modifier formula tooltip when calculated", async () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ useCalculatedInitiative: true })}
           onUpdate={vi.fn()}
         />
@@ -827,7 +827,7 @@ describe("CombatStats", () => {
 
     it("shows 'Custom' tooltip when flag is false", async () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ useCalculatedInitiative: false })}
           onUpdate={vi.fn()}
         />
@@ -842,7 +842,7 @@ describe("CombatStats", () => {
   describe("proficiency bonus tooltip", () => {
     it("shows level formula tooltip when calculated", async () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ useCalculatedProficiencyBonus: true })}
           onUpdate={vi.fn()}
         />
@@ -856,7 +856,7 @@ describe("CombatStats", () => {
 
     it("shows 'Custom' tooltip when flag is false", async () => {
       render(
-        <CombatStats
+        <CombatStatsModule
           character={makeCharacter({ useCalculatedProficiencyBonus: false })}
           onUpdate={vi.fn()}
         />
@@ -869,7 +869,7 @@ describe("CombatStats", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+    const { container } = render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -878,7 +878,7 @@ describe("CombatStats", () => {
     function renderReadOnly(overrides: Record<string, any> = {}) {
       return render(
         <ReadOnlyProvider value={true}>
-          <CombatStats character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+          <CombatStatsModule character={makeCharacter(overrides)} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
       )
     }

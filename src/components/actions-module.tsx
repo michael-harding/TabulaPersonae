@@ -25,7 +25,7 @@ import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { ActionCard } from "@/components/action-card"
 import { useReadOnly } from "@/lib/read-only-context"
 
-interface ActionsSectionProps {
+interface ActionsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
@@ -221,7 +221,7 @@ type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
 
 type StoredAction = ActionFormData & { id: string }
 
-export function ActionsSection(props: ActionsSectionProps) {
+export function ActionsModule(props: ActionsModuleProps) {
   const isReadOnly = useReadOnly()
   const [isActionModalOpen, setIsActionModalOpen] = createSignal(false)
   const [isBonusActionModalOpen, setIsBonusActionModalOpen] = createSignal(false)
@@ -447,7 +447,7 @@ export function ActionsSection(props: ActionsSectionProps) {
   )
 
   return (
-    <Card data-sem="actions-section">
+    <Card data-sem="actions-module">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
           <Sword class="h-5 w-5 text-primary" />

@@ -1,6 +1,6 @@
 import { axe } from "vitest-axe"
 import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
-import { AbilityScores } from "@/components/ability-scores"
+import { AbilityScoresModule } from "@/components/ability-scores-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 
 function makeCharacter(overrides: Record<string, any> = {}) {
@@ -32,10 +32,10 @@ function clickEditButton() {
 }
 
 // Ability order in the component: strength, dexterity, constitution, intelligence, wisdom, charisma
-describe("AbilityScores", () => {
+describe("AbilityScoresModule", () => {
   describe("view mode", () => {
     it("renders all 6 ability abbreviations", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("STR")).toBeInTheDocument()
       expect(screen.getByText("DEX")).toBeInTheDocument()
       expect(screen.getByText("CON")).toBeInTheDocument()
@@ -45,13 +45,13 @@ describe("AbilityScores", () => {
     })
 
     it("renders score values", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("16")).toBeInTheDocument()
       expect(screen.getByText("14")).toBeInTheDocument()
     })
 
     it("renders ability modifiers", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // STR 16 → +3
       expect(screen.getAllByText("+3").length).toBeGreaterThan(0)
       // WIS 8 → -1
@@ -59,40 +59,40 @@ describe("AbilityScores", () => {
     })
 
     it("shows saving throw section for proficient abilities", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Saving Throw")).toBeInTheDocument()
       expect(screen.getByText("Prof")).toBeInTheDocument()
     })
 
     it("does not show saving throw section for non-proficient abilities", () => {
-      render(<AbilityScores character={makeCharacter({ savingThrows: { strength: false, dexterity: false, constitution: false, intelligence: false, wisdom: false, charisma: false } })} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter({ savingThrows: { strength: false, dexterity: false, constitution: false, intelligence: false, wisdom: false, charisma: false } })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Prof")).not.toBeInTheDocument()
     })
   })
 
   describe("edit mode", () => {
     it("shows 6 number inputs when edit button is clicked", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getAllByRole("spinbutton")).toHaveLength(6)
     })
 
     it("shows save and cancel buttons in the header when editing", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument()
     })
 
     it("shows a save prof checkbox for each ability", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getAllByRole("checkbox")).toHaveLength(6)
     })
 
     it("calls onUpdate with updated strength score on save", () => {
       const onUpdate = vi.fn()
-      render(<AbilityScores character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
       // spinbuttons ordered: strength(0), dexterity(1), constitution(2), intelligence(3), wisdom(4), charisma(5)
       const strInput = screen.getAllByRole("spinbutton")[0]
@@ -108,7 +108,7 @@ describe("AbilityScores", () => {
 
     it("enables dexterity saving throw proficiency on save", () => {
       const onUpdate = vi.fn()
-      render(<AbilityScores character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("checkbox", { name: /dexterity saving throw/i }))
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
@@ -121,7 +121,7 @@ describe("AbilityScores", () => {
 
     it("disables strength saving throw proficiency on save", () => {
       const onUpdate = vi.fn()
-      render(<AbilityScores character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
       // strength is already proficient — uncheck it
       fireEvent.click(screen.getByRole("checkbox", { name: /strength saving throw/i }))
@@ -135,7 +135,7 @@ describe("AbilityScores", () => {
 
     it("does not call onUpdate when cancel is clicked", () => {
       const onUpdate = vi.fn()
-      render(<AbilityScores character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
       const strInput = screen.getAllByRole("spinbutton")[0]
       fireEvent.input(strInput, { target: { value: "8" } })
@@ -144,7 +144,7 @@ describe("AbilityScores", () => {
     })
 
     it("reverts to original scores after cancel", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       const strInput = screen.getAllByRole("spinbutton")[0]
       fireEvent.input(strInput, { target: { value: "8" } })
@@ -153,14 +153,14 @@ describe("AbilityScores", () => {
     })
 
     it("returns to view mode after save", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
     })
 
     it("returns to view mode after cancel", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
       expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
@@ -168,7 +168,7 @@ describe("AbilityScores", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+    const { container } = render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -177,14 +177,14 @@ describe("AbilityScores", () => {
     beforeEach(() => cleanupPortals())
 
     it("renders a focusable trigger for each ability card and each proficient saving throw in view mode", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // 6 ability cards + 1 STR saving throw (only STR is proficient in makeCharacter)
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       expect(triggers).toHaveLength(7)
     })
 
     it("shows ability modifier formula in tooltip when card is focused", async () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // STR card is the first focusable trigger (contains "+3" modifier, score 16)
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
@@ -193,7 +193,7 @@ describe("AbilityScores", () => {
     })
 
     it("shows saving throw formula in tooltip when the saving throw section is focused", async () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // STR saving throw trigger is at index 1 (after the STR ability card at index 0)
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[1])
@@ -203,7 +203,7 @@ describe("AbilityScores", () => {
     })
 
     it("does not render focusable tooltip triggers in edit mode", () => {
-      render(<AbilityScores character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       expect(triggers).toHaveLength(0)

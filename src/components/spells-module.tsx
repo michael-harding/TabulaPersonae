@@ -52,7 +52,7 @@ interface SpellFormData {
   ritual?: boolean
 }
 
-interface SpellsSectionProps {
+interface SpellsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
@@ -219,7 +219,7 @@ function SpellForm(props: SpellFormProps) {
   )
 }
 
-export function SpellsSection(props: SpellsSectionProps) {
+export function SpellsModule(props: SpellsModuleProps) {
   const isReadOnly = useReadOnly()
   const [searchTerm, setSearchTerm] = createSignal("")
   const [isAddModalOpen, setIsAddModalOpen] = createSignal(false)
@@ -396,7 +396,7 @@ export function SpellsSection(props: SpellsSectionProps) {
   ))
 
   return (
-    <Card data-sem="spells-section">
+    <Card data-sem="spells-module">
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
