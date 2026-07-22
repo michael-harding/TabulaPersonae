@@ -23,8 +23,7 @@ export function StatsBar(props: StatsBarProps) {
   const spellTooltip = createMemo(() => {
     const ability = props.character.spellcastingAbility
     if (!ability) return ""
-    const abilityScores = props.character.abilityScores ?? {}
-    const score = (abilityScores as Record<string, number>)[ability] ?? 10
+    const score = props.character.abilityScores[ability] ?? 10
     const abilityMod = getAbilityModifier(score)
     const prof = props.character.proficiencyBonus ?? 2
     const abilityAbbr = ability.slice(0, 3).toUpperCase()

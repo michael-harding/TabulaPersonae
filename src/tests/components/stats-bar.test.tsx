@@ -14,7 +14,7 @@ function makeSpellcaster() {
   return {
     ...createDefaultCharacter(),
     hitPoints: { current: 8, maximum: 10, temporary: 0 },
-    spellcastingAbility: "wisdom",
+    spellcastingAbility: "wisdom" as const,
     abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 18 },
     proficiencyBonus: 3,
   }
