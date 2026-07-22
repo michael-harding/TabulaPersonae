@@ -659,6 +659,135 @@ describe("CombatStats", () => {
     })
   })
 
+  describe("calculated armor class", () => {
+    it("shows 'Use calculated' checkbox for both AC and passive perception in edit mode", () => {
+      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getAllByText(/use calculated/i)).toHaveLength(2)
+    })
+
+    it("shows AC as read-only text by default (useCalculatedArmorClass defaults to true)", () => {
+      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      // armorClass: 15 should not appear as a spinbutton value
+      const values = screen.getAllByRole("spinbutton").map((s) => (s as HTMLInputElement).value)
+      expect(values).not.toContain("15")
+    })
+
+    it("shows AC NumericInput when useCalculatedArmorClass is false", () => {
+      render(
+        <CombatStats character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={vi.fn()} />
+      )
+      clickEditButton()
+      const values = screen.getAllByRole("spinbutton").map((s) => (s as HTMLInputElement).value)
+      expect(values).toContain("15")
+    })
+
+    it("saves manual armorClass when useCalculatedArmorClass is false", () => {
+      const onUpdate = vi.fn()
+      render(
+        <CombatStats character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={onUpdate} />
+      )
+      clickEditButton()
+      const acInput = screen.getAllByRole("spinbutton").find(
+        (s) => (s as HTMLInputElement).value === "15"
+      )!
+      fireEvent.input(acInput, { target: { value: "18" } })
+      fireEvent.blur(acInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ armorClass: 18 }))
+    })
+
+    it("shows manual AC in view mode when useCalculatedArmorClass is false", () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ armorClass: 13, useCalculatedArmorClass: false })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("13")).toBeInTheDocument()
+    })
+
+    it("shows 'Manual armor class override' tooltip in view mode when flag is false", async () => {
+      render(
+        <CombatStats character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={vi.fn()} />
+      )
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Manual armor class override")
+    })
+  })
+
+  describe("calculated passive perception", () => {
+    it("shows PP as read-only text in edit mode when flag is true (default)", () => {
+      const char = makeCharacter({
+        abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14 },
+        skills: { ...createDefaultCharacter().skills, perception: { proficient: true, expertise: false } },
+        proficiencyBonus: 2,
+      })
+      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      clickEditButton()
+      // PP = 14: appears as text but not as a spinbutton value
+      expect(screen.getByText("14")).toBeInTheDocument()
+      const values = screen.getAllByRole("spinbutton").map((s) => (s as HTMLInputElement).value)
+      expect(values).not.toContain("14")
+    })
+
+    it("shows PP NumericInput when useCalculatedPassivePerception is false", () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ useCalculatedPassivePerception: false, passivePerception: 12 })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      const values = screen.getAllByRole("spinbutton").map((s) => (s as HTMLInputElement).value)
+      expect(values).toContain("12")
+    })
+
+    it("saves manually entered passivePerception when flag is false", () => {
+      const onUpdate = vi.fn()
+      render(
+        <CombatStats
+          character={makeCharacter({ useCalculatedPassivePerception: false, passivePerception: 12 })}
+          onUpdate={onUpdate}
+        />
+      )
+      clickEditButton()
+      const ppInput = screen.getAllByRole("spinbutton").find(
+        (s) => (s as HTMLInputElement).value === "12"
+      )!
+      fireEvent.input(ppInput, { target: { value: "16" } })
+      fireEvent.blur(ppInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ passivePerception: 16 }))
+    })
+
+    it("shows manual passivePerception in view mode when flag is false", () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ useCalculatedPassivePerception: false, passivePerception: 17 })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("17")).toBeInTheDocument()
+    })
+
+    it("shows 'Manual passive perception override' tooltip in view mode when flag is false", async () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ useCalculatedPassivePerception: false })}
+          onUpdate={vi.fn()}
+        />
+      )
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[1])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Manual passive perception override")
+    })
+  })
+
   it("has no accessibility violations", async () => {
     const { container } = render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
