@@ -275,18 +275,6 @@ describe("CombatStats", () => {
     })
   })
 
-  describe("hit dice and spent hit dice", () => {
-    it("renders die size derived from hitDice string in view mode", () => {
-      render(<CombatStats character={makeCharacter({ hitDice: "1d8" })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("d8")).toBeInTheDocument()
-    })
-
-    it("renders available / total hit dice count in view mode", () => {
-      render(<CombatStats character={makeCharacter({ level: 5, spentHitDice: 2, hitDice: "1d8" })} onUpdate={vi.fn()} />)
-      expect(screen.getByText(/3\/5 available/i)).toBeInTheDocument()
-    })
-  })
-
   describe("size (2024 only)", () => {
     it("renders size in 2024 view mode", () => {
       render(<CombatStats character={makeCharacter({ edition: "2024", size: "Large" })} onUpdate={vi.fn()} />)
@@ -300,14 +288,13 @@ describe("CombatStats", () => {
   })
 
   describe("edit mode", () => {
-    // In edit mode the order is: current HP, max HP, temp HP, AC,
-    // initiative, speed, proficiency bonus.
+    // In edit mode HP spinbuttons: current, max, temp, temp-max HP = 4 minimum
 
     it("shows HP number inputs when edit button is clicked", () => {
       render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
-      // At least 3 number inputs visible (current / max / temp)
-      expect(screen.getAllByRole("spinbutton").length).toBeGreaterThanOrEqual(3)
+      // At least 4 number inputs visible (current / max / temp / temp-max)
+      expect(screen.getAllByRole("spinbutton").length).toBeGreaterThanOrEqual(4)
     })
 
     it("calls onUpdate with edited current HP on save", () => {
@@ -338,27 +325,19 @@ describe("CombatStats", () => {
     })
   })
 
-  describe("hit dice section — view mode", () => {
-    it("displays the die size label derived from hitDice string", () => {
-      render(<CombatStats character={makeCharacter({ hitDice: "1d8" })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("d8")).toBeInTheDocument()
-    })
-
-    it("displays the explicit hitDiceSize when set", () => {
-      render(<CombatStats character={makeCharacter({ hitDiceSize: 10, hitDice: "1d8" })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("d10")).toBeInTheDocument()
-    })
-
-    it("displays available / total hit dice count", () => {
-      render(<CombatStats character={makeCharacter({ level: 4, spentHitDice: 1, hitDice: "1d8" })} onUpdate={vi.fn()} />)
-      expect(screen.getByText(/3\/4 available/i)).toBeInTheDocument()
-    })
-
-    it("does not render interactive hit dice controls in view mode", () => {
-      render(<CombatStats character={makeCharacter({ level: 3, hitDice: "1d8" })} onUpdate={vi.fn()} />)
-      // Die type select and spent dice stepper only appear in edit mode
+  describe("hit dice section", () => {
+    it("does not show hit dice section in view mode", () => {
+      render(<CombatStats character={makeCharacter({ hitDice: "1d8", level: 4, spentHitDice: 1 })} onUpdate={vi.fn()} />)
       expect(screen.queryByText(/die type/i)).not.toBeInTheDocument()
       expect(screen.queryByText(/spent hit dice/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/available/i)).not.toBeInTheDocument()
+    })
+
+    it("shows hit dice section in edit mode", () => {
+      render(<CombatStats character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByText(/die type/i)).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "8" })).toBeInTheDocument()
     })
   })
 
@@ -516,6 +495,167 @@ describe("CombatStats", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ conditions: ["Prone"] })
       )
+    })
+  })
+
+  describe("temporary maximum HP", () => {
+    it("adds temporaryMaximum to the displayed max HP", () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0, temporaryMaximum: 5 } })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText(/\/25/)).toBeInTheDocument()
+    })
+
+    it("renders a Temp Max HP input in edit mode", () => {
+      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByText(/temp max hp/i)).toBeInTheDocument()
+    })
+
+    it("clamps current HP to effective max (base + tempMax) on save", () => {
+      const onUpdate = vi.fn()
+      render(
+        <CombatStats
+          character={makeCharacter({ hitPoints: { current: 20, maximum: 15, temporary: 0, temporaryMaximum: 3 } })}
+          onUpdate={onUpdate}
+        />
+      )
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      const updated = onUpdate.mock.calls[0][0]
+      expect(updated.hitPoints.current).toBeLessThanOrEqual(updated.hitPoints.maximum + (updated.hitPoints.temporaryMaximum ?? 0))
+    })
+
+    it("handles negative temporaryMaximum (curse scenario)", () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ hitPoints: { current: 10, maximum: 20, temporary: 0, temporaryMaximum: -5 } })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText(/\/15/)).toBeInTheDocument()
+    })
+
+    it("increase HP button is disabled when currentHP equals effective max", () => {
+      render(
+        <CombatStats
+          character={makeCharacter({ hitPoints: { current: 25, maximum: 20, temporary: 0, temporaryMaximum: 5 } })}
+          onUpdate={vi.fn()}
+        />
+      )
+      const increaseBtn = screen.getByRole("button", { name: /increase hp/i })
+      expect(increaseBtn).toBeDisabled()
+    })
+  })
+
+  describe("temp HP control in view mode", () => {
+    it("renders a Temp HP stepper in view mode when not read-only", () => {
+      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("spinbutton", { name: /set temporary hit points/i })).toBeInTheDocument()
+    })
+
+    it("calls onUpdate immediately when stepper + button is clicked", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStats character={makeCharacter()} onUpdate={onUpdate} />)
+      // StepperInput uses aria-label="Increase"; HP button uses aria-label="Increase HP"
+      fireEvent.click(screen.getByRole("button", { name: "Increase" }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ hitPoints: expect.objectContaining({ temporary: 1 }) })
+      )
+    })
+
+    it("hides Temp HP stepper in read-only mode", () => {
+      render(
+        <ReadOnlyProvider value={true}>
+          <CombatStats character={makeCharacter()} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+      expect(screen.queryByRole("spinbutton", { name: /set temporary hit points/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe("calculated initiative", () => {
+    it("shows 'Use DEX mod' option in edit mode", () => {
+      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByText(/use dex mod/i)).toBeInTheDocument()
+    })
+
+    it("shows DEX-derived value as read-only when useCalculatedInitiative is true in edit mode", () => {
+      const char = makeCharacter({
+        abilityScores: { ...makeCharacter().abilityScores, dexterity: 14 },
+        useCalculatedInitiative: true,
+      })
+      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      clickEditButton()
+      // NumericInput for initiative should not be present; DEX 14 → +2 displayed as text
+      const spinbuttons = screen.getAllByRole("spinbutton")
+      // None of the spinbuttons should be the initiative field
+      const labels = spinbuttons.map((s) => s.getAttribute("aria-label") ?? "")
+      expect(labels.every((l) => !/initiative/i.test(l))).toBe(true)
+    })
+
+    it("saves DEX-derived initiative value on save when flag is enabled", () => {
+      const onUpdate = vi.fn()
+      const char = makeCharacter({
+        abilityScores: { ...makeCharacter().abilityScores, dexterity: 14 },
+        useCalculatedInitiative: true,
+        initiative: 0,
+      })
+      render(<CombatStats character={char} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ initiative: 2 }) // DEX 14 → mod +2
+      )
+    })
+
+    it("shows effective (DEX-derived) initiative in view mode when flag is set", () => {
+      const char = makeCharacter({
+        abilityScores: { ...makeCharacter().abilityScores, dexterity: 18 },
+        useCalculatedInitiative: true,
+        initiative: 0,
+      })
+      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      // DEX 18 → +4 (distinct from proficiency bonus +3)
+      expect(screen.getByText("+4")).toBeInTheDocument()
+    })
+  })
+
+  describe("calculated proficiency bonus", () => {
+    it("shows 'From level' option in edit mode", () => {
+      render(<CombatStats character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByText(/from level/i)).toBeInTheDocument()
+    })
+
+    it("saves level-derived proficiency bonus on save when flag is enabled", () => {
+      const onUpdate = vi.fn()
+      const char = makeCharacter({
+        level: 5,
+        useCalculatedProficiencyBonus: true,
+        proficiencyBonus: 2,
+      })
+      render(<CombatStats character={char} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ proficiencyBonus: 3 }) // level 5 → +3
+      )
+    })
+
+    it("shows effective proficiency bonus in view mode when flag is set", () => {
+      const char = makeCharacter({
+        level: 9,
+        useCalculatedProficiencyBonus: true,
+        proficiencyBonus: 2,
+      })
+      render(<CombatStats character={char} onUpdate={vi.fn()} />)
+      // level 9 → +4
+      expect(screen.getByText("+4")).toBeInTheDocument()
     })
   })
 
