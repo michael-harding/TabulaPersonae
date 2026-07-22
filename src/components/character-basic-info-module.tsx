@@ -81,6 +81,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
   return (
     <EditableModule
       data-sem="character-basic-info-module"
+      data-test="character-basic-info-module"
       icon={<User class="h-5 w-5 text-primary" />}
       title="Character Information"
       editTitle="Edit Character Information"

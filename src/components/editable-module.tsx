@@ -19,13 +19,14 @@ interface EditableModuleProps extends ParentProps {
   headerExtra?: JSX.Element
   contentClass?: string
   "data-sem"?: string
+  "data-test"?: string
 }
 
 export function EditableModule(props: EditableModuleProps) {
   const isReadOnly = useReadOnly()
 
   return (
-    <Card data-sem={props["data-sem"]}>
+    <Card data-sem={props["data-sem"]} data-test={props["data-test"]}>
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">

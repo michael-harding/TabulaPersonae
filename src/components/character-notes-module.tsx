@@ -43,6 +43,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
   return (
     <EditableModule
       data-sem="character-notes-module"
+      data-test="character-notes-module"
       icon={<FileText class="h-5 w-5 text-primary" />}
       title="Character Background & Notes"
       editTitle="Edit Character Background & Notes"

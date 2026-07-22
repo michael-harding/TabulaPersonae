@@ -119,6 +119,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   return (
     <EditableModule
       data-sem="skills-proficiencies-module"
+      data-test="skills-proficiencies-module"
       icon={<BookOpen class="h-5 w-5 text-primary" />}
       title="Skills & Proficiencies"
       isEditing={isEditing()}

@@ -195,6 +195,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   return (
     <EditableModule
       data-sem="combat-stats-module"
+      data-test="combat-stats-module"
       icon={<ShieldIcon class="h-5 w-5 text-primary" />}
       title="Combat Stats"
       isEditing={isEditing()}

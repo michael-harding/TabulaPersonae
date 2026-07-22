@@ -28,6 +28,19 @@ test.describe("CombatStatsModule component", () => {
     const card = page.locator("text=Combat Stats").locator("..").locator("..")
     await expect(card).toHaveScreenshot("combat-stats-death-saves.png")
   })
+
+  test("edit mode", async ({ page }) => {
+    await page.addInitScript((char) => {
+      localStorage.setItem("dnd-characters", JSON.stringify([char]))
+      localStorage.setItem("dnd-skip-auth", "true")
+    }, testCharacter)
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+
+    const card = page.locator('[data-test="combat-stats-module"]')
+    await card.getByRole("button", { name: "Edit", exact: true }).click()
+    await expect(card).toHaveScreenshot("combat-stats-edit.png")
+  })
 })
 
 test.describe("AbilityScoresModule component", () => {
@@ -116,6 +129,19 @@ test.describe("SkillsProficienciesModule component", () => {
     const card = page.locator("text=Skills & Proficiencies").locator("..").locator("..")
     await expect(card).toHaveScreenshot("skills-with-proficiencies.png")
   })
+
+  test("edit mode", async ({ page }) => {
+    await page.addInitScript((char) => {
+      localStorage.setItem("dnd-characters", JSON.stringify([char]))
+      localStorage.setItem("dnd-skip-auth", "true")
+    }, testCharacter)
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+
+    const card = page.locator('[data-test="skills-proficiencies-module"]')
+    await card.getByRole("button", { name: "Edit", exact: true }).click()
+    await expect(card).toHaveScreenshot("skills-proficiencies-edit.png")
+  })
 })
 
 test.describe("CharacterNotesModule component", () => {
@@ -157,6 +183,55 @@ test.describe("CharacterNotesModule component", () => {
 
     const card = page.locator("text=Character Background").locator("..").locator("..")
     await expect(card).toHaveScreenshot("character-notes-empty.png")
+  })
+
+  test("edit mode", async ({ page }) => {
+    await page.addInitScript((char) => {
+      localStorage.setItem("dnd-characters", JSON.stringify([char]))
+      localStorage.setItem("dnd-skip-auth", "true")
+    }, testCharacter)
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+
+    await page.getByRole("tab", { name: "Character" }).click()
+    await page.waitForLoadState("networkidle")
+
+    const card = page.locator('[data-test="character-notes-module"]')
+    await card.getByRole("button", { name: "Edit", exact: true }).click()
+    await expect(card).toHaveScreenshot("character-notes-edit.png")
+  })
+})
+
+test.describe("CharacterBasicInfoModule component", () => {
+  test("view mode", async ({ page }) => {
+    await page.addInitScript((char) => {
+      localStorage.setItem("dnd-characters", JSON.stringify([char]))
+      localStorage.setItem("dnd-skip-auth", "true")
+    }, testCharacter)
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+
+    await page.getByRole("tab", { name: "Character" }).click()
+    await page.waitForLoadState("networkidle")
+
+    const card = page.locator('[data-test="character-basic-info-module"]')
+    await expect(card).toHaveScreenshot("character-basic-info-view.png")
+  })
+
+  test("edit mode", async ({ page }) => {
+    await page.addInitScript((char) => {
+      localStorage.setItem("dnd-characters", JSON.stringify([char]))
+      localStorage.setItem("dnd-skip-auth", "true")
+    }, testCharacter)
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+
+    await page.getByRole("tab", { name: "Character" }).click()
+    await page.waitForLoadState("networkidle")
+
+    const card = page.locator('[data-test="character-basic-info-module"]')
+    await card.getByRole("button", { name: "Edit", exact: true }).click()
+    await expect(card).toHaveScreenshot("character-basic-info-edit.png")
   })
 })
 
