@@ -407,7 +407,6 @@ export function ActionsModule(props: ActionsModuleProps) {
     return (
       <ActionCard
         name={spell.name}
-        badgeLabel="Spell"
         spellLevel={spell.level}
         spellSchool={spell.school}
         concentration={spell.concentration}
