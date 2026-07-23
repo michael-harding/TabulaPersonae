@@ -253,8 +253,12 @@ export function SpellsModule(props: SpellsModuleProps) {
   // Must be called inside a reactive context (JSX, effect, memo) — reads spellsByLevelMap()
   const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? EMPTY_SPELLS
   const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0))
-  const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
-  const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
+  const spellSaveDC = createMemo(() =>
+    (props.character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(props.character) : props.character.spellSaveDC
+  )
+  const spellAttackBonus = createMemo(() =>
+    (props.character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBonus(props.character) : props.character.spellAttackBonus
+  )
 
   const toggleLevelExpanded = (level: number, isOpen: boolean) => {
     setExpandedLevels((prev) => {

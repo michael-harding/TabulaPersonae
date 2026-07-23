@@ -164,7 +164,11 @@ export interface Character {
   spells: Spell[]
   spellcastingAbility: keyof AbilityScores | ""
   spellSaveDC: number
+  useCalculatedSpellSaveDC?: boolean
   spellAttackBonus: number
+  useCalculatedSpellAttackBonus?: boolean
+  spellModifier?: number
+  useCalculatedSpellModifier?: boolean
   spellSlots: {
     1: { total: number; used: number }
     2: { total: number; used: number }

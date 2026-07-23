@@ -18,8 +18,12 @@ export function StatsBar(props: StatsBarProps) {
   const ac = createMemo(() => props.character.armorClass ?? 10)
   const initiative = createMemo(() => props.character.initiative ?? 0)
   const hasSpellcasting = createMemo(() => !!props.character.spellcastingAbility)
-  const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
-  const hitBonus = createMemo(() => getSpellAttackBonus(props.character))
+  const spellSaveDC = createMemo(() =>
+    (props.character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(props.character) : props.character.spellSaveDC
+  )
+  const hitBonus = createMemo(() =>
+    (props.character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBonus(props.character) : props.character.spellAttackBonus
+  )
   const spellTooltip = createMemo(() => {
     const ability = props.character.spellcastingAbility
     if (!ability) return ""

@@ -59,10 +59,16 @@ describe("ActionsModule", () => {
       expect(screen.getByText("Reactions")).toBeInTheDocument()
     })
 
-it("renders Attack Bonus and Spell Save DC stats", () => {
+it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Attack Bonus")).toBeInTheDocument()
+      expect(screen.getByText("Spell Attack")).toBeInTheDocument()
+      expect(screen.getByText("Spell Modifier")).toBeInTheDocument()
       expect(screen.getByText("Spell Save DC")).toBeInTheDocument()
+    })
+
+    it("does not render an Attack Bonus stat", () => {
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Attack Bonus")).not.toBeInTheDocument()
     })
 
     it("renders the Add Action, Add Bonus Action, Add Reaction, Add Other buttons", () => {
@@ -105,6 +111,84 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
         <ActionsModule character={makeCharacter({ attacks: [makeAttack({ damage: "2d6+4" })] })} onUpdate={vi.fn()} />
       )
       expect(screen.getByText(/2d6\+4/)).toBeInTheDocument()
+    })
+  })
+
+  describe("calculated spell stats", () => {
+    function makeSpellcaster(overrides: Partial<Character> = {}): Character {
+      return makeCharacter({
+        spellcastingAbility: "intelligence",
+        abilityScores: { ...createDefaultCharacter().abilityScores, intelligence: 16 },
+        proficiencyBonus: 3,
+        ...overrides,
+      })
+    }
+
+    function clickEditButton() {
+      fireEvent.click(screen.getByRole("button", { name: /^edit$/i }))
+    }
+
+    it("does not show an Edit button in view mode when read-only", () => {
+      render(
+        <ReadOnlyProvider value={true}>
+          <ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+      expect(screen.queryByRole("button", { name: /^edit$/i })).not.toBeInTheDocument()
+    })
+
+    it("shows a custom-value toggle for spell attack, spell modifier, and spell save DC in edit mode", () => {
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(3)
+    })
+
+    it("shows the ability-derived spell attack and save DC in view mode", () => {
+      // INT 16 -> mod +3, prof +3 => spell attack +6, DC 8+3+3=14
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("+6")).toBeInTheDocument()
+      expect(screen.getByText("14")).toBeInTheDocument()
+    })
+
+    it("shows a NumericInput for spell attack once switched to custom in edit mode", () => {
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell attack/i }))
+      expect(screen.getByRole("spinbutton", { name: /spell attack/i })).toBeInTheDocument()
+    })
+
+    it("saves a custom spell save DC override on save", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell save dc/i }))
+      const input = screen.getByRole("spinbutton", { name: /spell save dc/i })
+      fireEvent.input(input, { target: { value: "18" } })
+      fireEvent.blur(input)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ useCalculatedSpellSaveDC: false, spellSaveDC: 18 })
+      )
+    })
+
+    it("saves the calculated spell modifier value when the flag stays enabled", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ useCalculatedSpellModifier: true, spellModifier: 3 })
+      )
+    })
+
+    it("discards an in-progress override when Cancel is clicked", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell attack/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }))
+      expect(onUpdate).not.toHaveBeenCalled()
+      expect(screen.queryByRole("spinbutton", { name: /spell attack/i })).not.toBeInTheDocument()
     })
   })
 
