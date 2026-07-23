@@ -46,7 +46,6 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
       data-test="character-notes-module"
       icon={<FileText class="h-5 w-5 text-primary" />}
       title="Character Background & Notes"
-      editTitle="Edit Character Background & Notes"
       isEditing={isEditing()}
       onEdit={() => { setEditedCharacter(props.character); setIsEditing(true) }}
       onSave={handleSave}

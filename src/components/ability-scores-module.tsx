@@ -55,7 +55,6 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
       data-sem="ability-scores-module"
       icon={<Zap class="h-5 w-5 text-primary" />}
       title="Ability Scores"
-      editTitle="Edit Ability Scores"
       isEditing={isEditing()}
       onEdit={() => { setEditedScores(safeScores()); setEditedSaves(safeSaves()); setIsEditing(true) }}
       onSave={handleSave}

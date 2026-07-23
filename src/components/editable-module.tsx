@@ -11,7 +11,6 @@ import X from "lucide-solid/icons/x"
 interface EditableModuleProps extends ParentProps {
   icon: JSX.Element
   title: string
-  editTitle?: string
   isEditing: boolean
   onEdit: () => void
   onSave: () => void
@@ -31,7 +30,7 @@ export function EditableModule(props: EditableModuleProps) {
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             {props.icon}
-            {props.isEditing ? (props.editTitle ?? props.title) : props.title}
+            {props.title}
             {!props.isEditing && props.headerExtra}
           </div>
           <Show when={!isReadOnly}>

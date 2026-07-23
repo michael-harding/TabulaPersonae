@@ -84,7 +84,6 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
       data-test="character-basic-info-module"
       icon={<User class="h-5 w-5 text-primary" />}
       title="Character Information"
-      editTitle="Edit Character Information"
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
       onSave={handleSave}

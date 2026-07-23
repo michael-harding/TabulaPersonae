@@ -66,7 +66,7 @@ test.describe("AbilityScoresModule component", () => {
 
     // Open edit mode via the exact aria-label="Edit" button (not "Edit <action name>" variants)
     await page.getByRole("button", { name: "Edit", exact: true }).first().click()
-    const card = page.locator("text=Edit Ability Scores").locator("..").locator("..")
+    const card = page.locator("text=Ability Scores").locator("..").locator("..")
     await expect(card).toHaveScreenshot("ability-scores-edit.png")
   })
 })

@@ -73,21 +73,6 @@ describe("EditableModule", () => {
       expect(screen.queryByText("extra content")).not.toBeInTheDocument()
     })
 
-    it("shows editTitle instead of title when editing and editTitle is provided", () => {
-      render(
-        <EditableModule
-          icon={icon}
-          title="Section"
-          editTitle="Editing Section"
-          isEditing={true}
-          onEdit={vi.fn()}
-          onSave={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      )
-      expect(screen.getByText("Editing Section")).toBeInTheDocument()
-      expect(screen.queryByText("Section", { exact: true })).not.toBeInTheDocument()
-    })
   })
 
   describe("edit mode (isEditing=true)", () => {
