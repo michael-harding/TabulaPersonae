@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip } from "@/components/ui/tooltip"
+import { CalculatedValue } from "@/components/ui/calculated-value"
 import BookOpen from "lucide-solid/icons/book-open"
 import Plus from "lucide-solid/icons/plus"
 import X from "lucide-solid/icons/x"
@@ -53,7 +54,29 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
 
   const current = () => isEditing() ? edited() : props.character
 
-  const handleSave = () => { props.onUpdate(edited()); setIsEditing(false) }
+  const calcPassive = (data: Character, skillKey: SkillKey) => {
+    const ability = SKILL_ABILITY_MAP[skillKey]
+    const skill = data.skills?.[skillKey] ?? { proficient: false, expertise: false }
+    return 10 + getSkillModifier(data.abilityScores[ability], data.proficiencyBonus, skill.proficient, skill.expertise)
+  }
+
+  const handleSave = () => {
+    const data = edited()
+    const normalized = {
+      ...data,
+      passivePerception: (data.useCalculatedPassivePerception ?? true)
+        ? calcPassive(data, "perception")
+        : (data.passivePerception ?? calcPassive(data, "perception")),
+      passiveInsight: (data.useCalculatedPassiveInsight ?? true)
+        ? calcPassive(data, "insight")
+        : (data.passiveInsight ?? calcPassive(data, "insight")),
+      passiveInvestigation: (data.useCalculatedPassiveInvestigation ?? true)
+        ? calcPassive(data, "investigation")
+        : (data.passiveInvestigation ?? calcPassive(data, "investigation")),
+    }
+    props.onUpdate(normalized)
+    setIsEditing(false)
+  }
   const handleCancel = () => {
     setEdited(props.character); setIsEditing(false)
     setNewLanguage(""); setNewProficiency("")
@@ -238,13 +261,43 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 const skillMod = () => getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
                 const passive = () => 10 + skillMod()
                 const passiveTooltip = () => `10 + ${SKILL_DISPLAY_NAMES[skillKey]} ${formatModifier(skillMod())} = ${passive()}`
+
+                const useCalculated = () => {
+                  if (skillKey === "perception") return current().useCalculatedPassivePerception ?? true
+                  if (skillKey === "insight") return current().useCalculatedPassiveInsight ?? true
+                  return current().useCalculatedPassiveInvestigation ?? true
+                }
+                const customValue = () => {
+                  if (skillKey === "perception") return current().passivePerception ?? passive()
+                  if (skillKey === "insight") return current().passiveInsight ?? passive()
+                  return current().passiveInvestigation ?? passive()
+                }
+                const setUseCalculated = (custom: boolean) => {
+                  if (skillKey === "perception") setEdited((prev) => ({ ...prev, useCalculatedPassivePerception: !custom }))
+                  else if (skillKey === "insight") setEdited((prev) => ({ ...prev, useCalculatedPassiveInsight: !custom }))
+                  else setEdited((prev) => ({ ...prev, useCalculatedPassiveInvestigation: !custom }))
+                }
+                const setCustomValue = (v: number) => {
+                  if (skillKey === "perception") setEdited((prev) => ({ ...prev, passivePerception: v }))
+                  else if (skillKey === "insight") setEdited((prev) => ({ ...prev, passiveInsight: v }))
+                  else setEdited((prev) => ({ ...prev, passiveInvestigation: v }))
+                }
+
                 return (
-                  <Tooltip content={passiveTooltip()} triggerFocusable triggerClass="w-full">
-                    <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                      <span class="text-lg font-bold">{passive()}</span>
-                      <span class="text-xs text-muted-foreground">Passive {SKILL_DISPLAY_NAMES[skillKey]}</span>
-                    </div>
-                  </Tooltip>
+                  <div class="flex flex-col items-center p-2 rounded border text-center w-full">
+                    <span class="text-xs text-muted-foreground">Passive {SKILL_DISPLAY_NAMES[skillKey]}</span>
+                    <CalculatedValue
+                      class="mt-1"
+                      label={`passive ${SKILL_DISPLAY_NAMES[skillKey].toLowerCase()}`}
+                      editable={isEditing()}
+                      custom={!useCalculated()}
+                      onCustomChange={setUseCalculated}
+                      value={customValue()}
+                      onValueChange={setCustomValue}
+                      calculatedValue={passive()}
+                      calculatedTooltip={passiveTooltip()}
+                    />
+                  </div>
                 )
               }}
             </For>

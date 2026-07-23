@@ -155,6 +155,10 @@ export interface Character {
   useCalculatedArmorClass?: boolean
   passivePerception?: number
   useCalculatedPassivePerception?: boolean
+  passiveInsight?: number
+  useCalculatedPassiveInsight?: boolean
+  passiveInvestigation?: number
+  useCalculatedPassiveInvestigation?: boolean
 
   equipment: Equipment[]
   spells: Spell[]

@@ -401,4 +401,130 @@ describe("SkillsProficienciesModule", () => {
       expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Perception -1 = 9")
     })
   })
+
+  describe("calculated passive values", () => {
+    beforeEach(() => cleanupPortals())
+
+    function makeDistinctPassivesCharacter(overrides: Record<string, any> = {}) {
+      return makeCharacter({
+        abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14, intelligence: 16 },
+        skills: {
+          ...createDefaultCharacter().skills,
+          perception: { proficient: true, expertise: false },
+          insight: { proficient: false, expertise: false },
+          investigation: { proficient: true, expertise: true },
+        },
+        proficiencyBonus: 2,
+        ...overrides,
+      })
+    }
+
+    it("shows passive values as read-only text in edit mode when flags are true (default)", () => {
+      // Wis 14 (+2), Int 16 (+3), prof +2
+      // Perception: proficient → 10 + 2 + 2 = 14
+      // Insight: no proficiency → 10 + 2 = 12
+      // Investigation: proficient + expertise → 10 + 3 + 2 + 2 = 17
+      render(<SkillsProficienciesModule character={makeDistinctPassivesCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByText("14")).toBeInTheDocument()
+      expect(screen.getByText("12")).toBeInTheDocument()
+      expect(screen.getByText("17")).toBeInTheDocument()
+      const values = screen.queryAllByRole("spinbutton").map((s) => (s as HTMLInputElement).value)
+      expect(values).not.toContain("14")
+      expect(values).not.toContain("12")
+      expect(values).not.toContain("17")
+    })
+
+    it("shows a NumericInput for each passive field when its flag is false", () => {
+      render(
+        <SkillsProficienciesModule
+          character={makeCharacter({
+            useCalculatedPassivePerception: false, passivePerception: 11,
+            useCalculatedPassiveInsight: false, passiveInsight: 13,
+            useCalculatedPassiveInvestigation: false, passiveInvestigation: 15,
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      const values = screen.getAllByRole("spinbutton").map((s) => (s as HTMLInputElement).value)
+      expect(values).toContain("11")
+      expect(values).toContain("13")
+      expect(values).toContain("15")
+    })
+
+    it("saves manually entered passivePerception when its flag is false", () => {
+      const onUpdate = vi.fn()
+      render(
+        <SkillsProficienciesModule
+          character={makeCharacter({ useCalculatedPassivePerception: false, passivePerception: 11 })}
+          onUpdate={onUpdate}
+        />
+      )
+      clickEditButton()
+      const ppInput = screen.getAllByRole("spinbutton").find(
+        (s) => (s as HTMLInputElement).value === "11"
+      )!
+      fireEvent.input(ppInput, { target: { value: "18" } })
+      fireEvent.blur(ppInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ passivePerception: 18 }))
+    })
+
+    it("saves manually entered passiveInsight and passiveInvestigation when their flags are false", () => {
+      const onUpdate = vi.fn()
+      render(
+        <SkillsProficienciesModule
+          character={makeCharacter({
+            useCalculatedPassiveInsight: false, passiveInsight: 13,
+            useCalculatedPassiveInvestigation: false, passiveInvestigation: 15,
+          })}
+          onUpdate={onUpdate}
+        />
+      )
+      clickEditButton()
+      const insightInput = screen.getAllByRole("spinbutton").find(
+        (s) => (s as HTMLInputElement).value === "13"
+      )!
+      const investigationInput = screen.getAllByRole("spinbutton").find(
+        (s) => (s as HTMLInputElement).value === "15"
+      )!
+      fireEvent.input(insightInput, { target: { value: "19" } })
+      fireEvent.blur(insightInput)
+      fireEvent.input(investigationInput, { target: { value: "20" } })
+      fireEvent.blur(investigationInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ passiveInsight: 19, passiveInvestigation: 20 }))
+    })
+
+    it("shows manual passive values in view mode when their flags are false", () => {
+      render(
+        <SkillsProficienciesModule
+          character={makeCharacter({
+            useCalculatedPassivePerception: false, passivePerception: 11,
+            useCalculatedPassiveInsight: false, passiveInsight: 13,
+            useCalculatedPassiveInvestigation: false, passiveInvestigation: 15,
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("11")).toBeInTheDocument()
+      expect(screen.getByText("13")).toBeInTheDocument()
+      expect(screen.getByText("15")).toBeInTheDocument()
+    })
+
+    it("shows 'Custom' tooltip in view mode when a passive flag is false", async () => {
+      render(
+        <SkillsProficienciesModule
+          character={makeCharacter({ useCalculatedPassiveInsight: false })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // Passive Insight is at trigger index 25 (perception=24, insight=25, investigation=26)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[25])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
+    })
+  })
 })
