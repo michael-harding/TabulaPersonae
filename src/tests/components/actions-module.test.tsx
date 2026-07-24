@@ -190,6 +190,23 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       expect(onUpdate).not.toHaveBeenCalled()
       expect(screen.queryByRole("spinbutton", { name: /spell attack/i })).not.toBeInTheDocument()
     })
+
+    it("falls back to the calculated value instead of rendering 'undefined' when legacy data has no stored spellAttackBonus/spellSaveDC", () => {
+      // Simulates legacy/partially-populated character data: the "use calculated" flags are off,
+      // but the manual value was never persisted, so it's undefined at runtime.
+      const char = makeSpellcaster({
+        useCalculatedSpellAttackBonus: false,
+        spellAttackBonus: undefined as unknown as number,
+        useCalculatedSpellSaveDC: false,
+        spellSaveDC: undefined as unknown as number,
+      })
+      render(<ActionsModule character={char} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const attackInput = screen.getByRole("spinbutton", { name: /spell attack/i }) as HTMLInputElement
+      const dcInput = screen.getByRole("spinbutton", { name: /spell save dc/i }) as HTMLInputElement
+      expect(attackInput.value).toBe("6")
+      expect(dcInput.value).toBe("14")
+    })
   })
 
   describe("SpellSlotTracker integration", () => {

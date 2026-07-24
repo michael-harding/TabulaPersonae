@@ -37,9 +37,9 @@ describe("StatsBar", () => {
     expect(screen.getAllByText(/10/).length).toBeGreaterThan(0)
   })
 
-  it("does not divide by zero when maxHP is 0", () => {
+  it("does not divide by zero when maxHP is 0, flooring effective max at 1", () => {
     render(<StatsBar character={makeCharacter(0, 0)} />)
-    expect(screen.getByText(/\/0/)).toBeInTheDocument()
+    expect(screen.getByText(/\/1/)).toBeInTheDocument()
   })
 
   it("handles missing hitPoints by defaulting to 0/1", () => {

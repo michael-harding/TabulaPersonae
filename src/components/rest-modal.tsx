@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, parseHitDiceSize, rollHitDice, safeFeatures } from "@/lib/character-utils"
+import { getAbilityModifier, parseHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -64,7 +64,7 @@ export function RestModal(props: RestModalProps) {
         hpGained = result.total
         setRollResult(result)
       }
-      const newHP = Math.min(char.hitPoints.maximum, char.hitPoints.current + hpGained)
+      const newHP = Math.min(getEffectiveMaxHp(char.hitPoints), char.hitPoints.current + hpGained)
       props.onRest({
         ...char,
         hitPoints: { ...char.hitPoints, current: newHP },
@@ -83,7 +83,7 @@ export function RestModal(props: RestModalProps) {
       ) as typeof char.spellSlots
       props.onRest({
         ...char,
-        hitPoints: { ...char.hitPoints, current: char.hitPoints.maximum, temporary: 0 },
+        hitPoints: { ...char.hitPoints, current: getEffectiveMaxHp(char.hitPoints), temporary: 0 },
         spentHitDice: 0,
         spellSlots: resetSpellSlots,
         conditions: (char.conditions ?? []).filter((c) => c !== "Exhaustion"),

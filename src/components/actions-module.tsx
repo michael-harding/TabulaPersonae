@@ -247,9 +247,9 @@ const toEdit = (c: Character): ActionsEditState => {
   const useCalculatedSpellModifier = c.useCalculatedSpellModifier ?? true
   return {
     useCalculatedSpellAttackBonus,
-    spellAttackBonus: useCalculatedSpellAttackBonus ? getSpellAttackBonus(c) : c.spellAttackBonus,
+    spellAttackBonus: useCalculatedSpellAttackBonus ? getSpellAttackBonus(c) : (c.spellAttackBonus ?? getSpellAttackBonus(c)),
     useCalculatedSpellSaveDC,
-    spellSaveDC: useCalculatedSpellSaveDC ? getSpellSaveDC(c) : c.spellSaveDC,
+    spellSaveDC: useCalculatedSpellSaveDC ? getSpellSaveDC(c) : (c.spellSaveDC ?? getSpellSaveDC(c)),
     useCalculatedSpellModifier,
     spellModifier: useCalculatedSpellModifier ? computeSpellModifier(c) : (c.spellModifier ?? computeSpellModifier(c)),
   }

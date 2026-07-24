@@ -43,6 +43,10 @@ export function getPassiveScore(
   return 10 + getSkillModifier(abilityScore, proficiencyBonus, isProficient, hasExpertise)
 }
 
+export function getEffectiveMaxHp(hitPoints?: { maximum?: number; temporaryMaximum?: number }): number {
+  return Math.max(1, (hitPoints?.maximum ?? 1) + (hitPoints?.temporaryMaximum ?? 0))
+}
+
 export function getSpellSaveDC(character: Character): number
 export function getSpellSaveDC(
   spellcastingAbility: keyof AbilityScores,

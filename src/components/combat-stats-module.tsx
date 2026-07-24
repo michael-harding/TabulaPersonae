@@ -1,6 +1,6 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, formatModifier } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, formatModifier, getEffectiveMaxHp } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { DIE_SIZES } from "@/lib/dice"
@@ -79,7 +79,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const handleSave = () => {
     ;(document.activeElement as HTMLElement | null)?.blur()
     const data = edited()
-    const effMax = (data.hitPoints?.maximum ?? 1) + (data.hitPoints?.temporaryMaximum ?? 0)
+    const effMax = getEffectiveMaxHp(data.hitPoints)
     const normalized = {
       ...data,
       hitPoints: {
@@ -102,7 +102,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const updateHP = (field: "current" | "maximum" | "temporary" | "temporaryMaximum", value: number) =>
     setEdited((prev) => {
       const next = { ...prev.hitPoints, [field]: value }
-      const effMax = (next.maximum ?? 1) + (next.temporaryMaximum ?? 0)
+      const effMax = getEffectiveMaxHp(next)
       next.current = Math.max(0, Math.min(next.current ?? 0, effMax))
       return { ...prev, hitPoints: next }
     })
@@ -110,7 +110,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const adjustHitPoints = (amount: number) => {
     if (isReadOnly) return
     const currentHP = props.character.hitPoints?.current ?? 0
-    const maxHP = (props.character.hitPoints?.maximum ?? 1) + (props.character.hitPoints?.temporaryMaximum ?? 0)
+    const maxHP = getEffectiveMaxHp(props.character.hitPoints)
     const tempHP = props.character.hitPoints?.temporary ?? 0
 
     let newTempHP = tempHP
