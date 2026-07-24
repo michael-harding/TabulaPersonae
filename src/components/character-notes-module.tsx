@@ -1,18 +1,19 @@
 import { createSignal, createEffect, on, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { EditableSection } from "@/components/editable-section"
+import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import FileText from "lucide-solid/icons/file-text"
 
-interface CharacterNotesProps {
+interface CharacterNotesModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
 
-export function CharacterNotes(props: CharacterNotesProps) {
+export function CharacterNotesModule(props: CharacterNotesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
   const [editedCharacter, setEditedCharacter] = createSignal(props.character)
 
@@ -39,12 +40,44 @@ export function CharacterNotes(props: CharacterNotesProps) {
     { field: "hair" as const, label: "Hair" },
   ]
 
+  interface MarkdownField {
+    field: "appearance" | "personalityTraits" | "ideals" | "bonds" | "flaws" | "backstory" | "alliesAndOrganizations" | "treasure" | "notes"
+    label: string
+    fallback: string
+    minHeightClass: "min-h-[60px]" | "min-h-[100px]"
+  }
+
+  const PERSONALITY_FIELDS: MarkdownField[] = [
+    { field: "personalityTraits", label: "Personality Traits", fallback: "No personality traits defined yet.", minHeightClass: "min-h-[60px]" },
+    { field: "ideals", label: "Ideals", fallback: "No ideals defined yet.", minHeightClass: "min-h-[60px]" },
+    { field: "bonds", label: "Bonds", fallback: "No bonds defined yet.", minHeightClass: "min-h-[60px]" },
+    { field: "flaws", label: "Flaws", fallback: "No flaws defined yet.", minHeightClass: "min-h-[60px]" },
+  ]
+  const APPEARANCE_FIELD: MarkdownField = { field: "appearance", label: "Appearance", fallback: "No appearance description yet.", minHeightClass: "min-h-[60px]" }
+  const BACKSTORY_FIELD: MarkdownField = { field: "backstory", label: "Backstory", fallback: "No backstory written yet.", minHeightClass: "min-h-[100px]" }
+  const EDITION_2014_FIELDS: MarkdownField[] = [
+    { field: "alliesAndOrganizations", label: "Allies & Organizations", fallback: "No allies or organizations listed yet.", minHeightClass: "min-h-[60px]" },
+    { field: "treasure", label: "Treasure", fallback: "No treasure listed yet.", minHeightClass: "min-h-[60px]" },
+  ]
+  const NOTES_FIELD: MarkdownField = { field: "notes", label: "Notes", fallback: "No additional notes yet.", minHeightClass: "min-h-[100px]" }
+
+  const renderMarkdownField = (f: MarkdownField) => (
+    <div>
+      <h2 class="font-semibold mb-2 text-sm text-muted-foreground">{f.label}</h2>
+      <div class={`bg-muted/50 rounded-lg p-3 ${f.minHeightClass}`}>
+        <Show when={current()[f.field]} fallback={<p class="text-sm text-muted-foreground">{f.fallback}</p>}>
+          <MarkdownContent text={current()[f.field] as string} />
+        </Show>
+      </div>
+    </div>
+  )
+
   return (
-    <EditableSection
-      data-sem="character-notes"
+    <EditableModule
+      data-sem="character-notes-module"
+      data-test="character-notes-module"
       icon={<FileText class="h-5 w-5 text-primary" />}
       title="Character Background & Notes"
-      editTitle="Edit Character Background & Notes"
       isEditing={isEditing()}
       onEdit={() => { setEditedCharacter(props.character); setIsEditing(true) }}
       onSave={handleSave}
@@ -206,81 +239,28 @@ export function CharacterNotes(props: CharacterNotesProps) {
               </div>
             </div>
 
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Appearance</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().appearance || "No appearance description yet."}</p>
-              </div>
-            </div>
+            {renderMarkdownField(APPEARANCE_FIELD)}
 
             <Separator />
 
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Personality Traits</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().personalityTraits || "No personality traits defined yet."}</p>
-              </div>
-            </div>
-
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Ideals</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().ideals || "No ideals defined yet."}</p>
-              </div>
-            </div>
-
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Bonds</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().bonds || "No bonds defined yet."}</p>
-              </div>
-            </div>
-
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Flaws</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <p class="text-sm whitespace-pre-wrap">{current().flaws || "No flaws defined yet."}</p>
-              </div>
-            </div>
+            {PERSONALITY_FIELDS.map((f) => renderMarkdownField(f))}
 
             <Separator />
 
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Backstory</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[100px]">
-                <p class="text-sm whitespace-pre-wrap">{current().backstory || "No backstory written yet."}</p>
-              </div>
-            </div>
+            {renderMarkdownField(BACKSTORY_FIELD)}
 
             <Separator />
 
             {/* 2014-only view */}
             <Show when={edition() === "2014"}>
-              <div>
-                <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Allies & Organizations</h2>
-                <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                  <p class="text-sm whitespace-pre-wrap">{current().alliesAndOrganizations || "No allies or organizations listed yet."}</p>
-                </div>
-              </div>
-
-              <div>
-                <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Treasure</h2>
-                <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                  <p class="text-sm whitespace-pre-wrap">{current().treasure || "No treasure listed yet."}</p>
-                </div>
-              </div>
+              {EDITION_2014_FIELDS.map((f) => renderMarkdownField(f))}
 
               <Separator />
             </Show>
 
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Notes</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[100px]">
-                <p class="text-sm whitespace-pre-wrap">{current().notes || "No additional notes yet."}</p>
-              </div>
-            </div>
+            {renderMarkdownField(NOTES_FIELD)}
           </>
         )}
-    </EditableSection>
+    </EditableModule>
   )
 }

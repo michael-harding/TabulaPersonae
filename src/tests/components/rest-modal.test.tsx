@@ -143,6 +143,23 @@ describe("RestModal", () => {
       expect(updated.hitPoints.current).toBeGreaterThan(20)
       expect(updated.hitPoints.current).toBeLessThanOrEqual(80)
     })
+
+    it("caps healing at maximum + temporaryMaximum, not just maximum", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        level: 10,
+        spentHitDice: 0,
+        hitPoints: { current: 78, maximum: 80, temporary: 0, temporaryMaximum: 10 },
+        abilityScores: { ...createDefaultCharacter().abilityScores, constitution: 20 }, // +5 mod, guarantees healing past 80
+      })
+      openModal(char, onRest)
+      const increaseBtn = within(getDialog()).getByRole("button", { name: /increase/i })
+      fireEvent.click(increaseBtn) // spend 1 die
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.hitPoints.current).toBeGreaterThan(80)
+      expect(updated.hitPoints.current).toBeLessThanOrEqual(90)
+    })
   })
 
   describe("long rest", () => {
@@ -179,6 +196,15 @@ describe("RestModal", () => {
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.hitPoints.current).toBe(24)
+    })
+
+    it("calls onRest with HP restored to maximum + temporaryMaximum when set", () => {
+      const onRest = vi.fn()
+      openModal(makeCharacter({ hitPoints: { current: 5, maximum: 24, temporary: 3, temporaryMaximum: 10 } }), onRest)
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.hitPoints.current).toBe(34)
     })
 
     it("calls onRest with temporary HP cleared", () => {

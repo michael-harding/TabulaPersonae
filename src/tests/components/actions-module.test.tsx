@@ -1,6 +1,6 @@
 import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
-import { ActionsSection } from "@/components/actions-section"
+import { ActionsModule } from "@/components/actions-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -40,7 +40,7 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
   }
 }
 
-describe("ActionsSection", () => {
+describe("ActionsModule", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     cleanupPortals()
@@ -48,25 +48,31 @@ describe("ActionsSection", () => {
 
   describe("view mode", () => {
     it("renders the Actions & Attacks heading", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Actions & Attacks")).toBeInTheDocument()
     })
 
     it("renders Actions, Bonus Actions, and Reactions section headings", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Actions")).toBeInTheDocument()
       expect(screen.getByText("Bonus Actions")).toBeInTheDocument()
       expect(screen.getByText("Reactions")).toBeInTheDocument()
     })
 
-it("renders Attack Bonus and Spell Save DC stats", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Attack Bonus")).toBeInTheDocument()
+it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Spell Attack")).toBeInTheDocument()
+      expect(screen.getByText("Spell Modifier")).toBeInTheDocument()
       expect(screen.getByText("Spell Save DC")).toBeInTheDocument()
     })
 
+    it("does not render an Attack Bonus stat", () => {
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Attack Bonus")).not.toBeInTheDocument()
+    })
+
     it("renders the Add Action, Add Bonus Action, Add Reaction, Add Other buttons", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /add action/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /add bonus action/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /add reaction/i })).toBeInTheDocument()
@@ -75,7 +81,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("opens the Add Other modal when Add Other is clicked and saves a new other action", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add other/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/other name/i), { target: { value: "Sneak Attack" } })
@@ -89,29 +95,124 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("renders an existing other action's name", () => {
       const other = { id: "o1", name: "Sneak Attack", type: "ability" as ActionType, description: "", uses: 0, maxUses: 0 }
-      render(<ActionsSection character={makeCharacter({ otherActions: [other] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ otherActions: [other] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Sneak Attack")).toBeInTheDocument()
     })
 
     it("renders an existing attack's name", () => {
       render(
-        <ActionsSection character={makeCharacter({ attacks: [makeAttack({ name: "Longsword" })] })} onUpdate={vi.fn()} />
+        <ActionsModule character={makeCharacter({ attacks: [makeAttack({ name: "Longsword" })] })} onUpdate={vi.fn()} />
       )
       expect(screen.getByText("Longsword")).toBeInTheDocument()
     })
 
     it("shows the attack damage string", () => {
       render(
-        <ActionsSection character={makeCharacter({ attacks: [makeAttack({ damage: "2d6+4" })] })} onUpdate={vi.fn()} />
+        <ActionsModule character={makeCharacter({ attacks: [makeAttack({ damage: "2d6+4" })] })} onUpdate={vi.fn()} />
       )
       expect(screen.getByText(/2d6\+4/)).toBeInTheDocument()
+    })
+  })
+
+  describe("calculated spell stats", () => {
+    function makeSpellcaster(overrides: Partial<Character> = {}): Character {
+      return makeCharacter({
+        spellcastingAbility: "intelligence",
+        abilityScores: { ...createDefaultCharacter().abilityScores, intelligence: 16 },
+        proficiencyBonus: 3,
+        ...overrides,
+      })
+    }
+
+    function clickEditButton() {
+      fireEvent.click(screen.getByRole("button", { name: /^edit$/i }))
+    }
+
+    it("does not show an Edit button in view mode when read-only", () => {
+      render(
+        <ReadOnlyProvider value={true}>
+          <ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+      expect(screen.queryByRole("button", { name: /^edit$/i })).not.toBeInTheDocument()
+    })
+
+    it("shows a custom-value toggle for spell attack, spell modifier, and spell save DC in edit mode", () => {
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(3)
+    })
+
+    it("shows the ability-derived spell attack and save DC in view mode", () => {
+      // INT 16 -> mod +3, prof +3 => spell attack +6, DC 8+3+3=14
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("+6")).toBeInTheDocument()
+      expect(screen.getByText("14")).toBeInTheDocument()
+    })
+
+    it("shows a NumericInput for spell attack once switched to custom in edit mode", () => {
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell attack/i }))
+      expect(screen.getByRole("spinbutton", { name: /spell attack/i })).toBeInTheDocument()
+    })
+
+    it("saves a custom spell save DC override on save", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell save dc/i }))
+      const input = screen.getByRole("spinbutton", { name: /spell save dc/i })
+      fireEvent.input(input, { target: { value: "18" } })
+      fireEvent.blur(input)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ useCalculatedSpellSaveDC: false, spellSaveDC: 18 })
+      )
+    })
+
+    it("saves the calculated spell modifier value when the flag stays enabled", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ useCalculatedSpellModifier: true, spellModifier: 3 })
+      )
+    })
+
+    it("discards an in-progress override when Cancel is clicked", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell attack/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }))
+      expect(onUpdate).not.toHaveBeenCalled()
+      expect(screen.queryByRole("spinbutton", { name: /spell attack/i })).not.toBeInTheDocument()
+    })
+
+    it("falls back to the calculated value instead of rendering 'undefined' when legacy data has no stored spellAttackBonus/spellSaveDC", () => {
+      // Simulates legacy/partially-populated character data: the "use calculated" flags are off,
+      // but the manual value was never persisted, so it's undefined at runtime.
+      const char = makeSpellcaster({
+        useCalculatedSpellAttackBonus: false,
+        spellAttackBonus: undefined as unknown as number,
+        useCalculatedSpellSaveDC: false,
+        spellSaveDC: undefined as unknown as number,
+      })
+      render(<ActionsModule character={char} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const attackInput = screen.getByRole("spinbutton", { name: /spell attack/i }) as HTMLInputElement
+      const dcInput = screen.getByRole("spinbutton", { name: /spell save dc/i }) as HTMLInputElement
+      expect(attackInput.value).toBe("6")
+      expect(dcInput.value).toBe("14")
     })
   })
 
   describe("SpellSlotTracker integration", () => {
     it("renders slot circles for levels with total > 0", () => {
       const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 3, used: 1 } }
-      render(<ActionsSection character={makeCharacter({ spellSlots })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ spellSlots })} onUpdate={vi.fn()} />)
       expect(screen.getAllByTitle("Used slot (click to restore)")).toHaveLength(1)
       expect(screen.getAllByTitle("Available slot (click to use)")).toHaveLength(2)
     })
@@ -119,7 +220,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     it("calls onUpdate with incremented used count when a slot circle is clicked", () => {
       const onUpdate = vi.fn()
       const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 0 } }
-      render(<ActionsSection character={makeCharacter({ spellSlots })} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter({ spellSlots })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByTitle("Available slot (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -131,13 +232,13 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
   describe("Add Action modal", () => {
     it("opens the Add Custom Action modal when Add Action is clicked", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       expect(screen.getByText("Add Custom Action")).toBeInTheDocument()
     })
 
     it("closes the modal when Cancel is clicked", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /^cancel$/i }))
@@ -146,7 +247,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("does not call onUpdate when the action name is empty", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /^add action$/i }))
@@ -155,7 +256,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("calls onUpdate with the new action (including UUID) on valid submit", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Lay on Hands" } })
@@ -170,14 +271,14 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("shows the Range field", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByLabelText(/^range$/i)).toBeInTheDocument()
     })
 
     it("does not show the Trigger field", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).queryByLabelText(/^trigger$/i)).not.toBeInTheDocument()
@@ -188,7 +289,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     it("calls onUpdate without the deleted attack when delete is confirmed via edit modal", () => {
       const onUpdate = vi.fn()
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ attacks: [makeAttack({ name: "Longsword" })] })}
           onUpdate={onUpdate}
         />
@@ -204,14 +305,14 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
   describe("Add Bonus Action modal", () => {
     it("opens the Add Custom Bonus Action modal", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
       expect(screen.getByText("Add Custom Bonus Action")).toBeInTheDocument()
     })
 
     it("does not add a bonus action when name is empty", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /^add bonus action$/i }))
@@ -220,7 +321,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("calls onUpdate with a valid bonus action", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^bonus action name$/i), {
@@ -235,14 +336,14 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("shows the Range field", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByLabelText(/^range$/i)).toBeInTheDocument()
     })
 
     it("does not show the Trigger field", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).queryByLabelText(/^trigger$/i)).not.toBeInTheDocument()
@@ -251,14 +352,14 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
   describe("Add Reaction modal", () => {
     it("opens the Add Custom Reaction modal", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       expect(screen.getByText("Add Custom Reaction")).toBeInTheDocument()
     })
 
     it("does not add a reaction when trigger is empty", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^reaction name$/i), { target: { value: "Shield" } })
@@ -268,7 +369,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("does not add a reaction when name is empty", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^trigger$/i), { target: { value: "When hit" } })
@@ -278,7 +379,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("calls onUpdate with a valid reaction when both name and trigger are provided", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^reaction name$/i), { target: { value: "Shield" } })
@@ -296,14 +397,14 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("shows the Trigger field", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByLabelText(/^trigger$/i)).toBeInTheDocument()
     })
 
     it("shows the Range field", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByLabelText(/^range$/i)).toBeInTheDocument()
@@ -313,27 +414,27 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
   describe("Spell display", () => {
     it("shows prepared 1-action spells in the Actions section", () => {
       const spell = makeSpell({ name: "Eldritch Blast", level: 0, castingTime: "1 action", known: true })
-      render(<ActionsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Eldritch Blast")).toBeInTheDocument()
     })
 
     it("shows prepared bonus-action spells in the Bonus Actions section", () => {
       const spell = makeSpell({ name: "Healing Word", level: 1, castingTime: "1 bonus action", prepared: true, known: true })
-      render(<ActionsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Healing Word")).toBeInTheDocument()
     })
 
     it("renders an enabled Cast button for a non-cantrip when slots are available", () => {
       const spell = makeSpell({ id: "sp-1", name: "Bless", level: 1, castingTime: "1 action", prepared: true, known: true })
       const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 0 } }
-      render(<ActionsSection character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /cast/i })).not.toBeDisabled()
     })
 
     it("renders a disabled Cast button when no slots remain", () => {
       const spell = makeSpell({ id: "sp-1", name: "Bless", level: 1, castingTime: "1 action", prepared: true, known: true })
       const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 2 } }
-      render(<ActionsSection character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /cast/i })).toBeDisabled()
     })
 
@@ -341,7 +442,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
       const onUpdate = vi.fn()
       const spell = makeSpell({ id: "sp-1", name: "Bless", level: 1, castingTime: "1 action", prepared: true, known: true })
       const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 0 } }
-      render(<ActionsSection character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /cast/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -382,13 +483,13 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     }
 
     it("displays 'At Higher Level:' on a spell card when atHigherLevel is set", () => {
-      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
       expect(screen.getByText("At Higher Level:")).toBeInTheDocument()
     })
 
     it("does not display 'At Higher Level:' when atHigherLevel is not set", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })}
           onUpdate={vi.fn()}
         />
@@ -398,7 +499,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("does not show the upcast button when atHigherLevel is not set", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })}
           onUpdate={vi.fn()}
         />
@@ -408,7 +509,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("does not show the upcast button when the character has no higher-level spell slots", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacterWithUpcast({ level2Total: 0 })}
           onUpdate={vi.fn()}
         />
@@ -417,13 +518,13 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("shows an enabled upcast button when atHigherLevel is set and higher slots are available", () => {
-      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /upcast/i })).not.toBeDisabled()
     })
 
     it("shows a disabled upcast button when all higher-level slots are exhausted", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacterWithUpcast({ level2Total: 1, level2Used: 1 })}
           onUpdate={vi.fn()}
         />
@@ -432,7 +533,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("clicking the upcast button reveals level picker buttons", () => {
-      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
       expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
       fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
       expect(screen.getByRole("button", { name: "2nd" })).toBeInTheDocument()
@@ -440,7 +541,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("clicking a level picker button calls onUpdate consuming that slot level", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacterWithUpcast()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
       fireEvent.click(screen.getByRole("button", { name: "2nd" }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -452,7 +553,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("clicking a level picker button does not consume the base spell slot", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacterWithUpcast()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
       fireEvent.click(screen.getByRole("button", { name: "2nd" }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -463,7 +564,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("level picker closes after a level is selected", () => {
-      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
       expect(screen.getByRole("button", { name: "2nd" })).toBeInTheDocument()
       fireEvent.click(screen.getByRole("button", { name: "2nd" }))
@@ -471,7 +572,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("clicking the upcast button again closes the level picker", () => {
-      render(<ActionsSection character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
       expect(screen.getByRole("button", { name: "2nd" })).toBeInTheDocument()
       fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
@@ -488,7 +589,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
           3: { total: 1, used: 0 },
         },
       })
-      render(<ActionsSection character={char} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={char} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
       expect(screen.queryByRole("button", { name: "1st" })).not.toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
@@ -504,7 +605,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
           2: { total: 1, used: 0 },
         },
       })
-      render(<ActionsSection character={char} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={char} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /upcast/i })).toBeInTheDocument()
     })
   })
@@ -520,14 +621,14 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     describe("BonusAction with maxUses <= 5", () => {
       it("renders pip buttons when maxUses = 3", () => {
-        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 3 })] })} onUpdate={vi.fn()} />)
+        render(<ActionsModule character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 3 })] })} onUpdate={vi.fn()} />)
         expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
         expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
       })
 
       it("clicking a pip calls onUpdate with incremented uses on the correct bonus action", () => {
         const onUpdate = vi.fn()
-        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 3 })] })} onUpdate={onUpdate} />)
+        render(<ActionsModule character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 3 })] })} onUpdate={onUpdate} />)
         fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -539,14 +640,14 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     describe("BonusAction with maxUses > 5", () => {
       it("renders stepper +/- buttons when maxUses = 8", () => {
-        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 8 })] })} onUpdate={vi.fn()} />)
+        render(<ActionsModule character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 8 })] })} onUpdate={vi.fn()} />)
         expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
         expect(screen.getByRole("button", { name: /decrease/i })).toBeInTheDocument()
       })
 
       it("clicking + (more available) calls onUpdate with uses - 1", () => {
         const onUpdate = vi.fn()
-        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 2, maxUses: 8 })] })} onUpdate={onUpdate} />)
+        render(<ActionsModule character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 2, maxUses: 8 })] })} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /increase/i }))
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -557,7 +658,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
       it("clicking - (fewer available) calls onUpdate with uses + 1", () => {
         const onUpdate = vi.fn()
-        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 2, maxUses: 8 })] })} onUpdate={onUpdate} />)
+        render(<ActionsModule character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 2, maxUses: 8 })] })} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /decrease/i }))
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -569,7 +670,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     describe("BonusAction with maxUses = 0", () => {
       it("renders no tracker UI", () => {
-        render(<ActionsSection character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 0 })] })} onUpdate={vi.fn()} />)
+        render(<ActionsModule character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 0 })] })} onUpdate={vi.fn()} />)
         expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
         expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
       })
@@ -577,13 +678,13 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     describe("Reaction with maxUses <= 5", () => {
       it("renders pip buttons when maxUses = 2", () => {
-        render(<ActionsSection character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 2 })] })} onUpdate={vi.fn()} />)
+        render(<ActionsModule character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 2 })] })} onUpdate={vi.fn()} />)
         expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(2)
       })
 
       it("clicking a pip calls onUpdate with incremented uses on the correct reaction", () => {
         const onUpdate = vi.fn()
-        render(<ActionsSection character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 2 })] })} onUpdate={onUpdate} />)
+        render(<ActionsModule character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 2 })] })} onUpdate={onUpdate} />)
         fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -595,20 +696,20 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     describe("Reaction with maxUses = 0", () => {
       it("renders no tracker UI", () => {
-        render(<ActionsSection character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 0 })] })} onUpdate={vi.fn()} />)
+        render(<ActionsModule character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 0 })] })} onUpdate={vi.fn()} />)
         expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
       })
     })
 
     describe("Attack with maxUses", () => {
       it("renders 2 pip buttons on an attack card with maxUses = 2", () => {
-        render(<ActionsSection character={makeCharacter({ attacks: [makeAttack({ uses: 0, maxUses: 2 })] })} onUpdate={vi.fn()} />)
+        render(<ActionsModule character={makeCharacter({ attacks: [makeAttack({ uses: 0, maxUses: 2 })] })} onUpdate={vi.fn()} />)
         expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(2)
       })
 
       it("clicking a pip calls onUpdate with updated uses on the attack", () => {
         const onUpdate = vi.fn()
-        render(<ActionsSection character={makeCharacter({ attacks: [makeAttack({ uses: 0, maxUses: 2 })] })} onUpdate={onUpdate} />)
+        render(<ActionsModule character={makeCharacter({ attacks: [makeAttack({ uses: 0, maxUses: 2 })] })} onUpdate={onUpdate} />)
         fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -622,7 +723,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
   describe("combobox fields in action form", () => {
     it("saves a custom action type typed into the Type combobox", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Bardic Inspiration" } })
@@ -640,7 +741,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("saves a predefined action type selected from the dropdown", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Rage" } })
@@ -657,7 +758,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("saves a custom damage type when type is attack", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Claw" } })
@@ -683,7 +784,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
   describe("rechargeOn field in action form", () => {
     it("renders a 'Recharge On' select in the Add Action modal", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByLabelText(/recharge on/i)).toBeInTheDocument()
@@ -691,7 +792,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("submits the action with rechargeOn undefined when None is selected (default)", () => {
       const onUpdate = vi.fn()
-      render(<ActionsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add action/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^action name$/i), { target: { value: "Strike" } })
@@ -719,7 +820,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("feature with actionKind='action' appears in the Actions subsection", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action" })] })}
           onUpdate={vi.fn()}
         />
@@ -729,7 +830,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("feature with actionKind='bonus-action' appears in the Bonus Actions subsection", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Cunning Action", actionKind: "bonus-action" })] })}
           onUpdate={vi.fn()}
         />
@@ -739,7 +840,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("feature with actionKind='reaction' appears in the Reactions subsection", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Uncanny Dodge", actionKind: "reaction" })] })}
           onUpdate={vi.fn()}
         />
@@ -749,7 +850,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("feature without actionKind does not appear in the actions grid", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Expertise", actionKind: undefined })] })}
           onUpdate={vi.fn()}
         />
@@ -759,7 +860,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("species trait with actionKind='action' appears in the Actions subsection", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ speciesTraits: [makeFeature({ id: "t-1", name: "Breath Weapon", source: "species-trait", actionKind: "action" })] })}
           onUpdate={vi.fn()}
         />
@@ -769,7 +870,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("feat with actionKind='action' appears in the Actions subsection", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ feats: [makeFeature({ id: "f-1", name: "Shield Master", source: "feat", actionKind: "action" })] })}
           onUpdate={vi.fn()}
         />
@@ -779,7 +880,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("shows source badge for class feature action", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action" })] })}
           onUpdate={vi.fn()}
         />
@@ -789,7 +890,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("feature description is shown in the card", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", description: "Take an extra action." })] })}
           onUpdate={vi.fn()}
         />
@@ -799,7 +900,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("shows range in the feature card stats row", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", range: "30 ft" })] })}
           onUpdate={vi.fn()}
         />
@@ -809,7 +910,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("shows pip tracker when feature has maxUses > 0", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", maxUses: 3, uses: 0 })] })}
           onUpdate={vi.fn()}
         />
@@ -819,7 +920,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("does not show pip tracker when feature has no maxUses", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action" })] })}
           onUpdate={vi.fn()}
         />
@@ -830,7 +931,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     it("clicking pip calls onUpdate with updated classFeatures uses", () => {
       const onUpdate = vi.fn()
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ id: "cf-1", actionKind: "action", maxUses: 3, uses: 0 })] })}
           onUpdate={onUpdate}
         />
@@ -846,7 +947,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     it("clicking pip calls onUpdate with updated speciesTraits uses", () => {
       const onUpdate = vi.fn()
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ speciesTraits: [makeFeature({ id: "st-1", source: "species-trait", actionKind: "action", maxUses: 2, uses: 0 })] })}
           onUpdate={onUpdate}
         />
@@ -862,7 +963,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     it("clicking pip calls onUpdate with updated feats uses", () => {
       const onUpdate = vi.fn()
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ feats: [makeFeature({ id: "ft-1", source: "feat", actionKind: "action", maxUses: 2, uses: 0 })] })}
           onUpdate={onUpdate}
         />
@@ -877,7 +978,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("feature with range shows Range: label in stats row", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", range: "30 ft" })] })}
           onUpdate={vi.fn()}
         />
@@ -887,7 +988,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("feature detail popover opens and shows full description", () => {
       render(
-        <ActionsSection
+        <ActionsModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action", description: "Take an extra action on your turn." })] })}
           onUpdate={vi.fn()}
         />
@@ -900,7 +1001,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
   describe("detail popover in section context", () => {
     it("spell detail popover opens and shows castingTime", () => {
       const spell = makeSpell({ name: "Fire Bolt", level: 0, castingTime: "1 action", known: true })
-      render(<ActionsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /details for fire bolt/i }))
       expect(screen.getByText(/1 action/)).toBeInTheDocument()
     })
@@ -909,7 +1010,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
   describe("effect pills", () => {
     it("shows gain pill for a spell with gain", () => {
       const spell = makeSpell({ name: "Cure Wounds", level: 1, castingTime: "1 action", prepared: true, gain: "1d8+3" })
-      render(<ActionsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("1d8+3")).toBeInTheDocument()
     })
   })
@@ -930,34 +1031,34 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     }
 
     it("renders equipped weapon name in Actions section", () => {
-      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment()] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ equipment: [makeWeaponEquipment()] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Longsword")).toBeInTheDocument()
     })
 
     it("shows 'Weapon' badge on derived attack card", () => {
-      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment()] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ equipment: [makeWeaponEquipment()] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Weapon")).toBeInTheDocument()
     })
 
     it("does not show a delete button on derived weapon attack", () => {
-      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment()] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ equipment: [makeWeaponEquipment()] })} onUpdate={vi.fn()} />)
       expect(screen.queryByRole("button", { name: /delete longsword/i })).not.toBeInTheDocument()
     })
 
     it("does not render weapon when not equipped", () => {
-      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment({ equipped: false })] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ equipment: [makeWeaponEquipment({ equipped: false })] })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Longsword")).not.toBeInTheDocument()
     })
 
     it("does not render weapon when weaponStats is absent", () => {
-      render(<ActionsSection character={makeCharacter({ equipment: [makeWeaponEquipment({ weaponStats: undefined })] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ equipment: [makeWeaponEquipment({ weaponStats: undefined })] })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Longsword")).not.toBeInTheDocument()
     })
   })
 
   describe("collapsible section headers", () => {
     it("renders all four section headers", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Actions")).toBeInTheDocument()
       expect(screen.getByText("Bonus Actions")).toBeInTheDocument()
       expect(screen.getByText("Reactions")).toBeInTheDocument()
@@ -966,12 +1067,12 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("shows action content by default (sections start expanded)", () => {
       const attack = makeAttack({ name: "Longsword" })
-      render(<ActionsSection character={makeCharacter({ attacks: [attack] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ attacks: [attack] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Longsword")).toBeInTheDocument()
     })
 
     it("all section trigger buttons start with aria-expanded=true", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Actions").closest("button")).toHaveAttribute("aria-expanded", "true")
       expect(screen.getByText("Bonus Actions").closest("button")).toHaveAttribute("aria-expanded", "true")
       expect(screen.getByText("Reactions").closest("button")).toHaveAttribute("aria-expanded", "true")
@@ -979,7 +1080,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("toggles aria-expanded on the Actions trigger when clicked", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       const trigger = screen.getByText("Actions").closest("button")!
       expect(trigger).toHaveAttribute("aria-expanded", "true")
       fireEvent.click(trigger)
@@ -989,7 +1090,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("toggles aria-expanded on the Bonus Actions trigger when clicked", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       const trigger = screen.getByText("Bonus Actions").closest("button")!
       expect(trigger).toHaveAttribute("aria-expanded", "true")
       fireEvent.click(trigger)
@@ -997,7 +1098,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("toggles aria-expanded on the Reactions trigger when clicked", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       const trigger = screen.getByText("Reactions").closest("button")!
       expect(trigger).toHaveAttribute("aria-expanded", "true")
       fireEvent.click(trigger)
@@ -1005,7 +1106,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     })
 
     it("toggles aria-expanded on the Other trigger when clicked", () => {
-      render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       const trigger = screen.getByText("Other").closest("button")!
       expect(trigger).toHaveAttribute("aria-expanded", "true")
       fireEvent.click(trigger)
@@ -1014,14 +1115,14 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
 
     it("shows a count badge of 1 in the Actions section when one attack is present", () => {
       const attack = makeAttack({ name: "Longsword" })
-      render(<ActionsSection character={makeCharacter({ attacks: [attack] })} onUpdate={vi.fn()} />)
+      render(<ActionsModule character={makeCharacter({ attacks: [attack] })} onUpdate={vi.fn()} />)
       const actionsHeader = screen.getByText("Actions").closest("button")!
       expect(within(actionsHeader).getByText("1")).toBeInTheDocument()
     })
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<ActionsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+    const { container } = render(<ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -1030,7 +1131,7 @@ it("renders Attack Bonus and Spell Save DC stats", () => {
     function renderReadOnly(overrides: Partial<Character> = {}) {
       return render(
         <ReadOnlyProvider value={true}>
-          <ActionsSection character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+          <ActionsModule character={makeCharacter(overrides)} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
       )
     }

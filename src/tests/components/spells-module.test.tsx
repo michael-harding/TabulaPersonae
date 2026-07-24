@@ -1,6 +1,6 @@
 import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
-import { SpellsSection } from "@/components/spells-section"
+import { SpellsModule } from "@/components/spells-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Spell } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -28,7 +28,7 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
 }
 
-describe("SpellsSection", () => {
+describe("SpellsModule", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     cleanupPortals()
@@ -36,69 +36,69 @@ describe("SpellsSection", () => {
 
   describe("view mode — empty", () => {
     it("renders the Spells heading", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Spells")).toBeInTheDocument()
     })
 
     it("renders the Add Spell button", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /add spell/i })).toBeInTheDocument()
     })
 
     it("shows the empty state message when no spells", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText(/no spells added yet/i)).toBeInTheDocument()
     })
 
     it("renders the Spell Slots heading", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Spell Slots")).toBeInTheDocument()
     })
 
     it("shows 'No spell slots configured.' when all totals are 0", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("No spell slots configured.")).toBeInTheDocument()
     })
 
     it("renders the search input", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByPlaceholderText("Search spells...")).toBeInTheDocument()
     })
   })
 
   describe("view mode — with spells", () => {
     it("shows Spell Save DC stat bar when spells exist", () => {
-      render(<SpellsSection character={makeCharacter({ spells: [makeSpell()] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spells: [makeSpell()] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Spell Save DC")).toBeInTheDocument()
     })
 
     it("shows prepared spell count", () => {
-      render(<SpellsSection character={makeCharacter({ spells: [makeSpell()] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spells: [makeSpell()] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Prepared Spells")).toBeInTheDocument()
     })
 
     it("does not show stat bar when there are no spells", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Spell Save DC")).not.toBeInTheDocument()
     })
 
     it("renders a cantrip spell name (default expanded)", () => {
       render(
-        <SpellsSection character={makeCharacter({ spells: [makeSpell({ name: "Prestidigitation" })] })} onUpdate={vi.fn()} />
+        <SpellsModule character={makeCharacter({ spells: [makeSpell({ name: "Prestidigitation" })] })} onUpdate={vi.fn()} />
       )
       expect(screen.getByText("Prestidigitation")).toBeInTheDocument()
     })
 
     it("renders the spell school badge", () => {
       render(
-        <SpellsSection character={makeCharacter({ spells: [makeSpell({ school: "Illusion" })] })} onUpdate={vi.fn()} />
+        <SpellsModule character={makeCharacter({ spells: [makeSpell({ school: "Illusion" })] })} onUpdate={vi.fn()} />
       )
       expect(screen.getByText("Illusion")).toBeInTheDocument()
     })
 
     it("filters spells by name — hides non-matching spells", () => {
       render(
-        <SpellsSection
+        <SpellsModule
           character={makeCharacter({
             spells: [
               makeSpell({ id: "s1", name: "Fire Bolt" }),
@@ -122,7 +122,7 @@ describe("SpellsSection", () => {
         ...createDefaultCharacter().spellSlots,
         1: { total: 2, used: 0 },
       }
-      render(<SpellsSection character={makeCharacter({ spellSlots })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spellSlots })} onUpdate={vi.fn()} />)
       expect(screen.getAllByTitle("Available slot (click to use)")).toHaveLength(2)
     })
 
@@ -132,7 +132,7 @@ describe("SpellsSection", () => {
         ...createDefaultCharacter().spellSlots,
         1: { total: 2, used: 0 },
       }
-      render(<SpellsSection character={makeCharacter({ spellSlots })} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter({ spellSlots })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByTitle("Available slot (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -144,13 +144,13 @@ describe("SpellsSection", () => {
 
   describe("Add Spell modal", () => {
     it("opens the Add New Spell modal when Add Spell is clicked", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
       expect(screen.getByText("Add New Spell")).toBeInTheDocument()
     })
 
     it("closes the modal when Cancel is clicked", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /cancel/i }))
@@ -159,7 +159,7 @@ describe("SpellsSection", () => {
 
     it("does not call onUpdate when the spell name is empty", () => {
       const onUpdate = vi.fn()
-      render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
@@ -169,7 +169,7 @@ describe("SpellsSection", () => {
     it("calls onUpdate and saveCharacter with the new spell when valid name is submitted", async () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
-      render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/spell name/i), {
@@ -190,7 +190,7 @@ describe("SpellsSection", () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0 })
-      render(<SpellsSection character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
       // In view with one cantrip (expanded), buttons: Add Spell, Edit Slots, Edit (ghost), Delete (ghost)
       const buttons = screen.getAllByRole("button")
       const deleteButton = buttons[buttons.length - 1]
@@ -205,7 +205,7 @@ describe("SpellsSection", () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
       const spell = makeSpell({ id: "s1", name: "Fireball", level: 1, prepared: true, known: true })
-      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
       const checkboxes = screen.getAllByRole("checkbox")
       fireEvent.click(checkboxes[0])
       expect(onUpdate).toHaveBeenCalledWith(
@@ -218,13 +218,13 @@ describe("SpellsSection", () => {
 
     it("shows level 1 spells without clicking the header first", () => {
       const spell = makeSpell({ name: "Fireball", level: 1 })
-      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Fireball")).toBeInTheDocument()
     })
 
     it("toggles aria-expanded on the level header when clicked", () => {
       const spell = makeSpell({ name: "Fireball", level: 1 })
-      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       const trigger = screen.getByText("1st Level").closest("button")!
       expect(trigger).toHaveAttribute("aria-expanded", "true")
       fireEvent.click(trigger)
@@ -236,7 +236,7 @@ describe("SpellsSection", () => {
 
   describe("At Higher Level field", () => {
     it("renders the At Higher Level input in the Add Spell modal", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByLabelText(/at higher level/i)).toBeInTheDocument()
@@ -244,7 +244,7 @@ describe("SpellsSection", () => {
 
     it("saves atHigherLevel when adding a spell with a value", () => {
       const onUpdate = vi.fn()
-      render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/spell name/i), { target: { value: "Fireball" } })
@@ -261,7 +261,7 @@ describe("SpellsSection", () => {
 
     it("pre-populates atHigherLevel in the Edit Spell modal", () => {
       const spell = makeSpell({ name: "Fire Bolt", level: 0, atHigherLevel: "+1d10 per level" })
-      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       const buttons = screen.getAllByRole("button")
       fireEvent.click(buttons[buttons.length - 2]) // Edit button (second-to-last)
       const modal = screen.getByRole("dialog")
@@ -271,7 +271,7 @@ describe("SpellsSection", () => {
     it("saves the updated atHigherLevel when editing a spell", () => {
       const onUpdate = vi.fn()
       const spell = makeSpell({ name: "Fire Bolt", level: 0, atHigherLevel: "+1d10 per level" })
-      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
       const buttons = screen.getAllByRole("button")
       fireEvent.click(buttons[buttons.length - 2]) // Edit button
       const modal = screen.getByRole("dialog")
@@ -289,14 +289,14 @@ describe("SpellsSection", () => {
 
   describe("Edit Spell Slots modal", () => {
     it("opens the Edit Spell Slots modal when Edit Slots is clicked", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
       expect(screen.getByText("Edit Spell Slots")).toBeInTheDocument()
     })
 
     it("calls onUpdate when a slot total is changed in the modal", () => {
       const onUpdate = vi.fn()
-      render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
       const modal = screen.getByRole("dialog")
       // First spinbutton is Level 1 total (title="Total slots")
@@ -314,7 +314,7 @@ describe("SpellsSection", () => {
   describe("concentration and ritual badges", () => {
     it("shows 'R' badge for a ritual spell", () => {
       const spell = makeSpell({ name: "Detect Magic", level: 1, ritual: true })
-      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByText("1st Level"))
       expect(screen.getByTitle("Ritual")).toBeInTheDocument()
       expect(screen.getByText("R")).toBeInTheDocument()
@@ -322,7 +322,7 @@ describe("SpellsSection", () => {
 
     it("does not show C or R badges for a plain spell", () => {
       const spell = makeSpell({ name: "Fire Bolt", level: 0, concentration: false, ritual: false })
-      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.queryByTitle("Concentration")).not.toBeInTheDocument()
       expect(screen.queryByTitle("Ritual")).not.toBeInTheDocument()
     })
@@ -332,14 +332,14 @@ describe("SpellsSection", () => {
     beforeEach(() => cleanupPortals())
 
     it("renders Concentration label in the add spell modal", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByText(/^concentration$/i)).toBeInTheDocument()
     })
 
     it("renders Ritual label in the add spell modal", () => {
-      render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByText(/^ritual$/i)).toBeInTheDocument()
@@ -349,7 +349,7 @@ describe("SpellsSection", () => {
   describe("combobox fields in spell form", () => {
     it("saves a custom spell school typed into the School combobox", () => {
       const onUpdate = vi.fn()
-      render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^spell name$/i), { target: { value: "Void Bolt" } })
@@ -369,7 +369,7 @@ describe("SpellsSection", () => {
 
     it("saves a custom casting time typed into the Casting Time combobox", () => {
       const onUpdate = vi.fn()
-      render(<SpellsSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^spell name$/i), { target: { value: "Slow Ritual" } })
@@ -391,7 +391,7 @@ describe("SpellsSection", () => {
   describe("known / prepared checkbox logic", () => {
     it("shows 'Known' checkbox for cantrips (level 0) — not 'Prepared'", () => {
       const cantrip = makeSpell({ name: "Prestidigitation", level: 0, known: true })
-      render(<SpellsSection character={makeCharacter({ spells: [cantrip] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={vi.fn()} />)
       // One checkbox visible: the Known toggle for the cantrip
       const checkboxes = screen.getAllByRole("checkbox")
       expect(checkboxes).toHaveLength(1)
@@ -399,7 +399,7 @@ describe("SpellsSection", () => {
 
     it("shows 'Prepared' checkbox for level 1 spells — not a separate 'Known'", () => {
       const spell = makeSpell({ name: "Fireball", level: 1, known: true, prepared: false })
-      render(<SpellsSection character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       const checkboxes = screen.getAllByRole("checkbox")
       // One checkbox: the Prepared toggle
       expect(checkboxes).toHaveLength(1)
@@ -409,7 +409,7 @@ describe("SpellsSection", () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0, known: true, prepared: true })
-      render(<SpellsSection character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("checkbox")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -425,7 +425,7 @@ describe("SpellsSection", () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0, known: false, prepared: false })
-      render(<SpellsSection character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
+      render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("checkbox")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -439,7 +439,7 @@ describe("SpellsSection", () => {
   describe("search by description", () => {
     it("shows a spell whose description matches the search term even if the name does not", () => {
       render(
-        <SpellsSection
+        <SpellsModule
           character={makeCharacter({
             spells: [
               makeSpell({ id: "s1", name: "Fire Bolt", description: "A mote of fire." }),
@@ -460,19 +460,19 @@ describe("SpellsSection", () => {
   describe("spellcasting class (2014 only)", () => {
     it("renders the spellcasting class input in 2014 mode when spells exist", () => {
       const spell = makeSpell()
-      render(<SpellsSection character={makeCharacter({ edition: "2014", spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ edition: "2014", spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.getByPlaceholderText(/e\.g\. Wizard/i)).toBeInTheDocument()
     })
 
     it("does not render the spellcasting class input in 2024 mode", () => {
       const spell = makeSpell()
-      render(<SpellsSection character={makeCharacter({ edition: "2024", spells: [spell] })} onUpdate={vi.fn()} />)
+      render(<SpellsModule character={makeCharacter({ edition: "2024", spells: [spell] })} onUpdate={vi.fn()} />)
       expect(screen.queryByPlaceholderText(/e\.g\. Wizard/i)).not.toBeInTheDocument()
     })
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<SpellsSection character={makeCharacter()} onUpdate={vi.fn()} />)
+    const { container } = render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -484,7 +484,7 @@ describe("SpellsSection", () => {
     function renderReadOnly(overrides: Partial<Character> = {}) {
       return render(
         <ReadOnlyProvider value={true}>
-          <SpellsSection character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+          <SpellsModule character={makeCharacter(overrides)} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
       )
     }

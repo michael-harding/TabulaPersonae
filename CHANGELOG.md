@@ -5,6 +5,19 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-07-24
+
+### Added
+- **Markdown rendering** — character notes, description fields (appearance, personality, ideals, bonds, flaws, backstory, allies, treasure), and action/spell descriptions now render as sanitized Markdown (`marked` + `dompurify`) instead of plain pre-wrapped text
+- **Calculated stats with manual override** — initiative, proficiency bonus, armor class, passive perception, passive insight, passive investigation, spell save DC, spell attack bonus, and spell modifier are now auto-derived from character data, each with a per-field toggle to switch to a manual/custom value; new `CalculatedValue` component and `useCalculatedValue` hook back this behavior
+- **Hover tooltips** explaining how each calculated stat is derived, shown on ability scores, combat stats, and skills/proficiencies
+- **Temporary max HP** — hit points now support a `temporaryMaximum` bonus; rest logic uses a new `getEffectiveMaxHp` helper so healing and long rest correctly cap at the boosted maximum
+- Optional badge label on `ActionCard` — spell cards now derive their badge (Cantrip, 1st, 2nd, ...) from spell level automatically instead of requiring a passed-in label
+
+### Changed
+- Renamed all sheet section components to "module" terminology (`ActionsSection` → `ActionsModule`, `EditableSection` → `EditableModule`, `CombatStats` → `CombatStatsModule`, etc.) to align naming with the module registry introduced in 1.2.0; no functional/UI changes from the rename itself
+- `Tooltip` component gained `triggerClass` and `triggerFocusable` props to support keyboard-accessible tooltip triggers on calculated stat values
+
 ## [1.3.0] - 2026-07-21
 
 ### Added

@@ -12,6 +12,7 @@ import {
   rollHitDice,
   getEquippedWeaponAttacks,
   calculateEquippedAC,
+  getEffectiveMaxHp,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type AbilityScores, type Equipment } from "@/lib/character-types"
 
@@ -482,5 +483,29 @@ describe("calculateEquippedAC", () => {
     const char = { ...defaultChar, equipment: [makeArmorItem({ equipped: false })] }
     expect(calculateEquippedAC(char).isEquippedArmor).toBe(false)
     expect(calculateEquippedAC(char).ac).toBe(12)
+  })
+})
+
+describe("getEffectiveMaxHp", () => {
+  it("returns maximum when there is no temporaryMaximum", () => {
+    expect(getEffectiveMaxHp({ maximum: 24 })).toBe(24)
+  })
+
+  it("adds a positive temporaryMaximum to maximum", () => {
+    expect(getEffectiveMaxHp({ maximum: 24, temporaryMaximum: 10 })).toBe(34)
+  })
+
+  it("adds a negative temporaryMaximum (curse scenario)", () => {
+    expect(getEffectiveMaxHp({ maximum: 20, temporaryMaximum: -5 })).toBe(15)
+  })
+
+  it("floors the result at 1 when temporaryMaximum drives it to zero or below", () => {
+    expect(getEffectiveMaxHp({ maximum: 5, temporaryMaximum: -5 })).toBe(1)
+    expect(getEffectiveMaxHp({ maximum: 5, temporaryMaximum: -999 })).toBe(1)
+  })
+
+  it("defaults maximum to 1 and temporaryMaximum to 0 when missing", () => {
+    expect(getEffectiveMaxHp({})).toBe(1)
+    expect(getEffectiveMaxHp(undefined)).toBe(1)
   })
 })

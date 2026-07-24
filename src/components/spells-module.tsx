@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import Sparkles from "lucide-solid/icons/sparkles"
 import Plus from "lucide-solid/icons/plus"
 import Edit from "lucide-solid/icons/edit"
@@ -51,7 +52,7 @@ interface SpellFormData {
   ritual?: boolean
 }
 
-interface SpellsSectionProps {
+interface SpellsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
@@ -218,7 +219,7 @@ function SpellForm(props: SpellFormProps) {
   )
 }
 
-export function SpellsSection(props: SpellsSectionProps) {
+export function SpellsModule(props: SpellsModuleProps) {
   const isReadOnly = useReadOnly()
   const [searchTerm, setSearchTerm] = createSignal("")
   const [isAddModalOpen, setIsAddModalOpen] = createSignal(false)
@@ -252,8 +253,12 @@ export function SpellsSection(props: SpellsSectionProps) {
   // Must be called inside a reactive context (JSX, effect, memo) — reads spellsByLevelMap()
   const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? EMPTY_SPELLS
   const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0))
-  const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
-  const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
+  const spellSaveDC = createMemo(() =>
+    (props.character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(props.character) : props.character.spellSaveDC
+  )
+  const spellAttackBonus = createMemo(() =>
+    (props.character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBonus(props.character) : props.character.spellAttackBonus
+  )
 
   const toggleLevelExpanded = (level: number, isOpen: boolean) => {
     setExpandedLevels((prev) => {
@@ -395,7 +400,7 @@ export function SpellsSection(props: SpellsSectionProps) {
   ))
 
   return (
-    <Card data-sem="spells-section">
+    <Card data-sem="spells-module">
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -574,7 +579,7 @@ export function SpellsSection(props: SpellsSectionProps) {
                                     <Show when={spell.description}>
                                       <div class="mb-2">
                                         <span class="font-medium">Description:</span>
-                                        <pre class="text-sm text-muted-foreground" style={{ "white-space": "pre-wrap" }}>{spell.description}</pre>
+                                        <MarkdownContent text={spell.description!} class="text-muted-foreground" />
                                       </div>
                                     </Show>
                                   </div>

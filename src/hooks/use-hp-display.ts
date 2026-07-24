@@ -1,9 +1,10 @@
 import { createMemo, type Accessor } from "solid-js"
 import type { Character } from "@/lib/character-types"
+import { getEffectiveMaxHp } from "@/lib/character-utils"
 
 export function useHpDisplay(character: Accessor<Character>) {
   const currentHp = createMemo(() => character().hitPoints?.current ?? 0)
-  const maxHp = createMemo(() => character().hitPoints?.maximum ?? 1)
+  const maxHp = createMemo(() => getEffectiveMaxHp(character().hitPoints))
   const tempHp = createMemo(() => character().hitPoints?.temporary ?? 0)
   const hpPercentage = createMemo(() =>
     Math.max(0, Math.min(100, maxHp() > 0 ? (currentHp() / maxHp()) * 100 : 0))

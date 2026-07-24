@@ -7,6 +7,7 @@ import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
 import { Popover } from "@kobalte/core/popover"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import Pencil from "lucide-solid/icons/pencil"
 import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
 import CircleHelp from "lucide-solid/icons/circle-help"
@@ -20,7 +21,8 @@ function getOrdinalSuffix(num: number): string {
 export interface ActionCardProps {
   // Header
   name: string
-  badgeLabel: string
+  // Omit for spells — badge falls back to the spell level (Cantrip, 1st, 2nd...)
+  badgeLabel?: string
 
   // Spell subtitle — formatted internally as "Cantrip • School" or "1st level • School"
   spellLevel?: number
@@ -75,11 +77,19 @@ export function ActionCard(props: ActionCardProps) {
   const isReadOnly = useReadOnly()
   const [concentrationActive, setConcentrationActive] = createSignal(false)
 
-  const spellSubtitle = () => {
+  const spellLevelLabel = () => {
     if (props.spellLevel === undefined) return null
-    const level = props.spellLevel === 0 ? "Cantrip" : `${getOrdinalSuffix(props.spellLevel)} level`
-    return props.spellSchool ? `${level} • ${props.spellSchool}` : level
+    return props.spellLevel === 0 ? "Cantrip" : getOrdinalSuffix(props.spellLevel)
   }
+
+  const spellSubtitle = () => {
+    const level = spellLevelLabel()
+    if (level === null) return null
+    const levelText = props.spellLevel === 0 ? level : `${level} level`
+    return props.spellSchool ? `${levelText} • ${props.spellSchool}` : levelText
+  }
+
+  const badgeText = () => spellLevelLabel() ?? props.badgeLabel
 
   const durationLabel = () => {
     if (!props.duration) return null
@@ -174,7 +184,9 @@ export function ActionCard(props: ActionCardProps) {
                       </Show>
                     </div>
                     <Show when={props.description}>
-                      <div class="text-xs border-t pt-2 leading-relaxed">{props.description}</div>
+                      <div class="border-t pt-2">
+                        <MarkdownContent text={props.description!} class="text-xs leading-relaxed" />
+                      </div>
                     </Show>
                     <Show when={props.atHigherLevel}>
                       <div class="text-xs border-t pt-2">
@@ -192,7 +204,7 @@ export function ActionCard(props: ActionCardProps) {
         </div>
 
         <div class="flex items-center gap-1 shrink-0">
-          <Badge variant="secondary" class="text-xs">{props.badgeLabel}</Badge>
+          <Badge variant="secondary" class="text-xs">{badgeText()}</Badge>
           <Show when={props.onEdit && !isReadOnly}>
             <Tooltip content={`Edit ${props.name}`}>
               <button

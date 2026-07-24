@@ -1,6 +1,6 @@
 import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
-import { FeaturesSection } from "@/components/features-section"
+import { FeaturesModule } from "@/components/features-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Feature } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -19,7 +19,7 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
 }
 
-describe("FeaturesSection", () => {
+describe("FeaturesModule", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     cleanupPortals()
@@ -27,27 +27,27 @@ describe("FeaturesSection", () => {
 
   describe("section heading and structure", () => {
     it("renders the section heading", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Class Features, Species Traits & Feats")).toBeInTheDocument()
     })
 
     it("renders the Class Features section header", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Class Features")).toBeInTheDocument()
     })
 
     it("renders the Species Traits section header", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Species Traits")).toBeInTheDocument()
     })
 
     it("renders the Feats section header", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Feats")).toBeInTheDocument()
     })
 
     it("renders Add buttons for each section", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /add class feature/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /add species trait/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /add feat/i })).toBeInTheDocument()
@@ -56,17 +56,17 @@ describe("FeaturesSection", () => {
 
   describe("empty state", () => {
     it("shows empty state for class features", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("No class features added yet.")).toBeInTheDocument()
     })
 
     it("shows empty state for species traits", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("No species traits added yet.")).toBeInTheDocument()
     })
 
     it("shows empty state for feats", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("No feats added yet.")).toBeInTheDocument()
     })
   })
@@ -74,7 +74,7 @@ describe("FeaturesSection", () => {
   describe("displaying features", () => {
     it("renders a class feature name", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Action Surge" })] })}
           onUpdate={vi.fn()}
         />
@@ -84,7 +84,7 @@ describe("FeaturesSection", () => {
 
     it("renders a class feature description", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ description: "Once per short rest." })] })}
           onUpdate={vi.fn()}
         />
@@ -94,7 +94,7 @@ describe("FeaturesSection", () => {
 
     it("renders a species trait name", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ speciesTraits: [makeFeature({ id: "t-1", name: "Darkvision", source: "species-trait" })] })}
           onUpdate={vi.fn()}
         />
@@ -104,7 +104,7 @@ describe("FeaturesSection", () => {
 
     it("renders a feat name", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ feats: [makeFeature({ id: "f-1", name: "War Caster", source: "feat" })] })}
           onUpdate={vi.fn()}
         />
@@ -114,7 +114,7 @@ describe("FeaturesSection", () => {
 
     it("shows action badge when actionKind is 'action'", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "action" })] })}
           onUpdate={vi.fn()}
         />
@@ -124,7 +124,7 @@ describe("FeaturesSection", () => {
 
     it("shows bonus action badge when actionKind is 'bonus-action'", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "bonus-action" })] })}
           onUpdate={vi.fn()}
         />
@@ -134,7 +134,7 @@ describe("FeaturesSection", () => {
 
     it("shows reaction badge when actionKind is 'reaction'", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: "reaction" })] })}
           onUpdate={vi.fn()}
         />
@@ -144,7 +144,7 @@ describe("FeaturesSection", () => {
 
     it("does not show an action badge when actionKind is not set", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ actionKind: undefined })] })}
           onUpdate={vi.fn()}
         />
@@ -158,7 +158,7 @@ describe("FeaturesSection", () => {
   describe("backward compatibility", () => {
     it("renders no entries when classFeatures is a legacy string", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: "old text data" as never })}
           onUpdate={vi.fn()}
         />
@@ -168,7 +168,7 @@ describe("FeaturesSection", () => {
 
     it("renders no entries when classFeatures is undefined", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: undefined })}
           onUpdate={vi.fn()}
         />
@@ -179,7 +179,7 @@ describe("FeaturesSection", () => {
 
   describe("Add Class Feature modal", () => {
     it("opens the add modal when Add Class Feature is clicked", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const dialog = screen.getByRole("dialog")
       expect(dialog).toBeInTheDocument()
@@ -187,7 +187,7 @@ describe("FeaturesSection", () => {
     })
 
     it("closes the modal when Cancel is clicked", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /cancel/i }))
@@ -196,7 +196,7 @@ describe("FeaturesSection", () => {
 
     it("does not call onUpdate when name is empty", () => {
       const onUpdate = vi.fn()
-      render(<FeaturesSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
@@ -205,7 +205,7 @@ describe("FeaturesSection", () => {
 
     it("calls onUpdate with new class feature on valid submit", () => {
       const onUpdate = vi.fn()
-      render(<FeaturesSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Action Surge" } })
@@ -222,7 +222,7 @@ describe("FeaturesSection", () => {
 
     it("new class feature has no actionKind when 'Not an action' is selected (default)", () => {
       const onUpdate = vi.fn()
-      render(<FeaturesSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Second Wind" } })
@@ -238,7 +238,7 @@ describe("FeaturesSection", () => {
 
     it("new class feature has actionKind='action' when Action is selected", () => {
       const onUpdate = vi.fn()
-      render(<FeaturesSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Action Surge" } })
@@ -257,7 +257,7 @@ describe("FeaturesSection", () => {
 
     it("new class feature has actionKind='bonus-action' when Bonus Action is selected", () => {
       const onUpdate = vi.fn()
-      render(<FeaturesSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Cunning Action" } })
@@ -277,7 +277,7 @@ describe("FeaturesSection", () => {
   describe("Add Species Trait modal", () => {
     it("calls onUpdate with source='species-trait'", () => {
       const onUpdate = vi.fn()
-      render(<FeaturesSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Darkvision" } })
@@ -295,7 +295,7 @@ describe("FeaturesSection", () => {
   describe("Add Feat modal", () => {
     it("calls onUpdate with source='feat'", () => {
       const onUpdate = vi.fn()
-      render(<FeaturesSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "War Caster" } })
@@ -313,7 +313,7 @@ describe("FeaturesSection", () => {
   describe("Edit Feature modal", () => {
     it("opens the edit modal when edit button is clicked", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Action Surge" })] })}
           onUpdate={vi.fn()}
         />
@@ -325,7 +325,7 @@ describe("FeaturesSection", () => {
 
     it("pre-fills the form with existing feature name", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Action Surge" })] })}
           onUpdate={vi.fn()}
         />
@@ -336,7 +336,7 @@ describe("FeaturesSection", () => {
 
     it("pre-fills the form with existing feature description", () => {
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Action Surge", description: "Extra action." })] })}
           onUpdate={vi.fn()}
         />
@@ -348,7 +348,7 @@ describe("FeaturesSection", () => {
     it("calls onUpdate with updated name on save", () => {
       const onUpdate = vi.fn()
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Action Surge" })] })}
           onUpdate={onUpdate}
         />
@@ -369,7 +369,7 @@ describe("FeaturesSection", () => {
     it("calls onUpdate with updated actionKind on save", () => {
       const onUpdate = vi.fn()
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Action Surge", actionKind: undefined })] })}
           onUpdate={onUpdate}
         />
@@ -390,7 +390,7 @@ describe("FeaturesSection", () => {
 
   describe("action fields in form", () => {
     it("does not show type/range/uses/recharge fields when no actionKind is selected", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).queryByRole("combobox")).not.toBeInTheDocument() // type combobox hidden
@@ -400,7 +400,7 @@ describe("FeaturesSection", () => {
     })
 
     it("shows type/range/uses/recharge fields after selecting an actionKind", () => {
-      render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /used as action/i }))
@@ -413,7 +413,7 @@ describe("FeaturesSection", () => {
 
     it("saves range and rechargeOn when actionKind is set", () => {
       const onUpdate = vi.fn()
-      render(<FeaturesSection character={makeCharacter()} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Lay on Hands" } })
@@ -444,7 +444,7 @@ describe("FeaturesSection", () => {
     it("clears action fields when actionKind is unset on edit", () => {
       const onUpdate = vi.fn()
       const feature = makeFeature({ name: "Lay on Hands", actionKind: "action", maxUses: 5, rechargeOn: "long-rest" })
-      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /edit lay on hands/i }))
       fireEvent.click(screen.getByRole("button", { name: /used as action/i }))
       fireEvent.click(screen.getByRole("option", { name: "Not an action" }))
@@ -460,7 +460,7 @@ describe("FeaturesSection", () => {
 
     it("pre-fills range and rechargeOn in edit modal for action-type features", () => {
       const feature = makeFeature({ name: "Lay on Hands", actionKind: "action", range: "Touch", maxUses: 5, rechargeOn: "long-rest" })
-      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /edit lay on hands/i }))
       expect(screen.getByLabelText(/^range$/i)).toHaveValue("Touch")
       expect(screen.getByLabelText(/max uses/i)).toHaveValue(5)
@@ -470,19 +470,19 @@ describe("FeaturesSection", () => {
   describe("uses tracker in feature card", () => {
     it("shows pip tracker when feature has maxUses > 0", () => {
       const feature = makeFeature({ actionKind: "action", maxUses: 3, uses: 0 })
-      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
       expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
     })
 
     it("does not show pip tracker when feature has no maxUses", () => {
       const feature = makeFeature({ actionKind: "action" })
-      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
       expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
     })
 
     it("reflects used pips correctly", () => {
       const feature = makeFeature({ actionKind: "action", maxUses: 3, uses: 1 })
-      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
       expect(screen.getAllByTitle("Charge spent (click to restore)")).toHaveLength(1)
       expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(2)
     })
@@ -490,7 +490,7 @@ describe("FeaturesSection", () => {
     it("calls onUpdate with updated uses when pip is clicked", () => {
       const onUpdate = vi.fn()
       const feature = makeFeature({ id: "f-1", actionKind: "action", maxUses: 3, uses: 0 })
-      render(<FeaturesSection character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -506,7 +506,7 @@ describe("FeaturesSection", () => {
     it("calls onUpdate with the feature removed", () => {
       const onUpdate = vi.fn()
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({ classFeatures: [makeFeature({ name: "Action Surge" })] })}
           onUpdate={onUpdate}
         />
@@ -520,7 +520,7 @@ describe("FeaturesSection", () => {
     it("removes only the targeted feature, leaving others intact", () => {
       const onUpdate = vi.fn()
       render(
-        <FeaturesSection
+        <FeaturesModule
           character={makeCharacter({
             classFeatures: [
               makeFeature({ id: "f-1", name: "Action Surge" }),
@@ -549,7 +549,7 @@ describe("FeaturesSection", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<FeaturesSection character={makeCharacter()} onUpdate={vi.fn()} />)
+    const { container } = render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -560,7 +560,7 @@ describe("FeaturesSection", () => {
     function renderReadOnly(overrides: Partial<Character> = {}) {
       return render(
         <ReadOnlyProvider value={true}>
-          <FeaturesSection character={makeCharacter(overrides)} onUpdate={vi.fn()} />
+          <FeaturesModule character={makeCharacter(overrides)} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
       )
     }

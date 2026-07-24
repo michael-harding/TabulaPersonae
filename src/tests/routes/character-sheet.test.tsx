@@ -101,7 +101,7 @@ describe("CharacterSheet tabs", () => {
   it("switches to the Spells tab and shows spells content", async () => {
     await renderAndLoad()
     fireEvent.click(screen.getByRole("tab", { name: /spells/i }))
-    // "Add Spell" button is unique to the SpellsSection
+    // "Add Spell" button is unique to the SpellsModule
     expect(await screen.findByRole("button", { name: /add spell/i })).toBeInTheDocument()
   })
 

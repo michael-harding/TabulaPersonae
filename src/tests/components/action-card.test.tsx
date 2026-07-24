@@ -129,6 +129,25 @@ describe("ActionCard", () => {
     })
   })
 
+  describe("badge", () => {
+    it("shows badgeLabel when spellLevel is undefined", () => {
+      render(<ActionCard {...makeProps({ badgeLabel: "Weapon" })} />)
+      expect(screen.getByText("Weapon")).toBeInTheDocument()
+    })
+
+    it("shows 'Cantrip' instead of badgeLabel when spellLevel=0", () => {
+      render(<ActionCard {...makeProps({ spellLevel: 0, spellSchool: "Evocation" })} />)
+      expect(screen.getAllByText("Cantrip").length).toBe(1)
+      expect(screen.queryByText("Ability")).not.toBeInTheDocument()
+    })
+
+    it("shows '2nd' instead of badgeLabel when spellLevel=2", () => {
+      render(<ActionCard {...makeProps({ spellLevel: 2, spellSchool: "Evocation" })} />)
+      expect(screen.getByText("2nd")).toBeInTheDocument()
+      expect(screen.queryByText("Ability")).not.toBeInTheDocument()
+    })
+  })
+
   describe("concentration badge", () => {
     it("not rendered when concentration is falsy", () => {
       render(<ActionCard {...makeProps()} />)

@@ -140,6 +140,7 @@ export interface Character {
     current: number
     maximum: number
     temporary: number
+    temporaryMaximum?: number
   }
   deathSaves: {
     successes: number
@@ -149,12 +150,25 @@ export interface Character {
   speed: number
   initiative: number
   proficiencyBonus: number
+  useCalculatedInitiative?: boolean
+  useCalculatedProficiencyBonus?: boolean
+  useCalculatedArmorClass?: boolean
+  passivePerception?: number
+  useCalculatedPassivePerception?: boolean
+  passiveInsight?: number
+  useCalculatedPassiveInsight?: boolean
+  passiveInvestigation?: number
+  useCalculatedPassiveInvestigation?: boolean
 
   equipment: Equipment[]
   spells: Spell[]
   spellcastingAbility: keyof AbilityScores | ""
   spellSaveDC: number
+  useCalculatedSpellSaveDC?: boolean
   spellAttackBonus: number
+  useCalculatedSpellAttackBonus?: boolean
+  spellModifier?: number
+  useCalculatedSpellModifier?: boolean
   spellSlots: {
     1: { total: number; used: number }
     2: { total: number; used: number }

@@ -13,6 +13,7 @@ import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/mo
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
@@ -27,22 +28,22 @@ import Zap from "lucide-solid/icons/zap"
 import Layers from "lucide-solid/icons/layers"
 import { useReadOnly } from "@/lib/read-only-context"
 
-interface FeaturesSectionProps {
+interface FeaturesModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
 
-type SectionField = 'classFeatures' | 'speciesTraits' | 'feats'
+type FeatureField = 'classFeatures' | 'speciesTraits' | 'feats'
 
-interface SectionConfig {
+interface FeatureFieldConfig {
   kind: FeatureKind
   title: string
   singular: string
-  field: SectionField
+  field: FeatureField
   icon: typeof BookOpen
 }
 
-const SECTION_CONFIG: SectionConfig[] = [
+const FEATURE_FIELD_CONFIG: FeatureFieldConfig[] = [
   { kind: 'class-feature', title: 'Class Features', singular: 'Class Feature', field: 'classFeatures', icon: BookOpen },
   { kind: 'species-trait', title: 'Species Traits',  singular: 'Species Trait',  field: 'speciesTraits', icon: Leaf    },
   { kind: 'feat',          title: 'Feats',           singular: 'Feat',           field: 'feats',         icon: Star   },
@@ -173,7 +174,7 @@ function FeatureForm(props: FeatureFormProps) {
   )
 }
 
-export function FeaturesSection(props: FeaturesSectionProps) {
+export function FeaturesModule(props: FeaturesModuleProps) {
   const isReadOnly = useReadOnly()
   const [isAddOpen, setIsAddOpen] = createSignal<FeatureKind | null>(null)
   const [editingFeature, setEditingFeature] = createSignal<Feature | null>(null)
@@ -190,7 +191,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
     })
   }
 
-  const handleAdd = (kind: FeatureKind, field: SectionField, data: FeatureFormData) => {
+  const handleAdd = (kind: FeatureKind, field: FeatureField, data: FeatureFormData) => {
     const newFeature: Feature = {
       id: crypto.randomUUID(),
       name: data.name.trim(),
@@ -210,7 +211,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
     setIsAddOpen(null)
   }
 
-  const handleUpdate = (field: SectionField, data: FeatureFormData) => {
+  const handleUpdate = (field: FeatureField, data: FeatureFormData) => {
     const editing = editingFeature()
     if (!editing) return
     props.onUpdate({
@@ -234,14 +235,14 @@ export function FeaturesSection(props: FeaturesSectionProps) {
     setEditingFeature(null)
   }
 
-  const handleFeatureUsesChange = (field: SectionField, id: string, v: number) => {
+  const handleFeatureUsesChange = (field: FeatureField, id: string, v: number) => {
     props.onUpdate({
       ...props.character,
       [field]: safeFeatures(props.character[field]).map((f) => f.id === id ? { ...f, uses: v } : f),
     })
   }
 
-  const handleDelete = (field: SectionField, id: string) => {
+  const handleDelete = (field: FeatureField, id: string) => {
     props.onUpdate({
       ...props.character,
       [field]: safeFeatures(props.character[field]).filter((f) => f.id !== id),
@@ -249,7 +250,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
   }
 
   return (
-    <Card data-sem="features-section">
+    <Card data-sem="features-module">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
           <Layers class="h-5 w-5 text-primary" />
@@ -257,7 +258,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
         </CardTitle>
       </CardHeader>
       <CardContent class="space-y-2">
-        <For each={SECTION_CONFIG}>
+        <For each={FEATURE_FIELD_CONFIG}>
           {(section) => {
             const features = () => safeFeatures(props.character[section.field])
             return (
@@ -332,7 +333,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
                             </Show>
                           </div>
                           <Show when={feature.description}>
-                            <p class="text-sm text-muted-foreground">{feature.description}</p>
+                            <MarkdownContent text={feature.description!} class="text-muted-foreground" />
                           </Show>
                           <Show when={(feature.maxUses ?? 0) > 0}>
                             <Show
@@ -370,7 +371,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
       </CardContent>
 
       {/* Add modals — always in DOM, open prop controls visibility */}
-      <For each={SECTION_CONFIG}>
+      <For each={FEATURE_FIELD_CONFIG}>
         {(section) => (
           <Modal
             open={isAddOpen() === section.kind}
@@ -399,7 +400,7 @@ export function FeaturesSection(props: FeaturesSectionProps) {
         <ModalContent class="max-w-md">
           <Show when={editingFeature()}>
             {(feature) => {
-              const section = SECTION_CONFIG.find((s) => s.kind === feature().source)!
+              const section = FEATURE_FIELD_CONFIG.find((s) => s.kind === feature().source)!
               return (
                 <>
                   <ModalHeader>

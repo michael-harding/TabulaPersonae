@@ -1,6 +1,6 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
 import type { Character, AbilityScores } from "@/lib/character-types"
-import { EditableSection } from "@/components/editable-section"
+import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -9,7 +9,7 @@ import { Combobox } from "@/components/ui/combobox"
 import User from "lucide-solid/icons/user"
 import { useReadOnly } from "@/lib/read-only-context"
 
-interface CharacterBasicInfoProps {
+interface CharacterBasicInfoModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
@@ -53,7 +53,7 @@ const toEdit = (c: Character) => ({
   experiencePoints: c.experiencePoints || 0,
 })
 
-export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
+export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
   const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
   const [edited, setEdited] = createSignal(toEdit(props.character))
@@ -79,11 +79,11 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   return (
-    <EditableSection
-      data-sem="character-basic-info"
+    <EditableModule
+      data-sem="character-basic-info-module"
+      data-test="character-basic-info-module"
       icon={<User class="h-5 w-5 text-primary" />}
       title="Character Information"
-      editTitle="Edit Character Information"
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
       onSave={handleSave}
@@ -173,6 +173,6 @@ export function CharacterBasicInfo(props: CharacterBasicInfoProps) {
             </div>
           </>
         )}
-    </EditableSection>
+    </EditableModule>
   )
 }

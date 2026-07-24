@@ -1,15 +1,15 @@
 import { Checkbox as CheckboxPrimitive } from "@kobalte/core/checkbox"
-import { ComponentProps, splitProps } from "solid-js"
+import { ComponentProps, Show, splitProps } from "solid-js"
 import Check from "lucide-solid/icons/check"
 import { cn } from "@/lib/utils"
 
-type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & { class?: string }
+type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & { class?: string; label?: string }
 
 export function Checkbox(props: CheckboxProps) {
-  const [local, rest] = splitProps(props, ["class"])
+  const [local, rest] = splitProps(props, ["class", "label"])
   const [inputAttrs, others] = splitProps(rest, ["title", "aria-label"])
   return (
-    <CheckboxPrimitive data-sem="checkbox" {...others}>
+    <CheckboxPrimitive data-sem="checkbox" class={local.label ? "inline-flex items-center gap-1.5" : undefined} {...others}>
       <CheckboxPrimitive.Input {...inputAttrs} />
       <CheckboxPrimitive.Control
         class={cn(
@@ -21,6 +21,11 @@ export function Checkbox(props: CheckboxProps) {
           <Check class="h-4 w-4" />
         </CheckboxPrimitive.Indicator>
       </CheckboxPrimitive.Control>
+      <Show when={local.label}>
+        <CheckboxPrimitive.Label class="text-xs text-muted-foreground cursor-pointer select-none">
+          {local.label}
+        </CheckboxPrimitive.Label>
+      </Show>
     </CheckboxPrimitive>
   )
 }

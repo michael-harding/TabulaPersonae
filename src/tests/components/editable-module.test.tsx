@@ -1,13 +1,13 @@
 import { axe } from "vitest-axe"
 import { render, screen, fireEvent } from "../test-utils"
-import { EditableSection } from "@/components/editable-section"
+import { EditableModule } from "@/components/editable-module"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 const icon = <span>icon</span>
 
 function renderView(overrides: Record<string, any> = {}) {
   return render(
-    <EditableSection
+    <EditableModule
       icon={icon}
       title="Test Section"
       isEditing={false}
@@ -19,7 +19,7 @@ function renderView(overrides: Record<string, any> = {}) {
   )
 }
 
-describe("EditableSection", () => {
+describe("EditableModule", () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -32,9 +32,9 @@ describe("EditableSection", () => {
 
     it("renders children", () => {
       render(
-        <EditableSection icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onCancel={vi.fn()}>
+        <EditableModule icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onCancel={vi.fn()}>
           <span>child content</span>
-        </EditableSection>
+        </EditableModule>
       )
       expect(screen.getByText("child content")).toBeInTheDocument()
     })
@@ -60,7 +60,7 @@ describe("EditableSection", () => {
 
     it("does not render headerExtra when editing", () => {
       render(
-        <EditableSection
+        <EditableModule
           icon={icon}
           title="S"
           isEditing={true}
@@ -73,27 +73,12 @@ describe("EditableSection", () => {
       expect(screen.queryByText("extra content")).not.toBeInTheDocument()
     })
 
-    it("shows editTitle instead of title when editing and editTitle is provided", () => {
-      render(
-        <EditableSection
-          icon={icon}
-          title="Section"
-          editTitle="Editing Section"
-          isEditing={true}
-          onEdit={vi.fn()}
-          onSave={vi.fn()}
-          onCancel={vi.fn()}
-        />
-      )
-      expect(screen.getByText("Editing Section")).toBeInTheDocument()
-      expect(screen.queryByText("Section", { exact: true })).not.toBeInTheDocument()
-    })
   })
 
   describe("edit mode (isEditing=true)", () => {
     function renderEdit(overrides: Record<string, any> = {}) {
       return render(
-        <EditableSection
+        <EditableModule
           icon={icon}
           title="Test Section"
           isEditing={true}
@@ -138,7 +123,7 @@ describe("EditableSection", () => {
 
   it("has no accessibility violations", async () => {
     const { container } = render(
-      <EditableSection icon={icon} title="Test Section" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onCancel={vi.fn()} />
+      <EditableModule icon={icon} title="Test Section" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onCancel={vi.fn()} />
     )
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
@@ -148,7 +133,7 @@ describe("EditableSection", () => {
     function renderReadOnly(overrides: Record<string, any> = {}) {
       return render(
         <ReadOnlyProvider value={true}>
-          <EditableSection
+          <EditableModule
             icon={icon}
             title="Test Section"
             isEditing={false}
@@ -174,9 +159,9 @@ describe("EditableSection", () => {
     it("still renders children content", () => {
       render(
         <ReadOnlyProvider value={true}>
-          <EditableSection icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onCancel={vi.fn()}>
+          <EditableModule icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onCancel={vi.fn()}>
             <span>display content</span>
-          </EditableSection>
+          </EditableModule>
         </ReadOnlyProvider>
       )
       expect(screen.getByText("display content")).toBeInTheDocument()

@@ -1,12 +1,13 @@
 import { createSignal, createEffect, on, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
-import { EditableSection } from "@/components/editable-section"
+import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip } from "@/components/ui/tooltip"
 import Zap from "lucide-solid/icons/zap"
 
-interface AbilityScoresProps {
+interface AbilityScoresModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
@@ -26,7 +27,7 @@ const DEFAULT_SAVES = { strength: false, dexterity: false, constitution: false, 
 
 type AbilityKey = keyof typeof DEFAULT_SCORES
 
-export function AbilityScores(props: AbilityScoresProps) {
+export function AbilityScoresModule(props: AbilityScoresModuleProps) {
   const safeScores = () => props.character.abilityScores || DEFAULT_SCORES
   const safeSaves = () => props.character.savingThrows || DEFAULT_SAVES
 
@@ -50,11 +51,10 @@ export function AbilityScores(props: AbilityScoresProps) {
   }
 
   return (
-    <EditableSection
-      data-sem="ability-scores"
+    <EditableModule
+      data-sem="ability-scores-module"
       icon={<Zap class="h-5 w-5 text-primary" />}
       title="Ability Scores"
-      editTitle="Edit Ability Scores"
       isEditing={isEditing()}
       onEdit={() => { setEditedScores(safeScores()); setEditedSaves(safeSaves()); setIsEditing(true) }}
       onSave={handleSave}
@@ -66,6 +66,7 @@ export function AbilityScores(props: AbilityScoresProps) {
               const score = () => isEditing() ? editedScores()[ability] : safeScores()[ability]
               const modifier = () => getAbilityModifier(score())
               const isProfSave = () => isEditing() ? editedSaves()[ability] : (safeSaves()[ability] || false)
+              const savingThrowMod = () => getSavingThrowModifier(safeScores()[ability], props.character.proficiencyBonus, true)
 
               return (
                 <div class="text-center space-y-2">
@@ -90,27 +91,39 @@ export function AbilityScores(props: AbilityScoresProps) {
                       </label>
                     </div>
                   ) : (
-                    <div class="ring-1 ring-black rounded-lg p-3">
-                      <div class="text-2xl font-bold text-primary">{score()}</div>
-                      <div class="text-lg font-semibold text-foreground">{formatModifier(modifier())}</div>
-                    </div>
+                    <Tooltip
+                      content={`(${score()} − 10) / 2 = ${formatModifier(modifier())}`}
+                      triggerFocusable
+                      triggerClass="w-full"
+                    >
+                      <div class="ring-1 ring-black rounded-lg p-3 w-full">
+                        <div class="text-2xl font-bold text-primary">{score()}</div>
+                        <div class="text-lg font-semibold text-foreground">{formatModifier(modifier())}</div>
+                      </div>
+                    </Tooltip>
                   )}
                   {!isEditing() && isProfSave() && (
-                    <div class="space-y-1">
-                      <div class="text-xs">Saving Throw</div>
-                      <div class="flex items-center justify-center gap-1">
-                        <span class="font-medium">
-                          {formatModifier(getSavingThrowModifier(safeScores()[ability], props.character.proficiencyBonus, true))}
-                        </span>
-                        <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
+                    <Tooltip
+                      content={`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(modifier())} + Prof +${props.character.proficiencyBonus} = ${formatModifier(savingThrowMod())}`}
+                      triggerFocusable
+                      triggerClass="w-full"
+                    >
+                      <div class="space-y-1 w-full">
+                        <div class="text-xs">Saving Throw</div>
+                        <div class="flex items-center justify-center gap-1">
+                          <span class="font-medium">
+                            {formatModifier(savingThrowMod())}
+                          </span>
+                          <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
+                        </div>
                       </div>
-                    </div>
+                    </Tooltip>
                   )}
                 </div>
               )
             }}
           </For>
         </div>
-    </EditableSection>
+    </EditableModule>
   )
 }
