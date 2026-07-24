@@ -4,6 +4,7 @@ import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/c
 import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
+import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -316,16 +317,43 @@ export function ActionsModule(props: ActionsModuleProps) {
       : "No spellcasting ability set"
   )
 
+  const spellAttackField = useCalculatedValue({
+    useCalculated: () => (isEditing() ? edited().useCalculatedSpellAttackBonus : (props.character.useCalculatedSpellAttackBonus ?? true)),
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSpellAttackBonus: v })),
+    manualValue: () => (isEditing() ? edited().spellAttackBonus : (props.character.spellAttackBonus ?? spellAttackBonus())),
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, spellAttackBonus: v })),
+    calculatedValue: spellAttackBonus,
+    calculatedTooltip: spellAttackTooltip,
+  })
+
+  const spellModifierField = useCalculatedValue({
+    useCalculated: () => (isEditing() ? edited().useCalculatedSpellModifier : (props.character.useCalculatedSpellModifier ?? true)),
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSpellModifier: v })),
+    manualValue: () => (isEditing() ? edited().spellModifier : (props.character.spellModifier ?? spellModifier())),
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, spellModifier: v })),
+    calculatedValue: spellModifier,
+    calculatedTooltip: spellModifierTooltip,
+  })
+
+  const spellSaveDCField = useCalculatedValue({
+    useCalculated: () => (isEditing() ? edited().useCalculatedSpellSaveDC : (props.character.useCalculatedSpellSaveDC ?? true)),
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSpellSaveDC: v })),
+    manualValue: () => (isEditing() ? edited().spellSaveDC : (props.character.spellSaveDC ?? spellSaveDC())),
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, spellSaveDC: v })),
+    calculatedValue: spellSaveDC,
+    calculatedTooltip: spellSaveDCTooltip,
+  })
+
   const handleSave = () => {
     const data = edited()
     const normalized = {
       ...props.character,
       useCalculatedSpellAttackBonus: data.useCalculatedSpellAttackBonus,
-      spellAttackBonus: data.useCalculatedSpellAttackBonus ? spellAttackBonus() : data.spellAttackBonus,
+      spellAttackBonus: spellAttackField.resolvedValue(),
       useCalculatedSpellSaveDC: data.useCalculatedSpellSaveDC,
-      spellSaveDC: data.useCalculatedSpellSaveDC ? spellSaveDC() : data.spellSaveDC,
+      spellSaveDC: spellSaveDCField.resolvedValue(),
       useCalculatedSpellModifier: data.useCalculatedSpellModifier,
-      spellModifier: data.useCalculatedSpellModifier ? spellModifier() : data.spellModifier,
+      spellModifier: spellModifierField.resolvedValue(),
     }
     props.onUpdate(normalized)
     setIsEditing(false)
@@ -527,12 +555,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               class="mt-1"
               label="spell attack"
               editable={isEditing()}
-              custom={!(isEditing() ? edited().useCalculatedSpellAttackBonus : (props.character.useCalculatedSpellAttackBonus ?? true))}
-              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedSpellAttackBonus: !custom }))}
-              value={isEditing() ? edited().spellAttackBonus : (props.character.spellAttackBonus ?? spellAttackBonus())}
-              onValueChange={(v) => setEdited(prev => ({ ...prev, spellAttackBonus: v }))}
-              calculatedValue={spellAttackBonus()}
-              calculatedTooltip={spellAttackTooltip()}
+              {...spellAttackField.binding()}
               format={formatModifier}
             />
           </div>
@@ -545,12 +568,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               class="mt-1"
               label="spell modifier"
               editable={isEditing()}
-              custom={!(isEditing() ? edited().useCalculatedSpellModifier : (props.character.useCalculatedSpellModifier ?? true))}
-              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedSpellModifier: !custom }))}
-              value={isEditing() ? edited().spellModifier : (props.character.spellModifier ?? spellModifier())}
-              onValueChange={(v) => setEdited(prev => ({ ...prev, spellModifier: v }))}
-              calculatedValue={spellModifier()}
-              calculatedTooltip={spellModifierTooltip()}
+              {...spellModifierField.binding()}
               format={formatModifier}
             />
           </div>
@@ -563,12 +581,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               class="mt-1"
               label="spell save DC"
               editable={isEditing()}
-              custom={!(isEditing() ? edited().useCalculatedSpellSaveDC : (props.character.useCalculatedSpellSaveDC ?? true))}
-              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedSpellSaveDC: !custom }))}
-              value={isEditing() ? edited().spellSaveDC : (props.character.spellSaveDC ?? spellSaveDC())}
-              onValueChange={(v) => setEdited(prev => ({ ...prev, spellSaveDC: v }))}
-              calculatedValue={spellSaveDC()}
-              calculatedTooltip={spellSaveDCTooltip()}
+              {...spellSaveDCField.binding()}
             />
           </div>
         </div>

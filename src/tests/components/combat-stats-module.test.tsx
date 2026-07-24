@@ -808,6 +808,38 @@ describe("CombatStatsModule", () => {
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
+
+    it("recalculates live using the in-progress proficiency bonus edit, not the saved value, and persists the updated result on save", () => {
+      const onUpdate = vi.fn()
+      const char = makeCharacter({
+        abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14 },
+        skills: { ...createDefaultCharacter().skills, perception: { proficient: true, expertise: false } },
+        proficiencyBonus: 2,
+        useCalculatedProficiencyBonus: false,
+        useCalculatedInitiative: true,
+        useCalculatedPassivePerception: true,
+      })
+      render(<CombatStatsModule character={char} onUpdate={onUpdate} />)
+      clickEditButton()
+
+      // Passive Perception starts at 10 + (Wis +2 + Prof +2) = 14
+      expect(screen.getByText("14")).toBeInTheDocument()
+
+      const profBonusInput = screen.getAllByRole("spinbutton").find(
+        (s) => (s as HTMLInputElement).value === "2"
+      )!
+      fireEvent.input(profBonusInput, { target: { value: "5" } })
+      fireEvent.blur(profBonusInput)
+
+      // Still in edit mode, before saving: Passive Perception should reflect the new
+      // proficiency bonus live (10 + Wis +2 + Prof +5 = 17), not the stale saved value.
+      expect(screen.getByText("17")).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ proficiencyBonus: 5, passivePerception: 17 })
+      )
+    })
   })
 
   describe("initiative tooltip", () => {

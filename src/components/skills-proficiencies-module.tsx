@@ -1,6 +1,6 @@
-import { createSignal, createEffect, on, For, Show } from "solid-js"
+import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip } from "@/components/ui/tooltip"
 import { CalculatedValue } from "@/components/ui/calculated-value"
+import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import BookOpen from "lucide-solid/icons/book-open"
 import Plus from "lucide-solid/icons/plus"
 import X from "lucide-solid/icons/x"
@@ -54,25 +55,44 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
 
   const current = () => isEditing() ? edited() : props.character
 
-  const calcPassive = (data: Character, skillKey: SkillKey) => {
+  const makePassiveStat = (
+    skillKey: SkillKey,
+    field: "passivePerception" | "passiveInsight" | "passiveInvestigation",
+    useField: "useCalculatedPassivePerception" | "useCalculatedPassiveInsight" | "useCalculatedPassiveInvestigation",
+  ) => {
     const ability = SKILL_ABILITY_MAP[skillKey]
-    const skill = data.skills?.[skillKey] ?? { proficient: false, expertise: false }
-    return 10 + getSkillModifier(data.abilityScores[ability], data.proficiencyBonus, skill.proficient, skill.expertise)
+    const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
+    const calc = createMemo(() => getPassiveScore(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise))
+    const tooltip = createMemo(() => {
+      const mod = getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
+      return `10 + ${SKILL_DISPLAY_NAMES[skillKey]} ${formatModifier(mod)} = ${calc()}`
+    })
+    return {
+      skillKey,
+      label: `Passive ${SKILL_DISPLAY_NAMES[skillKey]}`,
+      ...useCalculatedValue({
+        useCalculated: () => current()[useField] ?? true,
+        setUseCalculated: (v) => setEdited((prev) => ({ ...prev, [useField]: v })),
+        manualValue: () => current()[field] ?? calc(),
+        setManualValue: (v) => setEdited((prev) => ({ ...prev, [field]: v })),
+        calculatedValue: calc,
+        calculatedTooltip: tooltip,
+      }),
+    }
   }
+
+  const passivePerceptionStat = makePassiveStat("perception", "passivePerception", "useCalculatedPassivePerception")
+  const passiveInsightStat = makePassiveStat("insight", "passiveInsight", "useCalculatedPassiveInsight")
+  const passiveInvestigationStat = makePassiveStat("investigation", "passiveInvestigation", "useCalculatedPassiveInvestigation")
+  const passiveStats = [passivePerceptionStat, passiveInsightStat, passiveInvestigationStat]
 
   const handleSave = () => {
     const data = edited()
     const normalized = {
       ...data,
-      passivePerception: (data.useCalculatedPassivePerception ?? true)
-        ? calcPassive(data, "perception")
-        : (data.passivePerception ?? calcPassive(data, "perception")),
-      passiveInsight: (data.useCalculatedPassiveInsight ?? true)
-        ? calcPassive(data, "insight")
-        : (data.passiveInsight ?? calcPassive(data, "insight")),
-      passiveInvestigation: (data.useCalculatedPassiveInvestigation ?? true)
-        ? calcPassive(data, "investigation")
-        : (data.passiveInvestigation ?? calcPassive(data, "investigation")),
+      passivePerception: passivePerceptionStat.resolvedValue(),
+      passiveInsight: passiveInsightStat.resolvedValue(),
+      passiveInvestigation: passiveInvestigationStat.resolvedValue(),
     }
     props.onUpdate(normalized)
     setIsEditing(false)
@@ -254,52 +274,18 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
         <div>
           <h2 class="font-semibold mb-3">Senses</h2>
           <div class="grid grid-cols-3 gap-2">
-            <For each={["perception", "insight", "investigation"] as SkillKey[]}>
-              {(skillKey) => {
-                const ability = SKILL_ABILITY_MAP[skillKey]
-                const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
-                const skillMod = () => getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
-                const passive = () => 10 + skillMod()
-                const passiveTooltip = () => `10 + ${SKILL_DISPLAY_NAMES[skillKey]} ${formatModifier(skillMod())} = ${passive()}`
-
-                const useCalculated = () => {
-                  if (skillKey === "perception") return current().useCalculatedPassivePerception ?? true
-                  if (skillKey === "insight") return current().useCalculatedPassiveInsight ?? true
-                  return current().useCalculatedPassiveInvestigation ?? true
-                }
-                const customValue = () => {
-                  if (skillKey === "perception") return current().passivePerception ?? passive()
-                  if (skillKey === "insight") return current().passiveInsight ?? passive()
-                  return current().passiveInvestigation ?? passive()
-                }
-                const setUseCalculated = (custom: boolean) => {
-                  if (skillKey === "perception") setEdited((prev) => ({ ...prev, useCalculatedPassivePerception: !custom }))
-                  else if (skillKey === "insight") setEdited((prev) => ({ ...prev, useCalculatedPassiveInsight: !custom }))
-                  else setEdited((prev) => ({ ...prev, useCalculatedPassiveInvestigation: !custom }))
-                }
-                const setCustomValue = (v: number) => {
-                  if (skillKey === "perception") setEdited((prev) => ({ ...prev, passivePerception: v }))
-                  else if (skillKey === "insight") setEdited((prev) => ({ ...prev, passiveInsight: v }))
-                  else setEdited((prev) => ({ ...prev, passiveInvestigation: v }))
-                }
-
-                return (
-                  <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                    <span class="text-xs text-muted-foreground">Passive {SKILL_DISPLAY_NAMES[skillKey]}</span>
-                    <CalculatedValue
-                      class="mt-1"
-                      label={`passive ${SKILL_DISPLAY_NAMES[skillKey].toLowerCase()}`}
-                      editable={isEditing()}
-                      custom={!useCalculated()}
-                      onCustomChange={setUseCalculated}
-                      value={customValue()}
-                      onValueChange={setCustomValue}
-                      calculatedValue={passive()}
-                      calculatedTooltip={passiveTooltip()}
-                    />
-                  </div>
-                )
-              }}
+            <For each={passiveStats}>
+              {(stat) => (
+                <div class="flex flex-col items-center p-2 rounded border text-center w-full">
+                  <span class="text-xs text-muted-foreground">{stat.label}</span>
+                  <CalculatedValue
+                    class="mt-1"
+                    label={stat.label.toLowerCase()}
+                    editable={isEditing()}
+                    {...stat.binding()}
+                  />
+                </div>
+              )}
             </For>
           </div>
         </div>

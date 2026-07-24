@@ -66,6 +66,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
               const score = () => isEditing() ? editedScores()[ability] : safeScores()[ability]
               const modifier = () => getAbilityModifier(score())
               const isProfSave = () => isEditing() ? editedSaves()[ability] : (safeSaves()[ability] || false)
+              const savingThrowMod = () => getSavingThrowModifier(safeScores()[ability], props.character.proficiencyBonus, true)
 
               return (
                 <div class="text-center space-y-2">
@@ -103,7 +104,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                   )}
                   {!isEditing() && isProfSave() && (
                     <Tooltip
-                      content={`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(modifier())} + Prof +${props.character.proficiencyBonus} = ${formatModifier(getSavingThrowModifier(safeScores()[ability], props.character.proficiencyBonus, true))}`}
+                      content={`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(modifier())} + Prof +${props.character.proficiencyBonus} = ${formatModifier(savingThrowMod())}`}
                       triggerFocusable
                       triggerClass="w-full"
                     >
@@ -111,7 +112,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                         <div class="text-xs">Saving Throw</div>
                         <div class="flex items-center justify-center gap-1">
                           <span class="font-medium">
-                            {formatModifier(getSavingThrowModifier(safeScores()[ability], props.character.proficiencyBonus, true))}
+                            {formatModifier(savingThrowMod())}
                           </span>
                           <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
                         </div>

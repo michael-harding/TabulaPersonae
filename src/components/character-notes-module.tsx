@@ -40,6 +40,38 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
     { field: "hair" as const, label: "Hair" },
   ]
 
+  interface MarkdownField {
+    field: "appearance" | "personalityTraits" | "ideals" | "bonds" | "flaws" | "backstory" | "alliesAndOrganizations" | "treasure" | "notes"
+    label: string
+    fallback: string
+    minHeightClass: "min-h-[60px]" | "min-h-[100px]"
+  }
+
+  const PERSONALITY_FIELDS: MarkdownField[] = [
+    { field: "personalityTraits", label: "Personality Traits", fallback: "No personality traits defined yet.", minHeightClass: "min-h-[60px]" },
+    { field: "ideals", label: "Ideals", fallback: "No ideals defined yet.", minHeightClass: "min-h-[60px]" },
+    { field: "bonds", label: "Bonds", fallback: "No bonds defined yet.", minHeightClass: "min-h-[60px]" },
+    { field: "flaws", label: "Flaws", fallback: "No flaws defined yet.", minHeightClass: "min-h-[60px]" },
+  ]
+  const APPEARANCE_FIELD: MarkdownField = { field: "appearance", label: "Appearance", fallback: "No appearance description yet.", minHeightClass: "min-h-[60px]" }
+  const BACKSTORY_FIELD: MarkdownField = { field: "backstory", label: "Backstory", fallback: "No backstory written yet.", minHeightClass: "min-h-[100px]" }
+  const EDITION_2014_FIELDS: MarkdownField[] = [
+    { field: "alliesAndOrganizations", label: "Allies & Organizations", fallback: "No allies or organizations listed yet.", minHeightClass: "min-h-[60px]" },
+    { field: "treasure", label: "Treasure", fallback: "No treasure listed yet.", minHeightClass: "min-h-[60px]" },
+  ]
+  const NOTES_FIELD: MarkdownField = { field: "notes", label: "Notes", fallback: "No additional notes yet.", minHeightClass: "min-h-[100px]" }
+
+  const renderMarkdownField = (f: MarkdownField) => (
+    <div>
+      <h2 class="font-semibold mb-2 text-sm text-muted-foreground">{f.label}</h2>
+      <div class={`bg-muted/50 rounded-lg p-3 ${f.minHeightClass}`}>
+        <Show when={current()[f.field]} fallback={<p class="text-sm text-muted-foreground">{f.fallback}</p>}>
+          <MarkdownContent text={current()[f.field] as string} />
+        </Show>
+      </div>
+    </div>
+  )
+
   return (
     <EditableModule
       data-sem="character-notes-module"
@@ -207,97 +239,26 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
               </div>
             </div>
 
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Appearance</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <Show when={current().appearance} fallback={<p class="text-sm text-muted-foreground">No appearance description yet.</p>}>
-                  <MarkdownContent text={current().appearance!} />
-                </Show>
-              </div>
-            </div>
+            {renderMarkdownField(APPEARANCE_FIELD)}
 
             <Separator />
 
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Personality Traits</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <Show when={current().personalityTraits} fallback={<p class="text-sm text-muted-foreground">No personality traits defined yet.</p>}>
-                  <MarkdownContent text={current().personalityTraits!} />
-                </Show>
-              </div>
-            </div>
-
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Ideals</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <Show when={current().ideals} fallback={<p class="text-sm text-muted-foreground">No ideals defined yet.</p>}>
-                  <MarkdownContent text={current().ideals!} />
-                </Show>
-              </div>
-            </div>
-
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Bonds</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <Show when={current().bonds} fallback={<p class="text-sm text-muted-foreground">No bonds defined yet.</p>}>
-                  <MarkdownContent text={current().bonds!} />
-                </Show>
-              </div>
-            </div>
-
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Flaws</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                <Show when={current().flaws} fallback={<p class="text-sm text-muted-foreground">No flaws defined yet.</p>}>
-                  <MarkdownContent text={current().flaws!} />
-                </Show>
-              </div>
-            </div>
+            {PERSONALITY_FIELDS.map((f) => renderMarkdownField(f))}
 
             <Separator />
 
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Backstory</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[100px]">
-                <Show when={current().backstory} fallback={<p class="text-sm text-muted-foreground">No backstory written yet.</p>}>
-                  <MarkdownContent text={current().backstory!} />
-                </Show>
-              </div>
-            </div>
+            {renderMarkdownField(BACKSTORY_FIELD)}
 
             <Separator />
 
             {/* 2014-only view */}
             <Show when={edition() === "2014"}>
-              <div>
-                <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Allies & Organizations</h2>
-                <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                  <Show when={current().alliesAndOrganizations} fallback={<p class="text-sm text-muted-foreground">No allies or organizations listed yet.</p>}>
-                    <MarkdownContent text={current().alliesAndOrganizations!} />
-                  </Show>
-                </div>
-              </div>
-
-              <div>
-                <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Treasure</h2>
-                <div class="bg-muted/50 rounded-lg p-3 min-h-[60px]">
-                  <Show when={current().treasure} fallback={<p class="text-sm text-muted-foreground">No treasure listed yet.</p>}>
-                    <MarkdownContent text={current().treasure!} />
-                  </Show>
-                </div>
-              </div>
+              {EDITION_2014_FIELDS.map((f) => renderMarkdownField(f))}
 
               <Separator />
             </Show>
 
-            <div>
-              <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Notes</h2>
-              <div class="bg-muted/50 rounded-lg p-3 min-h-[100px]">
-                <Show when={current().notes} fallback={<p class="text-sm text-muted-foreground">No additional notes yet.</p>}>
-                  <MarkdownContent text={current().notes!} />
-                </Show>
-              </div>
-            </div>
+            {renderMarkdownField(NOTES_FIELD)}
           </>
         )}
     </EditableModule>

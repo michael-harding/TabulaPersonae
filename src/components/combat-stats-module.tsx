@@ -1,7 +1,8 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, parseHitDiceSize, calculateEquippedAC, formatModifier } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, formatModifier } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
+import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { DIE_SIZES } from "@/lib/dice"
 import { saveCharacter } from "@/lib/character-storage"
 import { EditableModule } from "@/components/editable-module"
@@ -37,14 +38,8 @@ interface CombatStatsModuleProps {
 
 const SIZES = ["Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"]
 
-function computePassivePerception(c: Character): number {
-  const wis = c.abilityScores?.wisdom ?? 10
-  const prof = c.proficiencyBonus ?? 2
-  const percSkill = c.skills?.perception
-  return 10 + getSkillModifier(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
-}
-
 const toEdit = (c: Character) => {
+  const percSkill = c.skills?.perception
   return {
     ...c,
     hitPoints: {
@@ -55,7 +50,7 @@ const toEdit = (c: Character) => {
     },
     armorClass: c.armorClass || 10,
     initiative: c.initiative || 0,
-    speed: c.speed || 30,
+    speed: c.speed ?? 30,
     proficiencyBonus: c.proficiencyBonus || 2,
     deathSaves: { successes: c.deathSaves?.successes || 0, failures: c.deathSaves?.failures || 0 },
     spentHitDice: c.spentHitDice ?? 0,
@@ -65,7 +60,12 @@ const toEdit = (c: Character) => {
     useCalculatedProficiencyBonus: c.useCalculatedProficiencyBonus ?? false,
     useCalculatedArmorClass: c.useCalculatedArmorClass ?? true,
     useCalculatedPassivePerception: c.useCalculatedPassivePerception ?? true,
-    passivePerception: c.passivePerception ?? computePassivePerception(c),
+    passivePerception: c.passivePerception ?? getPassiveScore(
+      c.abilityScores?.wisdom ?? 10,
+      c.proficiencyBonus ?? 2,
+      percSkill?.proficient ?? false,
+      percSkill?.expertise ?? false,
+    ),
   }
 }
 
@@ -74,6 +74,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
   const [edited, setEdited] = createSignal(toEdit(props.character))
+  const current = () => (isEditing() ? edited() : props.character)
 
   const handleSave = () => {
     ;(document.activeElement as HTMLElement | null)?.blur()
@@ -83,20 +84,12 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       ...data,
       hitPoints: {
         ...data.hitPoints,
-        current: Math.min(data.hitPoints?.current ?? 0, effMax),
+        current: Math.max(0, Math.min(data.hitPoints?.current ?? 0, effMax)),
       },
-      initiative: data.useCalculatedInitiative
-        ? getAbilityModifier(data.abilityScores?.dexterity ?? 10)
-        : data.initiative,
-      proficiencyBonus: data.useCalculatedProficiencyBonus
-        ? getProficiencyBonus(data.level ?? 1)
-        : data.proficiencyBonus,
-      armorClass: (data.useCalculatedArmorClass ?? true)
-        ? equippedAC().ac
-        : data.armorClass,
-      passivePerception: (data.useCalculatedPassivePerception ?? true)
-        ? passivePerception()
-        : (data.passivePerception ?? passivePerception()),
+      initiative: initiativeField.resolvedValue(),
+      proficiencyBonus: profBonusField.resolvedValue(),
+      armorClass: acField.resolvedValue(),
+      passivePerception: passivePerceptionField.resolvedValue(),
     }
     props.onUpdate(normalized)
     saveCharacter(normalized)
@@ -110,7 +103,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     setEdited((prev) => {
       const next = { ...prev.hitPoints, [field]: value }
       const effMax = (next.maximum ?? 1) + (next.temporaryMaximum ?? 0)
-      if ((next.current ?? 0) > effMax) next.current = effMax
+      next.current = Math.max(0, Math.min(next.current ?? 0, effMax))
       return { ...prev, hitPoints: next }
     })
 
@@ -160,17 +153,17 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     saveCharacter(updated)
   }
 
-  const passivePerception = createMemo(() => {
-    const wis = props.character.abilityScores?.wisdom ?? 10
-    const prof = props.character.proficiencyBonus ?? 2
-    const percSkill = props.character.skills?.perception
-    return 10 + getSkillModifier(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
+  const passivePerceptionCalc = createMemo(() => {
+    const wis = current().abilityScores?.wisdom ?? 10
+    const prof = current().proficiencyBonus ?? 2
+    const percSkill = current().skills?.perception
+    return getPassiveScore(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
   })
 
   const passivePerceptionTooltip = createMemo(() => {
-    const wis = props.character.abilityScores?.wisdom ?? 10
-    const prof = props.character.proficiencyBonus ?? 2
-    const percSkill = props.character.skills?.perception
+    const wis = current().abilityScores?.wisdom ?? 10
+    const prof = current().proficiencyBonus ?? 2
+    const percSkill = current().skills?.perception
     const skillMod = getSkillModifier(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
     const wisMod = getAbilityModifier(wis)
     const parts = [`Wis ${wisMod >= 0 ? "+" : ""}${wisMod}`]
@@ -179,7 +172,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     } else if (percSkill?.proficient) {
       parts.push(`Prof +${prof}`)
     }
-    return `10 + ${parts.join(" + ")} = ${passivePerception()}`
+    return `10 + ${parts.join(" + ")} = ${passivePerceptionCalc()}`
   })
 
   const passivePerceptionLabel = createMemo(() => edition() === "2014" ? "Passive Wisdom (Perception)" : "Passive Perception")
@@ -191,6 +184,42 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
   const equippedAC = createMemo(() => calculateEquippedAC(props.character))
   const acTooltip = createMemo(() => (equippedAC().isEquippedArmor ? equippedAC().breakdown : "Base armor class"))
+
+  const acField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedArmorClass ?? true,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedArmorClass: v })),
+    manualValue: () => current().armorClass ?? 10,
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, armorClass: v })),
+    calculatedValue: () => equippedAC().ac,
+    calculatedTooltip: acTooltip,
+  })
+
+  const initiativeField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedInitiative ?? false,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedInitiative: v })),
+    manualValue: () => current().initiative ?? 0,
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, initiative: v })),
+    calculatedValue: calcInitiative,
+    calculatedTooltip: initiativeTooltip,
+  })
+
+  const profBonusField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedProficiencyBonus ?? false,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedProficiencyBonus: v })),
+    manualValue: () => current().proficiencyBonus ?? 2,
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, proficiencyBonus: v })),
+    calculatedValue: calcProfBonus,
+    calculatedTooltip: profBonusTooltip,
+  })
+
+  const passivePerceptionField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedPassivePerception ?? true,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedPassivePerception: v })),
+    manualValue: () => current().passivePerception ?? passivePerceptionCalc(),
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, passivePerception: v })),
+    calculatedValue: passivePerceptionCalc,
+    calculatedTooltip: passivePerceptionTooltip,
+  })
 
   return (
     <EditableModule
@@ -453,12 +482,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               class="mt-1"
               label="armor class"
               editable={isEditing()}
-              custom={!(isEditing() ? (edited().useCalculatedArmorClass ?? true) : (props.character.useCalculatedArmorClass ?? true))}
-              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedArmorClass: !custom }))}
-              value={isEditing() ? edited().armorClass : (props.character.armorClass ?? 10)}
-              onValueChange={(v) => setEdited(prev => ({ ...prev, armorClass: v }))}
-              calculatedValue={equippedAC().ac}
-              calculatedTooltip={acTooltip()}
+              {...acField.binding()}
             />
           </div>
 
@@ -469,12 +493,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               class="mt-1"
               label="initiative"
               editable={isEditing()}
-              custom={!(isEditing() ? edited().useCalculatedInitiative : props.character.useCalculatedInitiative)}
-              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedInitiative: !custom }))}
-              value={isEditing() ? edited().initiative : (props.character.initiative ?? 0)}
-              onValueChange={(v) => setEdited(prev => ({ ...prev, initiative: v }))}
-              calculatedValue={calcInitiative()}
-              calculatedTooltip={initiativeTooltip()}
+              {...initiativeField.binding()}
               format={formatModifier}
             />
           </div>
@@ -483,7 +502,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           <div class="text-center">
             <Label class="text-sm text-muted-foreground">Speed</Label>
             <Show when={isEditing()} fallback={
-              <div class="text-2xl font-bold text-primary mt-1">{(props.character.speed || 30)} ft</div>
+              <div class="text-2xl font-bold text-primary mt-1">{(props.character.speed ?? 30)} ft</div>
             }>
               <NumericInput
                 value={edited().speed}
@@ -500,12 +519,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               class="mt-1"
               label="proficiency bonus"
               editable={isEditing()}
-              custom={!(isEditing() ? edited().useCalculatedProficiencyBonus : props.character.useCalculatedProficiencyBonus)}
-              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedProficiencyBonus: !custom }))}
-              value={isEditing() ? edited().proficiencyBonus : (props.character.proficiencyBonus ?? 2)}
-              onValueChange={(v) => setEdited(prev => ({ ...prev, proficiencyBonus: v }))}
-              calculatedValue={calcProfBonus()}
-              calculatedTooltip={profBonusTooltip()}
+              {...profBonusField.binding()}
               format={formatModifier}
             />
           </div>
@@ -517,12 +531,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               class="mt-1"
               label="passive perception"
               editable={isEditing()}
-              custom={!(isEditing() ? (edited().useCalculatedPassivePerception ?? true) : (props.character.useCalculatedPassivePerception ?? true))}
-              onCustomChange={(custom) => setEdited(prev => ({ ...prev, useCalculatedPassivePerception: !custom }))}
-              value={isEditing() ? (edited().passivePerception ?? passivePerception()) : (props.character.passivePerception ?? passivePerception())}
-              onValueChange={(v) => setEdited(prev => ({ ...prev, passivePerception: v }))}
-              calculatedValue={passivePerception()}
-              calculatedTooltip={passivePerceptionTooltip()}
+              {...passivePerceptionField.binding()}
             />
           </div>
 
