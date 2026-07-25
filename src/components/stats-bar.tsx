@@ -1,6 +1,6 @@
 import { Show, For, createMemo } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import ShieldIcon from "lucide-solid/icons/shield"
@@ -15,8 +15,12 @@ interface StatsBarProps {
 export function StatsBar(props: StatsBarProps) {
   const { currentHp, maxHp, tempHp, hpPercentage, hpColor, tempHpWidth, tempHpLeft } = useHpDisplay(() => props.character)
 
-  const ac = createMemo(() => props.character.armorClass ?? 10)
-  const initiative = createMemo(() => props.character.initiative ?? 0)
+  const ac = createMemo(() =>
+    (props.character.useCalculatedArmorClass ?? true) ? calculateEquippedAC(props.character).ac : (props.character.armorClass ?? 10)
+  )
+  const initiative = createMemo(() =>
+    (props.character.useCalculatedInitiative ?? false) ? calculateInitiative(props.character).initiative : (props.character.initiative ?? 0)
+  )
   const hasSpellcasting = createMemo(() => !!props.character.spellcastingAbility)
   const spellSaveDC = createMemo(() =>
     (props.character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(props.character) : props.character.spellSaveDC

@@ -54,8 +54,9 @@ describe("CombatStatsModule", () => {
       render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // HP: "10" and "/20" appear in the display
       expect(screen.getByText(/\/20/)).toBeInTheDocument()
-      // AC
-      expect(screen.getByText("15")).toBeInTheDocument()
+      // AC: unarmored, DEX 10 -> +0 -> AC 10
+      const acContainer = screen.getByText("Armor Class").closest("div")!
+      expect(within(acContainer).getByText("10")).toBeInTheDocument()
       // Speed
       expect(screen.getByText(/30 ft/)).toBeInTheDocument()
       // Proficiency bonus "+3" and initiative "+2"
@@ -276,13 +277,14 @@ describe("CombatStatsModule", () => {
   })
 
   describe("AC tooltip", () => {
-    it("shows 'Base armor class' tooltip for manually-set AC in view mode", async () => {
+    it("shows the unarmored DEX-based AC formula in the tooltip in view mode", async () => {
       render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // AC is the first focusable trigger in view mode
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Base armor class")
+      // No armor equipped, DEX 10 -> +0: unarmored AC = 10 + 0 DEX
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 DEX")
     })
 
     it("does not show always-visible AC breakdown text below the value", () => {
@@ -784,8 +786,8 @@ describe("CombatStatsModule", () => {
         equipment: [makeMagicItem({ modifiers: { armorClass: 1 } })],
       })
       render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
-      // base armorClass 15 (no armor equipped) + item +1
-      expect(screen.getByText("16")).toBeInTheDocument()
+      // unarmored: 10 + DEX +0 + item +1 = 11
+      expect(screen.getByText("11")).toBeInTheDocument()
     })
 
     it("ignores an inactive item's AC bonus", () => {
@@ -793,8 +795,9 @@ describe("CombatStatsModule", () => {
         equipment: [makeMagicItem({ requiresAttunement: true, attuned: false, modifiers: { armorClass: 1 } })],
       })
       render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
-      expect(screen.getByText("15")).toBeInTheDocument()
-      expect(screen.queryByText("16")).not.toBeInTheDocument()
+      const acContainer = screen.getByText("Armor Class").closest("div")!
+      expect(within(acContainer).getByText("10")).toBeInTheDocument()
+      expect(screen.queryByText("11")).not.toBeInTheDocument()
     })
   })
 

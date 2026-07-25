@@ -282,7 +282,7 @@ function formatBonusTerm(bonus: number, label: string): string {
 }
 
 export function calculateEquippedAC(
-  character: Pick<Character, "equipment" | "abilityScores" | "armorClass" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
+  character: Pick<Character, "equipment" | "abilityScores" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
 ): { ac: number; breakdown: string; isEquippedArmor: boolean } {
   const equipment = character.equipment ?? []
   const dexMod = getAbilityModifier(getEffectiveAbilityScore(character, "dexterity"))
@@ -297,9 +297,10 @@ export function calculateEquippedAC(
   const shieldActive = equippedArmor.some((item) => item.armorStats.armorType === "shield")
 
   if (!bodyArmor) {
-    const base = character.armorClass ?? 10
+    const base = 10 + dexMod
     const ac = (shieldActive ? base + 2 : base) + itemBonus
-    let breakdown = shieldActive ? `${base} + 2 (shield)` : `${base}`
+    let breakdown = `10 + ${dexMod} DEX`
+    if (shieldActive) breakdown += " + 2 (shield)"
     breakdown += formatBonusTerm(itemBonus, "item bonus")
     return { ac, breakdown, isEquippedArmor: false }
   }

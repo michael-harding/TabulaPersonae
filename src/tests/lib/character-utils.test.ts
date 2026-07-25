@@ -627,9 +627,16 @@ describe("getEquippedWeaponAttacks", () => {
 describe("calculateEquippedAC", () => {
   const defaultChar = { ...createDefaultCharacter(), armorClass: 12, abilityScores: baseScores, equipment: [] }
 
-  it("returns armorClass from character when no armor equipped", () => {
+  it("computes unarmored AC as 10 + DEX modifier when no armor is equipped", () => {
+    // DEX 14 -> +2, so unarmored AC = 10 + 2 = 12 (coincides with the fixture's stale armorClass: 12)
     expect(calculateEquippedAC(defaultChar).ac).toBe(12)
     expect(calculateEquippedAC(defaultChar).isEquippedArmor).toBe(false)
+  })
+
+  it("ignores the stored armorClass field entirely when unarmored (regression: used to silently return the raw field, freezing AC even as DEX changed)", () => {
+    const char = { ...defaultChar, armorClass: 99, abilityScores: { ...baseScores, dexterity: 16 } }
+    // DEX 16 -> +3, so unarmored AC = 13, NOT the stale armorClass: 99
+    expect(calculateEquippedAC(char).ac).toBe(13)
   })
 
   it("calculates light armor: baseAC + full DEX mod", () => {

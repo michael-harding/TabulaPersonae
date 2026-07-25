@@ -184,7 +184,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const profBonusTooltip = createMemo(() => `Level ${props.character.level ?? 1} = ${formatModifier(calcProfBonus())}`)
 
   const equippedAC = createMemo(() => calculateEquippedAC(props.character))
-  const acTooltip = createMemo(() => (equippedAC().isEquippedArmor ? equippedAC().breakdown : "Base armor class"))
+  const acTooltip = createMemo(() => equippedAC().breakdown)
 
   const acField = useCalculatedValue({
     useCalculated: () => current().useCalculatedArmorClass ?? true,
