@@ -1,6 +1,7 @@
 import { createSignal, createEffect, For, Show } from "solid-js"
 import { useNavigate, A } from "@solidjs/router"
 import { type Character, createDefaultCharacter } from "@/lib/character-types"
+import { calculateEquippedAC, getEffectiveMaxHp } from "@/lib/character-utils"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -138,8 +139,8 @@ export default function Home() {
                           <CardContent>
                             <div class="space-y-2 text-sm text-muted-foreground">
                               <p>Level {character.level} {character.race} {character.class}</p>
-                              <p>HP: {character.hitPoints?.current ?? 0}/{character.hitPoints?.maximum ?? 0}</p>
-                              <p>AC: {character.armorClass}</p>
+                              <p>HP: {character.hitPoints?.current ?? 0}/{getEffectiveMaxHp(character.hitPoints)}</p>
+                              <p>AC: {(character.useCalculatedArmorClass ?? true) ? calculateEquippedAC(character).ac : (character.armorClass ?? 10)}</p>
                             </div>
                           </CardContent>
                         </A>
