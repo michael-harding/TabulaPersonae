@@ -29,9 +29,73 @@ export function getSkillModifier(
   return bonus
 }
 
-export function getSavingThrowModifier(abilityScore: number, proficiencyBonus: number, isProficient: boolean): number {
+export function getSavingThrowModifier(
+  abilityScore: number,
+  proficiencyBonus: number,
+  isProficient: boolean,
+  itemBonus: number = 0,
+): number {
   const abilityMod = getAbilityModifier(abilityScore)
-  return isProficient ? abilityMod + proficiencyBonus : abilityMod
+  return (isProficient ? abilityMod + proficiencyBonus : abilityMod) + itemBonus
+}
+
+export function isItemModifierActive(
+  item: Pick<Equipment, "equipped" | "magic" | "requiresAttunement" | "attuned">
+): boolean {
+  if (!item.equipped || !item.magic) return false
+  if (item.requiresAttunement && !item.attuned) return false
+  return true
+}
+
+export interface EquipmentModifierTotals {
+  armorClass: number
+  initiative: number
+  savingThrows: Record<keyof AbilityScores, number>
+  abilityScores: Record<keyof AbilityScores, number>
+}
+
+export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): EquipmentModifierTotals {
+  const zero = { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0 }
+  const totals: EquipmentModifierTotals = {
+    armorClass: 0,
+    initiative: 0,
+    savingThrows: { ...zero },
+    abilityScores: { ...zero },
+  }
+  for (const item of equipment ?? []) {
+    if (!isItemModifierActive(item) || !item.modifiers) continue
+    totals.armorClass += item.modifiers.armorClass ?? 0
+    totals.initiative += item.modifiers.initiative ?? 0
+    for (const ability of Object.keys(zero) as (keyof AbilityScores)[]) {
+      totals.savingThrows[ability] += item.modifiers.savingThrows?.[ability] ?? 0
+      totals.abilityScores[ability] += item.modifiers.abilityScores?.[ability] ?? 0
+    }
+  }
+  return totals
+}
+
+type AbilityScoreCharacter = Pick<
+  Character,
+  "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores"
+>
+
+export function getEffectiveAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
+  const base = character.abilityScores?.[ability] ?? 10
+  const itemBonus = getEquipmentModifierTotals(character.equipment).abilityScores[ability]
+  const calculated = base + itemBonus
+  const useCalculated = character.useCalculatedAbilityScores?.[ability] ?? true
+  return useCalculated ? calculated : (character.abilityScoreOverrides?.[ability] ?? calculated)
+}
+
+export function getEffectiveAbilityScores(character: AbilityScoreCharacter): AbilityScores {
+  return {
+    strength: getEffectiveAbilityScore(character, "strength"),
+    dexterity: getEffectiveAbilityScore(character, "dexterity"),
+    constitution: getEffectiveAbilityScore(character, "constitution"),
+    intelligence: getEffectiveAbilityScore(character, "intelligence"),
+    wisdom: getEffectiveAbilityScore(character, "wisdom"),
+    charisma: getEffectiveAbilityScore(character, "charisma"),
+  }
 }
 
 export function getPassiveScore(
@@ -61,17 +125,8 @@ export function getSpellSaveDC(
   // If first parameter is a Character object
   if (typeof characterOrAbility === "object" && "spellcastingAbility" in characterOrAbility) {
     const character = characterOrAbility
-    const safeAbilityScores = character.abilityScores || {
-      strength: 10,
-      dexterity: 10,
-      constitution: 10,
-      intelligence: 10,
-      wisdom: 10,
-      charisma: 10,
-    }
-
     if (!character.spellcastingAbility) return 8
-    const abilityMod = getAbilityModifier(safeAbilityScores[character.spellcastingAbility])
+    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, character.spellcastingAbility))
     return 8 + (character.proficiencyBonus || 2) + abilityMod
   }
 
@@ -96,17 +151,8 @@ export function getSpellAttackBonus(
   // If first parameter is a Character object
   if (typeof characterOrAbility === "object" && "spellcastingAbility" in characterOrAbility) {
     const character = characterOrAbility
-    const safeAbilityScores = character.abilityScores || {
-      strength: 10,
-      dexterity: 10,
-      constitution: 10,
-      intelligence: 10,
-      wisdom: 10,
-      charisma: 10,
-    }
-
     if (!character.spellcastingAbility) return 0
-    const abilityMod = getAbilityModifier(safeAbilityScores[character.spellcastingAbility])
+    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, character.spellcastingAbility))
     return (character.proficiencyBonus || 2) + abilityMod
   }
 
@@ -181,6 +227,8 @@ export function safeFeatures(raw: Feature[] | string | undefined): Feature[] {
 export const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
 export const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
 
+export const BASE_ATTUNEMENT_LIMIT = 3
+
 export interface DerivedWeaponAttack {
   id: string
   name: string
@@ -228,11 +276,17 @@ export function getEquippedWeaponAttacks(
     })
 }
 
+function formatBonusTerm(bonus: number, label: string): string {
+  if (bonus === 0) return ""
+  return bonus > 0 ? ` + ${bonus} (${label})` : ` - ${Math.abs(bonus)} (${label})`
+}
+
 export function calculateEquippedAC(
-  character: Pick<Character, "equipment" | "abilityScores" | "armorClass">
+  character: Pick<Character, "equipment" | "abilityScores" | "armorClass" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
 ): { ac: number; breakdown: string; isEquippedArmor: boolean } {
   const equipment = character.equipment ?? []
-  const dexMod = getAbilityModifier(character.abilityScores?.dexterity ?? 10)
+  const dexMod = getAbilityModifier(getEffectiveAbilityScore(character, "dexterity"))
+  const itemBonus = getEquipmentModifierTotals(equipment).armorClass
 
   const equippedArmor = equipment.filter(
     (item): item is Equipment & { armorStats: NonNullable<Equipment["armorStats"]> } =>
@@ -244,8 +298,9 @@ export function calculateEquippedAC(
 
   if (!bodyArmor) {
     const base = character.armorClass ?? 10
-    const ac = shieldActive ? base + 2 : base
-    const breakdown = shieldActive ? `${base} + 2 (shield)` : `${base}`
+    const ac = (shieldActive ? base + 2 : base) + itemBonus
+    let breakdown = shieldActive ? `${base} + 2 (shield)` : `${base}`
+    breakdown += formatBonusTerm(itemBonus, "item bonus")
     return { ac, breakdown, isEquippedArmor: false }
   }
 
@@ -270,7 +325,21 @@ export function calculateEquippedAC(
     breakdown += " + 2 (shield)"
   }
 
+  ac += itemBonus
+  breakdown += formatBonusTerm(itemBonus, "item bonus")
+
   return { ac, breakdown, isEquippedArmor: true }
+}
+
+export function calculateInitiative(
+  character: Pick<Character, "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
+): { initiative: number; breakdown: string } {
+  const dexMod = getAbilityModifier(getEffectiveAbilityScore(character, "dexterity"))
+  const itemBonus = getEquipmentModifierTotals(character.equipment).initiative
+  return {
+    initiative: dexMod + itemBonus,
+    breakdown: `Dex ${formatModifier(dexMod)}${formatBonusTerm(itemBonus, "item bonus")}`,
+  }
 }
 
 export function remainingUses(used: number | undefined, max: number | undefined): number {

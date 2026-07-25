@@ -38,6 +38,7 @@ export function RestModal(props: RestModalProps) {
       ...safeFeatures(props.character.classFeatures),
       ...safeFeatures(props.character.speciesTraits),
       ...safeFeatures(props.character.feats),
+      ...(props.character.equipment ?? []),
     ]
     if (restType() === "short") return all.filter((a) => a.rechargeOn === "short-rest")
     return all.filter((a) => a.rechargeOn === "short-rest" || a.rechargeOn === "long-rest")
@@ -75,6 +76,7 @@ export function RestModal(props: RestModalProps) {
         classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest"),
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest"),
+        equipment: resetMatching(char.equipment ?? [], "short-rest"),
       })
       if (spent === 0) handleClose()
     } else {
@@ -93,6 +95,7 @@ export function RestModal(props: RestModalProps) {
         classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest", "long-rest"),
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest", "long-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest", "long-rest"),
+        equipment: resetMatching(char.equipment ?? [], "short-rest", "long-rest"),
       })
       handleClose()
     }

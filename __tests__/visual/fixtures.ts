@@ -168,9 +168,19 @@ export const testCharacter: Character = {
       equipped: false,
       type: "tool",
     },
-  ],
-  magicItems: [
-    { id: "mi1", name: "Ring of Protection", description: "+1 bonus to AC and saving throws while attuned.", attuned: true },
+    {
+      id: "mi1",
+      name: "Ring of Protection",
+      quantity: 1,
+      weight: 0,
+      description: "+1 bonus to AC and saving throws while attuned.",
+      equipped: false,
+      type: "other",
+      magic: true,
+      requiresAttunement: true,
+      attuned: true,
+      rarity: "rare",
+    },
   ],
   coins: { cp: 15, sp: 50, ep: 0, gp: 150, pp: 2 },
 

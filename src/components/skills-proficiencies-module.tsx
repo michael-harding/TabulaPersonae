@@ -1,6 +1,6 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -54,6 +54,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   createEffect(on(() => props.character.id, () => setEdited(props.character)))
 
   const current = () => isEditing() ? edited() : props.character
+  const effectiveScores = createMemo(() => getEffectiveAbilityScores(current()))
+  const modifierTotals = createMemo(() => getEquipmentModifierTotals(current().equipment))
 
   const makePassiveStat = (
     skillKey: SkillKey,
@@ -62,9 +64,9 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   ) => {
     const ability = SKILL_ABILITY_MAP[skillKey]
     const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
-    const calc = createMemo(() => getPassiveScore(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise))
+    const calc = createMemo(() => getPassiveScore(effectiveScores()[ability], current().proficiencyBonus, skill().proficient, skill().expertise))
     const tooltip = createMemo(() => {
-      const mod = getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
+      const mod = getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
       return `10 + ${SKILL_DISPLAY_NAMES[skillKey]} ${formatModifier(mod)} = ${calc()}`
     })
     return {
@@ -178,11 +180,15 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             <For each={Object.keys(ABILITY_ABBREVIATIONS) as AbilityKey[]}>
               {(ability) => {
                 const isProficient = () => current().savingThrows?.[ability] ?? false
-                const modifier = () => getSavingThrowModifier(current().abilityScores[ability], current().proficiencyBonus, isProficient())
-                const abilityMod = () => getAbilityModifier(current().abilityScores[ability])
-                const saveTooltip = () => isProficient()
-                  ? `${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())} + Prof +${current().proficiencyBonus} = ${formatModifier(modifier())}`
-                  : `${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())}`
+                const saveItemBonus = () => modifierTotals().savingThrows[ability]
+                const modifier = () => getSavingThrowModifier(effectiveScores()[ability], current().proficiencyBonus, isProficient(), saveItemBonus())
+                const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
+                const saveTooltip = () => {
+                  const parts = [`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())}`]
+                  if (isProficient()) parts.push(`Prof +${current().proficiencyBonus}`)
+                  if (saveItemBonus() !== 0) parts.push(`Item ${formatModifier(saveItemBonus())}`)
+                  return parts.length > 1 ? `${parts.join(" + ")} = ${formatModifier(modifier())}` : parts[0]
+                }
                 return (
                   <div class="flex items-center justify-between p-2 rounded border">
                     <label class={`flex items-center gap-2 ${isEditing() ? "cursor-pointer" : "cursor-default"}`}>
@@ -214,8 +220,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
               {(skillKey) => {
                 const ability = SKILL_ABILITY_MAP[skillKey]
                 const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false, disadvantage: false }
-                const modifier = () => getSkillModifier(current().abilityScores[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
-                const abilityMod = () => getAbilityModifier(current().abilityScores[ability])
+                const modifier = () => getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
+                const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
                 const skillTooltip = () => {
                   const parts = [`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())}`]
                   if (skill().proficient) parts.push(`Prof +${current().proficiencyBonus}`)

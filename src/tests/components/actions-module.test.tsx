@@ -150,6 +150,28 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       expect(screen.getByText("14")).toBeInTheDocument()
     })
 
+    it("cascades an equipped ability-score-boosting item into spell modifier, attack, and save DC", () => {
+      const magicItem: Equipment = {
+        id: "item-1",
+        name: "Headband of Intellect",
+        quantity: 1,
+        weight: 0,
+        description: "",
+        equipped: true,
+        type: "other",
+        magic: true,
+        requiresAttunement: true,
+        attuned: true,
+        rarity: "rare",
+        modifiers: { abilityScores: { intelligence: 2 } },
+      }
+      // INT 16 + item +2 = 18 -> mod +4, prof +3 => spell attack +7, DC 8+3+4=15
+      render(<ActionsModule character={makeSpellcaster({ equipment: [magicItem] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("+7")).toBeInTheDocument()
+      expect(screen.getByText("15")).toBeInTheDocument()
+      expect(screen.getByText("+4")).toBeInTheDocument()
+    })
+
     it("shows a NumericInput for spell attack once switched to custom in edit mode", () => {
       render(<ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
       clickEditButton()

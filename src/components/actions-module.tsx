@@ -1,7 +1,7 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, getEffectiveAbilityScore, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -223,13 +223,10 @@ type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
 
 type StoredAction = ActionFormData & { id: string }
 
-const DEFAULT_ABILITY_SCORES = { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 }
-
 function computeSpellModifier(c: Character): number {
   const ability = c.spellcastingAbility
   if (!ability) return 0
-  const scores = c.abilityScores || DEFAULT_ABILITY_SCORES
-  return getAbilityModifier(scores[ability])
+  return getAbilityModifier(getEffectiveAbilityScore(c, ability))
 }
 
 interface ActionsEditState {

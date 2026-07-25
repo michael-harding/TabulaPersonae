@@ -1,6 +1,6 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, formatModifier, getEffectiveMaxHp } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { DIE_SIZES } from "@/lib/dice"
@@ -154,14 +154,14 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   }
 
   const passivePerceptionCalc = createMemo(() => {
-    const wis = current().abilityScores?.wisdom ?? 10
+    const wis = getEffectiveAbilityScore(current(), "wisdom")
     const prof = current().proficiencyBonus ?? 2
     const percSkill = current().skills?.perception
     return getPassiveScore(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
   })
 
   const passivePerceptionTooltip = createMemo(() => {
-    const wis = current().abilityScores?.wisdom ?? 10
+    const wis = getEffectiveAbilityScore(current(), "wisdom")
     const prof = current().proficiencyBonus ?? 2
     const percSkill = current().skills?.perception
     const skillMod = getSkillModifier(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
@@ -177,9 +177,10 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
   const passivePerceptionLabel = createMemo(() => edition() === "2014" ? "Passive Wisdom (Perception)" : "Passive Perception")
 
-  const calcInitiative = createMemo(() => getAbilityModifier(props.character.abilityScores?.dexterity ?? 10))
+  const equippedInitiative = createMemo(() => calculateInitiative(props.character))
+  const calcInitiative = () => equippedInitiative().initiative
+  const initiativeTooltip = () => equippedInitiative().breakdown
   const calcProfBonus = createMemo(() => getProficiencyBonus(props.character.level ?? 1))
-  const initiativeTooltip = createMemo(() => `Dex ${formatModifier(calcInitiative())}`)
   const profBonusTooltip = createMemo(() => `Level ${props.character.level ?? 1} = ${formatModifier(calcProfBonus())}`)
 
   const equippedAC = createMemo(() => calculateEquippedAC(props.character))

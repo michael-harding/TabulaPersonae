@@ -37,6 +37,23 @@ function makeCharacter(overrides: Record<string, any> = {}) {
   }
 }
 
+function makeMagicItem(overrides: Record<string, any> = {}) {
+  return {
+    id: "item-1",
+    name: "Test Item",
+    description: "",
+    quantity: 1,
+    weight: 0,
+    equipped: true,
+    type: "other" as const,
+    magic: true,
+    requiresAttunement: true,
+    attuned: true,
+    rarity: "rare" as const,
+    ...overrides,
+  }
+}
+
 function clickEditButton() {
   fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
@@ -525,6 +542,62 @@ describe("SkillsProficienciesModule", () => {
       fireEvent.focus(triggers[25])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
+    })
+  })
+
+  describe("item modifiers", () => {
+    beforeEach(() => cleanupPortals())
+
+    it("reflects a per-ability saving throw item bonus", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { savingThrows: { strength: 1 } } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      // STR 16 -> +3, Prof +3, Item +1 -> +7
+      const expected = formatModifier(getSavingThrowModifier(16, 3, true, 1))
+      expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
+    })
+
+    it("ignores an inactive item's saving throw bonus", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ requiresAttunement: true, attuned: false, modifiers: { savingThrows: { strength: 1 } } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      // No bonus applied: STR 16 -> +3, Prof +3 -> +6
+      const expected = formatModifier(getSavingThrowModifier(16, 3, true))
+      expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
+    })
+
+    it("cascades an ability-score item bonus into the saving throw", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      // effective STR 18 -> +4, Prof +3 -> +7
+      const expected = formatModifier(getSavingThrowModifier(18, 3, true))
+      expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
+    })
+
+    it("cascades an ability-score item bonus into a skill modifier", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScores: { dexterity: 2 } } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      // Stealth: effective DEX 16 -> +3, Prof +3, Exp +3 -> +9
+      const expected = formatModifier(getSkillModifier(16, 3, true, true))
+      expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
+    })
+
+    it("cascades an ability-score item bonus into passive perception", async () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScores: { wisdom: 2 } } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      // effective WIS 10 -> +0, not proficient -> passive = 10
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[24])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Perception +0 = 10")
     })
   })
 })

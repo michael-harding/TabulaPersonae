@@ -53,7 +53,16 @@ export interface Skills {
 
 export type ActionType = 'attack' | 'ability' | 'class-feature' | 'feat' | 'species-ability' | 'other' | string
 
-export interface Equipment extends CharacterEntry {
+export type ItemRarity = "common" | "uncommon" | "rare" | "very-rare" | "legendary" | "artifact"
+
+export interface ItemModifiers {
+  armorClass?: number
+  initiative?: number
+  savingThrows?: Partial<Record<keyof AbilityScores, number>>
+  abilityScores?: Partial<Record<keyof AbilityScores, number>>
+}
+
+export interface Equipment extends UseableEntry {
   quantity: number
   weight: number
   equipped: boolean
@@ -69,10 +78,11 @@ export interface Equipment extends CharacterEntry {
     baseAC: number
     armorType: "light" | "medium" | "heavy" | "shield"
   }
-}
-
-export interface MagicItem extends CharacterEntry {
-  attuned: boolean
+  magic?: boolean
+  requiresAttunement?: boolean
+  attuned?: boolean
+  rarity?: ItemRarity
+  modifiers?: ItemModifiers
 }
 
 export interface Spell extends CharacterEntry {
@@ -132,6 +142,8 @@ export interface Character {
   experiencePoints: number
 
   abilityScores: AbilityScores
+  abilityScoreOverrides?: Partial<Record<keyof AbilityScores, number>>
+  useCalculatedAbilityScores?: Partial<Record<keyof AbilityScores, boolean>>
   savingThrows: SavingThrows
   skills: Skills
 
@@ -161,6 +173,8 @@ export interface Character {
   useCalculatedPassiveInvestigation?: boolean
 
   equipment: Equipment[]
+  attunementLimit?: number
+  useCalculatedAttunementLimit?: boolean
   spells: Spell[]
   spellcastingAbility: keyof AbilityScores | ""
   spellSaveDC: number
@@ -219,7 +233,6 @@ export interface Character {
   // 2024-only
   subclass?: string
   size?: string
-  magicItems?: MagicItem[]
   classFeatures?: Feature[]
   speciesTraits?: Feature[]
   feats?: Feature[]

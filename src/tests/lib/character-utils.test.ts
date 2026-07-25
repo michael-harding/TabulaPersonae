@@ -12,7 +12,12 @@ import {
   rollHitDice,
   getEquippedWeaponAttacks,
   calculateEquippedAC,
+  calculateInitiative,
   getEffectiveMaxHp,
+  isItemModifierActive,
+  getEquipmentModifierTotals,
+  getEffectiveAbilityScore,
+  getEffectiveAbilityScores,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type AbilityScores, type Equipment } from "@/lib/character-types"
 
@@ -106,6 +111,20 @@ describe("Character Utils", () => {
       const result = getSavingThrowModifier(8, 2, false)
       expect(result).toBe(-1) // -1 from ability modifier
     })
+
+    it("defaults itemBonus to 0 when omitted", () => {
+      expect(getSavingThrowModifier(14, 2, true)).toBe(getSavingThrowModifier(14, 2, true, 0))
+    })
+
+    it("adds a nonzero itemBonus on top of a proficient save", () => {
+      const result = getSavingThrowModifier(14, 2, true, 1)
+      expect(result).toBe(5) // +2 ability + +2 proficiency + +1 item
+    })
+
+    it("applies itemBonus even when not proficient", () => {
+      const result = getSavingThrowModifier(14, 2, false, 1)
+      expect(result).toBe(3) // +2 ability + +1 item, no proficiency
+    })
   })
 
   describe("getSpellSaveDC", () => {
@@ -135,6 +154,17 @@ describe("Character Utils", () => {
 
         const result = getSpellSaveDC(character)
         expect(result).toBe(10) // 8 + 2 proficiency + 0 ability modifier (default 10)
+      })
+
+      it("cascades an equipped ability-score-boosting item into spell save DC", () => {
+        const character = createDefaultCharacter()
+        character.spellcastingAbility = "intelligence"
+        character.abilityScores.intelligence = 16
+        character.proficiencyBonus = 3
+        character.equipment = [makeMagicItem({ modifiers: { abilityScores: { intelligence: 2 } } })]
+
+        const result = getSpellSaveDC(character)
+        expect(result).toBe(15) // 8 + 3 proficiency + 4 ability modifier (18 INT)
       })
     })
 
@@ -197,6 +227,17 @@ describe("Character Utils", () => {
 
         const result = getSpellAttackBonus(character)
         expect(result).toBe(2) // 2 proficiency + 0 ability modifier (default 10)
+      })
+
+      it("cascades an equipped ability-score-boosting item into spell attack bonus", () => {
+        const character = createDefaultCharacter()
+        character.spellcastingAbility = "intelligence"
+        character.abilityScores.intelligence = 16
+        character.proficiencyBonus = 3
+        character.equipment = [makeMagicItem({ modifiers: { abilityScores: { intelligence: 2 } } })]
+
+        const result = getSpellAttackBonus(character)
+        expect(result).toBe(7) // 3 proficiency + 4 ability modifier (18 INT)
       })
     })
 
@@ -378,7 +419,135 @@ function makeArmorItem(overrides: Partial<Equipment> = {}): Equipment {
   }
 }
 
+function makeMagicItem(overrides: Partial<Equipment> = {}): Equipment {
+  return {
+    id: "item-1",
+    name: "Test Item",
+    quantity: 1,
+    weight: 0,
+    description: "",
+    equipped: true,
+    type: "other",
+    magic: true,
+    requiresAttunement: true,
+    attuned: true,
+    rarity: "rare",
+    ...overrides,
+  }
+}
+
 const baseScores = { strength: 16, dexterity: 14, constitution: 14, intelligence: 10, wisdom: 10, charisma: 10 }
+
+describe("isItemModifierActive", () => {
+  it("is active when equipped, magic, and attunement not required", () => {
+    expect(isItemModifierActive(makeMagicItem({ requiresAttunement: false, attuned: undefined }))).toBe(true)
+  })
+
+  it("is active when equipped, magic, requires attunement, and attuned", () => {
+    expect(isItemModifierActive(makeMagicItem({ requiresAttunement: true, attuned: true }))).toBe(true)
+  })
+
+  it("is inactive when not equipped", () => {
+    expect(isItemModifierActive(makeMagicItem({ equipped: false }))).toBe(false)
+  })
+
+  it("is inactive when not magic", () => {
+    expect(isItemModifierActive(makeMagicItem({ magic: false }))).toBe(false)
+  })
+
+  it("is inactive when attunement is required but the item is not attuned", () => {
+    expect(isItemModifierActive(makeMagicItem({ requiresAttunement: true, attuned: false }))).toBe(false)
+  })
+})
+
+describe("getEquipmentModifierTotals", () => {
+  it("returns all-zero totals for undefined or empty equipment", () => {
+    const zero = { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0 }
+    expect(getEquipmentModifierTotals(undefined)).toEqual({ armorClass: 0, initiative: 0, savingThrows: zero, abilityScores: zero })
+    expect(getEquipmentModifierTotals([])).toEqual({ armorClass: 0, initiative: 0, savingThrows: zero, abilityScores: zero })
+  })
+
+  it("sums modifiers across multiple active items", () => {
+    const equipment = [
+      makeMagicItem({ id: "a", modifiers: { armorClass: 1, initiative: 2 } }),
+      makeMagicItem({ id: "b", modifiers: { armorClass: 1, abilityScores: { strength: 2 } } }),
+    ]
+    const totals = getEquipmentModifierTotals(equipment)
+    expect(totals.armorClass).toBe(2)
+    expect(totals.initiative).toBe(2)
+    expect(totals.abilityScores.strength).toBe(2)
+  })
+
+  it("ignores items with no modifiers", () => {
+    const equipment = [makeMagicItem({ modifiers: undefined })]
+    expect(getEquipmentModifierTotals(equipment).armorClass).toBe(0)
+  })
+
+  it("ignores inactive items (unattuned, attunement required)", () => {
+    const equipment = [makeMagicItem({ requiresAttunement: true, attuned: false, modifiers: { armorClass: 3 } })]
+    expect(getEquipmentModifierTotals(equipment).armorClass).toBe(0)
+  })
+
+  it("ignores non-magic items even if they carry a modifiers block", () => {
+    const equipment = [makeMagicItem({ magic: false, modifiers: { armorClass: 3 } })]
+    expect(getEquipmentModifierTotals(equipment).armorClass).toBe(0)
+  })
+
+  it("sums per-ability saving throw bonuses", () => {
+    const equipment = [makeMagicItem({ modifiers: { savingThrows: { wisdom: 1, charisma: 2 } } })]
+    const totals = getEquipmentModifierTotals(equipment)
+    expect(totals.savingThrows.wisdom).toBe(1)
+    expect(totals.savingThrows.charisma).toBe(2)
+    expect(totals.savingThrows.strength).toBe(0)
+  })
+})
+
+describe("getEffectiveAbilityScore / getEffectiveAbilityScores", () => {
+  it("returns the base score unchanged with no equipment", () => {
+    const character = { abilityScores: baseScores, equipment: [] }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(16)
+  })
+
+  it("adds an active item's ability bonus to the base score", () => {
+    const character = { abilityScores: baseScores, equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })] }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(18)
+  })
+
+  it("ignores an inactive item's ability bonus", () => {
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ requiresAttunement: true, attuned: false, modifiers: { abilityScores: { strength: 2 } } })],
+    }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(16)
+  })
+
+  it("returns the manual override when useCalculatedAbilityScores is false", () => {
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
+      abilityScoreOverrides: { strength: 25 },
+      useCalculatedAbilityScores: { strength: false },
+    }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(25)
+  })
+
+  it("falls back to the calculated value when the toggle is false but no override is set", () => {
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
+      useCalculatedAbilityScores: { strength: false },
+    }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(18)
+  })
+
+  it("getEffectiveAbilityScores resolves all six abilities at once", () => {
+    const character = { abilityScores: baseScores, equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2, wisdom: 1 } } })] }
+    const scores = getEffectiveAbilityScores(character)
+    expect(scores.strength).toBe(18)
+    expect(scores.wisdom).toBe(11)
+    expect(scores.dexterity).toBe(14)
+  })
+})
 
 describe("getEquippedWeaponAttacks", () => {
   it("returns [] when no equipment", () => {
@@ -445,6 +614,14 @@ describe("getEquippedWeaponAttacks", () => {
     const [atk] = getEquippedWeaponAttacks(char)
     expect(atk.damage).toBe("1d8-1")
   })
+
+  it("a magic weapon derives an attack identically to a non-magic one (no bonus applied)", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem({ magic: true, requiresAttunement: true, attuned: true, rarity: "rare" })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(5) // STR +3 + prof +2, same as a mundane weapon
+    expect(atk.damage).toBe("1d8+3")
+  })
 })
 
 describe("calculateEquippedAC", () => {
@@ -483,6 +660,71 @@ describe("calculateEquippedAC", () => {
     const char = { ...defaultChar, equipment: [makeArmorItem({ equipped: false })] }
     expect(calculateEquippedAC(char).isEquippedArmor).toBe(false)
     expect(calculateEquippedAC(char).ac).toBe(12)
+  })
+
+  it("a magic armor piece without explicit modifiers contributes AC identically to a non-magic one", () => {
+    const char = { ...defaultChar, equipment: [makeArmorItem({
+      armorStats: { baseAC: 11, armorType: "light" as const },
+      magic: true, requiresAttunement: false, rarity: "uncommon",
+    })] }
+    expect(calculateEquippedAC(char).ac).toBe(13) // 11 + DEX +2, same as a mundane light armor
+  })
+
+  it("applies an active magic item's AC bonus", () => {
+    const char = { ...defaultChar, equipment: [makeMagicItem({ modifiers: { armorClass: 1 } })] }
+    expect(calculateEquippedAC(char).ac).toBe(13) // 12 base + 1 item
+    expect(calculateEquippedAC(char).breakdown).toContain("item bonus")
+  })
+
+  it("suppresses the AC bonus when attunement is required but the item is not attuned", () => {
+    const char = { ...defaultChar, equipment: [makeMagicItem({ requiresAttunement: true, attuned: false, modifiers: { armorClass: 1 } })] }
+    expect(calculateEquippedAC(char).ac).toBe(12)
+  })
+
+  it("combines armor, shield, and an item AC bonus", () => {
+    const shieldItem = makeArmorItem({ id: "shld-1", name: "Shield", armorStats: { baseAC: 2, armorType: "shield" as const } })
+    const bodyArmor = makeArmorItem({ armorStats: { baseAC: 16, armorType: "heavy" as const } })
+    const ring = makeMagicItem({ id: "ring-1", modifiers: { armorClass: 1 } })
+    const char = { ...defaultChar, equipment: [bodyArmor, shieldItem, ring] }
+    expect(calculateEquippedAC(char).ac).toBe(19) // 16 heavy + 2 shield + 1 item
+  })
+
+  it("cascades an ability-score-boosting item's effective DEX into light armor AC", () => {
+    const char = {
+      ...defaultChar,
+      equipment: [
+        makeArmorItem({ armorStats: { baseAC: 11, armorType: "light" as const } }),
+        makeMagicItem({ id: "belt-1", modifiers: { abilityScores: { dexterity: 2 } } }),
+      ],
+    }
+    // DEX 14 -> +2 base, +2 item -> effective DEX 16 -> +3 mod
+    expect(calculateEquippedAC(char).ac).toBe(14) // 11 + 3
+  })
+})
+
+describe("calculateInitiative", () => {
+  const defaultChar = { abilityScores: baseScores, equipment: [] }
+
+  it("returns the base DEX modifier with no equipment", () => {
+    expect(calculateInitiative(defaultChar).initiative).toBe(2) // DEX 14 -> +2
+    expect(calculateInitiative(defaultChar).breakdown).toBe("Dex +2")
+  })
+
+  it("adds an active item's initiative bonus", () => {
+    const char = { ...defaultChar, equipment: [makeMagicItem({ modifiers: { initiative: 2 } })] }
+    expect(calculateInitiative(char).initiative).toBe(4)
+    expect(calculateInitiative(char).breakdown).toContain("item bonus")
+  })
+
+  it("ignores an inactive item's initiative bonus", () => {
+    const char = { ...defaultChar, equipment: [makeMagicItem({ requiresAttunement: true, attuned: false, modifiers: { initiative: 2 } })] }
+    expect(calculateInitiative(char).initiative).toBe(2)
+  })
+
+  it("cascades an ability-score-boosting item's effective DEX into initiative", () => {
+    const char = { ...defaultChar, equipment: [makeMagicItem({ modifiers: { abilityScores: { dexterity: 2 } } })] }
+    // DEX 14 + 2 item = 16 -> +3 mod
+    expect(calculateInitiative(char).initiative).toBe(3)
   })
 })
 

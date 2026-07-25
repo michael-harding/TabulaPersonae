@@ -1,7 +1,9 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
-import type { Character, Equipment, MagicItem } from "@/lib/character-types"
+import type { AbilityScores, Character, Equipment, ItemModifiers, ItemRarity } from "@/lib/character-types"
 import { saveCharacter } from "@/lib/character-storage"
-import { DAMAGE_TYPE_OPTIONS } from "@/lib/character-utils"
+import { DAMAGE_TYPE_OPTIONS, BASE_ATTUNEMENT_LIMIT, remainingUses, spentFromRemaining, isItemModifierActive, formatModifier } from "@/lib/character-utils"
+import { useCalculatedValue } from "@/hooks/use-calculated-value"
+import { CalculatedValue } from "@/components/ui/calculated-value"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +19,8 @@ import { Tooltip } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
+import { PipTracker } from "@/components/ui/pip-tracker"
+import { StepperInput } from "@/components/ui/stepper-input"
 import Package from "lucide-solid/icons/package"
 import Plus from "lucide-solid/icons/plus"
 import Edit from "lucide-solid/icons/edit"
@@ -26,8 +30,32 @@ import Search from "lucide-solid/icons/search"
 import Scale from "lucide-solid/icons/scale"
 import Gem from "lucide-solid/icons/gem"
 import Coins from "lucide-solid/icons/coins"
+import TriangleAlert from "lucide-solid/icons/triangle-alert"
 import { useReadOnly } from "@/lib/read-only-context"
 import { MarkdownContent } from "@/components/ui/markdown-content"
+
+const RARITY_OPTIONS: { value: ItemRarity; label: string }[] = [
+  { value: "common", label: "Common" },
+  { value: "uncommon", label: "Uncommon" },
+  { value: "rare", label: "Rare" },
+  { value: "very-rare", label: "Very Rare" },
+  { value: "legendary", label: "Legendary" },
+  { value: "artifact", label: "Artifact" },
+]
+
+const RECHARGE_OPTIONS: { value: "" | "short-rest" | "long-rest"; label: string }[] = [
+  { value: "", label: "None" },
+  { value: "short-rest", label: "Short Rest" },
+  { value: "long-rest", label: "Long Rest" },
+]
+
+const ABILITY_KEYS: (keyof AbilityScores)[] = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
+const ABILITY_LABELS: Record<keyof AbilityScores, string> = {
+  strength: "STR", dexterity: "DEX", constitution: "CON", intelligence: "INT", wisdom: "WIS", charisma: "CHA",
+}
+const zeroAbilityRecord = (): Record<keyof AbilityScores, number> => ({
+  strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0,
+})
 
 interface EquipmentInventoryModuleProps {
   character: Character
@@ -54,6 +82,17 @@ interface EquipmentFormData {
     baseAC: number
     armorType: "light" | "medium" | "heavy" | "shield"
   }
+  magic: boolean
+  requiresAttunement: boolean
+  attuned: boolean
+  rarity: ItemRarity
+  uses: number
+  maxUses: number
+  rechargeOn: "" | "short-rest" | "long-rest"
+  modifierArmorClass: number
+  modifierInitiative: number
+  modifierSavingThrows: Record<keyof AbilityScores, number>
+  modifierAbilityScores: Record<keyof AbilityScores, number>
 }
 
 const defaultEquipmentForm: EquipmentFormData = {
@@ -63,6 +102,17 @@ const defaultEquipmentForm: EquipmentFormData = {
   description: "",
   equipped: false,
   type: "other",
+  magic: false,
+  requiresAttunement: true,
+  attuned: false,
+  rarity: "common",
+  uses: 0,
+  maxUses: 0,
+  rechargeOn: "",
+  modifierArmorClass: 0,
+  modifierInitiative: 0,
+  modifierSavingThrows: zeroAbilityRecord(),
+  modifierAbilityScores: zeroAbilityRecord(),
 }
 
 interface EquipmentFormProps {
@@ -237,6 +287,144 @@ function EquipmentForm(props: EquipmentFormProps) {
         </div>
       </Show>
 
+      <div class="flex items-center space-x-2">
+        <Checkbox
+          id="item-magic"
+          checked={formData().magic}
+          onChange={(checked: boolean) => setFormData((prev) => ({ ...prev, magic: checked }))}
+        />
+        <Label for="item-magic">This is a Magic Item</Label>
+      </div>
+
+      <Show when={formData().magic}>
+        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
+          <p class="text-sm font-medium flex items-center gap-1">
+            <Gem class="h-3.5 w-3.5" />
+            Magic Item Details
+          </p>
+          <div>
+            <Label>Rarity</Label>
+            <Select
+              value={formData().rarity}
+              onValueChange={(v) => setFormData((prev) => ({ ...prev, rarity: v as ItemRarity }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select rarity" />
+              </SelectTrigger>
+              <SelectContent>
+                <For each={RARITY_OPTIONS}>
+                  {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                </For>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="flex items-center gap-2">
+            <Checkbox
+              id="item-requires-attunement"
+              checked={formData().requiresAttunement}
+              onChange={(checked: boolean) => setFormData((prev) => ({ ...prev, requiresAttunement: checked, attuned: checked ? prev.attuned : false }))}
+            />
+            <Label for="item-requires-attunement">Requires Attunement</Label>
+          </div>
+          <Show when={formData().requiresAttunement}>
+            <div class="flex items-center gap-2">
+              <Checkbox
+                id="item-attuned"
+                checked={formData().attuned}
+                onChange={(checked: boolean) => setFormData((prev) => ({ ...prev, attuned: checked }))}
+              />
+              <Label for="item-attuned">Attuned</Label>
+            </div>
+          </Show>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <Label for="item-uses">Uses Spent</Label>
+              <NumericInput id="item-uses" min={0} value={formData().uses}
+                onChange={(v) => setFormData((prev) => ({ ...prev, uses: v }))} />
+            </div>
+            <div>
+              <Label for="item-max-uses">Max Charges (0 = none)</Label>
+              <NumericInput id="item-max-uses" min={0} value={formData().maxUses}
+                onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: 0 }))} />
+            </div>
+          </div>
+          <Show when={formData().maxUses > 0}>
+            <div>
+              <Label>Recharge On</Label>
+              <Select
+                value={formData().rechargeOn}
+                onValueChange={(v) => setFormData((prev) => ({ ...prev, rechargeOn: v as "" | "short-rest" | "long-rest" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <For each={RECHARGE_OPTIONS}>
+                    {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                  </For>
+                </SelectContent>
+              </Select>
+            </div>
+          </Show>
+
+          <div class="space-y-2 pt-2 border-t">
+            <p class="text-xs font-medium text-muted-foreground">Bonuses (optional)</p>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <Label for="modifier-ac">AC Bonus</Label>
+                <NumericInput
+                  id="modifier-ac"
+                  value={formData().modifierArmorClass}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierArmorClass: v }))}
+                />
+              </div>
+              <div>
+                <Label for="modifier-initiative">Initiative Bonus</Label>
+                <NumericInput
+                  id="modifier-initiative"
+                  value={formData().modifierInitiative}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierInitiative: v }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label class="text-xs">Saving Throw Bonuses</Label>
+              <div class="grid grid-cols-3 gap-2 mt-1">
+                <For each={ABILITY_KEYS}>
+                  {(ability) => (
+                    <div>
+                      <Label for={`modifier-save-${ability}`} class="text-xs">{ABILITY_LABELS[ability]}</Label>
+                      <NumericInput
+                        id={`modifier-save-${ability}`}
+                        value={formData().modifierSavingThrows[ability]}
+                        onChange={(v) => setFormData((prev) => ({ ...prev, modifierSavingThrows: { ...prev.modifierSavingThrows, [ability]: v } }))}
+                      />
+                    </div>
+                  )}
+                </For>
+              </div>
+            </div>
+            <div>
+              <Label class="text-xs">Ability Score Bonuses</Label>
+              <div class="grid grid-cols-3 gap-2 mt-1">
+                <For each={ABILITY_KEYS}>
+                  {(ability) => (
+                    <div>
+                      <Label for={`modifier-ability-${ability}`} class="text-xs">{ABILITY_LABELS[ability]}</Label>
+                      <NumericInput
+                        id={`modifier-ability-${ability}`}
+                        value={formData().modifierAbilityScores[ability]}
+                        onChange={(v) => setFormData((prev) => ({ ...prev, modifierAbilityScores: { ...prev.modifierAbilityScores, [ability]: v } }))}
+                      />
+                    </div>
+                  )}
+                </For>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Show>
+
       <div class="grid grid-cols-2 gap-4">
         <div>
           <Label for="quantity">Quantity</Label>
@@ -279,89 +467,34 @@ function EquipmentForm(props: EquipmentFormProps) {
   )
 }
 
-interface MagicItemFormData {
-  name: string
-  description: string
-  attuned: boolean
-}
-
-const defaultMagicItemForm: MagicItemFormData = {
-  name: "",
-  description: "",
-  attuned: false,
-}
-
-interface MagicItemFormProps {
-  initialData: MagicItemFormData
-  onSubmit: (data: MagicItemFormData) => void
-  onCancel: () => void
-  editing: boolean
-  attunedCount: number
-}
-
-function MagicItemForm(props: MagicItemFormProps) {
-  const [formData, setFormData] = createSignal<MagicItemFormData>(props.initialData)
-  createEffect(on(() => props.initialData, (init) => setFormData(init)))
-
-  const attunedDisabled = () => !formData().attuned && props.attunedCount >= 3
-
-  return (
-    <div class="space-y-4">
-      <div>
-        <Label for="magic-item-name">Item Name</Label>
-        <Input
-          id="magic-item-name"
-          value={formData().name}
-          onInput={(e) => setFormData((prev) => ({ ...prev, name: e.currentTarget.value }))}
-          placeholder="Enter item name"
-        />
-      </div>
-
-      <div>
-        <Label for="magic-item-description">Description</Label>
-        <Textarea
-          id="magic-item-description"
-          value={formData().description}
-          onInput={(e) => setFormData((prev) => ({ ...prev, description: e.currentTarget.value }))}
-          placeholder="Optional description"
-          rows={3}
-        />
-      </div>
-
-      <Tooltip content={attunedDisabled() ? "Maximum 3 attuned items" : undefined}>
-        <div class="flex items-center gap-2">
-          <Checkbox
-            id="magic-item-attuned"
-            checked={formData().attuned}
-            disabled={attunedDisabled()}
-            onChange={(checked: boolean) => setFormData((prev) => ({ ...prev, attuned: checked }))}
-          />
-          <Label for="magic-item-attuned" class={attunedDisabled() ? "opacity-50" : ""}>Attuned</Label>
-        </div>
-      </Tooltip>
-
-      <div class="flex gap-2 pt-4">
-        <Button onClick={() => props.onSubmit(formData())} class="gap-2">
-          <Save class="h-4 w-4" />
-          {props.editing ? "Update Item" : "Add Item"}
-        </Button>
-        <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-      </div>
-    </div>
-  )
-}
-
 export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const isReadOnly = useReadOnly()
   const [searchTerm, setSearchTerm] = createSignal("")
   const [modalOpen, setModalOpen] = createSignal(false)
   const [editingItem, setEditingItem] = createSignal<Equipment | null>(null)
-  const [magicModalOpen, setMagicModalOpen] = createSignal(false)
-  const [editingMagicItem, setEditingMagicItem] = createSignal<MagicItem | null>(null)
+  const [prefillMagic, setPrefillMagic] = createSignal(false)
 
   const safeEquipment = () => props.character.equipment || []
-  const safeMagicItems = () => props.character.magicItems ?? []
-  const attunedCount = () => safeMagicItems().filter((i) => i.attuned).length
+  const magicItems = () => safeEquipment().filter((item) => item.magic)
+  const attunedCount = () => safeEquipment().filter((item) => item.attuned).length
+
+  const attunementLimitField = useCalculatedValue({
+    useCalculated: () => props.character.useCalculatedAttunementLimit ?? true,
+    setUseCalculated: (v) => {
+      const updated = { ...props.character, useCalculatedAttunementLimit: v }
+      props.onUpdate(updated)
+      saveCharacter(updated)
+    },
+    manualValue: () => props.character.attunementLimit ?? BASE_ATTUNEMENT_LIMIT,
+    setManualValue: (v) => {
+      const updated = { ...props.character, attunementLimit: v }
+      props.onUpdate(updated)
+      saveCharacter(updated)
+    },
+    calculatedValue: () => BASE_ATTUNEMENT_LIMIT,
+    calculatedTooltip: () => "Base attunement limit",
+  })
+  const overAttunementLimit = () => attunedCount() > attunementLimitField.resolvedValue()
 
   const filteredEquipment = () =>
     safeEquipment().filter(
@@ -384,26 +517,53 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         type: item.type || "other",
         weaponStats: item.weaponStats,
         armorStats: item.armorStats,
+        magic: item.magic ?? false,
+        requiresAttunement: item.requiresAttunement ?? true,
+        attuned: item.attuned ?? false,
+        rarity: item.rarity ?? "common",
+        uses: item.uses ?? 0,
+        maxUses: item.maxUses ?? 0,
+        rechargeOn: item.rechargeOn ?? "",
+        modifierArmorClass: item.modifiers?.armorClass ?? 0,
+        modifierInitiative: item.modifiers?.initiative ?? 0,
+        modifierSavingThrows: { ...zeroAbilityRecord(), ...item.modifiers?.savingThrows },
+        modifierAbilityScores: { ...zeroAbilityRecord(), ...item.modifiers?.abilityScores },
       }
     }
-    return defaultEquipmentForm
+    return prefillMagic() ? { ...defaultEquipmentForm, magic: true } : defaultEquipmentForm
   }
 
-  const currentMagicFormData = (): MagicItemFormData => {
-    const item = editingMagicItem()
-    if (item) {
-      return { name: item.name, description: item.description || "", attuned: item.attuned }
-    }
-    return defaultMagicItemForm
-  }
-
-  const openAdd = () => { setEditingItem(null); setModalOpen(true) }
+  const openAdd = () => { setEditingItem(null); setPrefillMagic(false); setModalOpen(true) }
+  const openAddMagic = () => { setEditingItem(null); setPrefillMagic(true); setModalOpen(true) }
   const openEdit = (item: Equipment) => { setEditingItem(item); setModalOpen(true) }
-  const closeModal = () => { setEditingItem(null); setModalOpen(false) }
+  const closeModal = () => { setEditingItem(null); setPrefillMagic(false); setModalOpen(false) }
 
-  const openAddMagic = () => { setEditingMagicItem(null); setMagicModalOpen(true) }
-  const openEditMagic = (item: MagicItem) => { setEditingMagicItem(item); setMagicModalOpen(true) }
-  const closeMagicModal = () => { setEditingMagicItem(null); setMagicModalOpen(false) }
+  const buildModifiers = (formData: EquipmentFormData): ItemModifiers | undefined => {
+    if (!formData.magic) return undefined
+    const modifiers: ItemModifiers = {}
+    if (formData.modifierArmorClass !== 0) modifiers.armorClass = formData.modifierArmorClass
+    if (formData.modifierInitiative !== 0) modifiers.initiative = formData.modifierInitiative
+    const savingThrows = Object.fromEntries(
+      ABILITY_KEYS.filter((a) => formData.modifierSavingThrows[a] !== 0).map((a) => [a, formData.modifierSavingThrows[a]])
+    ) as Partial<Record<keyof AbilityScores, number>>
+    if (Object.keys(savingThrows).length > 0) modifiers.savingThrows = savingThrows
+    const abilityScores = Object.fromEntries(
+      ABILITY_KEYS.filter((a) => formData.modifierAbilityScores[a] !== 0).map((a) => [a, formData.modifierAbilityScores[a]])
+    ) as Partial<Record<keyof AbilityScores, number>>
+    if (Object.keys(abilityScores).length > 0) modifiers.abilityScores = abilityScores
+    return Object.keys(modifiers).length > 0 ? modifiers : undefined
+  }
+
+  const magicFields = (formData: EquipmentFormData) => ({
+    magic: formData.magic || undefined,
+    requiresAttunement: formData.magic ? formData.requiresAttunement : undefined,
+    attuned: formData.magic && formData.requiresAttunement ? formData.attuned : undefined,
+    rarity: formData.magic ? formData.rarity : undefined,
+    uses: formData.magic && formData.maxUses > 0 ? formData.uses : undefined,
+    maxUses: formData.magic && formData.maxUses > 0 ? formData.maxUses : undefined,
+    rechargeOn: formData.magic && formData.maxUses > 0 && formData.rechargeOn ? formData.rechargeOn : undefined,
+    modifiers: buildModifiers(formData),
+  })
 
   const handleAddItem = (formData: EquipmentFormData) => {
     if (!formData.name.trim()) return
@@ -417,6 +577,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       type: formData.type,
       weaponStats: formData.weaponStats,
       armorStats: formData.armorStats,
+      ...magicFields(formData),
     }
     const updated = { ...props.character, equipment: [...safeEquipment(), newItem] }
     props.onUpdate(updated)
@@ -437,6 +598,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       type: formData.type,
       weaponStats: formData.weaponStats,
       armorStats: formData.armorStats,
+      ...magicFields(formData),
     }
     const updated = {
       ...props.character,
@@ -472,40 +634,20 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
     saveCharacter(updated)
   }
 
-  const handleAddMagicItem = (formData: MagicItemFormData) => {
-    if (!formData.name.trim()) return
-    const newItem: MagicItem = {
-      id: crypto.randomUUID(),
-      name: formData.name.trim(),
-      description: formData.description.trim(),
-      attuned: formData.attuned,
-    }
-    const updated = { ...props.character, magicItems: [...safeMagicItems(), newItem] }
-    props.onUpdate(updated)
-    saveCharacter(updated)
-    closeMagicModal()
-  }
-
-  const handleUpdateMagicItem = (formData: MagicItemFormData) => {
-    const item = editingMagicItem()
-    if (!item || !formData.name.trim()) return
-    const updatedItem: MagicItem = {
-      ...item,
-      name: formData.name.trim(),
-      description: formData.description.trim(),
-      attuned: formData.attuned,
-    }
+  const toggleAttuned = (itemId: string) => {
     const updated = {
       ...props.character,
-      magicItems: safeMagicItems().map((i) => (i.id === item.id ? updatedItem : i)),
+      equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, attuned: !item.attuned } : item)),
     }
     props.onUpdate(updated)
     saveCharacter(updated)
-    closeMagicModal()
   }
 
-  const handleDeleteMagicItem = (itemId: string) => {
-    const updated = { ...props.character, magicItems: safeMagicItems().filter((i) => i.id !== itemId) }
+  const updateItemUses = (itemId: string, uses: number) => {
+    const updated = {
+      ...props.character,
+      equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, uses } : item)),
+    }
     props.onUpdate(updated)
     saveCharacter(updated)
   }
@@ -579,12 +721,11 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         <Separator />
 
         {/* Magic Items */}
-        <div>
+        <div data-sem="magic-items-section">
           <div class="flex items-center justify-between mb-2">
             <h2 class="font-semibold text-sm flex items-center gap-2">
               <Gem class="h-4 w-4 text-primary" />
               Magic Items
-              <span class="text-xs text-muted-foreground font-normal">({attunedCount()}/3 attuned)</span>
             </h2>
             <Show when={!isReadOnly}>
               <Button variant="outline" size="sm" class="gap-1" onClick={openAddMagic}>
@@ -593,31 +734,98 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
               </Button>
             </Show>
           </div>
-          <Show when={safeMagicItems().length > 0}>
+          <div class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
+            <span>{attunedCount()}/</span>
+            <CalculatedValue
+              label="attunement limit"
+              editable={!isReadOnly}
+              class="text-xs"
+              {...attunementLimitField.binding()}
+            />
+            <span>attuned</span>
+            <Show when={overAttunementLimit()}>
+              <Tooltip content="Over attunement limit">
+                <TriangleAlert class="h-3.5 w-3.5 text-amber-500" aria-label="Over attunement limit" />
+              </Tooltip>
+            </Show>
+          </div>
+          <Show when={magicItems().length > 0}>
             <div class="space-y-2">
-              <For each={safeMagicItems()}>
+              <For each={magicItems()}>
                 {(item) => (
                   <div class="flex items-center justify-between border rounded-md px-3 py-2">
                     <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2">
+                      <div class="flex items-center gap-2 flex-wrap">
                         <span class="font-medium text-sm">{item.name}</span>
-                        <Show when={item.attuned}>
-                          <Badge variant="secondary" class="text-xs">Attuned</Badge>
+                        <Show when={item.rarity}>
+                          <Badge variant="outline" class="text-xs capitalize">{item.rarity?.replace("-", " ")}</Badge>
+                        </Show>
+                        <Show when={item.requiresAttunement}>
+                          <Show when={!isReadOnly}>
+                            <Checkbox checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} title="Toggle attuned" />
+                          </Show>
+                          <Show when={item.attuned}>
+                            <Badge variant="secondary" class="text-xs">Attuned</Badge>
+                          </Show>
                         </Show>
                       </div>
                       <Show when={item.description}>
                         <p class="text-xs text-muted-foreground truncate">{item.description}</p>
                       </Show>
+                      <Show when={item.modifiers}>
+                        <div class={`text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5 ${isItemModifierActive(item) ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground italic"}`}>
+                          <Show when={item.modifiers?.armorClass}>
+                            <span>AC {formatModifier(item.modifiers!.armorClass!)}</span>
+                          </Show>
+                          <Show when={item.modifiers?.initiative}>
+                            <span>Init {formatModifier(item.modifiers!.initiative!)}</span>
+                          </Show>
+                          <For each={Object.entries(item.modifiers?.savingThrows ?? {})}>
+                            {([ability, bonus]) => <span>{ABILITY_LABELS[ability as keyof AbilityScores]} Save {formatModifier(bonus as number)}</span>}
+                          </For>
+                          <For each={Object.entries(item.modifiers?.abilityScores ?? {})}>
+                            {([ability, bonus]) => <span>{ABILITY_LABELS[ability as keyof AbilityScores]} {formatModifier(bonus as number)}</span>}
+                          </For>
+                          <Show when={!isItemModifierActive(item)}>
+                            <span>(inactive)</span>
+                          </Show>
+                        </div>
+                      </Show>
+                      <Show when={(item.maxUses ?? 0) > 0}>
+                        <div class="mt-1">
+                          <Show
+                            when={(item.maxUses ?? 0) <= 5}
+                            fallback={
+                              <StepperInput
+                                value={remainingUses(item.uses, item.maxUses)}
+                                min={0}
+                                max={item.maxUses!}
+                                onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, item.maxUses))}
+                                readOnly={isReadOnly}
+                              />
+                            }
+                          >
+                            <PipTracker
+                              total={item.maxUses!}
+                              used={item.uses ?? 0}
+                              onToggle={(v) => updateItemUses(item.id, v)}
+                              usedTitle="Charge spent (click to restore)"
+                              availableTitle="Charge available (click to use)"
+                              readOnly={isReadOnly}
+                            />
+                          </Show>
+                        </div>
+                      </Show>
                     </div>
                     <Show when={!isReadOnly}>
                       <div class="flex items-center gap-1 shrink-0 ml-2">
                         <Tooltip content={`Edit ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEditMagic(item)}>
+                          <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
                             <Edit class="h-4 w-4" />
                           </Button>
                         </Tooltip>
                         <Tooltip content={`Delete ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteMagicItem(item.id)}>
+                          <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
                             <Trash2 class="h-4 w-4" />
                           </Button>
                         </Tooltip>
@@ -688,6 +896,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </Show>
                         <Show when={item.type && item.type !== "other"}>
                           <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
+                        </Show>
+                        <Show when={item.magic}>
+                          <Badge variant="outline" class="text-xs gap-1">
+                            <Gem class="h-3 w-3" />
+                            Magic
+                          </Badge>
                         </Show>
                       </div>
                       <Show when={item.weaponStats}>
@@ -768,28 +982,13 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       <Modal open={modalOpen()} onOpenChange={(open: boolean) => { if (!open) closeModal() }}>
         <ModalContent>
           <ModalHeader>
-            <ModalTitle>{editingItem() ? "Edit Item" : "Add New Item"}</ModalTitle>
+            <ModalTitle>{editingItem() ? "Edit Item" : prefillMagic() ? "Add Magic Item" : "Add New Item"}</ModalTitle>
           </ModalHeader>
           <EquipmentForm
             initialData={currentFormData()}
             onSubmit={editingItem() ? handleUpdateItem : handleAddItem}
             onCancel={closeModal}
             editing={!!editingItem()}
-          />
-        </ModalContent>
-      </Modal>
-
-      <Modal open={magicModalOpen()} onOpenChange={(open: boolean) => { if (!open) closeMagicModal() }}>
-        <ModalContent>
-          <ModalHeader>
-            <ModalTitle>{editingMagicItem() ? "Edit Magic Item" : "Add Magic Item"}</ModalTitle>
-          </ModalHeader>
-          <MagicItemForm
-            initialData={currentMagicFormData()}
-            onSubmit={editingMagicItem() ? handleUpdateMagicItem : handleAddMagicItem}
-            onCancel={closeMagicModal}
-            editing={!!editingMagicItem()}
-            attunedCount={attunedCount()}
           />
         </ModalContent>
       </Modal>
