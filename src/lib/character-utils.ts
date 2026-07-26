@@ -156,12 +156,16 @@ type AbilityScoreCharacter = Pick<
   "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores"
 >
 
-export function getEffectiveAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
+export function getCalculatedAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
   const base = character.abilityScores?.[ability] ?? 10
   const itemTotals = getEquipmentModifierTotals(character.equipment)
   const itemBonus = itemTotals.abilityScores[ability]
   const floor = itemTotals.abilityScoreFloors[ability]
-  const calculated = Math.max(base + itemBonus, floor ?? -Infinity)
+  return Math.max(base + itemBonus, floor ?? -Infinity)
+}
+
+export function getEffectiveAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
+  const calculated = getCalculatedAbilityScore(character, ability)
   const useCalculated = character.useCalculatedAbilityScores?.[ability] ?? true
   return useCalculated ? calculated : (character.abilityScoreOverrides?.[ability] ?? calculated)
 }
@@ -313,6 +317,12 @@ export function getSpellAttackBonus(
   if (!spellcastingAbility || !abilityScores) return 0
   const abilityMod = getAbilityModifier(abilityScores[spellcastingAbility])
   return (proficiencyBonus || 2) + abilityMod
+}
+
+export function computeSpellModifier(character: Character): number {
+  const ability = character.spellcastingAbility
+  if (!ability) return 0
+  return getAbilityModifier(getEffectiveAbilityScore(character, ability))
 }
 
 export const SKILL_ABILITY_MAP = {

@@ -5,6 +5,7 @@ import {
   getSavingThrowModifier,
   getSpellSaveDC,
   getSpellAttackBonus,
+  computeSpellModifier,
   formatModifier,
   SKILL_ABILITY_MAP,
   SKILL_DISPLAY_NAMES,
@@ -279,6 +280,30 @@ describe("Character Utils", () => {
         const result = getSpellAttackBonus("intelligence", abilityScores, undefined as any)
         expect(result).toBe(5) // 2 default proficiency + 3 ability modifier
       })
+    })
+  })
+
+  describe("computeSpellModifier", () => {
+    it("returns 0 for a character without a spellcasting ability", () => {
+      const character = createDefaultCharacter()
+      character.spellcastingAbility = ""
+      expect(computeSpellModifier(character)).toBe(0)
+    })
+
+    it("returns the spellcasting ability's modifier", () => {
+      const character = createDefaultCharacter()
+      character.spellcastingAbility = "intelligence"
+      character.abilityScores.intelligence = 16
+      expect(computeSpellModifier(character)).toBe(3)
+    })
+
+    it("resolves through getEffectiveAbilityScore, respecting an ability score override", () => {
+      const character = createDefaultCharacter()
+      character.spellcastingAbility = "intelligence"
+      character.abilityScores.intelligence = 10
+      character.abilityScoreOverrides = { intelligence: 18 }
+      character.useCalculatedAbilityScores = { intelligence: false }
+      expect(computeSpellModifier(character)).toBe(4)
     })
   })
 

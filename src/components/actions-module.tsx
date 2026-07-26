@@ -1,7 +1,7 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, getEffectiveAbilityScore, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -222,12 +222,6 @@ function spellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots
 type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
 
 type StoredAction = ActionFormData & { id: string }
-
-function computeSpellModifier(c: Character): number {
-  const ability = c.spellcastingAbility
-  if (!ability) return 0
-  return getAbilityModifier(getEffectiveAbilityScore(c, ability))
-}
 
 interface ActionsEditState {
   useCalculatedSpellAttackBonus: boolean
