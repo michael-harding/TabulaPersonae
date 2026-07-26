@@ -382,23 +382,25 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 const baseValue = () => current().senses?.[sense] ?? 0
                 const itemBonus = () => modifierTotals().senses[sense]
                 return (
-                  <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                    <span class="text-xs text-muted-foreground">{SENSE_LABELS[sense]}</span>
-                    <Show when={isEditing()} fallback={
-                      <span class="text-xl font-bold text-primary mt-1">{effectiveSenses()[sense]} ft</span>
-                    }>
-                      <NumericInput
-                        min={0}
-                        value={baseValue()}
-                        onChange={(v) => setEdited((prev) => ({ ...prev, senses: { ...prev.senses, [sense]: v } }))}
-                        class="text-center h-8 text-sm mt-1"
-                        aria-label={SENSE_LABELS[sense]}
-                      />
-                    </Show>
-                    <Show when={itemBonus() !== 0}>
-                      <span class="text-xs text-muted-foreground">{formatModifier(itemBonus())} item</span>
-                    </Show>
-                  </div>
+                  <Show when={isEditing() || effectiveSenses()[sense] !== 0}>
+                    <div class="flex flex-col items-center p-2 rounded border text-center w-full">
+                      <span class="text-xs text-muted-foreground">{SENSE_LABELS[sense]}</span>
+                      <Show when={isEditing()} fallback={
+                        <span class="text-xl font-bold text-primary mt-1">{effectiveSenses()[sense]} ft</span>
+                      }>
+                        <NumericInput
+                          min={0}
+                          value={baseValue()}
+                          onChange={(v) => setEdited((prev) => ({ ...prev, senses: { ...prev.senses, [sense]: v } }))}
+                          class="text-center h-8 text-sm mt-1"
+                          aria-label={SENSE_LABELS[sense]}
+                        />
+                      </Show>
+                      <Show when={itemBonus() !== 0}>
+                        <span class="text-xs text-muted-foreground">{formatModifier(itemBonus())} item</span>
+                      </Show>
+                    </div>
+                  </Show>
                 )
               }}
             </For>
