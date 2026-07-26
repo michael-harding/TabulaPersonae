@@ -1203,8 +1203,8 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             labelClass="font-medium text-sm cursor-pointer select-none"
                           />
                         </Show>
-                        <Show when={item.equipped}>
-                          <Badge variant="secondary" class="text-xs">Equipped</Badge>
+                        <Show when={item.type && item.type !== "other"}>
+                          <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
                         </Show>
                         <Show when={item.rarity}>
                           <Badge variant="outline" class="text-xs capitalize">{item.rarity?.replace("-", " ")}</Badge>
@@ -1217,7 +1217,20 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             <Badge variant="secondary" class="text-xs">Attuned</Badge>
                           </Show>
                         </Show>
+                        <Show when={item.equipped}>
+                          <Badge variant="secondary" class="text-xs">Equipped</Badge>
+                        </Show>
                       </div>
+                      <Show when={item.weaponStats}>
+                        <p class="text-xs text-muted-foreground mt-1">
+                          {item.weaponStats!.damage} {item.weaponStats!.damageType} · {item.weaponStats!.weaponRange}
+                        </p>
+                      </Show>
+                      <Show when={item.armorStats}>
+                        <p class="text-xs text-muted-foreground mt-1">
+                          {item.armorStats!.armorType === "shield" ? "AC +2 · shield" : `AC ${item.armorStats!.baseAC} · ${item.armorStats!.armorType}`}
+                        </p>
+                      </Show>
                       <Show when={item.description}>
                         <p class="text-xs text-muted-foreground truncate">{item.description}</p>
                       </Show>
@@ -1394,9 +1407,6 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             {item.name}
                           </h3>
                         </div>
-                        <Show when={item.equipped}>
-                          <Badge variant="secondary" class="text-xs">Equipped</Badge>
-                        </Show>
                         <Show when={item.type && item.type !== "other"}>
                           <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
                         </Show>
@@ -1405,6 +1415,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             <Gem class="h-3 w-3" />
                             Magic
                           </Badge>
+                        </Show>
+                        <Show when={item.equipped}>
+                          <Badge variant="secondary" class="text-xs">Equipped</Badge>
                         </Show>
                       </div>
                       <Show when={item.weaponStats}>

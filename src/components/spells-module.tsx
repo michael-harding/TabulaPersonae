@@ -178,40 +178,40 @@ function SpellForm(props: SpellFormProps) {
         <Textarea id="description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Spell description and effects" rows={4} />
       </div>
 
-      <label class="flex items-center gap-3 cursor-pointer min-h-[44px]">
-        <Checkbox
-          checked={formData().known}
-          onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
-        />
-        <span class="text-sm font-medium leading-none">Known</span>
-      </label>
+      <Checkbox
+        checked={formData().known}
+        onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
+        label="Known"
+        labelClass="text-sm font-medium leading-none cursor-pointer"
+        containerClass="gap-3 min-h-[44px]"
+      />
 
       <Show when={formData().level > 0}>
-        <label class="flex items-center gap-3 cursor-pointer min-h-[44px]" classList={{ "opacity-50 cursor-not-allowed": !formData().known }}>
-          <Checkbox
-            checked={formData().prepared}
-            disabled={!formData().known}
-            onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
-          />
-          <span class="text-sm font-medium leading-none">Prepared</span>
-        </label>
+        <Checkbox
+          checked={formData().prepared}
+          disabled={!formData().known}
+          onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
+          label="Prepared"
+          labelClass={`text-sm font-medium leading-none ${formData().known ? "cursor-pointer" : "cursor-not-allowed"}`}
+          containerClass={`gap-3 min-h-[44px] ${formData().known ? "" : "opacity-50 cursor-not-allowed"}`}
+        />
       </Show>
 
       <div class="flex flex-wrap gap-x-6 gap-y-2">
-        <label class="flex items-center gap-3 cursor-pointer min-h-[44px]">
-          <Checkbox
-            checked={!!formData().concentration}
-            onChange={(checked: boolean) => setFormData((p) => ({ ...p, concentration: checked }))}
-          />
-          <span class="text-sm font-medium leading-none">Concentration</span>
-        </label>
-        <label class="flex items-center gap-3 cursor-pointer min-h-[44px]">
-          <Checkbox
-            checked={!!formData().ritual}
-            onChange={(checked: boolean) => setFormData((p) => ({ ...p, ritual: checked }))}
-          />
-          <span class="text-sm font-medium leading-none">Ritual</span>
-        </label>
+        <Checkbox
+          checked={!!formData().concentration}
+          onChange={(checked: boolean) => setFormData((p) => ({ ...p, concentration: checked }))}
+          label="Concentration"
+          labelClass="text-sm font-medium leading-none cursor-pointer"
+          containerClass="gap-3 min-h-[44px]"
+        />
+        <Checkbox
+          checked={!!formData().ritual}
+          onChange={(checked: boolean) => setFormData((p) => ({ ...p, ritual: checked }))}
+          label="Ritual"
+          labelClass="text-sm font-medium leading-none cursor-pointer"
+          containerClass="gap-3 min-h-[44px]"
+        />
       </div>
 
       <Show when={props.magicItems.length > 0}>
@@ -235,13 +235,13 @@ function SpellForm(props: SpellFormProps) {
             </Select>
           </div>
           <Show when={formData().grantedBy}>
-            <label class="flex items-center gap-3 cursor-pointer min-h-[44px] mt-auto">
-              <Checkbox
-                checked={formData().freeCast}
-                onChange={(checked: boolean) => setFormData((p) => ({ ...p, freeCast: checked }))}
-              />
-              <span class="text-sm font-medium leading-none">Free Cast (no slot)</span>
-            </label>
+            <Checkbox
+              checked={formData().freeCast}
+              onChange={(checked: boolean) => setFormData((p) => ({ ...p, freeCast: checked }))}
+              label="Free Cast (no slot)"
+              labelClass="text-sm font-medium leading-none cursor-pointer"
+              containerClass="gap-3 min-h-[44px] mt-auto"
+            />
           </Show>
         </div>
       </Show>
@@ -582,28 +582,38 @@ export function SpellsModule(props: SpellsModuleProps) {
                                 <div class="flex items-start justify-between">
                                   <div class="flex-1">
                                     <div class="flex items-center gap-2 mb-1">
-                                      <label class="flex items-center gap-2 cursor-pointer">
-                                        <Show when={!isReadOnly}>
-                                          <Show when={spell.level === 0}>
-                                            <Tooltip content="Known">
-                                              <Checkbox
-                                                checked={spell.known ?? true}
-                                                onChange={() => toggleKnown(spell.id)}
-                                              />
-                                            </Tooltip>
-                                          </Show>
-                                          <Show when={spell.level > 0}>
-                                            <Tooltip content="Prepared">
-                                              <Checkbox
-                                                checked={spell.prepared || false}
-                                                disabled={!(spell.known ?? true)}
-                                                onChange={() => togglePrepared(spell.id)}
-                                              />
-                                            </Tooltip>
-                                          </Show>
+                                      <Show when={!isReadOnly}>
+                                        <Show when={spell.level === 0}>
+                                          <Tooltip content="Known">
+                                            <Checkbox
+                                              checked={spell.known ?? true}
+                                              onChange={() => toggleKnown(spell.id)}
+                                              aria-label={`Known: ${spell.name}`}
+                                            />
+                                          </Tooltip>
                                         </Show>
-                                        <h3 class="font-medium">{spell.name}</h3>
-                                      </label>
+                                        <Show when={spell.level > 0}>
+                                          <Tooltip content="Prepared">
+                                            <Checkbox
+                                              checked={spell.prepared || false}
+                                              disabled={!(spell.known ?? true)}
+                                              onChange={() => togglePrepared(spell.id)}
+                                              aria-label={`Prepared: ${spell.name}`}
+                                            />
+                                          </Tooltip>
+                                        </Show>
+                                      </Show>
+                                      <h3
+                                        class={`font-medium ${isReadOnly ? "" : "cursor-pointer"}`}
+                                        onClick={() => {
+                                          if (isReadOnly) return
+                                          if (spell.level === 0) toggleKnown(spell.id)
+                                          else if (!(spell.known ?? true)) return
+                                          else togglePrepared(spell.id)
+                                        }}
+                                      >
+                                        {spell.name}
+                                      </h3>
                                       <Badge variant="outline" class="text-xs">{spell.school}</Badge>
                                       <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>
                                       <Show when={spell.ritual}>

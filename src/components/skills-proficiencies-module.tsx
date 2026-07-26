@@ -263,15 +263,25 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 }
                 return (
                   <div class="flex items-center justify-between p-2 rounded border">
-                    <label class={`flex items-center gap-2 ${isEditing() ? "cursor-pointer" : "cursor-default"}`}>
-                      <Show when={isEditing()}>
-                        <Checkbox checked={isProficient()} onChange={() => toggleSavingThrow(ability)} />
-                      </Show>
-                      <span class="text-sm font-medium">{ABILITY_ABBREVIATIONS[ability]}</span>
-                      <Show when={!isEditing() && isProficient()}>
-                        <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
-                      </Show>
-                    </label>
+                    <Show
+                      when={isEditing()}
+                      fallback={
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-medium">{ABILITY_ABBREVIATIONS[ability]}</span>
+                          <Show when={isProficient()}>
+                            <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
+                          </Show>
+                        </div>
+                      }
+                    >
+                      <Checkbox
+                        checked={isProficient()}
+                        onChange={() => toggleSavingThrow(ability)}
+                        label={ABILITY_ABBREVIATIONS[ability]}
+                        labelClass="text-sm font-medium cursor-pointer"
+                        containerClass="gap-2"
+                      />
+                    </Show>
                     <Tooltip content={saveTooltip()} triggerFocusable>
                       <span class="font-semibold">{formatModifier(modifier())}</span>
                     </Tooltip>

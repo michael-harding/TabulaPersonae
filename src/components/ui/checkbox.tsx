@@ -3,7 +3,12 @@ import { ComponentProps, JSX, Show, splitProps } from "solid-js"
 import Check from "lucide-solid/icons/check"
 import { cn } from "@/lib/utils"
 
-type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & { class?: string; label?: JSX.Element; labelClass?: string }
+type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & {
+  class?: string
+  label?: JSX.Element
+  labelClass?: string
+  containerClass?: string
+}
 
 /**
  * If you need clickable text next to the checkbox (an item name, "Requires Attunement", etc.),
@@ -20,10 +25,14 @@ type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & { class?: string
  * has bitten this codebase twice; use `label`/`labelClass` instead.
  */
 export function Checkbox(props: CheckboxProps) {
-  const [local, rest] = splitProps(props, ["class", "label", "labelClass"])
+  const [local, rest] = splitProps(props, ["class", "label", "labelClass", "containerClass"])
   const [inputAttrs, others] = splitProps(rest, ["id", "title", "aria-label"])
   return (
-    <CheckboxPrimitive data-sem="checkbox" class={local.label ? "inline-flex items-center gap-1.5" : undefined} {...others}>
+    <CheckboxPrimitive
+      data-sem="checkbox"
+      class={cn(local.label ? "inline-flex items-center gap-1.5" : undefined, local.containerClass)}
+      {...others}
+    >
       <CheckboxPrimitive.Input {...inputAttrs} />
       <CheckboxPrimitive.Control
         class={cn(

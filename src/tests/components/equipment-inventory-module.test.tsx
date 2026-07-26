@@ -503,6 +503,32 @@ describe("EquipmentInventoryModule", () => {
       expect(within(section as HTMLElement).getByText("Ring of Protection")).toBeInTheDocument()
     })
 
+    // Magic items are still equipment first — a magic weapon/armor keeps the same
+    // type badge and stat line mundane equipment shows, not just the magic-specific info.
+    it("shows the Weapon type badge and damage stats for a magic weapon", () => {
+      const item = makeMagicItem({
+        name: "Flame Tongue",
+        type: "weapon",
+        weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+      })
+      const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      expect(within(section).getByText("weapon")).toBeInTheDocument()
+      expect(within(section).getByText(/1d8 slashing.*5 ft/)).toBeInTheDocument()
+    })
+
+    it("shows the Armor type badge and AC stats for a magic armor item", () => {
+      const item = makeMagicItem({
+        name: "Adamantine Plate",
+        type: "armor",
+        armorStats: { baseAC: 18, armorType: "heavy" },
+      })
+      const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      expect(within(section).getByText("armor")).toBeInTheDocument()
+      expect(within(section).getByText(/AC 18.*heavy/)).toBeInTheDocument()
+    })
+
     it("shows 'Attuned' badge when item is attuned", () => {
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Staff of Power", attuned: true })] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Attuned")).toBeInTheDocument()
