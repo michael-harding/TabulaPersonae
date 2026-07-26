@@ -90,6 +90,20 @@ describe("EquipmentInventoryModule", () => {
       expect(screen.getByText("10 lbs")).toBeInTheDocument()
     })
 
+    // Regression: 0.1 + 0.2 === 0.30000000000000004 in floating point — the total weight
+    // badge must show a rounded value, not the raw accumulated sum.
+    it("rounds total weight to one decimal place despite floating-point drift", () => {
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({
+            equipment: [makeItem({ id: "a", weight: 0.1, quantity: 1 }), makeItem({ id: "b", weight: 0.2, quantity: 1 })],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("0.3 lbs")).toBeInTheDocument()
+    })
+
     it("shows 'Currently Equipped' section when items are equipped", () => {
       render(
         <EquipmentInventoryModule
@@ -148,6 +162,18 @@ describe("EquipmentInventoryModule", () => {
         />
       )
       expect(screen.getByText(/Weight:/)).toBeInTheDocument()
+    })
+
+    // Regression: 0.1 * 3 === 0.30000000000000004 in floating point — displayed weight
+    // must be rounded, not the raw product.
+    it("rounds a floating-point-prone per-item weight to one decimal place", () => {
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeItem({ weight: 0.1, quantity: 3 })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText(/Weight: 0\.3 lbs/)).toBeInTheDocument()
     })
   })
 
@@ -251,6 +277,30 @@ describe("EquipmentInventoryModule", () => {
       )
       expect(saveCharacter).toHaveBeenCalled()
     })
+
+    // Regression: this checkbox+name pair used to be wrapped in a single native <label>. A real
+    // click on the visible (styled) checkbox square triggered both Kobalte's own toggle and the
+    // browser's native label→control click forwarding (since the square is a plain <div>, not
+    // the labelable element itself), and the two toggles canceled out — the checkbox looked
+    // unresponsive to real clicks even though synthetic fireEvent.click on the input worked fine.
+    // Fixed by giving the checkbox its own aria-label and a separate onClick on the name text,
+    // instead of relying on native <label> wrapping. This test locks in that clicking the name
+    // still toggles equipped, now via that explicit handler.
+    it("also toggles equipped when the item name is clicked", () => {
+      const onUpdate = vi.fn()
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeItem({ name: "Torch", equipped: false })] })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getByText("Torch"))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([expect.objectContaining({ equipped: true })]),
+        })
+      )
+    })
   })
 
   describe("Add Item modal", () => {
@@ -350,6 +400,32 @@ describe("EquipmentInventoryModule", () => {
         })
       )
       expect(saveCharacter).toHaveBeenCalled()
+    })
+
+    // Regression: the "This is a Magic Item" checkbox's <label for> was pointed at a
+    // non-labelable wrapper element, so clicking the label text (the natural way a user
+    // toggles a labelled checkbox) never checked the box — the Magic Item Details section,
+    // including all Tier 2 grant fields, could never be reached when editing an existing item.
+    it("reveals Magic Item Details and promotes the item when its label is clicked", () => {
+      const onUpdate = vi.fn()
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getByRole("button", { name: /edit torch/i }))
+      expect(screen.queryByText("Magic Item Details")).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByText("This is a Magic Item"))
+      expect(screen.getByText("Magic Item Details")).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole("button", { name: /update item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([expect.objectContaining({ name: "Torch", magic: true })]),
+        })
+      )
     })
   })
 
@@ -516,6 +592,73 @@ describe("EquipmentInventoryModule", () => {
       expect(saveCharacter).toHaveBeenCalled()
     })
 
+    // Magic items also appear in the general equipment list below, which already has its own
+    // "Toggle equipped" checkbox — this covers the same toggle now offered directly in the
+    // Magic Items list itself, so items don't need to be found twice to be equipped.
+    it("allows equipping a magic item directly from the Magic Items list", async () => {
+      const { saveCharacter } = await import("@/lib/character-storage")
+      const onUpdate = vi.fn()
+      const { container } = render(
+        <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", equipped: false })] })} onUpdate={onUpdate} />
+      )
+      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      fireEvent.click(within(section).getByTitle("Toggle equipped"))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([expect.objectContaining({ equipped: true })]),
+        })
+      )
+      expect(saveCharacter).toHaveBeenCalled()
+    })
+
+    it("also toggles equipped when a magic item's name is clicked in the Magic Items list", () => {
+      const onUpdate = vi.fn()
+      const { container } = render(
+        <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", equipped: false })] })} onUpdate={onUpdate} />
+      )
+      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      fireEvent.click(within(section).getByText("Ring"))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([expect.objectContaining({ equipped: true })]),
+        })
+      )
+    })
+
+    it("shows an 'Equipped' badge on an equipped magic item in the Magic Items list", () => {
+      const { container } = render(
+        <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Cloak", equipped: true })] })} onUpdate={vi.fn()} />
+      )
+      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      expect(within(section).getByText("Equipped")).toBeInTheDocument()
+    })
+
+    it("does not render an equip checkbox for magic items in readOnly mode", () => {
+      const { container } = render(
+        <ReadOnlyProvider value={true}>
+          <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring" })] })} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      )
+      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      expect(within(section).queryByTitle("Toggle equipped")).not.toBeInTheDocument()
+      expect(within(section).getByText("Ring")).toBeInTheDocument()
+    })
+
+    // Regression: the "Toggle attuned" checkbox previously relied solely on `title` for its
+    // accessible name, which axe flags as a "label-title-only" violation (titles aren't a
+    // reliable name source for all assistive tech). The default axe test elsewhere in this
+    // file renders no magic items, so it never exercised this checkbox.
+    it("has no accessibility violations with an attunement-requiring magic item present", async () => {
+      const { container } = render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", requiresAttunement: true, attuned: false })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      const results = await axe(container)
+      expect(results.violations).toHaveLength(0)
+    })
+
     it("shows charge pips and spends a charge when clicked", async () => {
       const { saveCharacter } = await import("@/lib/character-storage")
       const onUpdate = vi.fn()
@@ -555,7 +698,9 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Ring of Protection" } })
       setNumericValue(document.querySelector("#modifier-ac")!, "1")
+      fireEvent.click(within(modal).getByText("Saving Throws"))
       setNumericValue(document.querySelector("#modifier-save-wisdom")!, "2")
+      fireEvent.click(within(modal).getByText("Ability Scores"))
       setNumericValue(document.querySelector("#modifier-ability-strength")!, "3")
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -598,6 +743,28 @@ describe("EquipmentInventoryModule", () => {
       expect((document.querySelector("#modifier-ability-strength") as HTMLInputElement).value).toBe("3")
     })
 
+    it("keeps all modifier groups collapsed by default when adding a new magic item", () => {
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      expect(document.querySelector("#modifier-save-wisdom")).not.toBeInTheDocument()
+      expect(document.querySelector("#modifier-ability-strength")).not.toBeInTheDocument()
+      expect(document.querySelector("#modifier-sense-darkvision")).not.toBeInTheDocument()
+    })
+
+    it("only auto-expands modifier groups that already have values when editing", () => {
+      const item = makeMagicItem({
+        name: "Boots of the Winterlands",
+        modifiers: { senses: { darkvision: 60 } },
+      })
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /edit boots of the winterlands/i })[0])
+      // Senses has a value, so it auto-expands...
+      expect((document.querySelector("#modifier-sense-darkvision") as HTMLInputElement).value).toBe("60")
+      // ...but unrelated groups with no values stay collapsed.
+      expect(document.querySelector("#modifier-save-wisdom")).not.toBeInTheDocument()
+      expect(document.querySelector("#modifier-fly-speed")).not.toBeInTheDocument()
+    })
+
     it("shows an active bonus summary in the Magic Items list", () => {
       const item = makeMagicItem({ name: "Ring of Protection", equipped: true, attuned: true, modifiers: { armorClass: 1 } })
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
@@ -627,19 +794,24 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Winged Boots" } })
 
-      fireEvent.click(within(modal).getByText(/additional grants/i))
-
+      fireEvent.click(within(modal).getByText("Senses"))
       setNumericValue(document.querySelector("#modifier-sense-darkvision")!, "60")
+
+      fireEvent.click(within(modal).getByText("Movement & Weight"))
       setNumericValue(document.querySelector("#modifier-fly-speed")!, "30")
       setNumericValue(document.querySelector("#modifier-capacity-bonus")!, "20")
+
+      fireEvent.click(within(modal).getByText("Ability Scores"))
       setNumericValue(document.querySelector("#modifier-floor-strength")!, "19")
 
       // Damage resistance picker (fixed-vocabulary dropdown)
+      fireEvent.click(within(modal).getByText("Resistances & Immunities"))
       await user.click(within(modal).getByTitle("Add Damage Resistances"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Fire" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Fire" }))
 
       // Languages granted (free-text add)
+      fireEvent.click(within(modal).getByText("Languages & Proficiencies"))
       fireEvent.input(within(modal).getByPlaceholderText("Add language"), { target: { value: "Auran" } })
       fireEvent.click(within(modal).getByRole("button", { name: "Languages Granted" }))
 
@@ -684,7 +856,7 @@ describe("EquipmentInventoryModule", () => {
       })
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /edit boots of striding/i })[0])
-      fireEvent.click(screen.getByText(/additional grants/i))
+      // Movement & Weight and Ability Scores both have values, so both auto-expand without a click.
       expect((document.querySelector("#modifier-speed") as HTMLInputElement).value).toBe("10")
       expect((document.querySelector("#modifier-floor-strength") as HTMLInputElement).value).toBe("19")
     })
