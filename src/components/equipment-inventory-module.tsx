@@ -1139,7 +1139,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </Show>
                         <Show when={item.requiresAttunement}>
                           <Show when={!isReadOnly}>
-                            <Checkbox checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} title="Toggle attuned" />
+                            <Checkbox checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} title="Toggle attuned" aria-label="Toggle attuned" />
                           </Show>
                           <Show when={item.attuned}>
                             <Badge variant="secondary" class="text-xs">Attuned</Badge>
