@@ -89,8 +89,9 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
             {(ability) => {
               const score = () => isEditing() ? editedScores()[ability] : safeScores()[ability]
               const itemBonus = () => modifierTotals().abilityScores[ability]
+              const floor = () => modifierTotals().abilityScoreFloors[ability]
               const saveItemBonus = () => modifierTotals().savingThrows[ability]
-              const abilityCalculated = () => score() + itemBonus()
+              const abilityCalculated = () => Math.max(score() + itemBonus(), floor() ?? -Infinity)
 
               const abilityField = useCalculatedValue({
                 useCalculated: () =>
@@ -101,9 +102,11 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                 setManualValue: (v) => setEditedAbilityOverrides((prev) => ({ ...prev, [ability]: v })),
                 calculatedValue: abilityCalculated,
                 calculatedTooltip: () => {
+                  const withBonus = score() + itemBonus()
                   const effective = abilityCalculated()
                   const mod = getAbilityModifier(effective)
-                  const base = itemBonus() !== 0 ? `${score()} base + ${itemBonus()} (item) = ${effective}; ` : ""
+                  const flooredNote = floor() !== undefined && effective > withBonus ? `, floor ${floor()}` : ""
+                  const base = (itemBonus() !== 0 || flooredNote) ? `${score()} base + ${itemBonus()} (item)${flooredNote} = ${effective}; ` : ""
                   return `${base}(${effective} − 10) / 2 = ${formatModifier(mod)}`
                 },
               })

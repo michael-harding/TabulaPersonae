@@ -275,6 +275,30 @@ describe("AbilityScoresModule", () => {
       expect(screen.getByText("+7")).toBeInTheDocument()
     })
 
+    it("applies an item's ability-score floor even when base+item bonus is lower", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreFloors: { wisdom: 18 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      // base WIS 8, no item bonus, floor 18 -> displayed 18, modifier +4
+      expect(screen.getByText("18")).toBeInTheDocument()
+      expect(screen.getByText("+4")).toBeInTheDocument()
+    })
+
+    it("mentions the floor in the effective-score tooltip when it raises the value", async () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreFloors: { wisdom: 18 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      // View mode order: STR card(0), STR saving throw(1), DEX(2), CON(3), INT(4), WIS(5), CHA(6) —
+      // only strength has a proficient save in makeCharacter, adding one extra trigger before DEX.
+      fireEvent.focus(triggers[5])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent(/floor 18/i)
+      expect(screen.getByRole("tooltip")).toHaveTextContent("(18 − 10) / 2 = +4")
+    })
+
     it("persists a manual effective-score override on save", () => {
       const onUpdate = vi.fn()
       const character = makeCharacter()

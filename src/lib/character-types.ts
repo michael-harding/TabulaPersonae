@@ -327,6 +327,7 @@ export function createDefaultCharacter(): Character {
     },
 
     armorClass: 10,
+    useCalculatedArmorClass: true,
     hitPoints: {
       current: 8,
       maximum: 8,

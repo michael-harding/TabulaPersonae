@@ -7,6 +7,7 @@ import {
   deleteCharacterFromFirebase,
 } from './firebase-storage'
 import type { Character } from './character-types'
+import { migrateCharacters } from './character-migrations'
 
 interface StorageAdapter {
   saveCharacter(character: Character): Promise<boolean>
@@ -41,7 +42,7 @@ class LocalStorageAdapter implements StorageAdapter {
     const stored = localStorage.getItem(this.STORAGE_KEY)
     if (!stored) return []
     try {
-      return JSON.parse(stored)
+      return migrateCharacters(JSON.parse(stored))
     } catch {
       return []
     }

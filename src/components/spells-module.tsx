@@ -219,17 +219,16 @@ function SpellForm(props: SpellFormProps) {
           <div>
             <Label for="spell-granted-by">Granted By (optional)</Label>
             <Select
-              value={grantedByName()}
-              onValueChange={(name) => {
-                const item = props.magicItems.find((i) => i.name === name)
-                setFormData((p) => ({ ...p, grantedBy: item?.id ?? "" }))
-              }}
+              value={formData().grantedBy}
+              onValueChange={(id) => setFormData((p) => ({ ...p, grantedBy: id }))}
             >
-              <SelectTrigger id="spell-granted-by"><SelectValue placeholder="Not item-granted" /></SelectTrigger>
+              <SelectTrigger id="spell-granted-by">
+                <span class="flex-1 text-left">{grantedByName() ?? "Not item-granted"}</span>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Not item-granted</SelectItem>
                 <For each={props.magicItems}>
-                  {(item) => <SelectItem value={item.name}>{item.name}</SelectItem>}
+                  {(item) => <SelectItem value={item.id}>{item.name}</SelectItem>}
                 </For>
               </SelectContent>
             </Select>

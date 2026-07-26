@@ -408,10 +408,9 @@ export interface DerivedWeaponAttack {
 }
 
 export function getEquippedWeaponAttacks(
-  character: Pick<Character, "equipment" | "abilityScores" | "proficiencyBonus">
+  character: Pick<Character, "equipment" | "abilityScores" | "proficiencyBonus" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
 ): DerivedWeaponAttack[] {
   const equipment = character.equipment ?? []
-  const scores = character.abilityScores
   const profBonus = character.proficiencyBonus ?? 2
 
   return equipment
@@ -420,8 +419,8 @@ export function getEquippedWeaponAttacks(
     )
     .map((item) => {
       const { damage, damageType, weaponRange, attackAbility, proficient } = item.weaponStats
-      const strMod = getAbilityModifier(scores?.strength ?? 10)
-      const dexMod = getAbilityModifier(scores?.dexterity ?? 10)
+      const strMod = getAbilityModifier(getEffectiveAbilityScore(character, "strength"))
+      const dexMod = getAbilityModifier(getEffectiveAbilityScore(character, "dexterity"))
       const abilityMod =
         attackAbility === "dex" ? dexMod
         : attackAbility === "finesse" ? Math.max(strMod, dexMod)

@@ -6,6 +6,8 @@ Single source of truth for all agents working in this repository.
 
 Before starting any task:
 
+- `README.md` — project overview and setup
+
 ## Permitted
 
 - Read, create, edit, and delete files in this repository.

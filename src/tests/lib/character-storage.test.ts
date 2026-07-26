@@ -122,6 +122,23 @@ describe("Character Storage", () => {
       // Restore window
       global.window = originalWindow
     })
+
+    it("defaults useCalculatedArmorClass to false for a legacy character missing the key", () => {
+      const legacy: any = createDefaultCharacter()
+      delete legacy.useCalculatedArmorClass
+      localStorageMock.setItem("dnd-characters", JSON.stringify([legacy]))
+
+      const characters = getCharacters()
+      expect(characters[0].useCalculatedArmorClass).toBe(false)
+    })
+
+    it("leaves useCalculatedArmorClass untouched when the key is already present", () => {
+      const character = createDefaultCharacter()
+      localStorageMock.setItem("dnd-characters", JSON.stringify([character]))
+
+      const characters = getCharacters()
+      expect(characters[0].useCalculatedArmorClass).toBe(true)
+    })
   })
 
   describe("loadCharacters", () => {

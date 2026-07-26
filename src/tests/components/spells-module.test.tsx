@@ -414,6 +414,38 @@ describe("SpellsModule", () => {
       fireEvent.click(screen.getByText("1st Level"))
       expect(screen.queryByText(/granted:/i)).not.toBeInTheDocument()
     })
+
+    it("resolves the correct item when two magic items share the same display name", () => {
+      const itemA = makeMagicItem({ id: "item-a", name: "Ring of Protection" })
+      const itemB = makeMagicItem({ id: "item-b", name: "Ring of Protection" })
+      const onUpdate = vi.fn()
+      render(<SpellsModule character={makeCharacter({ equipment: [itemA, itemB] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/spell name/i), { target: { value: "Shield" } })
+      fireEvent.click(within(modal).getByLabelText(/granted by/i))
+      const options = screen.getAllByRole("option", { name: "Ring of Protection" })
+      fireEvent.click(options[1])
+      fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([expect.objectContaining({ name: "Shield", grantedBy: "item-b" })]),
+        })
+      )
+    })
+
+    it("shows the 'Not item-granted' placeholder in the trigger after clearing a selection", () => {
+      const item = makeMagicItem()
+      render(<SpellsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      const trigger = within(modal).getByLabelText(/granted by/i)
+      fireEvent.click(trigger)
+      fireEvent.click(screen.getByRole("option", { name: "Ring of Spell Storing" }))
+      fireEvent.click(trigger)
+      fireEvent.click(screen.getByRole("option", { name: /not item-granted/i }))
+      expect(trigger).toHaveTextContent(/not item-granted/i)
+    })
   })
 
   describe("combobox fields in spell form", () => {

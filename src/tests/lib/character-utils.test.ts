@@ -790,6 +790,32 @@ describe("getEquippedWeaponAttacks", () => {
     expect(atk.attackBonus).toBe(5) // STR +3 + prof +2, same as a mundane weapon
     expect(atk.damage).toBe("1d8+3")
   })
+
+  it("uses the item-boosted (effective) ability score for attack bonus, not the raw base", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem(), makeMagicItem({ modifiers: { abilityScores: { strength: 4 } } })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(7) // STR 16+4=20 -> +5, +prof 2
+    expect(atk.damage).toBe("1d8+5")
+  })
+
+  it("respects a manual ability-score override when useCalculatedAbilityScores is false", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
+      abilityScoreOverrides: { strength: 8 }, useCalculatedAbilityScores: { strength: false },
+      equipment: [makeWeaponItem()] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(1) // override 8 -> -1, +prof 2
+  })
+
+  it("respects an ability-score floor from an equipped magic item", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: { ...baseScores, dexterity: 6 }, proficiencyBonus: 2,
+      equipment: [
+        makeWeaponItem({ weaponStats: { damage: "1d6", damageType: "piercing", weaponRange: "60/240 ft", attackAbility: "dex", proficient: true } }),
+        makeMagicItem({ modifiers: { abilityScoreFloors: { dexterity: 18 } } }),
+      ] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(6) // DEX floored to 18 -> +4, +prof 2
+  })
 })
 
 describe("calculateEquippedAC", () => {

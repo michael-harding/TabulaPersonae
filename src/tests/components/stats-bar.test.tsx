@@ -119,5 +119,23 @@ describe("StatsBar", () => {
       expect(screen.getByRole("tooltip")).toHaveTextContent("Spell Hit: WIS +4 + Prof +3 = +7")
       expect(screen.getByRole("tooltip")).toHaveTextContent("DC: 8 + WIS +4 + Prof +3 = 15")
     })
+
+    it("reflects an item-boosted spellcasting ability score in the tooltip breakdown", async () => {
+      const character = {
+        ...makeSpellcaster(),
+        equipment: [{
+          id: "item-1", name: "Headband of Intellect", quantity: 1, weight: 0, description: "",
+          equipped: true, type: "other" as const, magic: true, requiresAttunement: false,
+          modifiers: { abilityScores: { wisdom: 2 } },
+        }],
+      }
+      render(<StatsBar character={character} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      // WIS 18+2=20 → +5, Prof +3 → Hit +8, DC 16 — the tooltip's own arithmetic must match
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Spell Hit: WIS +5 + Prof +3 = +8")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("DC: 8 + WIS +5 + Prof +3 = 16")
+    })
   })
 })
