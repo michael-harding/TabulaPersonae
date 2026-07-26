@@ -492,11 +492,6 @@ describe("EquipmentInventoryModule", () => {
       expect(screen.getByText("Magic Items")).toBeInTheDocument()
     })
 
-    it("renders 'Add Magic Item' button", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      expect(screen.getByRole("button", { name: /add magic item/i })).toBeInTheDocument()
-    })
-
     it("renders magic item names", () => {
       const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring of Protection" })] })} onUpdate={vi.fn()} />)
       const section = container.querySelector('[data-sem="magic-items-section"]')!
@@ -585,18 +580,13 @@ describe("EquipmentInventoryModule", () => {
       expect(saveCharacter).toHaveBeenCalled()
     })
 
-    it("opens Add Magic Item modal when button is clicked", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
-      expect(screen.getByRole("dialog")).toBeInTheDocument()
-    })
-
-    it("prefills the magic checkbox when opened via Add Magic Item", () => {
+    it("creates a magic item via the general Add Item button by checking 'This is a Magic Item'", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -712,17 +702,19 @@ describe("EquipmentInventoryModule", () => {
 
     it("shows the Bonuses section when adding a magic item", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
       expect(within(modal).getByText(/bonuses \(optional\)/i)).toBeInTheDocument()
     })
 
     it("submits nonzero AC, saving throw, and ability score bonuses as Equipment.modifiers", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Ring of Protection" } })
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
       setNumericValue(document.querySelector("#modifier-ac")!, "1")
       fireEvent.click(within(modal).getByText("Saving Throws"))
       setNumericValue(document.querySelector("#modifier-save-wisdom")!, "2")
@@ -744,9 +736,10 @@ describe("EquipmentInventoryModule", () => {
     it("omits modifiers entirely when all bonus fields are left at zero", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Bag of Holding" } })
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -771,7 +764,9 @@ describe("EquipmentInventoryModule", () => {
 
     it("keeps all modifier groups collapsed by default when adding a new magic item", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
       expect(document.querySelector("#modifier-save-wisdom")).not.toBeInTheDocument()
       expect(document.querySelector("#modifier-ability-strength")).not.toBeInTheDocument()
       expect(document.querySelector("#modifier-sense-darkvision")).not.toBeInTheDocument()
@@ -816,9 +811,10 @@ describe("EquipmentInventoryModule", () => {
       const user = userEvent.setup()
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Winged Boots" } })
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
 
       fireEvent.click(within(modal).getByText("Senses"))
       setNumericValue(document.querySelector("#modifier-sense-darkvision")!, "60")
@@ -1040,11 +1036,6 @@ describe("EquipmentInventoryModule", () => {
     it("does not render the Add Item button", () => {
       renderReadOnly()
       expect(screen.queryByRole("button", { name: /add item/i })).not.toBeInTheDocument()
-    })
-
-    it("does not render the Add Magic Item button", () => {
-      renderReadOnly()
-      expect(screen.queryByRole("button", { name: /add magic item/i })).not.toBeInTheDocument()
     })
 
     it("does not render per-item edit buttons", () => {

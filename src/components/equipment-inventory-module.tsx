@@ -826,7 +826,6 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const [searchTerm, setSearchTerm] = createSignal("")
   const [modalOpen, setModalOpen] = createSignal(false)
   const [editingItem, setEditingItem] = createSignal<Equipment | null>(null)
-  const [prefillMagic, setPrefillMagic] = createSignal(false)
 
   const safeEquipment = () => props.character.equipment || []
   const magicItems = () => safeEquipment().filter((item) => item.magic)
@@ -918,13 +917,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         modifierProficiencies: item.modifiers?.proficiencies ?? [],
       }
     }
-    return prefillMagic() ? { ...defaultEquipmentForm, magic: true } : defaultEquipmentForm
+    return defaultEquipmentForm
   }
 
-  const openAdd = () => { setEditingItem(null); setPrefillMagic(false); setModalOpen(true) }
-  const openAddMagic = () => { setEditingItem(null); setPrefillMagic(true); setModalOpen(true) }
+  const openAdd = () => { setEditingItem(null); setModalOpen(true) }
   const openEdit = (item: Equipment) => { setEditingItem(item); setModalOpen(true) }
-  const closeModal = () => { setEditingItem(null); setPrefillMagic(false); setModalOpen(false) }
+  const closeModal = () => { setEditingItem(null); setModalOpen(false) }
 
   const buildModifiers = (formData: EquipmentFormData): ItemModifiers | undefined => {
     if (!formData.magic) return undefined
@@ -1159,18 +1157,10 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
 
         {/* Magic Items */}
         <div data-sem="magic-items-section">
-          <div class="flex items-center justify-between mb-2">
-            <h2 class="font-semibold text-sm flex items-center gap-2">
-              <Gem class="h-4 w-4 text-primary" />
-              Magic Items
-            </h2>
-            <Show when={!isReadOnly}>
-              <Button variant="outline" size="sm" class="gap-1" onClick={openAddMagic}>
-                <Plus class="h-3 w-3" />
-                Add Magic Item
-              </Button>
-            </Show>
-          </div>
+          <h2 class="font-semibold text-sm flex items-center gap-2 mb-2">
+            <Gem class="h-4 w-4 text-primary" />
+            Magic Items
+          </h2>
           <div class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
             <span>{attunedCount()}/</span>
             <CalculatedValue
@@ -1498,7 +1488,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       <Modal open={modalOpen()} onOpenChange={(open: boolean) => { if (!open) closeModal() }}>
         <ModalContent>
           <ModalHeader>
-            <ModalTitle>{editingItem() ? "Edit Item" : prefillMagic() ? "Add Magic Item" : "Add New Item"}</ModalTitle>
+            <ModalTitle>{editingItem() ? "Edit Item" : "Add New Item"}</ModalTitle>
           </ModalHeader>
           <EquipmentForm
             initialData={currentFormData()}
