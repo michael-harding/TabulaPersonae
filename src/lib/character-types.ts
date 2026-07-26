@@ -55,11 +55,29 @@ export type ActionType = 'attack' | 'ability' | 'class-feature' | 'feat' | 'spec
 
 export type ItemRarity = "common" | "uncommon" | "rare" | "very-rare" | "legendary" | "artifact"
 
+export type SenseType = "darkvision" | "blindsight" | "tremorsense" | "truesight"
+
 export interface ItemModifiers {
   armorClass?: number
   initiative?: number
   savingThrows?: Partial<Record<keyof AbilityScores, number>>
   abilityScores?: Partial<Record<keyof AbilityScores, number>>
+  resistances?: string[]
+  immunities?: string[]
+  vulnerabilities?: string[]
+  conditionImmunities?: string[]
+  senses?: Partial<Record<SenseType, number>>
+  speed?: number
+  flySpeed?: number
+  swimSpeed?: number
+  climbSpeed?: number
+  burrowSpeed?: number
+  carryingCapacityBonus?: number
+  carryingCapacityMultiplier?: number
+  abilityScoreFloors?: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreMaxCaps?: Partial<Record<keyof AbilityScores, number>>
+  languages?: string[]
+  proficiencies?: string[]
 }
 
 export interface Equipment extends UseableEntry {
@@ -100,6 +118,8 @@ export interface Spell extends CharacterEntry {
   atHigherLevel?: string;
   concentration?: boolean;
   ritual?: boolean;
+  grantedBy?: string;
+  freeCast?: boolean;
 }
 
 export type FeatureKind = 'class-feature' | 'species-trait' | 'feat'
@@ -160,6 +180,11 @@ export interface Character {
   }
   hitDice: string
   speed: number
+  flySpeed?: number
+  swimSpeed?: number
+  climbSpeed?: number
+  burrowSpeed?: number
+  senses?: Partial<Record<SenseType, number>>
   initiative: number
   proficiencyBonus: number
   useCalculatedInitiative?: boolean
@@ -175,6 +200,8 @@ export interface Character {
   equipment: Equipment[]
   attunementLimit?: number
   useCalculatedAttunementLimit?: boolean
+  carryingCapacity?: number
+  useCalculatedCarryingCapacity?: boolean
   spells: Spell[]
   spellcastingAbility: keyof AbilityScores | ""
   spellSaveDC: number
@@ -197,6 +224,10 @@ export interface Character {
 
   languages: string[]
   otherProficiencies: string[]
+  damageResistances?: string[]
+  damageImmunities?: string[]
+  damageVulnerabilities?: string[]
+  conditionImmunities?: string[]
 
   attacks: Attack[]
   bonusActions: BonusAction[]
@@ -311,6 +342,7 @@ export function createDefaultCharacter(): Character {
     proficiencyBonus: 2,
 
     equipment: [],
+    useCalculatedCarryingCapacity: true,
     spells: [],
     spellcastingAbility: "",
     spellSaveDC: 8,
@@ -329,6 +361,10 @@ export function createDefaultCharacter(): Character {
 
     languages: [],
     otherProficiencies: [],
+    damageResistances: [],
+    damageImmunities: [],
+    damageVulnerabilities: [],
+    conditionImmunities: [],
 
     attacks: [],
     bonusActions: [],

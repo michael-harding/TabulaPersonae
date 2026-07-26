@@ -1,9 +1,9 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, Spell } from "@/lib/character-types"
+import type { Character, Spell, Equipment } from "@/lib/character-types"
 
 const EMPTY_SPELLS: Spell[] = []
-import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, formatModifier, isItemModifierActive } from "@/lib/character-utils"
 import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -50,6 +50,8 @@ interface SpellFormData {
   known: boolean
   concentration?: boolean
   ritual?: boolean
+  grantedBy: string
+  freeCast: boolean
 }
 
 interface SpellsModuleProps {
@@ -91,6 +93,8 @@ const defaultSpellForm: SpellFormData = {
   known: true,
   concentration: false,
   ritual: false,
+  grantedBy: "",
+  freeCast: false,
 }
 
 interface SpellFormProps {
@@ -98,10 +102,12 @@ interface SpellFormProps {
   onSubmit: (data: SpellFormData) => void
   onCancel: () => void
   editing: boolean
+  magicItems: Equipment[]
 }
 
 function SpellForm(props: SpellFormProps) {
   const [formData, setFormData] = createSignal<SpellFormData>(props.initialData)
+  const grantedByName = () => props.magicItems.find((item) => item.id === formData().grantedBy)?.name
 
   return (
     <div class="space-y-4">
@@ -208,6 +214,38 @@ function SpellForm(props: SpellFormProps) {
         </label>
       </div>
 
+      <Show when={props.magicItems.length > 0}>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <Label for="spell-granted-by">Granted By (optional)</Label>
+            <Select
+              value={grantedByName()}
+              onValueChange={(name) => {
+                const item = props.magicItems.find((i) => i.name === name)
+                setFormData((p) => ({ ...p, grantedBy: item?.id ?? "" }))
+              }}
+            >
+              <SelectTrigger id="spell-granted-by"><SelectValue placeholder="Not item-granted" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Not item-granted</SelectItem>
+                <For each={props.magicItems}>
+                  {(item) => <SelectItem value={item.name}>{item.name}</SelectItem>}
+                </For>
+              </SelectContent>
+            </Select>
+          </div>
+          <Show when={formData().grantedBy}>
+            <label class="flex items-center gap-3 cursor-pointer min-h-[44px] mt-auto">
+              <Checkbox
+                checked={formData().freeCast}
+                onChange={(checked: boolean) => setFormData((p) => ({ ...p, freeCast: checked }))}
+              />
+              <span class="text-sm font-medium leading-none">Free Cast (no slot)</span>
+            </label>
+          </Show>
+        </div>
+      </Show>
+
       <div class="flex gap-2 pt-4">
         <Button onClick={() => props.onSubmit(formData())} class="gap-2">
           <Save class="h-4 w-4" />
@@ -232,6 +270,8 @@ export function SpellsModule(props: SpellsModuleProps) {
 
 
   const safeSpells = createMemo(() => props.character.spells || [])
+  const magicItems = createMemo(() => (props.character.equipment ?? []).filter((item) => item.magic))
+  const magicItemById = (id: string | undefined) => magicItems().find((item) => item.id === id)
   const filteredSpells = createMemo(() =>
     safeSpells().filter(
       (spell) =>
@@ -305,6 +345,8 @@ export function SpellsModule(props: SpellsModuleProps) {
       atHigherLevel: formData.atHigherLevel,
       concentration: formData.concentration,
       ritual: formData.ritual,
+      grantedBy: formData.grantedBy || undefined,
+      freeCast: formData.grantedBy && formData.freeCast ? true : undefined,
     }
     const updated = { ...props.character, spells: [...safeSpells(), newSpell] }
     props.onUpdate(updated)
@@ -334,6 +376,8 @@ export function SpellsModule(props: SpellsModuleProps) {
       atHigherLevel: formData.atHigherLevel,
       concentration: formData.concentration,
       ritual: formData.ritual,
+      grantedBy: formData.grantedBy || undefined,
+      freeCast: formData.grantedBy && formData.freeCast ? true : undefined,
     }
     const updated = { ...props.character, spells: safeSpells().map((s) => (s.id === spell.id ? updatedSpell : s)) }
     props.onUpdate(updated)
@@ -392,6 +436,8 @@ export function SpellsModule(props: SpellsModuleProps) {
       atHigherLevel: spell.atHigherLevel || "",
       concentration: spell.concentration ?? false,
       ritual: spell.ritual ?? false,
+      grantedBy: spell.grantedBy || "",
+      freeCast: spell.freeCast ?? false,
     }
   }
 
@@ -563,6 +609,20 @@ export function SpellsModule(props: SpellsModuleProps) {
                                       <Show when={spell.ritual}>
                                         <Badge variant="secondary" class="text-xs" title="Ritual">R</Badge>
                                       </Show>
+                                      <Show when={magicItemById(spell.grantedBy)}>
+                                        {(item) => (
+                                          <Badge
+                                            variant="outline"
+                                            class={`text-xs ${isItemModifierActive(item()) ? "" : "text-muted-foreground italic"}`}
+                                            title={isItemModifierActive(item()) ? undefined : "Item not currently equipped/attuned"}
+                                          >
+                                            Granted: {item().name}
+                                          </Badge>
+                                        )}
+                                      </Show>
+                                      <Show when={spell.grantedBy && spell.freeCast}>
+                                        <Badge variant="secondary" class="text-xs">Free Cast</Badge>
+                                      </Show>
 
                                     </div>
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground mb-2">
@@ -621,6 +681,7 @@ export function SpellsModule(props: SpellsModuleProps) {
             onSubmit={handleAddSpell}
             onCancel={() => setIsAddModalOpen(false)}
             editing={false}
+            magicItems={magicItems()}
           />
         </ModalContent>
       </Modal>
@@ -634,6 +695,7 @@ export function SpellsModule(props: SpellsModuleProps) {
             onSubmit={handleUpdateSpell}
             onCancel={() => setEditingSpell(null)}
             editing={true}
+            magicItems={magicItems()}
           />
         </ModalContent>
       </Modal>

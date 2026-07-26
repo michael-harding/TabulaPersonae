@@ -1,4 +1,4 @@
-import type { AbilityScores, Character, Equipment, Feature } from "./character-types"
+import type { AbilityScores, Character, Equipment, Feature, SenseType } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -52,25 +52,102 @@ export interface EquipmentModifierTotals {
   initiative: number
   savingThrows: Record<keyof AbilityScores, number>
   abilityScores: Record<keyof AbilityScores, number>
+  resistances: string[]
+  immunities: string[]
+  vulnerabilities: string[]
+  conditionImmunities: string[]
+  senses: Record<SenseType, number>
+  speed: number
+  flySpeed: number
+  swimSpeed: number
+  climbSpeed: number
+  burrowSpeed: number
+  carryingCapacityBonus: number
+  carryingCapacityMultiplier: number
+  abilityScoreFloors: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreMaxCaps: Partial<Record<keyof AbilityScores, number>>
+  languages: string[]
+  proficiencies: string[]
+}
+
+function dedupUnion(...lists: (string[] | undefined)[]): string[] {
+  return Array.from(new Set(lists.flatMap((l) => l ?? [])))
 }
 
 export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): EquipmentModifierTotals {
   const zero = { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0 }
+  const zeroSenses = { darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0 }
   const totals: EquipmentModifierTotals = {
     armorClass: 0,
     initiative: 0,
     savingThrows: { ...zero },
     abilityScores: { ...zero },
+    resistances: [],
+    immunities: [],
+    vulnerabilities: [],
+    conditionImmunities: [],
+    senses: { ...zeroSenses },
+    speed: 0,
+    flySpeed: 0,
+    swimSpeed: 0,
+    climbSpeed: 0,
+    burrowSpeed: 0,
+    carryingCapacityBonus: 0,
+    carryingCapacityMultiplier: 1,
+    abilityScoreFloors: {},
+    abilityScoreMaxCaps: {},
+    languages: [],
+    proficiencies: [],
   }
+  const resistanceLists: string[][] = []
+  const immunityLists: string[][] = []
+  const vulnerabilityLists: string[][] = []
+  const conditionImmunityLists: string[][] = []
+  const languageLists: string[][] = []
+  const proficiencyLists: string[][] = []
+
   for (const item of equipment ?? []) {
     if (!isItemModifierActive(item) || !item.modifiers) continue
-    totals.armorClass += item.modifiers.armorClass ?? 0
-    totals.initiative += item.modifiers.initiative ?? 0
+    const mods = item.modifiers
+    totals.armorClass += mods.armorClass ?? 0
+    totals.initiative += mods.initiative ?? 0
     for (const ability of Object.keys(zero) as (keyof AbilityScores)[]) {
-      totals.savingThrows[ability] += item.modifiers.savingThrows?.[ability] ?? 0
-      totals.abilityScores[ability] += item.modifiers.abilityScores?.[ability] ?? 0
+      totals.savingThrows[ability] += mods.savingThrows?.[ability] ?? 0
+      totals.abilityScores[ability] += mods.abilityScores?.[ability] ?? 0
+      if (mods.abilityScoreFloors?.[ability] !== undefined) {
+        totals.abilityScoreFloors[ability] = Math.max(totals.abilityScoreFloors[ability] ?? -Infinity, mods.abilityScoreFloors[ability]!)
+      }
+      if (mods.abilityScoreMaxCaps?.[ability] !== undefined) {
+        totals.abilityScoreMaxCaps[ability] = Math.max(totals.abilityScoreMaxCaps[ability] ?? -Infinity, mods.abilityScoreMaxCaps[ability]!)
+      }
     }
+    for (const sense of SENSE_TYPES) {
+      totals.senses[sense] += mods.senses?.[sense] ?? 0
+    }
+    totals.speed += mods.speed ?? 0
+    totals.flySpeed += mods.flySpeed ?? 0
+    totals.swimSpeed += mods.swimSpeed ?? 0
+    totals.climbSpeed += mods.climbSpeed ?? 0
+    totals.burrowSpeed += mods.burrowSpeed ?? 0
+    totals.carryingCapacityBonus += mods.carryingCapacityBonus ?? 0
+    if (mods.carryingCapacityMultiplier !== undefined) {
+      totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, mods.carryingCapacityMultiplier)
+    }
+    resistanceLists.push(mods.resistances ?? [])
+    immunityLists.push(mods.immunities ?? [])
+    vulnerabilityLists.push(mods.vulnerabilities ?? [])
+    conditionImmunityLists.push(mods.conditionImmunities ?? [])
+    languageLists.push(mods.languages ?? [])
+    proficiencyLists.push(mods.proficiencies ?? [])
   }
+
+  totals.resistances = dedupUnion(...resistanceLists)
+  totals.immunities = dedupUnion(...immunityLists)
+  totals.vulnerabilities = dedupUnion(...vulnerabilityLists)
+  totals.conditionImmunities = dedupUnion(...conditionImmunityLists)
+  totals.languages = dedupUnion(...languageLists)
+  totals.proficiencies = dedupUnion(...proficiencyLists)
+
   return totals
 }
 
@@ -81,8 +158,10 @@ type AbilityScoreCharacter = Pick<
 
 export function getEffectiveAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
   const base = character.abilityScores?.[ability] ?? 10
-  const itemBonus = getEquipmentModifierTotals(character.equipment).abilityScores[ability]
-  const calculated = base + itemBonus
+  const itemTotals = getEquipmentModifierTotals(character.equipment)
+  const itemBonus = itemTotals.abilityScores[ability]
+  const floor = itemTotals.abilityScoreFloors[ability]
+  const calculated = Math.max(base + itemBonus, floor ?? -Infinity)
   const useCalculated = character.useCalculatedAbilityScores?.[ability] ?? true
   return useCalculated ? calculated : (character.abilityScoreOverrides?.[ability] ?? calculated)
 }
@@ -105,6 +184,79 @@ export function getPassiveScore(
   hasExpertise: boolean,
 ): number {
   return 10 + getSkillModifier(abilityScore, proficiencyBonus, isProficient, hasExpertise)
+}
+
+type SensesCharacter = Pick<Character, "senses" | "equipment">
+
+export function getEffectiveSenses(character: SensesCharacter): Record<SenseType, number> {
+  const itemTotals = getEquipmentModifierTotals(character.equipment).senses
+  const result = {} as Record<SenseType, number>
+  for (const sense of SENSE_TYPES) {
+    result[sense] = (character.senses?.[sense] ?? 0) + itemTotals[sense]
+  }
+  return result
+}
+
+export interface MovementSpeeds {
+  walk: number
+  fly: number
+  swim: number
+  climb: number
+  burrow: number
+}
+
+type MovementCharacter = Pick<Character, "speed" | "flySpeed" | "swimSpeed" | "climbSpeed" | "burrowSpeed" | "equipment">
+
+export function getEffectiveMovementSpeeds(character: MovementCharacter): MovementSpeeds {
+  const itemTotals = getEquipmentModifierTotals(character.equipment)
+  return {
+    walk: (character.speed ?? 30) + itemTotals.speed,
+    fly: (character.flySpeed ?? 0) + itemTotals.flySpeed,
+    swim: (character.swimSpeed ?? 0) + itemTotals.swimSpeed,
+    climb: (character.climbSpeed ?? 0) + itemTotals.climbSpeed,
+    burrow: (character.burrowSpeed ?? 0) + itemTotals.burrowSpeed,
+  }
+}
+
+type DamageTagsCharacter = Pick<Character, "damageResistances" | "damageImmunities" | "damageVulnerabilities" | "equipment">
+
+export function getEffectiveDamageResistances(character: DamageTagsCharacter): string[] {
+  return dedupUnion(character.damageResistances, getEquipmentModifierTotals(character.equipment).resistances)
+}
+
+export function getEffectiveDamageImmunities(character: DamageTagsCharacter): string[] {
+  return dedupUnion(character.damageImmunities, getEquipmentModifierTotals(character.equipment).immunities)
+}
+
+export function getEffectiveDamageVulnerabilities(character: DamageTagsCharacter): string[] {
+  return dedupUnion(character.damageVulnerabilities, getEquipmentModifierTotals(character.equipment).vulnerabilities)
+}
+
+export function getEffectiveConditionImmunities(character: Pick<Character, "conditionImmunities" | "equipment">): string[] {
+  return dedupUnion(character.conditionImmunities, getEquipmentModifierTotals(character.equipment).conditionImmunities)
+}
+
+export interface EffectiveGrantList {
+  own: string[]
+  granted: string[]
+}
+
+export function getEffectiveLanguages(character: Pick<Character, "languages" | "equipment">): EffectiveGrantList {
+  const own = character.languages ?? []
+  const itemGranted = getEquipmentModifierTotals(character.equipment).languages
+  return { own, granted: itemGranted.filter((l) => !own.includes(l)) }
+}
+
+export function getEffectiveProficiencies(character: Pick<Character, "otherProficiencies" | "equipment">): EffectiveGrantList {
+  const own = character.otherProficiencies ?? []
+  const itemGranted = getEquipmentModifierTotals(character.equipment).proficiencies
+  return { own, granted: itemGranted.filter((p) => !own.includes(p)) }
+}
+
+export function getEffectiveCarryingCapacity(character: AbilityScoreCharacter): number {
+  const strengthScore = getEffectiveAbilityScore(character, "strength")
+  const itemTotals = getEquipmentModifierTotals(character.equipment)
+  return Math.floor((strengthScore * 15 + itemTotals.carryingCapacityBonus) * itemTotals.carryingCapacityMultiplier)
 }
 
 export function getEffectiveMaxHp(hitPoints?: { maximum?: number; temporaryMaximum?: number }): number {
@@ -226,6 +378,20 @@ export function safeFeatures(raw: Feature[] | string | undefined): Feature[] {
 
 export const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
 export const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+
+export const CONDITIONS = [
+  "Blinded", "Charmed", "Deafened", "Exhaustion", "Frightened",
+  "Grappled", "Incapacitated", "Invisible", "Paralyzed", "Petrified",
+  "Poisoned", "Prone", "Restrained", "Stunned", "Unconscious",
+]
+
+export const SENSE_TYPES: SenseType[] = ["darkvision", "blindsight", "tremorsense", "truesight"]
+export const SENSE_LABELS: Record<SenseType, string> = {
+  darkvision: "Darkvision",
+  blindsight: "Blindsight",
+  tremorsense: "Tremorsense",
+  truesight: "Truesight",
+}
 
 export const BASE_ATTUNEMENT_LIMIT = 3
 

@@ -2,7 +2,7 @@ import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 import { SpellsModule } from "@/components/spells-module"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Spell } from "@/lib/character-types"
+import type { Character, Spell, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 vi.mock("@/lib/character-storage", () => ({ saveCharacter: vi.fn() }))
@@ -20,6 +20,22 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
     description: "A mote of fire.",
     prepared: false,
     known: true,
+    ...overrides,
+  }
+}
+
+function makeMagicItem(overrides: Partial<Equipment> = {}): Equipment {
+  return {
+    id: "item-1",
+    name: "Ring of Spell Storing",
+    quantity: 1,
+    weight: 0,
+    description: "",
+    equipped: true,
+    type: "other",
+    magic: true,
+    requiresAttunement: true,
+    attuned: true,
     ...overrides,
   }
 }
@@ -343,6 +359,60 @@ describe("SpellsModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByText(/^ritual$/i)).toBeInTheDocument()
+    })
+  })
+
+  describe("granted spells / free casts", () => {
+    beforeEach(() => cleanupPortals())
+
+    it("does not show the Granted By field when the character has no magic items", () => {
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).queryByText(/granted by/i)).not.toBeInTheDocument()
+    })
+
+    it("saves grantedBy and freeCast when a magic item is selected", () => {
+      const item = makeMagicItem()
+      const onUpdate = vi.fn()
+      render(<SpellsModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/spell name/i), { target: { value: "Magic Missile" } })
+      fireEvent.click(within(modal).getByLabelText(/granted by/i))
+      fireEvent.click(screen.getByRole("option", { name: "Ring of Spell Storing" }))
+      fireEvent.click(within(modal).getByText(/free cast/i))
+      fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([
+            expect.objectContaining({ name: "Magic Missile", grantedBy: "item-1", freeCast: true }),
+          ]),
+        })
+      )
+    })
+
+    it("shows a 'Granted:' badge on a spell tagged with grantedBy", () => {
+      const item = makeMagicItem()
+      const spell = makeSpell({ name: "Identify", level: 1, grantedBy: item.id })
+      render(<SpellsModule character={makeCharacter({ equipment: [item], spells: [spell] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      expect(screen.getByText(/granted: ring of spell storing/i)).toBeInTheDocument()
+    })
+
+    it("shows the Free Cast badge only when both grantedBy and freeCast are set", () => {
+      const item = makeMagicItem()
+      const spell = makeSpell({ name: "Identify", level: 1, grantedBy: item.id, freeCast: true })
+      render(<SpellsModule character={makeCharacter({ equipment: [item], spells: [spell] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      expect(screen.getByText("Free Cast")).toBeInTheDocument()
+    })
+
+    it("does not show a Granted badge when the granting item no longer exists", () => {
+      const spell = makeSpell({ name: "Identify", level: 1, grantedBy: "missing-item" })
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      expect(screen.queryByText(/granted:/i)).not.toBeInTheDocument()
     })
   })
 

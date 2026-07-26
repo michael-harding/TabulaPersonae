@@ -600,4 +600,73 @@ describe("SkillsProficienciesModule", () => {
       expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Perception +0 = 10")
     })
   })
+
+  describe("senses", () => {
+    it("shows the character's base darkvision plus an active item's bonus", () => {
+      const character = makeCharacter({
+        senses: { darkvision: 30 },
+        equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 60 } } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("90 ft")).toBeInTheDocument()
+    })
+
+    it("edits the base darkvision value", () => {
+      const onUpdate = vi.fn()
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+      const input = screen.getByLabelText("Darkvision")
+      fireEvent.input(input, { target: { value: "60" } })
+      fireEvent.blur(input)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ senses: expect.objectContaining({ darkvision: 60 }) })
+      )
+    })
+  })
+
+  describe("damage resistances / immunities / vulnerabilities", () => {
+    it("shows the character's own resistance and an item-granted one as distinct badges", () => {
+      const character = makeCharacter({
+        damageResistances: ["Cold"],
+        equipment: [makeMagicItem({ modifiers: { resistances: ["Fire"] } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Cold")).toBeInTheDocument()
+      expect(screen.getByText("Fire")).toBeInTheDocument()
+    })
+
+    it("adds a resistance via the add button", () => {
+      const onUpdate = vi.fn()
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+      const input = screen.getByPlaceholderText("Add resistance (e.g. Fire)")
+      fireEvent.input(input, { target: { value: "Necrotic" } })
+      fireEvent.click(within(input.parentElement!).getByRole("button"))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ damageResistances: expect.arrayContaining(["Necrotic"]) })
+      )
+    })
+  })
+
+  describe("granted languages and proficiencies", () => {
+    it("shows an item-granted language alongside the character's own languages", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { languages: ["Auran"] } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Common")).toBeInTheDocument()
+      expect(screen.getByText("Auran")).toBeInTheDocument()
+    })
+
+    it("does not duplicate a granted language the character already knows", () => {
+      const character = makeCharacter({
+        languages: ["Common", "Elvish"],
+        equipment: [makeMagicItem({ modifiers: { languages: ["Elvish"] } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getAllByText("Elvish").length).toBe(1)
+    })
+  })
 })

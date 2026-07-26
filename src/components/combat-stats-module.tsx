@@ -1,6 +1,6 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getEffectiveConditionImmunities } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { DIE_SIZES } from "@/lib/dice"
@@ -25,12 +25,6 @@ import CheckCircle from "lucide-solid/icons/check-circle"
 import XCircle from "lucide-solid/icons/x-circle"
 import X from "lucide-solid/icons/x"
 
-const CONDITIONS = [
-  "Blinded", "Charmed", "Deafened", "Exhaustion", "Frightened",
-  "Grappled", "Incapacitated", "Invisible", "Paralyzed", "Petrified",
-  "Poisoned", "Prone", "Restrained", "Stunned", "Unconscious",
-]
-
 interface CombatStatsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
@@ -51,6 +45,10 @@ const toEdit = (c: Character) => {
     armorClass: c.armorClass || 10,
     initiative: c.initiative || 0,
     speed: c.speed ?? 30,
+    flySpeed: c.flySpeed ?? 0,
+    swimSpeed: c.swimSpeed ?? 0,
+    climbSpeed: c.climbSpeed ?? 0,
+    burrowSpeed: c.burrowSpeed ?? 0,
     proficiencyBonus: c.proficiencyBonus || 2,
     deathSaves: { successes: c.deathSaves?.successes || 0, failures: c.deathSaves?.failures || 0 },
     spentHitDice: c.spentHitDice ?? 0,
@@ -152,6 +150,20 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     props.onUpdate(updated)
     saveCharacter(updated)
   }
+
+  const toggleConditionImmunity = (condition: string) => {
+    if (isReadOnly) return
+    const own = props.character.conditionImmunities ?? []
+    const next = own.includes(condition)
+      ? own.filter((c) => c !== condition)
+      : [...own, condition]
+    const updated = { ...props.character, conditionImmunities: next }
+    props.onUpdate(updated)
+    saveCharacter(updated)
+  }
+
+  const effectiveConditionImmunities = createMemo(() => getEffectiveConditionImmunities(props.character))
+  const effectiveMovement = createMemo(() => getEffectiveMovementSpeeds(props.character))
 
   const passivePerceptionCalc = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
@@ -474,6 +486,76 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           </div>
         </div>
 
+        {/* Condition Immunities */}
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <Label class="text-sm text-muted-foreground">Condition Immunities</Label>
+            <Show when={!isReadOnly}>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  as="button"
+                  data-test="add-condition-immunity-button"
+                  class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+                  title="Add condition immunity"
+                >
+                  <Plus class="h-3 w-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <For each={CONDITIONS}>
+                    {(condition) => (
+                      <DropdownMenuItem
+                        onSelect={() => toggleConditionImmunity(condition)}
+                        class={(props.character.conditionImmunities ?? []).includes(condition) ? "text-primary font-medium" : ""}
+                      >
+                        {condition}
+                        <Show when={(props.character.conditionImmunities ?? []).includes(condition)}>
+                          <span class="ml-auto text-primary">✓</span>
+                        </Show>
+                      </DropdownMenuItem>
+                    )}
+                  </For>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </Show>
+          </div>
+          <div class="flex flex-wrap gap-1.5 min-h-[1.5rem]">
+            <Show
+              when={effectiveConditionImmunities().length > 0}
+              fallback={<span class="text-xs text-muted-foreground italic">None</span>}
+            >
+              <For each={effectiveConditionImmunities()}>
+                {(condition) => {
+                  const isOwn = () => (props.character.conditionImmunities ?? []).includes(condition)
+                  return (
+                    <Show
+                      when={!isReadOnly && isOwn()}
+                      fallback={
+                        <span
+                          class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground"
+                          title={isOwn() ? undefined : "Granted by an equipped item"}
+                        >
+                          {condition}
+                        </span>
+                      }
+                    >
+                      <button
+                        type="button"
+                        data-test={`remove-condition-immunity-${condition}`}
+                        onClick={() => toggleConditionImmunity(condition)}
+                        class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                        title="Click to remove"
+                      >
+                        {condition}
+                        <X class="h-2.5 w-2.5" />
+                      </button>
+                    </Show>
+                  )
+                }}
+              </For>
+            </Show>
+          </div>
+        </div>
+
         {/* Other Combat Stats */}
         <div class="grid grid-cols-2 gap-4">
           {/* AC */}
@@ -503,13 +585,41 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           <div class="text-center">
             <Label class="text-sm text-muted-foreground">Speed</Label>
             <Show when={isEditing()} fallback={
-              <div class="text-2xl font-bold text-primary mt-1">{(props.character.speed ?? 30)} ft</div>
+              <div>
+                <div class="text-2xl font-bold text-primary mt-1">{effectiveMovement().walk} ft</div>
+                <div class="flex flex-wrap justify-center gap-x-2 text-xs text-muted-foreground mt-0.5">
+                  <Show when={effectiveMovement().fly > 0}><span>Fly {effectiveMovement().fly} ft</span></Show>
+                  <Show when={effectiveMovement().swim > 0}><span>Swim {effectiveMovement().swim} ft</span></Show>
+                  <Show when={effectiveMovement().climb > 0}><span>Climb {effectiveMovement().climb} ft</span></Show>
+                  <Show when={effectiveMovement().burrow > 0}><span>Burrow {effectiveMovement().burrow} ft</span></Show>
+                </div>
+              </div>
             }>
-              <NumericInput
-                value={edited().speed}
-                onChange={(v) => setEdited(prev => ({ ...prev, speed: v }))}
-                class="text-center text-xl font-bold mt-1"
-              />
+              <div class="space-y-1">
+                <NumericInput
+                  value={edited().speed}
+                  onChange={(v) => setEdited(prev => ({ ...prev, speed: v }))}
+                  class="text-center text-xl font-bold mt-1"
+                />
+                <div class="grid grid-cols-2 gap-1">
+                  <div>
+                    <Label for="movement-fly" class="text-xs">Fly</Label>
+                    <NumericInput id="movement-fly" min={0} value={edited().flySpeed ?? 0} onChange={(v) => setEdited(prev => ({ ...prev, flySpeed: v }))} class="text-center h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label for="movement-swim" class="text-xs">Swim</Label>
+                    <NumericInput id="movement-swim" min={0} value={edited().swimSpeed ?? 0} onChange={(v) => setEdited(prev => ({ ...prev, swimSpeed: v }))} class="text-center h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label for="movement-climb" class="text-xs">Climb</Label>
+                    <NumericInput id="movement-climb" min={0} value={edited().climbSpeed ?? 0} onChange={(v) => setEdited(prev => ({ ...prev, climbSpeed: v }))} class="text-center h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label for="movement-burrow" class="text-xs">Burrow</Label>
+                    <NumericInput id="movement-burrow" min={0} value={edited().burrowSpeed ?? 0} onChange={(v) => setEdited(prev => ({ ...prev, burrowSpeed: v }))} class="text-center h-8 text-sm" />
+                  </div>
+                </div>
+              </div>
             </Show>
           </div>
 

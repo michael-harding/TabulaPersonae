@@ -1,5 +1,6 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+import userEvent from "@testing-library/user-event"
+import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
 import { EquipmentInventoryModule } from "@/components/equipment-inventory-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
@@ -440,7 +441,8 @@ describe("EquipmentInventoryModule", () => {
       const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Staff", attuned: true })] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("1/")).toBeInTheDocument()
       expect(screen.getByText("attuned")).toBeInTheDocument()
-      expect(container.querySelector('[data-sem="calculated-value"]')).toHaveTextContent("3")
+      const magicItemsSection = container.querySelector('[data-sem="magic-items-section"]')
+      expect(magicItemsSection?.querySelector('[data-sem="calculated-value"]')).toHaveTextContent("3")
     })
 
     it("does not show an over-limit warning when at or below the attunement limit", () => {
@@ -608,6 +610,92 @@ describe("EquipmentInventoryModule", () => {
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("AC +1")).toBeInTheDocument()
       expect(screen.getByText("(inactive)")).toBeInTheDocument()
+    })
+  })
+
+  describe("Item modifier bonuses — Tier 2 fields", () => {
+    function setNumericValue(input: HTMLElement, value: string) {
+      fireEvent.input(input, { target: { value } })
+      fireEvent.blur(input)
+    }
+
+    it("submits senses, movement, carrying capacity, ability floors, and granted languages/proficiencies", async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add magic item/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Winged Boots" } })
+
+      fireEvent.click(within(modal).getByText(/additional grants/i))
+
+      setNumericValue(document.querySelector("#modifier-sense-darkvision")!, "60")
+      setNumericValue(document.querySelector("#modifier-fly-speed")!, "30")
+      setNumericValue(document.querySelector("#modifier-capacity-bonus")!, "20")
+      setNumericValue(document.querySelector("#modifier-floor-strength")!, "19")
+
+      // Damage resistance picker (fixed-vocabulary dropdown)
+      await user.click(within(modal).getByTitle("Add Damage Resistances"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Fire" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Fire" }))
+
+      // Languages granted (free-text add)
+      fireEvent.input(within(modal).getByPlaceholderText("Add language"), { target: { value: "Auran" } })
+      fireEvent.click(within(modal).getByRole("button", { name: "Languages Granted" }))
+
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Winged Boots",
+              modifiers: expect.objectContaining({
+                senses: { darkvision: 60 },
+                flySpeed: 30,
+                carryingCapacityBonus: 20,
+                abilityScoreFloors: { strength: 19 },
+                resistances: ["Fire"],
+                languages: ["Auran"],
+              }),
+            }),
+          ]),
+        })
+      )
+    })
+
+    it("shows Tier 2 tags in the Magic Items list summary", () => {
+      const item = makeMagicItem({
+        name: "Winged Boots",
+        equipped: true,
+        attuned: true,
+        modifiers: { flySpeed: 30, resistances: ["Fire"], senses: { darkvision: 60 } },
+      })
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
+      expect(screen.getByText("Resist: Fire")).toBeInTheDocument()
+      expect(screen.getByText("Darkvision +60 ft")).toBeInTheDocument()
+    })
+
+    it("pre-fills Tier 2 bonus inputs when editing an item with existing modifiers", () => {
+      const item = makeMagicItem({
+        name: "Boots of Striding",
+        modifiers: { speed: 10, abilityScoreFloors: { strength: 19 } },
+      })
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /edit boots of striding/i })[0])
+      fireEvent.click(screen.getByText(/additional grants/i))
+      expect((document.querySelector("#modifier-speed") as HTMLInputElement).value).toBe("10")
+      expect((document.querySelector("#modifier-floor-strength") as HTMLInputElement).value).toBe("19")
+    })
+  })
+
+  describe("Carrying Capacity", () => {
+    it("shows carrying capacity computed from STR score x 15", () => {
+      render(<EquipmentInventoryModule character={makeCharacter({ abilityScores: { ...createDefaultCharacter().abilityScores, strength: 16 } })} onUpdate={vi.fn()} />)
+      expect(screen.getByText(/carrying capacity/i)).toBeInTheDocument()
+      const value = document.querySelector('[data-sem="calculated-value"]')
+      expect(value).toHaveTextContent("240")
     })
   })
 

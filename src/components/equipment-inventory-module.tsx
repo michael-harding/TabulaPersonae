@@ -1,7 +1,18 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
-import type { AbilityScores, Character, Equipment, ItemModifiers, ItemRarity } from "@/lib/character-types"
+import type { AbilityScores, Character, Equipment, ItemModifiers, ItemRarity, SenseType } from "@/lib/character-types"
 import { saveCharacter } from "@/lib/character-storage"
-import { DAMAGE_TYPE_OPTIONS, BASE_ATTUNEMENT_LIMIT, remainingUses, spentFromRemaining, isItemModifierActive, formatModifier } from "@/lib/character-utils"
+import {
+  DAMAGE_TYPE_OPTIONS,
+  CONDITIONS,
+  SENSE_TYPES,
+  SENSE_LABELS,
+  BASE_ATTUNEMENT_LIMIT,
+  remainingUses,
+  spentFromRemaining,
+  isItemModifierActive,
+  formatModifier,
+  getEffectiveCarryingCapacity,
+} from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,6 +32,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Package from "lucide-solid/icons/package"
 import Plus from "lucide-solid/icons/plus"
 import Edit from "lucide-solid/icons/edit"
@@ -31,6 +44,8 @@ import Scale from "lucide-solid/icons/scale"
 import Gem from "lucide-solid/icons/gem"
 import Coins from "lucide-solid/icons/coins"
 import TriangleAlert from "lucide-solid/icons/triangle-alert"
+import ChevronDown from "lucide-solid/icons/chevron-down"
+import X from "lucide-solid/icons/x"
 import { useReadOnly } from "@/lib/read-only-context"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 
@@ -55,6 +70,9 @@ const ABILITY_LABELS: Record<keyof AbilityScores, string> = {
 }
 const zeroAbilityRecord = (): Record<keyof AbilityScores, number> => ({
   strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0,
+})
+const zeroSenseRecord = (): Record<SenseType, number> => ({
+  darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0,
 })
 
 interface EquipmentInventoryModuleProps {
@@ -93,6 +111,22 @@ interface EquipmentFormData {
   modifierInitiative: number
   modifierSavingThrows: Record<keyof AbilityScores, number>
   modifierAbilityScores: Record<keyof AbilityScores, number>
+  modifierResistances: string[]
+  modifierImmunities: string[]
+  modifierVulnerabilities: string[]
+  modifierConditionImmunities: string[]
+  modifierSenses: Record<SenseType, number>
+  modifierSpeed: number
+  modifierFlySpeed: number
+  modifierSwimSpeed: number
+  modifierClimbSpeed: number
+  modifierBurrowSpeed: number
+  modifierCarryingCapacityBonus: number
+  modifierCarryingCapacityMultiplier: number
+  modifierAbilityScoreFloors: Record<keyof AbilityScores, number>
+  modifierAbilityScoreMaxCaps: Record<keyof AbilityScores, number>
+  modifierLanguages: string[]
+  modifierProficiencies: string[]
 }
 
 const defaultEquipmentForm: EquipmentFormData = {
@@ -113,6 +147,22 @@ const defaultEquipmentForm: EquipmentFormData = {
   modifierInitiative: 0,
   modifierSavingThrows: zeroAbilityRecord(),
   modifierAbilityScores: zeroAbilityRecord(),
+  modifierResistances: [],
+  modifierImmunities: [],
+  modifierVulnerabilities: [],
+  modifierConditionImmunities: [],
+  modifierSenses: zeroSenseRecord(),
+  modifierSpeed: 0,
+  modifierFlySpeed: 0,
+  modifierSwimSpeed: 0,
+  modifierClimbSpeed: 0,
+  modifierBurrowSpeed: 0,
+  modifierCarryingCapacityBonus: 0,
+  modifierCarryingCapacityMultiplier: 0,
+  modifierAbilityScoreFloors: zeroAbilityRecord(),
+  modifierAbilityScoreMaxCaps: zeroAbilityRecord(),
+  modifierLanguages: [],
+  modifierProficiencies: [],
 }
 
 interface EquipmentFormProps {
@@ -120,6 +170,104 @@ interface EquipmentFormProps {
   onSubmit: (data: EquipmentFormData) => void
   onCancel: () => void
   editing: boolean
+}
+
+function TagPickerField(props: { label: string; options: string[]; selected: string[]; onChange: (next: string[]) => void }) {
+  const toggle = (tag: string) => {
+    props.onChange(
+      props.selected.includes(tag) ? props.selected.filter((t) => t !== tag) : [...props.selected, tag]
+    )
+  }
+  return (
+    <div>
+      <div class="flex items-center justify-between">
+        <Label class="text-xs">{props.label}</Label>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            as="button"
+            class="inline-flex items-center justify-center h-5 w-5 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+            title={`Add ${props.label}`}
+          >
+            <Plus class="h-3 w-3" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <For each={props.options}>
+              {(option) => (
+                <DropdownMenuItem
+                  onSelect={() => toggle(option)}
+                  class={props.selected.includes(option) ? "text-primary font-medium" : ""}
+                >
+                  {option}
+                  <Show when={props.selected.includes(option)}>
+                    <span class="ml-auto text-primary">✓</span>
+                  </Show>
+                </DropdownMenuItem>
+              )}
+            </For>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div class="flex flex-wrap gap-1 mt-1 min-h-[1.25rem]">
+        <Show when={props.selected.length > 0} fallback={<span class="text-xs text-muted-foreground italic">None</span>}>
+          <For each={props.selected}>
+            {(tag) => (
+              <button
+                type="button"
+                onClick={() => toggle(tag)}
+                class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                title="Click to remove"
+              >
+                {tag}
+                <X class="h-2.5 w-2.5" />
+              </button>
+            )}
+          </For>
+        </Show>
+      </div>
+    </div>
+  )
+}
+
+function StringListField(props: { label: string; placeholder: string; values: string[]; onChange: (next: string[]) => void }) {
+  const [newValue, setNewValue] = createSignal("")
+  const add = () => {
+    const trimmed = newValue().trim()
+    if (!trimmed || props.values.includes(trimmed)) return
+    props.onChange([...props.values, trimmed])
+    setNewValue("")
+  }
+  const remove = (value: string) => props.onChange(props.values.filter((v) => v !== value))
+  return (
+    <div>
+      <Label class="text-xs">{props.label}</Label>
+      <div class="flex flex-wrap gap-1 mt-1 mb-2">
+        <Show when={props.values.length > 0} fallback={<span class="text-xs text-muted-foreground italic">None</span>}>
+          <For each={props.values}>
+            {(value) => (
+              <Badge variant="outline" class="gap-1 text-xs">
+                {value}
+                <Button variant="ghost" size="sm" aria-label={`Remove ${value}`} class="h-auto p-0 hover:bg-transparent" onClick={() => remove(value)}>
+                  <X class="h-2.5 w-2.5" />
+                </Button>
+              </Badge>
+            )}
+          </For>
+        </Show>
+      </div>
+      <div class="flex gap-2">
+        <Input
+          placeholder={props.placeholder}
+          value={newValue()}
+          onInput={(e) => setNewValue(e.currentTarget.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          class="flex-1 h-8 text-xs"
+        />
+        <Button onClick={add} size="sm" aria-label={props.label} disabled={!newValue().trim()}>
+          <Plus class="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 const EQUIPMENT_TYPES: { value: EquipmentType; label: string }[] = [
@@ -147,6 +295,7 @@ const ARMOR_TYPE_OPTIONS: { value: "light" | "medium" | "heavy" | "shield"; labe
 function EquipmentForm(props: EquipmentFormProps) {
   const [formData, setFormData] = createSignal<EquipmentFormData>(props.initialData)
   createEffect(on(() => props.initialData, (init) => setFormData(init)))
+  const [showAdvancedGrants, setShowAdvancedGrants] = createSignal(false)
 
   const handleTypeChange = (type: string) => {
     setFormData((prev) => ({
@@ -421,6 +570,151 @@ function EquipmentForm(props: EquipmentFormProps) {
                 </For>
               </div>
             </div>
+
+            <Collapsible open={showAdvancedGrants()} onOpenChange={setShowAdvancedGrants}>
+              <CollapsibleTrigger class="flex w-full items-center justify-between text-xs font-medium text-muted-foreground pt-1">
+                <span>Additional Grants (resistances, senses, movement, etc.)</span>
+                <ChevronDown class="h-3.5 w-3.5" />
+              </CollapsibleTrigger>
+              <CollapsibleContent class="space-y-3 pt-2">
+                <div class="grid grid-cols-1 gap-3">
+                  <TagPickerField
+                    label="Damage Resistances"
+                    options={DAMAGE_TYPE_OPTIONS}
+                    selected={formData().modifierResistances}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierResistances: v }))}
+                  />
+                  <TagPickerField
+                    label="Damage Immunities"
+                    options={DAMAGE_TYPE_OPTIONS}
+                    selected={formData().modifierImmunities}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierImmunities: v }))}
+                  />
+                  <TagPickerField
+                    label="Damage Vulnerabilities"
+                    options={DAMAGE_TYPE_OPTIONS}
+                    selected={formData().modifierVulnerabilities}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierVulnerabilities: v }))}
+                  />
+                  <TagPickerField
+                    label="Condition Immunities"
+                    options={CONDITIONS}
+                    selected={formData().modifierConditionImmunities}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierConditionImmunities: v }))}
+                  />
+                </div>
+
+                <div>
+                  <Label class="text-xs">Senses Granted (ft)</Label>
+                  <div class="grid grid-cols-2 gap-2 mt-1">
+                    <For each={SENSE_TYPES}>
+                      {(sense) => (
+                        <div>
+                          <Label for={`modifier-sense-${sense}`} class="text-xs">{SENSE_LABELS[sense]}</Label>
+                          <NumericInput
+                            id={`modifier-sense-${sense}`}
+                            min={0}
+                            value={formData().modifierSenses[sense]}
+                            onChange={(v) => setFormData((prev) => ({ ...prev, modifierSenses: { ...prev.modifierSenses, [sense]: v } }))}
+                          />
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+
+                <div>
+                  <Label class="text-xs">Movement Granted (ft)</Label>
+                  <div class="grid grid-cols-3 gap-2 mt-1">
+                    <div>
+                      <Label for="modifier-speed" class="text-xs">Speed</Label>
+                      <NumericInput id="modifier-speed" value={formData().modifierSpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierSpeed: v }))} />
+                    </div>
+                    <div>
+                      <Label for="modifier-fly-speed" class="text-xs">Fly</Label>
+                      <NumericInput id="modifier-fly-speed" min={0} value={formData().modifierFlySpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierFlySpeed: v }))} />
+                    </div>
+                    <div>
+                      <Label for="modifier-swim-speed" class="text-xs">Swim</Label>
+                      <NumericInput id="modifier-swim-speed" min={0} value={formData().modifierSwimSpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierSwimSpeed: v }))} />
+                    </div>
+                    <div>
+                      <Label for="modifier-climb-speed" class="text-xs">Climb</Label>
+                      <NumericInput id="modifier-climb-speed" min={0} value={formData().modifierClimbSpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierClimbSpeed: v }))} />
+                    </div>
+                    <div>
+                      <Label for="modifier-burrow-speed" class="text-xs">Burrow</Label>
+                      <NumericInput id="modifier-burrow-speed" min={0} value={formData().modifierBurrowSpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierBurrowSpeed: v }))} />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label class="text-xs">Carrying Capacity</Label>
+                  <div class="grid grid-cols-2 gap-2 mt-1">
+                    <div>
+                      <Label for="modifier-capacity-bonus" class="text-xs">Bonus (lbs)</Label>
+                      <NumericInput id="modifier-capacity-bonus" value={formData().modifierCarryingCapacityBonus} onChange={(v) => setFormData((prev) => ({ ...prev, modifierCarryingCapacityBonus: v }))} />
+                    </div>
+                    <div>
+                      <Label for="modifier-capacity-multiplier" class="text-xs">Multiplier (0 = none)</Label>
+                      <NumericInput id="modifier-capacity-multiplier" min={0} step="0.5" value={formData().modifierCarryingCapacityMultiplier} onChange={(v) => setFormData((prev) => ({ ...prev, modifierCarryingCapacityMultiplier: v }))} parser={parseFloat} />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label class="text-xs">Ability Score Floors (sets score to at least this value)</Label>
+                  <div class="grid grid-cols-3 gap-2 mt-1">
+                    <For each={ABILITY_KEYS}>
+                      {(ability) => (
+                        <div>
+                          <Label for={`modifier-floor-${ability}`} class="text-xs">{ABILITY_LABELS[ability]}</Label>
+                          <NumericInput
+                            id={`modifier-floor-${ability}`}
+                            min={0}
+                            value={formData().modifierAbilityScoreFloors[ability]}
+                            onChange={(v) => setFormData((prev) => ({ ...prev, modifierAbilityScoreFloors: { ...prev.modifierAbilityScoreFloors, [ability]: v } }))}
+                          />
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+
+                <div>
+                  <Label class="text-xs">Ability Score Max Caps (informational)</Label>
+                  <div class="grid grid-cols-3 gap-2 mt-1">
+                    <For each={ABILITY_KEYS}>
+                      {(ability) => (
+                        <div>
+                          <Label for={`modifier-cap-${ability}`} class="text-xs">{ABILITY_LABELS[ability]}</Label>
+                          <NumericInput
+                            id={`modifier-cap-${ability}`}
+                            min={0}
+                            value={formData().modifierAbilityScoreMaxCaps[ability]}
+                            onChange={(v) => setFormData((prev) => ({ ...prev, modifierAbilityScoreMaxCaps: { ...prev.modifierAbilityScoreMaxCaps, [ability]: v } }))}
+                          />
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+
+                <StringListField
+                  label="Languages Granted"
+                  placeholder="Add language"
+                  values={formData().modifierLanguages}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierLanguages: v }))}
+                />
+                <StringListField
+                  label="Proficiencies Granted"
+                  placeholder="Add proficiency (weapons, tools, etc.)"
+                  values={formData().modifierProficiencies}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierProficiencies: v }))}
+                />
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </div>
       </Show>
@@ -496,6 +790,24 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   })
   const overAttunementLimit = () => attunedCount() > attunementLimitField.resolvedValue()
 
+  const carryingCapacityField = useCalculatedValue({
+    useCalculated: () => props.character.useCalculatedCarryingCapacity ?? true,
+    setUseCalculated: (v) => {
+      const updated = { ...props.character, useCalculatedCarryingCapacity: v }
+      props.onUpdate(updated)
+      saveCharacter(updated)
+    },
+    manualValue: () => props.character.carryingCapacity ?? getEffectiveCarryingCapacity(props.character),
+    setManualValue: (v) => {
+      const updated = { ...props.character, carryingCapacity: v }
+      props.onUpdate(updated)
+      saveCharacter(updated)
+    },
+    calculatedValue: () => getEffectiveCarryingCapacity(props.character),
+    calculatedTooltip: () => "STR score x 15, plus item bonuses/multipliers",
+  })
+  const overCarryingCapacity = () => totalWeight() > carryingCapacityField.resolvedValue()
+
   const filteredEquipment = () =>
     safeEquipment().filter(
       (item) =>
@@ -528,6 +840,22 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         modifierInitiative: item.modifiers?.initiative ?? 0,
         modifierSavingThrows: { ...zeroAbilityRecord(), ...item.modifiers?.savingThrows },
         modifierAbilityScores: { ...zeroAbilityRecord(), ...item.modifiers?.abilityScores },
+        modifierResistances: item.modifiers?.resistances ?? [],
+        modifierImmunities: item.modifiers?.immunities ?? [],
+        modifierVulnerabilities: item.modifiers?.vulnerabilities ?? [],
+        modifierConditionImmunities: item.modifiers?.conditionImmunities ?? [],
+        modifierSenses: { ...zeroSenseRecord(), ...item.modifiers?.senses },
+        modifierSpeed: item.modifiers?.speed ?? 0,
+        modifierFlySpeed: item.modifiers?.flySpeed ?? 0,
+        modifierSwimSpeed: item.modifiers?.swimSpeed ?? 0,
+        modifierClimbSpeed: item.modifiers?.climbSpeed ?? 0,
+        modifierBurrowSpeed: item.modifiers?.burrowSpeed ?? 0,
+        modifierCarryingCapacityBonus: item.modifiers?.carryingCapacityBonus ?? 0,
+        modifierCarryingCapacityMultiplier: item.modifiers?.carryingCapacityMultiplier ?? 0,
+        modifierAbilityScoreFloors: { ...zeroAbilityRecord(), ...item.modifiers?.abilityScoreFloors },
+        modifierAbilityScoreMaxCaps: { ...zeroAbilityRecord(), ...item.modifiers?.abilityScoreMaxCaps },
+        modifierLanguages: item.modifiers?.languages ?? [],
+        modifierProficiencies: item.modifiers?.proficiencies ?? [],
       }
     }
     return prefillMagic() ? { ...defaultEquipmentForm, magic: true } : defaultEquipmentForm
@@ -551,6 +879,38 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       ABILITY_KEYS.filter((a) => formData.modifierAbilityScores[a] !== 0).map((a) => [a, formData.modifierAbilityScores[a]])
     ) as Partial<Record<keyof AbilityScores, number>>
     if (Object.keys(abilityScores).length > 0) modifiers.abilityScores = abilityScores
+
+    if (formData.modifierResistances.length > 0) modifiers.resistances = formData.modifierResistances
+    if (formData.modifierImmunities.length > 0) modifiers.immunities = formData.modifierImmunities
+    if (formData.modifierVulnerabilities.length > 0) modifiers.vulnerabilities = formData.modifierVulnerabilities
+    if (formData.modifierConditionImmunities.length > 0) modifiers.conditionImmunities = formData.modifierConditionImmunities
+
+    const senses = Object.fromEntries(
+      SENSE_TYPES.filter((s) => formData.modifierSenses[s] !== 0).map((s) => [s, formData.modifierSenses[s]])
+    ) as Partial<Record<SenseType, number>>
+    if (Object.keys(senses).length > 0) modifiers.senses = senses
+
+    if (formData.modifierSpeed !== 0) modifiers.speed = formData.modifierSpeed
+    if (formData.modifierFlySpeed !== 0) modifiers.flySpeed = formData.modifierFlySpeed
+    if (formData.modifierSwimSpeed !== 0) modifiers.swimSpeed = formData.modifierSwimSpeed
+    if (formData.modifierClimbSpeed !== 0) modifiers.climbSpeed = formData.modifierClimbSpeed
+    if (formData.modifierBurrowSpeed !== 0) modifiers.burrowSpeed = formData.modifierBurrowSpeed
+
+    if (formData.modifierCarryingCapacityBonus !== 0) modifiers.carryingCapacityBonus = formData.modifierCarryingCapacityBonus
+    if (formData.modifierCarryingCapacityMultiplier !== 0) modifiers.carryingCapacityMultiplier = formData.modifierCarryingCapacityMultiplier
+
+    const abilityScoreFloors = Object.fromEntries(
+      ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreFloors[a] !== 0).map((a) => [a, formData.modifierAbilityScoreFloors[a]])
+    ) as Partial<Record<keyof AbilityScores, number>>
+    if (Object.keys(abilityScoreFloors).length > 0) modifiers.abilityScoreFloors = abilityScoreFloors
+    const abilityScoreMaxCaps = Object.fromEntries(
+      ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreMaxCaps[a] !== 0).map((a) => [a, formData.modifierAbilityScoreMaxCaps[a]])
+    ) as Partial<Record<keyof AbilityScores, number>>
+    if (Object.keys(abilityScoreMaxCaps).length > 0) modifiers.abilityScoreMaxCaps = abilityScoreMaxCaps
+
+    if (formData.modifierLanguages.length > 0) modifiers.languages = formData.modifierLanguages
+    if (formData.modifierProficiencies.length > 0) modifiers.proficiencies = formData.modifierProficiencies
+
     return Object.keys(modifiers).length > 0 ? modifiers : undefined
   }
 
@@ -675,6 +1035,23 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         </CardTitle>
       </CardHeader>
       <CardContent class="space-y-4">
+        {/* Carrying Capacity */}
+        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>Carrying Capacity: {totalWeight()} /</span>
+          <CalculatedValue
+            label="carrying capacity"
+            editable={!isReadOnly}
+            class="text-xs"
+            {...carryingCapacityField.binding()}
+          />
+          <span>lbs</span>
+          <Show when={overCarryingCapacity()}>
+            <Tooltip content="Over carrying capacity">
+              <TriangleAlert class="h-3.5 w-3.5 text-amber-500" aria-label="Over carrying capacity" />
+            </Tooltip>
+          </Show>
+        </div>
+
         {/* Coins */}
         <div>
           <h2 class="font-semibold mb-2 text-sm flex items-center gap-2">
@@ -786,6 +1163,54 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           <For each={Object.entries(item.modifiers?.abilityScores ?? {})}>
                             {([ability, bonus]) => <span>{ABILITY_LABELS[ability as keyof AbilityScores]} {formatModifier(bonus as number)}</span>}
                           </For>
+                          <For each={Object.entries(item.modifiers?.abilityScoreFloors ?? {})}>
+                            {([ability, floor]) => <span>{ABILITY_LABELS[ability as keyof AbilityScores]} floor {floor as number}</span>}
+                          </For>
+                          <For each={Object.entries(item.modifiers?.abilityScoreMaxCaps ?? {})}>
+                            {([ability, cap]) => <span>{ABILITY_LABELS[ability as keyof AbilityScores]} max {cap as number}</span>}
+                          </For>
+                          <Show when={(item.modifiers?.resistances?.length ?? 0) > 0}>
+                            <span>Resist: {item.modifiers!.resistances!.join(", ")}</span>
+                          </Show>
+                          <Show when={(item.modifiers?.immunities?.length ?? 0) > 0}>
+                            <span>Immune: {item.modifiers!.immunities!.join(", ")}</span>
+                          </Show>
+                          <Show when={(item.modifiers?.vulnerabilities?.length ?? 0) > 0}>
+                            <span>Vulnerable: {item.modifiers!.vulnerabilities!.join(", ")}</span>
+                          </Show>
+                          <Show when={(item.modifiers?.conditionImmunities?.length ?? 0) > 0}>
+                            <span>Condition Immune: {item.modifiers!.conditionImmunities!.join(", ")}</span>
+                          </Show>
+                          <For each={Object.entries(item.modifiers?.senses ?? {})}>
+                            {([sense, ft]) => <span>{SENSE_LABELS[sense as SenseType]} +{ft as number} ft</span>}
+                          </For>
+                          <Show when={item.modifiers?.speed}>
+                            <span>Speed {formatModifier(item.modifiers!.speed!)} ft</span>
+                          </Show>
+                          <Show when={item.modifiers?.flySpeed}>
+                            <span>Fly {item.modifiers!.flySpeed!} ft</span>
+                          </Show>
+                          <Show when={item.modifiers?.swimSpeed}>
+                            <span>Swim {item.modifiers!.swimSpeed!} ft</span>
+                          </Show>
+                          <Show when={item.modifiers?.climbSpeed}>
+                            <span>Climb {item.modifiers!.climbSpeed!} ft</span>
+                          </Show>
+                          <Show when={item.modifiers?.burrowSpeed}>
+                            <span>Burrow {item.modifiers!.burrowSpeed!} ft</span>
+                          </Show>
+                          <Show when={item.modifiers?.carryingCapacityBonus}>
+                            <span>Capacity {formatModifier(item.modifiers!.carryingCapacityBonus!)} lbs</span>
+                          </Show>
+                          <Show when={item.modifiers?.carryingCapacityMultiplier}>
+                            <span>Capacity x{item.modifiers!.carryingCapacityMultiplier!}</span>
+                          </Show>
+                          <Show when={(item.modifiers?.languages?.length ?? 0) > 0}>
+                            <span>Languages: {item.modifiers!.languages!.join(", ")}</span>
+                          </Show>
+                          <Show when={(item.modifiers?.proficiencies?.length ?? 0) > 0}>
+                            <span>Proficiencies: {item.modifiers!.proficiencies!.join(", ")}</span>
+                          </Show>
                           <Show when={!isItemModifierActive(item)}>
                             <span>(inactive)</span>
                           </Show>

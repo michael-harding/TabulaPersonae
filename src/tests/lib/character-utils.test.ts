@@ -18,6 +18,15 @@ import {
   getEquipmentModifierTotals,
   getEffectiveAbilityScore,
   getEffectiveAbilityScores,
+  getEffectiveSenses,
+  getEffectiveMovementSpeeds,
+  getEffectiveDamageResistances,
+  getEffectiveDamageImmunities,
+  getEffectiveDamageVulnerabilities,
+  getEffectiveConditionImmunities,
+  getEffectiveLanguages,
+  getEffectiveProficiencies,
+  getEffectiveCarryingCapacity,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type AbilityScores, type Equipment } from "@/lib/character-types"
 
@@ -463,8 +472,30 @@ describe("isItemModifierActive", () => {
 describe("getEquipmentModifierTotals", () => {
   it("returns all-zero totals for undefined or empty equipment", () => {
     const zero = { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0 }
-    expect(getEquipmentModifierTotals(undefined)).toEqual({ armorClass: 0, initiative: 0, savingThrows: zero, abilityScores: zero })
-    expect(getEquipmentModifierTotals([])).toEqual({ armorClass: 0, initiative: 0, savingThrows: zero, abilityScores: zero })
+    const zeroTotals = {
+      armorClass: 0,
+      initiative: 0,
+      savingThrows: zero,
+      abilityScores: zero,
+      resistances: [],
+      immunities: [],
+      vulnerabilities: [],
+      conditionImmunities: [],
+      senses: { darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0 },
+      speed: 0,
+      flySpeed: 0,
+      swimSpeed: 0,
+      climbSpeed: 0,
+      burrowSpeed: 0,
+      carryingCapacityBonus: 0,
+      carryingCapacityMultiplier: 1,
+      abilityScoreFloors: {},
+      abilityScoreMaxCaps: {},
+      languages: [],
+      proficiencies: [],
+    }
+    expect(getEquipmentModifierTotals(undefined)).toEqual(zeroTotals)
+    expect(getEquipmentModifierTotals([])).toEqual(zeroTotals)
   })
 
   it("sums modifiers across multiple active items", () => {
@@ -499,6 +530,52 @@ describe("getEquipmentModifierTotals", () => {
     expect(totals.savingThrows.wisdom).toBe(1)
     expect(totals.savingThrows.charisma).toBe(2)
     expect(totals.savingThrows.strength).toBe(0)
+  })
+
+  it("unions and dedupes resistances/immunities/vulnerabilities/conditionImmunities/languages/proficiencies across items", () => {
+    const equipment = [
+      makeMagicItem({ id: "a", modifiers: { resistances: ["Fire", "Cold"], immunities: ["Poison"], vulnerabilities: ["Radiant"], conditionImmunities: ["Poisoned"], languages: ["Elvish"], proficiencies: ["Longsword"] } }),
+      makeMagicItem({ id: "b", modifiers: { resistances: ["Fire", "Acid"], conditionImmunities: ["Poisoned", "Charmed"], languages: ["Elvish", "Dwarvish"] } }),
+    ]
+    const totals = getEquipmentModifierTotals(equipment)
+    expect(totals.resistances.sort()).toEqual(["Acid", "Cold", "Fire"])
+    expect(totals.immunities).toEqual(["Poison"])
+    expect(totals.vulnerabilities).toEqual(["Radiant"])
+    expect(totals.conditionImmunities.sort()).toEqual(["Charmed", "Poisoned"])
+    expect(totals.languages.sort()).toEqual(["Dwarvish", "Elvish"])
+    expect(totals.proficiencies).toEqual(["Longsword"])
+  })
+
+  it("sums senses and movement speeds across items", () => {
+    const equipment = [
+      makeMagicItem({ id: "a", modifiers: { senses: { darkvision: 60 }, flySpeed: 30, speed: 10 } }),
+      makeMagicItem({ id: "b", modifiers: { senses: { darkvision: 30, blindsight: 10 }, flySpeed: 10 } }),
+    ]
+    const totals = getEquipmentModifierTotals(equipment)
+    expect(totals.senses.darkvision).toBe(90)
+    expect(totals.senses.blindsight).toBe(10)
+    expect(totals.flySpeed).toBe(40)
+    expect(totals.speed).toBe(10)
+  })
+
+  it("sums carrying capacity bonus but takes the max multiplier", () => {
+    const equipment = [
+      makeMagicItem({ id: "a", modifiers: { carryingCapacityBonus: 20, carryingCapacityMultiplier: 2 } }),
+      makeMagicItem({ id: "b", modifiers: { carryingCapacityBonus: 10, carryingCapacityMultiplier: 1.5 } }),
+    ]
+    const totals = getEquipmentModifierTotals(equipment)
+    expect(totals.carryingCapacityBonus).toBe(30)
+    expect(totals.carryingCapacityMultiplier).toBe(2)
+  })
+
+  it("takes the max ability score floor and max cap per ability across items", () => {
+    const equipment = [
+      makeMagicItem({ id: "a", modifiers: { abilityScoreFloors: { strength: 19 }, abilityScoreMaxCaps: { strength: 22 } } }),
+      makeMagicItem({ id: "b", modifiers: { abilityScoreFloors: { strength: 21 }, abilityScoreMaxCaps: { strength: 24 } } }),
+    ]
+    const totals = getEquipmentModifierTotals(equipment)
+    expect(totals.abilityScoreFloors.strength).toBe(21)
+    expect(totals.abilityScoreMaxCaps.strength).toBe(24)
   })
 })
 
@@ -546,6 +623,97 @@ describe("getEffectiveAbilityScore / getEffectiveAbilityScores", () => {
     expect(scores.strength).toBe(18)
     expect(scores.wisdom).toBe(11)
     expect(scores.dexterity).toBe(14)
+  })
+
+  it("raises the score to an active item's floor when base + bonus is lower", () => {
+    const character = { abilityScores: baseScores, equipment: [makeMagicItem({ modifiers: { abilityScoreFloors: { strength: 19 } } })] }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(19)
+  })
+
+  it("does not lower the score when it already exceeds the floor", () => {
+    const character = { abilityScores: baseScores, equipment: [makeMagicItem({ modifiers: { abilityScoreFloors: { strength: 10 } } })] }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(16)
+  })
+})
+
+describe("getEffectiveSenses", () => {
+  it("sums base senses with active item bonuses", () => {
+    const character = { senses: { darkvision: 30 }, equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 60 } } })] }
+    expect(getEffectiveSenses(character).darkvision).toBe(90)
+    expect(getEffectiveSenses(character).blindsight).toBe(0)
+  })
+
+  it("defaults to 0 with no base senses or equipment", () => {
+    const character = { senses: undefined, equipment: [] }
+    expect(getEffectiveSenses(character)).toEqual({ darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0 })
+  })
+})
+
+describe("getEffectiveMovementSpeeds", () => {
+  it("combines base movement with active item grants", () => {
+    const character = { speed: 30, flySpeed: 0, swimSpeed: 0, climbSpeed: 0, burrowSpeed: 0, equipment: [makeMagicItem({ modifiers: { flySpeed: 30, speed: 10 } })] }
+    const speeds = getEffectiveMovementSpeeds(character)
+    expect(speeds.walk).toBe(40)
+    expect(speeds.fly).toBe(30)
+    expect(speeds.swim).toBe(0)
+  })
+
+  it("defaults walk speed to 30 when unset", () => {
+    const character = { equipment: [] } as unknown as Parameters<typeof getEffectiveMovementSpeeds>[0]
+    expect(getEffectiveMovementSpeeds(character).walk).toBe(30)
+  })
+})
+
+describe("getEffectiveDamageResistances / Immunities / Vulnerabilities", () => {
+  it("merges the character's own list with active item grants, deduped", () => {
+    const character = {
+      damageResistances: ["Fire"],
+      damageImmunities: [],
+      damageVulnerabilities: [],
+      equipment: [makeMagicItem({ modifiers: { resistances: ["Fire", "Cold"], immunities: ["Poison"], vulnerabilities: ["Radiant"] } })],
+    }
+    expect(getEffectiveDamageResistances(character).sort()).toEqual(["Cold", "Fire"])
+    expect(getEffectiveDamageImmunities(character)).toEqual(["Poison"])
+    expect(getEffectiveDamageVulnerabilities(character)).toEqual(["Radiant"])
+  })
+})
+
+describe("getEffectiveConditionImmunities", () => {
+  it("merges the character's own list with active item grants, deduped", () => {
+    const character = { conditionImmunities: ["Poisoned"], equipment: [makeMagicItem({ modifiers: { conditionImmunities: ["Poisoned", "Charmed"] } })] }
+    expect(getEffectiveConditionImmunities(character).sort()).toEqual(["Charmed", "Poisoned"])
+  })
+})
+
+describe("getEffectiveLanguages / getEffectiveProficiencies", () => {
+  it("splits into own vs item-granted, excluding overlaps from granted", () => {
+    const character = {
+      languages: ["Common", "Elvish"],
+      otherProficiencies: ["Longsword"],
+      equipment: [makeMagicItem({ modifiers: { languages: ["Elvish", "Dwarvish"], proficiencies: ["Longsword", "Herbalism Kit"] } })],
+    }
+    const languages = getEffectiveLanguages(character)
+    expect(languages.own).toEqual(["Common", "Elvish"])
+    expect(languages.granted).toEqual(["Dwarvish"])
+
+    const proficiencies = getEffectiveProficiencies(character)
+    expect(proficiencies.own).toEqual(["Longsword"])
+    expect(proficiencies.granted).toEqual(["Herbalism Kit"])
+  })
+})
+
+describe("getEffectiveCarryingCapacity", () => {
+  it("computes STR score x 15 with no equipment", () => {
+    const character = { abilityScores: baseScores, equipment: [] }
+    expect(getEffectiveCarryingCapacity(character)).toBe(16 * 15)
+  })
+
+  it("adds item bonus and applies the multiplier", () => {
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { carryingCapacityBonus: 20, carryingCapacityMultiplier: 2 } })],
+    }
+    expect(getEffectiveCarryingCapacity(character)).toBe((16 * 15 + 20) * 2)
   })
 })
 

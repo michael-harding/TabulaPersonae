@@ -517,6 +517,61 @@ describe("CombatStatsModule", () => {
     })
   })
 
+  describe("Condition Immunities", () => {
+    it("adds a condition immunity when selected from the dropdown", async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      await user.click(screen.getByTitle("Add condition immunity"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Poisoned" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Poisoned" }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ conditionImmunities: expect.arrayContaining(["Poisoned"]) })
+      )
+    })
+
+    it("shows an item-granted condition immunity as non-removable", () => {
+      const item = makeMagicItem({ modifiers: { conditionImmunities: ["Charmed"] } })
+      const { container } = render(<CombatStatsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Charmed")).toBeInTheDocument()
+      expect(container.querySelector('[data-test="remove-condition-immunity-Charmed"]')).not.toBeInTheDocument()
+    })
+
+    it("shows an own condition immunity as removable", () => {
+      const onUpdate = vi.fn()
+      const { container } = render(<CombatStatsModule character={makeCharacter({ conditionImmunities: ["Poisoned"] })} onUpdate={onUpdate} />)
+      fireEvent.click(container.querySelector('[data-test="remove-condition-immunity-Poisoned"]')!)
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ conditionImmunities: [] })
+      )
+    })
+  })
+
+  describe("Movement modes", () => {
+    it("shows fly/swim/climb/burrow speeds only when nonzero", () => {
+      render(<CombatStatsModule character={makeCharacter({ flySpeed: 30, swimSpeed: 0 })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
+      expect(screen.queryByText(/Swim/)).not.toBeInTheDocument()
+    })
+
+    it("adds an equipped item's fly speed bonus to the displayed fly speed", () => {
+      const item = makeMagicItem({ modifiers: { flySpeed: 30 } })
+      render(<CombatStatsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
+    })
+
+    it("edits fly/swim/climb/burrow speeds in edit mode", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+      const flyInput = screen.getByLabelText("Fly")
+      fireEvent.input(flyInput, { target: { value: "30" } })
+      fireEvent.blur(flyInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ flySpeed: 30 }))
+    })
+  })
+
   describe("temporary maximum HP", () => {
     it("adds temporaryMaximum to the displayed max HP", () => {
       render(
