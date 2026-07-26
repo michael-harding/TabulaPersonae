@@ -119,6 +119,62 @@ describe("HeaderMenu navigation", () => {
   })
 })
 
+describe("HeaderMenu import reconciliation", () => {
+  // armorClass: 15 doesn't match a default character's calculated AC, so a successful
+  // reconcile flips useCalculatedArmorClass to false — a clear signal reconciliation ran,
+  // as opposed to the raw imported data being passed straight through.
+  async function openImportModal() {
+    const user = await openMenu()
+    await waitFor(() => screen.getByText("Import Character"))
+    await user.click(screen.getByText("Import Character"))
+    await waitFor(() => screen.getByRole("dialog"))
+    return user
+  }
+
+  it("reconciles a single-character JSON import before calling onImportCharacter", async () => {
+    const user = await openImportModal()
+    const raw = { ...createDefaultCharacter(), id: "c1", armorClass: 15 }
+    const file = new File([JSON.stringify(raw)], "char.json", { type: "application/json" })
+    const input = screen.getByLabelText(/Choose JSON File/i)
+    await user.upload(input, file)
+    await waitFor(() => expect(defaultProps.onImportCharacter).toHaveBeenCalled())
+    const imported = defaultProps.onImportCharacter.mock.calls[0][0]
+    expect(imported.useCalculatedArmorClass).toBe(false)
+    expect(imported.armorClass).toBe(15)
+  })
+
+  it("reconciles each character in a multi-character JSON import before calling onImportMultiple", async () => {
+    const user = await openImportModal()
+    const raw = [
+      { ...createDefaultCharacter(), id: "c1", armorClass: 15 },
+      { ...createDefaultCharacter(), id: "c2", armorClass: 15 },
+    ]
+    const file = new File([JSON.stringify(raw)], "chars.json", { type: "application/json" })
+    const input = screen.getByLabelText(/Choose JSON File/i)
+    await user.upload(input, file)
+    await waitFor(() => expect(defaultProps.onImportMultiple).toHaveBeenCalled())
+    const imported = defaultProps.onImportMultiple.mock.calls[0][0]
+    expect(imported).toHaveLength(2)
+    expect(imported[0].useCalculatedArmorClass).toBe(false)
+    expect(imported[1].useCalculatedArmorClass).toBe(false)
+  })
+
+  it("reconciles a PDF import before calling onImportCharacter", async () => {
+    const { parsePdfCharacterSheet, mergeWithDefault } = await import("@/lib/pdf-parser")
+    vi.mocked(parsePdfCharacterSheet).mockResolvedValueOnce({} as any)
+    vi.mocked(mergeWithDefault).mockReturnValueOnce({ ...createDefaultCharacter(), armorClass: 15 })
+
+    const user = await openImportModal()
+    const file = new File(["x"], "sheet.pdf", { type: "application/pdf" })
+    const input = screen.getByLabelText(/Choose PDF File/i)
+    await user.upload(input, file)
+    await waitFor(() => expect(defaultProps.onImportCharacter).toHaveBeenCalled())
+    const imported = defaultProps.onImportCharacter.mock.calls[0][0]
+    expect(imported.useCalculatedArmorClass).toBe(false)
+    expect(imported.armorClass).toBe(15)
+  })
+})
+
 describe("HeaderMenu accessibility", () => {
   it("has no accessibility violations", async () => {
     const { container } = render(<HeaderMenu {...defaultProps} />)

@@ -748,6 +748,56 @@ describe("EquipmentInventoryModule", () => {
       )
     })
 
+    it("sets rechargeOn on the created item when Max Charges > 0 and a recharge option is selected", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      setNumericValue(document.querySelector("#item-max-uses")!, "3")
+      // The Recharge On select's trigger has no accessible name (its placeholder text
+      // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
+      const rechargeSection = within(modal).getByText("Recharge On").closest("div")!
+      fireEvent.click(within(rechargeSection).getByRole("button"))
+      fireEvent.click(screen.getByRole("option", { name: "Long Rest" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Wand of Magic Missiles", maxUses: 3, rechargeOn: "long-rest" }),
+          ]),
+        })
+      )
+    })
+
+    // Regression: rechargeOn lives in form state independently of maxUses. The Recharge On
+    // select is only shown while Max Charges > 0, but resetting Max Charges back to 0
+    // doesn't clear a previously-picked rechargeOn — the save logic must strip it.
+    it("clears rechargeOn on save when Max Charges is reset to 0 after a recharge option was selected", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      setNumericValue(document.querySelector("#item-max-uses")!, "3")
+      // The Recharge On select's trigger has no accessible name (its placeholder text
+      // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
+      const rechargeSection = within(modal).getByText("Recharge On").closest("div")!
+      fireEvent.click(within(rechargeSection).getByRole("button"))
+      fireEvent.click(screen.getByRole("option", { name: "Long Rest" }))
+      setNumericValue(document.querySelector("#item-max-uses")!, "0")
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Wand of Magic Missiles", maxUses: undefined, rechargeOn: undefined }),
+          ]),
+        })
+      )
+    })
+
     it("pre-fills bonus inputs when editing an item with existing modifiers", () => {
       const item = makeMagicItem({
         name: "Cloak of Protection",
