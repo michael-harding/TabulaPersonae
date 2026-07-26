@@ -7,7 +7,7 @@ type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & { class?: string
 
 export function Checkbox(props: CheckboxProps) {
   const [local, rest] = splitProps(props, ["class", "label"])
-  const [inputAttrs, others] = splitProps(rest, ["title", "aria-label"])
+  const [inputAttrs, others] = splitProps(rest, ["id", "title", "aria-label"])
   return (
     <CheckboxPrimitive data-sem="checkbox" class={local.label ? "inline-flex items-center gap-1.5" : undefined} {...others}>
       <CheckboxPrimitive.Input {...inputAttrs} />
