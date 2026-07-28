@@ -4,7 +4,6 @@ import type { Character, Spell, Equipment } from "@/lib/character-types"
 
 const EMPTY_SPELLS: Spell[] = []
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier, isItemModifierActive } from "@/lib/character-utils"
-import { saveCharacter } from "@/lib/character-storage"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -349,7 +348,6 @@ export function SpellsModule(props: SpellsModuleProps) {
     }
     const updated = { ...props.character, spells: [...safeSpells(), newSpell] }
     props.onUpdate(updated)
-    saveCharacter(updated)
     setIsAddModalOpen(false)
   }
 
@@ -380,7 +378,6 @@ export function SpellsModule(props: SpellsModuleProps) {
     }
     const updated = { ...props.character, spells: safeSpells().map((s) => (s.id === spell.id ? updatedSpell : s)) }
     props.onUpdate(updated)
-    saveCharacter(updated)
     setEditingSpell(null)
   }
 
@@ -388,7 +385,6 @@ export function SpellsModule(props: SpellsModuleProps) {
     if (isReadOnly) return
     const updated = { ...props.character, spells: safeSpells().filter((spell) => spell.id !== spellId) }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const togglePrepared = (spellId: string) => {
@@ -398,7 +394,6 @@ export function SpellsModule(props: SpellsModuleProps) {
       spells: safeSpells().map((spell) => (spell.id === spellId ? { ...spell, prepared: !spell.prepared } : spell)),
     }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const toggleKnown = (spellId: string) => {
@@ -412,7 +407,6 @@ export function SpellsModule(props: SpellsModuleProps) {
       ),
     }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const editSpellData = (): SpellFormData => {
@@ -476,7 +470,6 @@ export function SpellsModule(props: SpellsModuleProps) {
                     onInput={(e) => {
                       const updated = { ...props.character, spellcastingClass: e.currentTarget.value }
                       props.onUpdate(updated)
-                      saveCharacter(updated)
                     }}
                     placeholder="e.g. Wizard"
                   />

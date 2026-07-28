@@ -209,7 +209,7 @@ const FEATURE_SOURCE_LABELS: Record<string, string> = {
 function spellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
   const slotKey = spell.level as keyof Character['spellSlots']
   const slots = () => getSpellSlots()[slotKey]
-  const canCast = () => spell.level > 0 && !!slots() && slots().used < slots().total
+  const canCast = () => spell.level > 0 && (!!spell.freeCast || (!!slots() && slots().used < slots().total))
   const upcastLevels = () => ([2,3,4,5,6,7,8,9] as const)
     .filter(l => l > spell.level)
     .filter(l => { const s = getSpellSlots()[l]; return s && s.total > 0 && s.used < s.total })
@@ -502,7 +502,7 @@ export function ActionsModule(props: ActionsModuleProps) {
         description={spell.description}
         spellId={spell.id}
         castable={canCast}
-        onCast={spell.level > 0 ? () => castSpell(spell.level) : undefined}
+        onCast={spell.level > 0 ? (spell.freeCast ? () => {} : () => castSpell(spell.level)) : undefined}
         upcastLevels={upcastLevels}
         onCastAtLevel={(level: number) => { castSpell(level); setUpcastSpellId(null) }}
         hasHigherSlots={hasHigherSlots}

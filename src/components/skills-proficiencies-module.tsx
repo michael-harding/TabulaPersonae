@@ -1,6 +1,6 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getEffectiveSenses, SENSE_TYPES, SENSE_LABELS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, SENSE_TYPES, SENSE_LABELS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -124,14 +124,11 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   const modifierTotals = createMemo(() => getEquipmentModifierTotals(current().equipment))
   const effectiveSenses = createMemo(() => getEffectiveSenses(current()))
 
-  const ownDamageResistances = () => current().damageResistances ?? []
-  const grantedDamageResistances = () => modifierTotals().resistances.filter((r) => !ownDamageResistances().includes(r))
-  const ownDamageImmunities = () => current().damageImmunities ?? []
-  const grantedDamageImmunities = () => modifierTotals().immunities.filter((r) => !ownDamageImmunities().includes(r))
-  const ownDamageVulnerabilities = () => current().damageVulnerabilities ?? []
-  const grantedDamageVulnerabilities = () => modifierTotals().vulnerabilities.filter((r) => !ownDamageVulnerabilities().includes(r))
-  const grantedLanguages = () => modifierTotals().languages.filter((l) => !(current().languages ?? []).includes(l))
-  const grantedProficiencies = () => modifierTotals().proficiencies.filter((p) => !(current().otherProficiencies ?? []).includes(p))
+  const effectiveDamageResistances = createMemo(() => getEffectiveDamageResistances(current()))
+  const effectiveDamageImmunities = createMemo(() => getEffectiveDamageImmunities(current()))
+  const effectiveDamageVulnerabilities = createMemo(() => getEffectiveDamageVulnerabilities(current()))
+  const effectiveLanguages = createMemo(() => getEffectiveLanguages(current()))
+  const effectiveProficiencies = createMemo(() => getEffectiveProficiencies(current()))
 
   const makePassiveStat = (
     skillKey: SkillKey,
@@ -416,8 +413,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             itemLabel="resistance"
             placeholder="Add resistance (e.g. Fire)"
             emptyText="No resistances"
-            ownValues={ownDamageResistances()}
-            grantedValues={grantedDamageResistances()}
+            ownValues={effectiveDamageResistances().own}
+            grantedValues={effectiveDamageResistances().granted}
             editing={isEditing()}
             onAdd={(v) => addTag("damageResistances", v)}
             onRemove={(v) => removeTag("damageResistances", v)}
@@ -427,8 +424,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             itemLabel="immunity"
             placeholder="Add immunity (e.g. Poison)"
             emptyText="No immunities"
-            ownValues={ownDamageImmunities()}
-            grantedValues={grantedDamageImmunities()}
+            ownValues={effectiveDamageImmunities().own}
+            grantedValues={effectiveDamageImmunities().granted}
             editing={isEditing()}
             onAdd={(v) => addTag("damageImmunities", v)}
             onRemove={(v) => removeTag("damageImmunities", v)}
@@ -438,8 +435,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             itemLabel="vulnerability"
             placeholder="Add vulnerability (e.g. Cold)"
             emptyText="No vulnerabilities"
-            ownValues={ownDamageVulnerabilities()}
-            grantedValues={grantedDamageVulnerabilities()}
+            ownValues={effectiveDamageVulnerabilities().own}
+            grantedValues={effectiveDamageVulnerabilities().granted}
             editing={isEditing()}
             onAdd={(v) => addTag("damageVulnerabilities", v)}
             onRemove={(v) => removeTag("damageVulnerabilities", v)}
@@ -453,8 +450,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
           label="Languages"
           itemLabel="language"
           placeholder="Add language"
-          ownValues={current().languages ?? []}
-          grantedValues={grantedLanguages()}
+          ownValues={effectiveLanguages().own}
+          grantedValues={effectiveLanguages().granted}
           editing={isEditing()}
           onAdd={(v) => addTag("languages", v)}
           onRemove={(v) => removeTag("languages", v)}
@@ -468,8 +465,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
           itemLabel="proficiency"
           placeholder="Add proficiency (weapons, tools, etc.)"
           emptyText="No additional proficiencies"
-          ownValues={current().otherProficiencies ?? []}
-          grantedValues={grantedProficiencies()}
+          ownValues={effectiveProficiencies().own}
+          grantedValues={effectiveProficiencies().granted}
           editing={isEditing()}
           onAdd={(v) => addTag("otherProficiencies", v)}
           onRemove={(v) => removeTag("otherProficiencies", v)}

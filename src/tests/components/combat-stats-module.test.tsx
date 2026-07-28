@@ -5,10 +5,6 @@ import { CombatStatsModule } from "@/components/combat-stats-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-vi.mock("@/lib/character-storage", () => ({
-  saveCharacter: vi.fn(),
-}))
-
 function makeCharacter(overrides: Record<string, any> = {}) {
   return {
     ...createDefaultCharacter(),

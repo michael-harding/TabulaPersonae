@@ -1,6 +1,6 @@
-import { createSignal, createEffect, on, For, Show } from "solid-js"
+import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, formatModifier, getSavingThrowModifier, getEquipmentModifierTotals } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, getSavingThrowModifier, getEquipmentModifierTotals, getCalculatedAbilityScore, ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -17,11 +17,6 @@ interface AbilityScoresModuleProps {
 const ABILITY_NAMES = {
   strength: "Strength", dexterity: "Dexterity", constitution: "Constitution",
   intelligence: "Intelligence", wisdom: "Wisdom", charisma: "Charisma",
-} as const
-
-const ABILITY_ABBREVIATIONS = {
-  strength: "STR", dexterity: "DEX", constitution: "CON",
-  intelligence: "INT", wisdom: "WIS", charisma: "CHA",
 } as const
 
 const DEFAULT_SCORES = { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 }
@@ -41,7 +36,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
   const [editedAbilityOverrides, setEditedAbilityOverrides] = createSignal(safeAbilityOverrides())
   const [editedUseCalculatedAbility, setEditedUseCalculatedAbility] = createSignal(safeUseCalculatedAbility())
 
-  const modifierTotals = () => getEquipmentModifierTotals(props.character.equipment)
+  const modifierTotals = createMemo(() => getEquipmentModifierTotals(props.character.equipment))
 
   createEffect(on(() => props.character.id, () => {
     setEditedScores(safeScores())
@@ -91,7 +86,8 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
               const itemBonus = () => modifierTotals().abilityScores[ability]
               const floor = () => modifierTotals().abilityScoreFloors[ability]
               const saveItemBonus = () => modifierTotals().savingThrows[ability]
-              const abilityCalculated = () => Math.max(score() + itemBonus(), floor() ?? -Infinity)
+              const abilityCalculated = () =>
+                getCalculatedAbilityScore({ ...props.character, abilityScores: { ...safeScores(), [ability]: score() } }, ability)
 
               const abilityField = useCalculatedValue({
                 useCalculated: () =>

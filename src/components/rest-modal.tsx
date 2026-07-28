@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, parseHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp } from "@/lib/character-utils"
+import { getAbilityModifier, getEffectiveAbilityScore, parseHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -25,7 +25,7 @@ export function RestModal(props: RestModalProps) {
   const totalHitDice = () => props.character.level ?? 1
   const spentHitDice = () => props.character.spentHitDice ?? 0
   const availableHitDice = () => totalHitDice() - spentHitDice()
-  const conMod = () => getAbilityModifier(props.character.abilityScores?.constitution ?? 10)
+  const conMod = () => getAbilityModifier(getEffectiveAbilityScore(props.character, "constitution"))
 
   const resetMatching = <T extends { rechargeOn?: string }>(actions: T[], ...types: string[]): T[] =>
     actions.map((a) => (a.rechargeOn && types.includes(a.rechargeOn) ? { ...a, uses: 0 } : a))

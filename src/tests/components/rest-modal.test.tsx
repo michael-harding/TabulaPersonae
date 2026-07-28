@@ -174,6 +174,21 @@ describe("RestModal", () => {
       expect(updated.hitPoints.current).toBeGreaterThan(80)
       expect(updated.hitPoints.current).toBeLessThanOrEqual(90)
     })
+
+    // Regression: hit-dice healing computed CON modifier from the raw base ability score,
+    // ignoring equipment-granted CON bonuses that every other stat in this branch respects
+    // via getEffectiveAbilityScore.
+    it("uses the equipment-boosted CON modifier (not raw base) for the per-die healing hint", () => {
+      const char = makeCharacter({
+        level: 10, // available hit dice > 5, so the stepper (not pip tracker) renders
+        abilityScores: { ...createDefaultCharacter().abilityScores, constitution: 10 }, // +0 base mod
+        equipment: [makeEquipmentItem({ modifiers: { abilityScores: { constitution: 4 } } })], // effective 14 -> +2 mod
+      })
+      openModal(char)
+      const increaseBtn = within(getDialog()).getByRole("button", { name: /increase/i })
+      fireEvent.click(increaseBtn) // spend 1 die
+      expect(within(getDialog()).getByText(/\+2 per die/i)).toBeInTheDocument()
+    })
   })
 
   describe("long rest", () => {

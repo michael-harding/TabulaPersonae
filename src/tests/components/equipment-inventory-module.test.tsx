@@ -6,8 +6,6 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-vi.mock("@/lib/character-storage", () => ({ saveCharacter: vi.fn() }))
-
 function makeItem(overrides: Partial<Equipment> = {}): Equipment {
   return {
     id: "item-1",
@@ -212,8 +210,7 @@ describe("EquipmentInventoryModule", () => {
   })
 
   describe("quantity adjustment", () => {
-    it("calls onUpdate and saveCharacter with quantity + 1 when + is clicked", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate with quantity + 1 when + is clicked", () => {
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule
@@ -227,11 +224,9 @@ describe("EquipmentInventoryModule", () => {
           equipment: expect.arrayContaining([expect.objectContaining({ quantity: 3 })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
-    it("calls onUpdate and saveCharacter with quantity - 1 when - is clicked (qty > 1)", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate with quantity - 1 when - is clicked (qty > 1)", () => {
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule
@@ -245,7 +240,6 @@ describe("EquipmentInventoryModule", () => {
           equipment: expect.arrayContaining([expect.objectContaining({ quantity: 2 })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
     it("the - button is disabled when quantity is 1", () => {
@@ -260,8 +254,7 @@ describe("EquipmentInventoryModule", () => {
   })
 
   describe("toggle equipped", () => {
-    it("calls onUpdate and saveCharacter with toggled equipped state", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate with toggled equipped state", () => {
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule
@@ -275,7 +268,6 @@ describe("EquipmentInventoryModule", () => {
           equipment: expect.arrayContaining([expect.objectContaining({ equipped: true })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
     // Regression: this checkbox+name pair used to be wrapped in a single native <label>. A real
@@ -327,8 +319,7 @@ describe("EquipmentInventoryModule", () => {
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
-    it("calls onUpdate and saveCharacter with the new item on valid submit", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate with the new item on valid submit", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
@@ -340,7 +331,6 @@ describe("EquipmentInventoryModule", () => {
           equipment: expect.arrayContaining([expect.objectContaining({ name: "Shield" })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
     it("sets type to 'other' for new items added via modal", () => {
@@ -381,8 +371,7 @@ describe("EquipmentInventoryModule", () => {
       expect(screen.getByLabelText(/item name/i)).toHaveValue("Torch")
     })
 
-    it("calls onUpdate with updated item data on save", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate with updated item data on save", () => {
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule
@@ -399,7 +388,6 @@ describe("EquipmentInventoryModule", () => {
           equipment: expect.arrayContaining([expect.objectContaining({ name: "Lantern" })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
     // Regression: the "This is a Magic Item" checkbox's <label for> was pointed at a
@@ -430,8 +418,7 @@ describe("EquipmentInventoryModule", () => {
   })
 
   describe("Delete item", () => {
-    it("calls onUpdate and saveCharacter with item removed when delete is clicked", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate with item removed when delete is clicked", () => {
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule
@@ -443,7 +430,6 @@ describe("EquipmentInventoryModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ equipment: [] })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 
@@ -466,8 +452,7 @@ describe("EquipmentInventoryModule", () => {
       })
     })
 
-    it("calls onUpdate with updated GP when GP field changes", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate with updated GP when GP field changes", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       const spinbuttons = screen.getAllByRole("spinbutton")
@@ -477,7 +462,6 @@ describe("EquipmentInventoryModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ coins: expect.objectContaining({ gp: 50 }) })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 
@@ -571,13 +555,11 @@ describe("EquipmentInventoryModule", () => {
       expect(screen.getByLabelText(/over attunement limit/i)).toBeInTheDocument()
     })
 
-    it("calls onUpdate and saveCharacter when deleting a magic item", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate when deleting a magic item", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring" })] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /delete ring/i })[0])
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ equipment: [] }))
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
     it("creates a magic item via the general Add Item button by checking 'This is a Magic Item'", () => {
@@ -595,8 +577,7 @@ describe("EquipmentInventoryModule", () => {
       )
     })
 
-    it("toggles attunement from the Magic Items list", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("toggles attunement from the Magic Items list", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", attuned: false })] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByTitle("Toggle attuned"))
@@ -605,14 +586,12 @@ describe("EquipmentInventoryModule", () => {
           equipment: expect.arrayContaining([expect.objectContaining({ attuned: true })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
     // Magic items also appear in the general equipment list below, which already has its own
     // "Toggle equipped" checkbox — this covers the same toggle now offered directly in the
     // Magic Items list itself, so items don't need to be found twice to be equipped.
-    it("allows equipping a magic item directly from the Magic Items list", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("allows equipping a magic item directly from the Magic Items list", () => {
       const onUpdate = vi.fn()
       const { container } = render(
         <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", equipped: false })] })} onUpdate={onUpdate} />
@@ -624,7 +603,6 @@ describe("EquipmentInventoryModule", () => {
           equipment: expect.arrayContaining([expect.objectContaining({ equipped: true })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
     it("also toggles equipped when a magic item's name is clicked in the Magic Items list", () => {
@@ -675,8 +653,7 @@ describe("EquipmentInventoryModule", () => {
       expect(results.violations).toHaveLength(0)
     })
 
-    it("shows charge pips and spends a charge when clicked", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("shows charge pips and spends a charge when clicked", () => {
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule
@@ -690,7 +667,6 @@ describe("EquipmentInventoryModule", () => {
           equipment: expect.arrayContaining([expect.objectContaining({ uses: 1 })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 
@@ -794,6 +770,43 @@ describe("EquipmentInventoryModule", () => {
           equipment: expect.arrayContaining([
             expect.objectContaining({ name: "Wand of Magic Missiles", maxUses: undefined, rechargeOn: undefined }),
           ]),
+        })
+      )
+    })
+
+    // Regression: editing Max Charges on an item that already has spent charges used to
+    // hard-reset `uses` to 0 regardless of direction, silently "recharging" the item as a
+    // side effect of an unrelated edit (e.g. correcting the max). It must clamp instead.
+    it("clamps uses (not reset to 0) when Max Charges is edited on an item with spent charges", () => {
+      const item = makeMagicItem({ name: "Wand", uses: 2, maxUses: 3 })
+      const onUpdate = vi.fn()
+      render(
+        <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
+      )
+      fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
+      setNumericValue(document.querySelector("#item-max-uses")!, "4")
+      expect((document.querySelector("#item-uses") as HTMLInputElement).value).toBe("2")
+      fireEvent.click(screen.getByRole("button", { name: /update item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", uses: 2, maxUses: 4 })]),
+        })
+      )
+    })
+
+    it("clamps uses down when Max Charges is edited below the current spent-charges count", () => {
+      const item = makeMagicItem({ name: "Wand", uses: 2, maxUses: 3 })
+      const onUpdate = vi.fn()
+      render(
+        <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
+      )
+      fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
+      setNumericValue(document.querySelector("#item-max-uses")!, "1")
+      expect((document.querySelector("#item-uses") as HTMLInputElement).value).toBe("1")
+      fireEvent.click(screen.getByRole("button", { name: /update item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", uses: 1, maxUses: 1 })]),
         })
       )
     })
@@ -944,8 +957,7 @@ describe("EquipmentInventoryModule", () => {
   })
 
   describe("Equipment form type and weapon/armor stats", () => {
-    it("saves type correctly when adding an item", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("saves type correctly when adding an item", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add item/i }))
@@ -954,7 +966,6 @@ describe("EquipmentInventoryModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ equipment: expect.arrayContaining([expect.objectContaining({ name: "Torch", type: "other" })]) })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 
@@ -973,8 +984,7 @@ describe("EquipmentInventoryModule", () => {
       expect(within(modal).getByText(/proficient with this weapon/i)).toBeInTheDocument()
     })
 
-    it("saving a weapon item includes weaponStats with type weapon in onUpdate", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("saving a weapon item includes weaponStats with type weapon in onUpdate", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
@@ -994,7 +1004,6 @@ describe("EquipmentInventoryModule", () => {
           ]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 
@@ -1009,8 +1018,7 @@ describe("EquipmentInventoryModule", () => {
       expect(within(modal).getByLabelText(/base ac/i)).toBeInTheDocument()
     })
 
-    it("saving an armor item includes armorStats with type armor in onUpdate", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("saving an armor item includes armorStats with type armor in onUpdate", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
@@ -1030,7 +1038,6 @@ describe("EquipmentInventoryModule", () => {
           ]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 
@@ -1056,13 +1063,11 @@ describe("EquipmentInventoryModule", () => {
       )
     })
 
-    it("allows overriding the attunement limit via the calculated-value pencil toggle", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("allows overriding the attunement limit via the calculated-value pencil toggle", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /use custom attunement limit/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ useCalculatedAttunementLimit: false }))
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 

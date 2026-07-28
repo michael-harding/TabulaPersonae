@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For, Show } from "solid-js"
+import { createSignal, createEffect, createMemo, For, Show } from "solid-js"
 import { useNavigate, A } from "@solidjs/router"
 import { type Character, createDefaultCharacter } from "@/lib/character-types"
 import { calculateEquippedAC, getEffectiveMaxHp } from "@/lib/character-utils"
@@ -113,7 +113,9 @@ export default function Home() {
               <div class="space-y-6">
                 <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <For each={characters()}>
-                    {(character) => (
+                    {(character) => {
+                      const ac = createMemo(() => calculateEquippedAC(character).ac)
+                      return (
                       <Card class="cursor-pointer hover:shadow-lg transition-shadow relative group">
                         <Button
                           data-test={`delete-character-button-${character.id}`}
@@ -140,12 +142,13 @@ export default function Home() {
                             <div class="space-y-2 text-sm text-muted-foreground">
                               <p>Level {character.level} {character.race} {character.class}</p>
                               <p>HP: {character.hitPoints?.current ?? 0}/{getEffectiveMaxHp(character.hitPoints)}</p>
-                              <p>AC: {(character.useCalculatedArmorClass ?? true) ? calculateEquippedAC(character).ac : (character.armorClass ?? 10)}</p>
+                              <p>AC: {(character.useCalculatedArmorClass ?? true) ? ac() : (character.armorClass ?? 10)}</p>
                             </div>
                           </CardContent>
                         </A>
                       </Card>
-                    )}
+                      )
+                    }}
                   </For>
                 </div>
 

@@ -1,12 +1,15 @@
 import { createSignal, createEffect, on, For, Show, type ParentProps } from "solid-js"
 import type { AbilityScores, Character, Equipment, ItemModifiers, ItemRarity, SenseType } from "@/lib/character-types"
-import { saveCharacter } from "@/lib/character-storage"
 import {
   DAMAGE_TYPE_OPTIONS,
   CONDITIONS,
   SENSE_TYPES,
   SENSE_LABELS,
   BASE_ATTUNEMENT_LIMIT,
+  ABILITY_KEYS,
+  ABILITY_ABBREVIATIONS,
+  ZERO_ABILITY_SCORES,
+  ZERO_SENSES,
   remainingUses,
   spentFromRemaining,
   isItemModifierActive,
@@ -64,16 +67,6 @@ const RECHARGE_OPTIONS: { value: "" | "short-rest" | "long-rest"; label: string 
   { value: "long-rest", label: "Long Rest" },
 ]
 
-const ABILITY_KEYS: (keyof AbilityScores)[] = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
-const ABILITY_LABELS: Record<keyof AbilityScores, string> = {
-  strength: "STR", dexterity: "DEX", constitution: "CON", intelligence: "INT", wisdom: "WIS", charisma: "CHA",
-}
-const zeroAbilityRecord = (): Record<keyof AbilityScores, number> => ({
-  strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0,
-})
-const zeroSenseRecord = (): Record<SenseType, number> => ({
-  darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0,
-})
 const roundToOneDecimal = (n: number): number => Math.round(n * 10) / 10
 
 interface EquipmentInventoryModuleProps {
@@ -146,13 +139,13 @@ const defaultEquipmentForm: EquipmentFormData = {
   rechargeOn: "",
   modifierArmorClass: 0,
   modifierInitiative: 0,
-  modifierSavingThrows: zeroAbilityRecord(),
-  modifierAbilityScores: zeroAbilityRecord(),
+  modifierSavingThrows: { ...ZERO_ABILITY_SCORES },
+  modifierAbilityScores: { ...ZERO_ABILITY_SCORES },
   modifierResistances: [],
   modifierImmunities: [],
   modifierVulnerabilities: [],
   modifierConditionImmunities: [],
-  modifierSenses: zeroSenseRecord(),
+  modifierSenses: { ...ZERO_SENSES },
   modifierSpeed: 0,
   modifierFlySpeed: 0,
   modifierSwimSpeed: 0,
@@ -160,8 +153,8 @@ const defaultEquipmentForm: EquipmentFormData = {
   modifierBurrowSpeed: 0,
   modifierCarryingCapacityBonus: 0,
   modifierCarryingCapacityMultiplier: 0,
-  modifierAbilityScoreFloors: zeroAbilityRecord(),
-  modifierAbilityScoreMaxCaps: zeroAbilityRecord(),
+  modifierAbilityScoreFloors: { ...ZERO_ABILITY_SCORES },
+  modifierAbilityScoreMaxCaps: { ...ZERO_ABILITY_SCORES },
   modifierLanguages: [],
   modifierProficiencies: [],
 }
@@ -558,7 +551,7 @@ function EquipmentForm(props: EquipmentFormProps) {
             <div>
               <Label for="item-max-uses">Max Charges (0 = none)</Label>
               <NumericInput id="item-max-uses" min={0} value={formData().maxUses}
-                onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: 0 }))} />
+                onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: Math.min(prev.uses, v) }))} />
             </div>
           </div>
           <Show when={formData().maxUses > 0}>
@@ -607,7 +600,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                   <For each={ABILITY_KEYS}>
                     {(ability) => (
                       <div>
-                        <Label for={`modifier-ability-${ability}`} class="text-xs">{ABILITY_LABELS[ability]}</Label>
+                        <Label for={`modifier-ability-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
                         <NumericInput
                           id={`modifier-ability-${ability}`}
                           value={formData().modifierAbilityScores[ability]}
@@ -624,7 +617,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                   <For each={ABILITY_KEYS}>
                     {(ability) => (
                       <div>
-                        <Label for={`modifier-floor-${ability}`} class="text-xs">{ABILITY_LABELS[ability]}</Label>
+                        <Label for={`modifier-floor-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
                         <NumericInput
                           id={`modifier-floor-${ability}`}
                           min={0}
@@ -642,7 +635,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                   <For each={ABILITY_KEYS}>
                     {(ability) => (
                       <div>
-                        <Label for={`modifier-cap-${ability}`} class="text-xs">{ABILITY_LABELS[ability]}</Label>
+                        <Label for={`modifier-cap-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
                         <NumericInput
                           id={`modifier-cap-${ability}`}
                           min={0}
@@ -661,7 +654,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                 <For each={ABILITY_KEYS}>
                   {(ability) => (
                     <div>
-                      <Label for={`modifier-save-${ability}`} class="text-xs">{ABILITY_LABELS[ability]}</Label>
+                      <Label for={`modifier-save-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
                       <NumericInput
                         id={`modifier-save-${ability}`}
                         value={formData().modifierSavingThrows[ability]}
@@ -836,13 +829,11 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
     setUseCalculated: (v) => {
       const updated = { ...props.character, useCalculatedAttunementLimit: v }
       props.onUpdate(updated)
-      saveCharacter(updated)
     },
     manualValue: () => props.character.attunementLimit ?? BASE_ATTUNEMENT_LIMIT,
     setManualValue: (v) => {
       const updated = { ...props.character, attunementLimit: v }
       props.onUpdate(updated)
-      saveCharacter(updated)
     },
     calculatedValue: () => BASE_ATTUNEMENT_LIMIT,
     calculatedTooltip: () => "Base attunement limit",
@@ -854,13 +845,11 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
     setUseCalculated: (v) => {
       const updated = { ...props.character, useCalculatedCarryingCapacity: v }
       props.onUpdate(updated)
-      saveCharacter(updated)
     },
     manualValue: () => props.character.carryingCapacity ?? getEffectiveCarryingCapacity(props.character),
     setManualValue: (v) => {
       const updated = { ...props.character, carryingCapacity: v }
       props.onUpdate(updated)
-      saveCharacter(updated)
     },
     calculatedValue: () => getEffectiveCarryingCapacity(props.character),
     calculatedTooltip: () => "STR score x 15, plus item bonuses/multipliers",
@@ -897,13 +886,13 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         rechargeOn: item.rechargeOn ?? "",
         modifierArmorClass: item.modifiers?.armorClass ?? 0,
         modifierInitiative: item.modifiers?.initiative ?? 0,
-        modifierSavingThrows: { ...zeroAbilityRecord(), ...item.modifiers?.savingThrows },
-        modifierAbilityScores: { ...zeroAbilityRecord(), ...item.modifiers?.abilityScores },
+        modifierSavingThrows: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.savingThrows },
+        modifierAbilityScores: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScores },
         modifierResistances: item.modifiers?.resistances ?? [],
         modifierImmunities: item.modifiers?.immunities ?? [],
         modifierVulnerabilities: item.modifiers?.vulnerabilities ?? [],
         modifierConditionImmunities: item.modifiers?.conditionImmunities ?? [],
-        modifierSenses: { ...zeroSenseRecord(), ...item.modifiers?.senses },
+        modifierSenses: { ...ZERO_SENSES, ...item.modifiers?.senses },
         modifierSpeed: item.modifiers?.speed ?? 0,
         modifierFlySpeed: item.modifiers?.flySpeed ?? 0,
         modifierSwimSpeed: item.modifiers?.swimSpeed ?? 0,
@@ -911,8 +900,8 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         modifierBurrowSpeed: item.modifiers?.burrowSpeed ?? 0,
         modifierCarryingCapacityBonus: item.modifiers?.carryingCapacityBonus ?? 0,
         modifierCarryingCapacityMultiplier: item.modifiers?.carryingCapacityMultiplier ?? 0,
-        modifierAbilityScoreFloors: { ...zeroAbilityRecord(), ...item.modifiers?.abilityScoreFloors },
-        modifierAbilityScoreMaxCaps: { ...zeroAbilityRecord(), ...item.modifiers?.abilityScoreMaxCaps },
+        modifierAbilityScoreFloors: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScoreFloors },
+        modifierAbilityScoreMaxCaps: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScoreMaxCaps },
         modifierLanguages: item.modifiers?.languages ?? [],
         modifierProficiencies: item.modifiers?.proficiencies ?? [],
       }
@@ -999,7 +988,6 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
     }
     const updated = { ...props.character, equipment: [...safeEquipment(), newItem] }
     props.onUpdate(updated)
-    saveCharacter(updated)
     closeModal()
   }
 
@@ -1023,14 +1011,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       equipment: safeEquipment().map((e) => (e.id === item.id ? updatedItem : e)),
     }
     props.onUpdate(updated)
-    saveCharacter(updated)
     closeModal()
   }
 
   const handleDeleteItem = (itemId: string) => {
     const updated = { ...props.character, equipment: safeEquipment().filter((item) => item.id !== itemId) }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const toggleEquipped = (itemId: string) => {
@@ -1039,7 +1025,6 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, equipped: !item.equipped } : item)),
     }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const updateQuantity = (itemId: string, quantity: number) => {
@@ -1049,7 +1034,6 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, quantity } : item)),
     }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const toggleAttuned = (itemId: string) => {
@@ -1058,7 +1042,6 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, attuned: !item.attuned } : item)),
     }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const updateItemUses = (itemId: string, uses: number) => {
@@ -1067,7 +1050,6 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, uses } : item)),
     }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   return (
@@ -1135,7 +1117,6 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                     onChange={(v) => {
                       const updated = { ...props.character, coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...props.character.coins, [denom]: v } }
                       props.onUpdate(updated)
-                      saveCharacter(updated)
                     }}
                     onAtMin={() => {
                       const currentCoins = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...props.character.coins }
@@ -1143,7 +1124,6 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       if (result) {
                         const updated = { ...props.character, coins: result }
                         props.onUpdate(updated)
-                        saveCharacter(updated)
                       }
                     }}
                   />
@@ -1233,16 +1213,16 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             <span>Init {formatModifier(item.modifiers!.initiative!)}</span>
                           </Show>
                           <For each={Object.entries(item.modifiers?.savingThrows ?? {})}>
-                            {([ability, bonus]) => <span>{ABILITY_LABELS[ability as keyof AbilityScores]} Save {formatModifier(bonus as number)}</span>}
+                            {([ability, bonus]) => <span>{ABILITY_ABBREVIATIONS[ability as keyof AbilityScores]} Save {formatModifier(bonus as number)}</span>}
                           </For>
                           <For each={Object.entries(item.modifiers?.abilityScores ?? {})}>
-                            {([ability, bonus]) => <span>{ABILITY_LABELS[ability as keyof AbilityScores]} {formatModifier(bonus as number)}</span>}
+                            {([ability, bonus]) => <span>{ABILITY_ABBREVIATIONS[ability as keyof AbilityScores]} {formatModifier(bonus as number)}</span>}
                           </For>
                           <For each={Object.entries(item.modifiers?.abilityScoreFloors ?? {})}>
-                            {([ability, floor]) => <span>{ABILITY_LABELS[ability as keyof AbilityScores]} floor {floor as number}</span>}
+                            {([ability, floor]) => <span>{ABILITY_ABBREVIATIONS[ability as keyof AbilityScores]} floor {floor as number}</span>}
                           </For>
                           <For each={Object.entries(item.modifiers?.abilityScoreMaxCaps ?? {})}>
-                            {([ability, cap]) => <span>{ABILITY_LABELS[ability as keyof AbilityScores]} max {cap as number}</span>}
+                            {([ability, cap]) => <span>{ABILITY_ABBREVIATIONS[ability as keyof AbilityScores]} max {cap as number}</span>}
                           </For>
                           <Show when={(item.modifiers?.resistances?.length ?? 0) > 0}>
                             <span>Resist: {item.modifiers!.resistances!.join(", ")}</span>

@@ -4,7 +4,6 @@ import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveSc
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { DIE_SIZES } from "@/lib/dice"
-import { saveCharacter } from "@/lib/character-storage"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -90,7 +89,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       passivePerception: passivePerceptionField.resolvedValue(),
     }
     props.onUpdate(normalized)
-    saveCharacter(normalized)
     setIsEditing(false)
   }
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
@@ -125,14 +123,12 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
     const updated = { ...props.character, hitPoints: { ...props.character.hitPoints, current: newCurrentHP, temporary: newTempHP } }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const toggleDeathSave = (type: "successes" | "failures", newValue: number) => {
     if (isReadOnly) return
     const updated = { ...props.character, deathSaves: { ...props.character.deathSaves, [type]: newValue } }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const {
@@ -148,7 +144,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       : [...current, condition]
     const updated = { ...props.character, conditions: next }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const toggleConditionImmunity = (condition: string) => {
@@ -159,7 +154,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       : [...own, condition]
     const updated = { ...props.character, conditionImmunities: next }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const effectiveConditionImmunities = createMemo(() => getEffectiveConditionImmunities(props.character))
@@ -296,7 +290,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                     onChange={(v) => {
                       const updated = { ...props.character, hitPoints: { ...props.character.hitPoints, temporary: v } }
                       props.onUpdate(updated)
-                      saveCharacter(updated)
                     }}
                     aria-label="Set temporary hit points"
                   />

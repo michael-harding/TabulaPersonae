@@ -515,7 +515,6 @@ describe("getEquipmentModifierTotals", () => {
       carryingCapacityBonus: 0,
       carryingCapacityMultiplier: 1,
       abilityScoreFloors: {},
-      abilityScoreMaxCaps: {},
       languages: [],
       proficiencies: [],
     }
@@ -532,6 +531,19 @@ describe("getEquipmentModifierTotals", () => {
     expect(totals.armorClass).toBe(2)
     expect(totals.initiative).toBe(2)
     expect(totals.abilityScores.strength).toBe(2)
+  })
+
+  // Regression: hand-edited or corrupted imported character JSON can carry stringified
+  // numbers (e.g. modifiers.armorClass: "2"). `+=` on a string silently concatenates
+  // instead of adding, so the accumulator must coerce with Number(...) first.
+  it("adds numeric modifiers even when a value arrives as a string", () => {
+    const equipment = [
+      makeMagicItem({ id: "a", modifiers: { armorClass: "2" as unknown as number } }),
+      makeMagicItem({ id: "b", modifiers: { armorClass: 1 } }),
+    ]
+    const totals = getEquipmentModifierTotals(equipment)
+    expect(totals.armorClass).toBe(3)
+    expect(totals.armorClass).not.toBe("21")
   })
 
   it("ignores items with no modifiers", () => {
@@ -593,14 +605,21 @@ describe("getEquipmentModifierTotals", () => {
     expect(totals.carryingCapacityMultiplier).toBe(2)
   })
 
-  it("takes the max ability score floor and max cap per ability across items", () => {
+  it("takes the max ability score floor per ability across items", () => {
     const equipment = [
-      makeMagicItem({ id: "a", modifiers: { abilityScoreFloors: { strength: 19 }, abilityScoreMaxCaps: { strength: 22 } } }),
-      makeMagicItem({ id: "b", modifiers: { abilityScoreFloors: { strength: 21 }, abilityScoreMaxCaps: { strength: 24 } } }),
+      makeMagicItem({ id: "a", modifiers: { abilityScoreFloors: { strength: 19 } } }),
+      makeMagicItem({ id: "b", modifiers: { abilityScoreFloors: { strength: 21 } } }),
     ]
     const totals = getEquipmentModifierTotals(equipment)
     expect(totals.abilityScoreFloors.strength).toBe(21)
-    expect(totals.abilityScoreMaxCaps.strength).toBe(24)
+  })
+
+  // Regression: abilityScoreMaxCaps is informational per-item data (shown directly from
+  // item.modifiers), not an aggregate — getEquipmentModifierTotals must not compute one.
+  it("does not expose an abilityScoreMaxCaps aggregate", () => {
+    const equipment = [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 22 } } })]
+    const totals = getEquipmentModifierTotals(equipment)
+    expect(totals).not.toHaveProperty("abilityScoreMaxCaps")
   })
 })
 
@@ -613,6 +632,17 @@ describe("getEffectiveAbilityScore / getEffectiveAbilityScores", () => {
   it("adds an active item's ability bonus to the base score", () => {
     const character = { abilityScores: baseScores, equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })] }
     expect(getEffectiveAbilityScore(character, "strength")).toBe(18)
+  })
+
+  // Regression: a hand-edited or corrupted imported character JSON can carry a
+  // stringified ability score (e.g. "18" instead of 18). `base + itemBonus` used to
+  // silently string-concatenate in that case ("18" + 2 -> "182") instead of adding.
+  it("adds numerically even when the base ability score arrives as a string", () => {
+    const character = {
+      abilityScores: { ...baseScores, strength: "18" as unknown as number },
+      equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
+    }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(20)
   })
 
   it("ignores an inactive item's ability bonus", () => {
@@ -690,16 +720,24 @@ describe("getEffectiveMovementSpeeds", () => {
 })
 
 describe("getEffectiveDamageResistances / Immunities / Vulnerabilities", () => {
-  it("merges the character's own list with active item grants, deduped", () => {
+  it("splits into own vs item-granted, excluding overlaps from granted", () => {
     const character = {
       damageResistances: ["Fire"],
       damageImmunities: [],
       damageVulnerabilities: [],
       equipment: [makeMagicItem({ modifiers: { resistances: ["Fire", "Cold"], immunities: ["Poison"], vulnerabilities: ["Radiant"] } })],
     }
-    expect(getEffectiveDamageResistances(character).sort()).toEqual(["Cold", "Fire"])
-    expect(getEffectiveDamageImmunities(character)).toEqual(["Poison"])
-    expect(getEffectiveDamageVulnerabilities(character)).toEqual(["Radiant"])
+    const resistances = getEffectiveDamageResistances(character)
+    expect(resistances.own).toEqual(["Fire"])
+    expect(resistances.granted).toEqual(["Cold"])
+
+    const immunities = getEffectiveDamageImmunities(character)
+    expect(immunities.own).toEqual([])
+    expect(immunities.granted).toEqual(["Poison"])
+
+    const vulnerabilities = getEffectiveDamageVulnerabilities(character)
+    expect(vulnerabilities.own).toEqual([])
+    expect(vulnerabilities.granted).toEqual(["Radiant"])
   })
 })
 

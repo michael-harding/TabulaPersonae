@@ -5,8 +5,6 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Spell, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-vi.mock("@/lib/character-storage", () => ({ saveCharacter: vi.fn() }))
-
 function makeSpell(overrides: Partial<Spell> = {}): Spell {
   return {
     id: "spell-1",
@@ -182,8 +180,7 @@ describe("SpellsModule", () => {
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
-    it("calls onUpdate and saveCharacter with the new spell when valid name is submitted", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate with the new spell when valid name is submitted", () => {
       const onUpdate = vi.fn()
       render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
@@ -197,13 +194,11 @@ describe("SpellsModule", () => {
           spells: expect.arrayContaining([expect.objectContaining({ name: "Lightning Bolt" })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 
   describe("spell operations", () => {
-    it("calls onUpdate and saveCharacter when a spell is deleted", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate when a spell is deleted", () => {
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0 })
       render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
@@ -214,11 +209,9 @@ describe("SpellsModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ spells: [] })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
-    it("toggles prepared state when the prepared checkbox is clicked for a level 1 spell", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("toggles prepared state when the prepared checkbox is clicked for a level 1 spell", () => {
       const onUpdate = vi.fn()
       const spell = makeSpell({ id: "s1", name: "Fireball", level: 1, prepared: true, known: true })
       render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
@@ -229,7 +222,6 @@ describe("SpellsModule", () => {
           spells: expect.arrayContaining([expect.objectContaining({ prepared: false })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
     it("shows level 1 spells without clicking the header first", () => {
@@ -507,8 +499,7 @@ describe("SpellsModule", () => {
       expect(checkboxes).toHaveLength(1)
     })
 
-    it("toggling known off for a cantrip sets known: false and prepared: false", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("toggling known off for a cantrip sets known: false and prepared: false", () => {
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0, known: true, prepared: true })
       render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
@@ -520,11 +511,9 @@ describe("SpellsModule", () => {
           ]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
-    it("toggling known on for an unknown cantrip sets known: true", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("toggling known on for an unknown cantrip sets known: true", () => {
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0, known: false, prepared: false })
       render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
@@ -534,7 +523,6 @@ describe("SpellsModule", () => {
           spells: expect.arrayContaining([expect.objectContaining({ known: true })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 

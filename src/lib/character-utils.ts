@@ -65,7 +65,6 @@ export interface EquipmentModifierTotals {
   carryingCapacityBonus: number
   carryingCapacityMultiplier: number
   abilityScoreFloors: Partial<Record<keyof AbilityScores, number>>
-  abilityScoreMaxCaps: Partial<Record<keyof AbilityScores, number>>
   languages: string[]
   proficiencies: string[]
 }
@@ -74,19 +73,31 @@ function dedupUnion(...lists: (string[] | undefined)[]): string[] {
   return Array.from(new Set(lists.flatMap((l) => l ?? [])))
 }
 
+export const ABILITY_KEYS: (keyof AbilityScores)[] = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
+
+export const ABILITY_ABBREVIATIONS: Record<keyof AbilityScores, string> = {
+  strength: "STR", dexterity: "DEX", constitution: "CON", intelligence: "INT", wisdom: "WIS", charisma: "CHA",
+}
+
+export const ZERO_ABILITY_SCORES: Record<keyof AbilityScores, number> = {
+  strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0,
+}
+
+export const ZERO_SENSES: Record<SenseType, number> = {
+  darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0,
+}
+
 export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): EquipmentModifierTotals {
-  const zero = { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0 }
-  const zeroSenses = { darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0 }
   const totals: EquipmentModifierTotals = {
     armorClass: 0,
     initiative: 0,
-    savingThrows: { ...zero },
-    abilityScores: { ...zero },
+    savingThrows: { ...ZERO_ABILITY_SCORES },
+    abilityScores: { ...ZERO_ABILITY_SCORES },
     resistances: [],
     immunities: [],
     vulnerabilities: [],
     conditionImmunities: [],
-    senses: { ...zeroSenses },
+    senses: { ...ZERO_SENSES },
     speed: 0,
     flySpeed: 0,
     swimSpeed: 0,
@@ -95,7 +106,6 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
     carryingCapacityBonus: 0,
     carryingCapacityMultiplier: 1,
     abilityScoreFloors: {},
-    abilityScoreMaxCaps: {},
     languages: [],
     proficiencies: [],
   }
@@ -109,27 +119,24 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
   for (const item of equipment ?? []) {
     if (!isItemModifierActive(item) || !item.modifiers) continue
     const mods = item.modifiers
-    totals.armorClass += mods.armorClass ?? 0
-    totals.initiative += mods.initiative ?? 0
-    for (const ability of Object.keys(zero) as (keyof AbilityScores)[]) {
-      totals.savingThrows[ability] += mods.savingThrows?.[ability] ?? 0
-      totals.abilityScores[ability] += mods.abilityScores?.[ability] ?? 0
+    totals.armorClass += Number(mods.armorClass ?? 0)
+    totals.initiative += Number(mods.initiative ?? 0)
+    for (const ability of ABILITY_KEYS) {
+      totals.savingThrows[ability] += Number(mods.savingThrows?.[ability] ?? 0)
+      totals.abilityScores[ability] += Number(mods.abilityScores?.[ability] ?? 0)
       if (mods.abilityScoreFloors?.[ability] !== undefined) {
         totals.abilityScoreFloors[ability] = Math.max(totals.abilityScoreFloors[ability] ?? -Infinity, mods.abilityScoreFloors[ability]!)
       }
-      if (mods.abilityScoreMaxCaps?.[ability] !== undefined) {
-        totals.abilityScoreMaxCaps[ability] = Math.max(totals.abilityScoreMaxCaps[ability] ?? -Infinity, mods.abilityScoreMaxCaps[ability]!)
-      }
     }
     for (const sense of SENSE_TYPES) {
-      totals.senses[sense] += mods.senses?.[sense] ?? 0
+      totals.senses[sense] += Number(mods.senses?.[sense] ?? 0)
     }
-    totals.speed += mods.speed ?? 0
-    totals.flySpeed += mods.flySpeed ?? 0
-    totals.swimSpeed += mods.swimSpeed ?? 0
-    totals.climbSpeed += mods.climbSpeed ?? 0
-    totals.burrowSpeed += mods.burrowSpeed ?? 0
-    totals.carryingCapacityBonus += mods.carryingCapacityBonus ?? 0
+    totals.speed += Number(mods.speed ?? 0)
+    totals.flySpeed += Number(mods.flySpeed ?? 0)
+    totals.swimSpeed += Number(mods.swimSpeed ?? 0)
+    totals.climbSpeed += Number(mods.climbSpeed ?? 0)
+    totals.burrowSpeed += Number(mods.burrowSpeed ?? 0)
+    totals.carryingCapacityBonus += Number(mods.carryingCapacityBonus ?? 0)
     if (mods.carryingCapacityMultiplier !== undefined) {
       totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, mods.carryingCapacityMultiplier)
     }
@@ -156,29 +163,42 @@ type AbilityScoreCharacter = Pick<
   "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores"
 >
 
-export function getCalculatedAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
-  const base = character.abilityScores?.[ability] ?? 10
-  const itemTotals = getEquipmentModifierTotals(character.equipment)
+function getCalculatedAbilityScoreFromTotals(
+  character: AbilityScoreCharacter,
+  ability: keyof AbilityScores,
+  itemTotals: EquipmentModifierTotals,
+): number {
+  const base = Number(character.abilityScores?.[ability] ?? 10)
   const itemBonus = itemTotals.abilityScores[ability]
   const floor = itemTotals.abilityScoreFloors[ability]
   return Math.max(base + itemBonus, floor ?? -Infinity)
 }
 
-export function getEffectiveAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
-  const calculated = getCalculatedAbilityScore(character, ability)
+function getEffectiveAbilityScoreFromTotals(
+  character: AbilityScoreCharacter,
+  ability: keyof AbilityScores,
+  itemTotals: EquipmentModifierTotals,
+): number {
+  const calculated = getCalculatedAbilityScoreFromTotals(character, ability, itemTotals)
   const useCalculated = character.useCalculatedAbilityScores?.[ability] ?? true
   return useCalculated ? calculated : (character.abilityScoreOverrides?.[ability] ?? calculated)
 }
 
+export function getCalculatedAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
+  return getCalculatedAbilityScoreFromTotals(character, ability, getEquipmentModifierTotals(character.equipment))
+}
+
+export function getEffectiveAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
+  return getEffectiveAbilityScoreFromTotals(character, ability, getEquipmentModifierTotals(character.equipment))
+}
+
 export function getEffectiveAbilityScores(character: AbilityScoreCharacter): AbilityScores {
-  return {
-    strength: getEffectiveAbilityScore(character, "strength"),
-    dexterity: getEffectiveAbilityScore(character, "dexterity"),
-    constitution: getEffectiveAbilityScore(character, "constitution"),
-    intelligence: getEffectiveAbilityScore(character, "intelligence"),
-    wisdom: getEffectiveAbilityScore(character, "wisdom"),
-    charisma: getEffectiveAbilityScore(character, "charisma"),
+  const itemTotals = getEquipmentModifierTotals(character.equipment)
+  const result = {} as AbilityScores
+  for (const ability of ABILITY_KEYS) {
+    result[ability] = getEffectiveAbilityScoreFromTotals(character, ability, itemTotals)
   }
+  return result
 }
 
 export function getPassiveScore(
@@ -222,20 +242,6 @@ export function getEffectiveMovementSpeeds(character: MovementCharacter): Moveme
   }
 }
 
-type DamageTagsCharacter = Pick<Character, "damageResistances" | "damageImmunities" | "damageVulnerabilities" | "equipment">
-
-export function getEffectiveDamageResistances(character: DamageTagsCharacter): string[] {
-  return dedupUnion(character.damageResistances, getEquipmentModifierTotals(character.equipment).resistances)
-}
-
-export function getEffectiveDamageImmunities(character: DamageTagsCharacter): string[] {
-  return dedupUnion(character.damageImmunities, getEquipmentModifierTotals(character.equipment).immunities)
-}
-
-export function getEffectiveDamageVulnerabilities(character: DamageTagsCharacter): string[] {
-  return dedupUnion(character.damageVulnerabilities, getEquipmentModifierTotals(character.equipment).vulnerabilities)
-}
-
 export function getEffectiveConditionImmunities(character: Pick<Character, "conditionImmunities" | "equipment">): string[] {
   return dedupUnion(character.conditionImmunities, getEquipmentModifierTotals(character.equipment).conditionImmunities)
 }
@@ -243,6 +249,24 @@ export function getEffectiveConditionImmunities(character: Pick<Character, "cond
 export interface EffectiveGrantList {
   own: string[]
   granted: string[]
+}
+
+export function getEffectiveDamageResistances(character: Pick<Character, "damageResistances" | "equipment">): EffectiveGrantList {
+  const own = character.damageResistances ?? []
+  const itemGranted = getEquipmentModifierTotals(character.equipment).resistances
+  return { own, granted: itemGranted.filter((r) => !own.includes(r)) }
+}
+
+export function getEffectiveDamageImmunities(character: Pick<Character, "damageImmunities" | "equipment">): EffectiveGrantList {
+  const own = character.damageImmunities ?? []
+  const itemGranted = getEquipmentModifierTotals(character.equipment).immunities
+  return { own, granted: itemGranted.filter((r) => !own.includes(r)) }
+}
+
+export function getEffectiveDamageVulnerabilities(character: Pick<Character, "damageVulnerabilities" | "equipment">): EffectiveGrantList {
+  const own = character.damageVulnerabilities ?? []
+  const itemGranted = getEquipmentModifierTotals(character.equipment).vulnerabilities
+  return { own, granted: itemGranted.filter((r) => !own.includes(r)) }
 }
 
 export function getEffectiveLanguages(character: Pick<Character, "languages" | "equipment">): EffectiveGrantList {
@@ -422,6 +446,9 @@ export function getEquippedWeaponAttacks(
 ): DerivedWeaponAttack[] {
   const equipment = character.equipment ?? []
   const profBonus = character.proficiencyBonus ?? 2
+  const itemTotals = getEquipmentModifierTotals(equipment)
+  const strMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "strength", itemTotals))
+  const dexMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "dexterity", itemTotals))
 
   return equipment
     .filter((item): item is Equipment & { weaponStats: NonNullable<Equipment["weaponStats"]> } =>
@@ -429,8 +456,6 @@ export function getEquippedWeaponAttacks(
     )
     .map((item) => {
       const { damage, damageType, weaponRange, attackAbility, proficient } = item.weaponStats
-      const strMod = getAbilityModifier(getEffectiveAbilityScore(character, "strength"))
-      const dexMod = getAbilityModifier(getEffectiveAbilityScore(character, "dexterity"))
       const abilityMod =
         attackAbility === "dex" ? dexMod
         : attackAbility === "finesse" ? Math.max(strMod, dexMod)
@@ -460,8 +485,9 @@ export function calculateEquippedAC(
   character: Pick<Character, "equipment" | "abilityScores" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
 ): { ac: number; breakdown: string; isEquippedArmor: boolean } {
   const equipment = character.equipment ?? []
-  const dexMod = getAbilityModifier(getEffectiveAbilityScore(character, "dexterity"))
-  const itemBonus = getEquipmentModifierTotals(equipment).armorClass
+  const itemTotals = getEquipmentModifierTotals(equipment)
+  const dexMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "dexterity", itemTotals))
+  const itemBonus = itemTotals.armorClass
 
   const equippedArmor = equipment.filter(
     (item): item is Equipment & { armorStats: NonNullable<Equipment["armorStats"]> } =>
@@ -510,8 +536,9 @@ export function calculateEquippedAC(
 export function calculateInitiative(
   character: Pick<Character, "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
 ): { initiative: number; breakdown: string } {
-  const dexMod = getAbilityModifier(getEffectiveAbilityScore(character, "dexterity"))
-  const itemBonus = getEquipmentModifierTotals(character.equipment).initiative
+  const itemTotals = getEquipmentModifierTotals(character.equipment)
+  const dexMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "dexterity", itemTotals))
+  const itemBonus = itemTotals.initiative
   return {
     initiative: dexMod + itemBonus,
     breakdown: `Dex ${formatModifier(dexMod)}${formatBonusTerm(itemBonus, "item bonus")}`,

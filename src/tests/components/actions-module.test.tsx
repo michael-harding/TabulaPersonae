@@ -472,6 +472,25 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
         })
       )
     })
+
+    // Regression: freeCast spells (item-granted, no-slot-cost) previously used the same
+    // canCast/onCast path as normal spells, so they gated on and consumed a real slot
+    // exactly like any other prepared spell.
+    it("keeps a freeCast spell castable even when all slots at its level are used", () => {
+      const spell = makeSpell({ id: "sp-free", name: "Free Fireball", level: 1, castingTime: "1 action", prepared: true, known: true, freeCast: true })
+      const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 1, used: 1 } }
+      render(<ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: /cast/i })).not.toBeDisabled()
+    })
+
+    it("does not consume a spell slot when casting a freeCast spell", () => {
+      const onUpdate = vi.fn()
+      const spell = makeSpell({ id: "sp-free", name: "Free Fireball", level: 1, castingTime: "1 action", prepared: true, known: true, freeCast: true })
+      const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 1, used: 1 } }
+      render(<ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /cast/i }))
+      expect(onUpdate).not.toHaveBeenCalled()
+    })
   })
 
   describe("Upcast (At Higher Level) feature", () => {

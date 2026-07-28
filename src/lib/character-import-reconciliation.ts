@@ -11,16 +11,8 @@ import {
   getSpellAttackBonus,
   getSpellSaveDC,
   BASE_ATTUNEMENT_LIMIT,
+  ABILITY_KEYS,
 } from "./character-utils"
-
-const ABILITY_KEYS: (keyof AbilityScores)[] = [
-  "strength",
-  "dexterity",
-  "constitution",
-  "intelligence",
-  "wisdom",
-  "charisma",
-]
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value)
