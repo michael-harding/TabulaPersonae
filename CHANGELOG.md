@@ -5,7 +5,24 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0] - 2026-07-24
+## [v1.5.0] - 2026-07-28
+
+### Added
+- **Magic items** — equipment can now be flagged as magic with a rarity (common through artifact), an optional attunement requirement, and a set of modifiers (AC, initiative, ability scores with floor/cap, saving throws, resistances/immunities/vulnerabilities, condition immunities, senses, movement speeds, carrying capacity, languages, and proficiencies); modifiers from equipped (and attuned, where required) items are automatically totaled into every relevant calculated stat
+- **Attunement tracking** — a configurable attunement limit (defaults to 3) with a live attuned-item count and an over-limit warning
+- **Senses, resistances, and immunities on the sheet** — Skills & Proficiencies now shows darkvision/blindsight/tremorsense/truesight, damage resistances/immunities/vulnerabilities, condition immunities, and languages/proficiencies, each combining a character's own values with any granted by equipped items
+- **Item-granted spells** — spells can be linked to the magic item that grants them, with an optional "Free Cast" flag for casts that don't consume a spell slot
+- **Equipment recharge on rest** — items with a `rechargeOn` field now reset alongside features on short/long rest, matching existing feature-recharge behavior
+- **Live AC and HP on the character list** — the Home screen now shows each character's calculated AC (accounting for equipped armor and item bonuses) and effective max HP instead of the stored raw values
+- **Import reconciliation** — JSON and PDF imports now infer whether each calculated stat (AC, initiative, passive scores, spell DC/attack/modifier, carrying capacity, attunement limit) should be treated as calculated or manually overridden, by comparing the imported value against what the app would currently calculate
+- **Legacy character migration** — characters saved before calculated-AC support existed are migrated to keep their stored armor class instead of silently switching to the calculated value
+
+### Changed
+- Ability score, saving throw, spell DC/attack/modifier, and carrying-capacity calculations now factor in active magic item modifiers everywhere they're used (ability scores module, actions, combat stats, rest modal, stats bar)
+- `Checkbox` component gained `label`/`labelClass`/`containerClass` props so a clickable label can be rendered as a proper sibling of the control instead of by wrapping it in a native `<label>`, fixing a double-toggle bug where a real click on the visible checkbox square silently canceled itself out
+- Removed the unused `magicItems` field from the `Character` type — magic items are now regular equipment entries with `magic: true`
+
+## [v1.4.0] - 2026-07-24
 
 ### Added
 - **Markdown rendering** — character notes, description fields (appearance, personality, ideals, bonds, flaws, backstory, allies, treasure), and action/spell descriptions now render as sanitized Markdown (`marked` + `dompurify`) instead of plain pre-wrapped text
@@ -18,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed all sheet section components to "module" terminology (`ActionsSection` → `ActionsModule`, `EditableSection` → `EditableModule`, `CombatStats` → `CombatStatsModule`, etc.) to align naming with the module registry introduced in 1.2.0; no functional/UI changes from the rename itself
 - `Tooltip` component gained `triggerClass` and `triggerFocusable` props to support keyboard-accessible tooltip triggers on calculated stat values
 
-## [1.3.0] - 2026-07-21
+## [v1.3.0] - 2026-07-21
 
 ### Added
 - **Public character sharing** — owners can toggle "Share publicly" in Sheet Settings to generate a shareable `/share/:id` URL and QR code; the link works without an account
@@ -31,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests for all components updated to exercise read-only rendering paths
 - Visual regression snapshots for the public share page across Chromium and Firefox in light/dark themes and all tabs (default, character, combat, features, inventory, spells)
 
-## [1.2.0] - 2026-07-20
+## [v1.2.0] - 2026-07-20
 
 ### Added
 - **Tab Settings page** — CRUD UI for creating, renaming, reordering, and deleting character sheet tabs; accessible via the gear icon on the character sheet
@@ -44,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration and unit tests for `TabConfigProvider`, `TabSettings` page, and Firebase persistence helpers
 - Visual regression snapshots for the Tab Settings page in light and dark themes (Chromium + Firefox)
 
-## [1.1.0] - 2026-07-19
+## [v1.1.0] - 2026-07-19
 
 ### Added
 - End-to-end test suite (Playwright) covering tab navigation, HP quick-adjust, death saves, conditions, and axe-core accessibility checks across all tabs
@@ -61,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Spell slot reactive accessors now receive a getter function instead of a plain object, ensuring reactivity is tracked correctly when spell slots change
 - Dark-theme visual snapshots regenerated to reflect HP bar geometry updates
 
-## [1.0.0] - 2026-05-28
+## [v1.0.0] - 2026-05-28
 
 Initial release of TabulaPersonae, a D&D 5e/5.5e character sheet web app.
 
