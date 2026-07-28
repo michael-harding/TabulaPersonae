@@ -1,4 +1,5 @@
 import type { Character } from "./character-types"
+import { migrateCharacters } from "./character-migrations"
 
 const STORAGE_KEY = "dnd-characters"
 const ACTIVE_CHARACTER_KEY = "dnd-active-character"
@@ -29,7 +30,7 @@ export function getCharacters(): Character[] {
   if (!stored) return []
 
   try {
-    return JSON.parse(stored)
+    return migrateCharacters(JSON.parse(stored))
   } catch {
     return []
   }

@@ -1,4 +1,4 @@
-# Template Repository Agent Rules
+# Repository Agent Rules
 
 Single source of truth for all agents working in this repository.
 
@@ -6,8 +6,7 @@ Single source of truth for all agents working in this repository.
 
 Before starting any task:
 
-- `README.md` — overview of this repository and its template sets
-- `TEMPLATE_INSTRUCTIONS.md` — tag syntax, configurable values, and adoption process
+- `README.md` — project overview and setup
 
 ## Permitted
 
@@ -21,8 +20,6 @@ Before starting any task:
 ## Prohibited
 
 - Proactively offer or ask to commit, push, branch, or open a pull request.
-- Modify template documents in `SolidJS/docs/` or `React/docs/` without considering parity: any change that applies to both template sets must be made to both in the same changeset.
-- Apply a change to one template set that belongs in both without flagging the omission to the human.
 
 ## Escalation
 

@@ -1,13 +1,9 @@
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
-import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, waitFor, cleanupPortals, within } from "../test-utils"
 import { CombatStatsModule } from "@/components/combat-stats-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
-
-vi.mock("@/lib/character-storage", () => ({
-  saveCharacter: vi.fn(),
-}))
 
 function makeCharacter(overrides: Record<string, any> = {}) {
   return {
@@ -18,6 +14,23 @@ function makeCharacter(overrides: Record<string, any> = {}) {
     speed: 30,
     proficiencyBonus: 3,
     deathSaves: { successes: 0, failures: 0 },
+    ...overrides,
+  }
+}
+
+function makeMagicItem(overrides: Record<string, any> = {}) {
+  return {
+    id: "item-1",
+    name: "Test Item",
+    description: "",
+    quantity: 1,
+    weight: 0,
+    equipped: true,
+    type: "other" as const,
+    magic: true,
+    requiresAttunement: true,
+    attuned: true,
+    rarity: "rare" as const,
     ...overrides,
   }
 }
@@ -37,8 +50,9 @@ describe("CombatStatsModule", () => {
       render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // HP: "10" and "/20" appear in the display
       expect(screen.getByText(/\/20/)).toBeInTheDocument()
-      // AC
-      expect(screen.getByText("15")).toBeInTheDocument()
+      // AC: unarmored, DEX 10 -> +0 -> AC 10
+      const acContainer = screen.getByText("Armor Class").closest("div")!
+      expect(within(acContainer).getByText("10")).toBeInTheDocument()
       // Speed
       expect(screen.getByText(/30 ft/)).toBeInTheDocument()
       // Proficiency bonus "+3" and initiative "+2"
@@ -259,13 +273,14 @@ describe("CombatStatsModule", () => {
   })
 
   describe("AC tooltip", () => {
-    it("shows 'Base armor class' tooltip for manually-set AC in view mode", async () => {
+    it("shows the unarmored DEX-based AC formula in the tooltip in view mode", async () => {
       render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // AC is the first focusable trigger in view mode
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Base armor class")
+      // No armor equipped, DEX 10 -> +0: unarmored AC = 10 + 0 DEX
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 DEX")
     })
 
     it("does not show always-visible AC breakdown text below the value", () => {
@@ -498,6 +513,61 @@ describe("CombatStatsModule", () => {
     })
   })
 
+  describe("Condition Immunities", () => {
+    it("adds a condition immunity when selected from the dropdown", async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      await user.click(screen.getByTitle("Add condition immunity"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Poisoned" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Poisoned" }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ conditionImmunities: expect.arrayContaining(["Poisoned"]) })
+      )
+    })
+
+    it("shows an item-granted condition immunity as non-removable", () => {
+      const item = makeMagicItem({ modifiers: { conditionImmunities: ["Charmed"] } })
+      const { container } = render(<CombatStatsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Charmed")).toBeInTheDocument()
+      expect(container.querySelector('[data-test="remove-condition-immunity-Charmed"]')).not.toBeInTheDocument()
+    })
+
+    it("shows an own condition immunity as removable", () => {
+      const onUpdate = vi.fn()
+      const { container } = render(<CombatStatsModule character={makeCharacter({ conditionImmunities: ["Poisoned"] })} onUpdate={onUpdate} />)
+      fireEvent.click(container.querySelector('[data-test="remove-condition-immunity-Poisoned"]')!)
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ conditionImmunities: [] })
+      )
+    })
+  })
+
+  describe("Movement modes", () => {
+    it("shows fly/swim/climb/burrow speeds only when nonzero", () => {
+      render(<CombatStatsModule character={makeCharacter({ flySpeed: 30, swimSpeed: 0 })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
+      expect(screen.queryByText(/Swim/)).not.toBeInTheDocument()
+    })
+
+    it("adds an equipped item's fly speed bonus to the displayed fly speed", () => {
+      const item = makeMagicItem({ modifiers: { flySpeed: 30 } })
+      render(<CombatStatsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
+    })
+
+    it("edits fly/swim/climb/burrow speeds in edit mode", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+      const flyInput = screen.getByLabelText("Fly")
+      fireEvent.input(flyInput, { target: { value: "30" } })
+      fireEvent.blur(flyInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ flySpeed: 30 }))
+    })
+  })
+
   describe("temporary maximum HP", () => {
     it("adds temporaryMaximum to the displayed max HP", () => {
       render(
@@ -623,6 +693,28 @@ describe("CombatStatsModule", () => {
       // DEX 18 → +4 (distinct from proficiency bonus +3)
       expect(screen.getByText("+4")).toBeInTheDocument()
     })
+
+    it("adds an active item's initiative bonus to the DEX-derived value", () => {
+      const char = makeCharacter({
+        abilityScores: { ...makeCharacter().abilityScores, dexterity: 14 },
+        useCalculatedInitiative: true,
+        equipment: [makeMagicItem({ modifiers: { initiative: 2 } })],
+      })
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
+      // DEX 14 → +2, item +2 → total +4
+      expect(screen.getByText("+4")).toBeInTheDocument()
+    })
+
+    it("ignores an inactive item's initiative bonus", () => {
+      const char = makeCharacter({
+        abilityScores: { ...makeCharacter().abilityScores, dexterity: 14 },
+        useCalculatedInitiative: true,
+        equipment: [makeMagicItem({ requiresAttunement: true, attuned: false, modifiers: { initiative: 2 } })],
+      })
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
+      expect(screen.getByText("+2")).toBeInTheDocument()
+      expect(screen.queryByText("+4")).not.toBeInTheDocument()
+    })
   })
 
   describe("calculated proficiency bonus", () => {
@@ -739,6 +831,25 @@ describe("CombatStatsModule", () => {
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
+
+    it("adds an active item's AC bonus to the calculated value", () => {
+      const char = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { armorClass: 1 } })],
+      })
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
+      // unarmored: 10 + DEX +0 + item +1 = 11
+      expect(screen.getByText("11")).toBeInTheDocument()
+    })
+
+    it("ignores an inactive item's AC bonus", () => {
+      const char = makeCharacter({
+        equipment: [makeMagicItem({ requiresAttunement: true, attuned: false, modifiers: { armorClass: 1 } })],
+      })
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
+      const acContainer = screen.getByText("Armor Class").closest("div")!
+      expect(within(acContainer).getByText("10")).toBeInTheDocument()
+      expect(screen.queryByText("11")).not.toBeInTheDocument()
+    })
   })
 
   describe("calculated passive perception", () => {
@@ -754,6 +865,19 @@ describe("CombatStatsModule", () => {
       expect(screen.getByText("14")).toBeInTheDocument()
       const values = screen.getAllByRole("spinbutton").map((s) => (s as HTMLInputElement).value)
       expect(values).not.toContain("14")
+    })
+
+    it("cascades an active WIS-boosting item into passive perception", () => {
+      const char = makeCharacter({
+        abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14 },
+        skills: { ...createDefaultCharacter().skills, perception: { proficient: true, expertise: false } },
+        proficiencyBonus: 2,
+        equipment: [makeMagicItem({ modifiers: { abilityScores: { wisdom: 2 } } })],
+      })
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
+      // WIS 14 + item +2 = 16 -> mod +3, prof +2 -> PP = 10 + 3 + 2 = 15
+      const ppContainer = screen.getByText("Passive Perception").closest("div")!
+      expect(within(ppContainer).getByText("15")).toBeInTheDocument()
     })
 
     it("shows PP NumericInput when useCalculatedPassivePerception is false", () => {

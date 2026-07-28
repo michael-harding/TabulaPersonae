@@ -3,7 +3,7 @@ import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Reaction, Feature } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Reaction, Feature, Equipment } from "@/lib/character-types"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return {
@@ -31,6 +31,20 @@ function makeReaction(overrides: Partial<Reaction> = {}): Reaction {
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
   return { id: "f1", name: "Lay on Hands", description: "", source: "class-feature", ...overrides }
+}
+
+function makeEquipmentItem(overrides: Partial<Equipment> = {}): Equipment {
+  return {
+    id: "e1",
+    name: "Wand of Magic Missiles",
+    quantity: 1,
+    weight: 1,
+    description: "",
+    equipped: true,
+    type: "other",
+    magic: true,
+    ...overrides,
+  }
 }
 
 describe("RestModal", () => {
@@ -159,6 +173,21 @@ describe("RestModal", () => {
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.hitPoints.current).toBeGreaterThan(80)
       expect(updated.hitPoints.current).toBeLessThanOrEqual(90)
+    })
+
+    // Regression: hit-dice healing computed CON modifier from the raw base ability score,
+    // ignoring equipment-granted CON bonuses that every other stat in this branch respects
+    // via getEffectiveAbilityScore.
+    it("uses the equipment-boosted CON modifier (not raw base) for the per-die healing hint", () => {
+      const char = makeCharacter({
+        level: 10, // available hit dice > 5, so the stepper (not pip tracker) renders
+        abilityScores: { ...createDefaultCharacter().abilityScores, constitution: 10 }, // +0 base mod
+        equipment: [makeEquipmentItem({ modifiers: { abilityScores: { constitution: 4 } } })], // effective 14 -> +2 mod
+      })
+      openModal(char)
+      const increaseBtn = within(getDialog()).getByRole("button", { name: /increase/i })
+      fireEvent.click(increaseBtn) // spend 1 die
+      expect(within(getDialog()).getByText(/\+2 per die/i)).toBeInTheDocument()
     })
   })
 
@@ -345,6 +374,71 @@ describe("RestModal", () => {
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.classFeatures![0].uses).toBe(0)
+    })
+  })
+
+  describe("equipment recharge", () => {
+    it("lists an equipment item with rechargeOn 'short-rest' in the short rest recharging features", () => {
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ rechargeOn: "short-rest" })],
+      })
+      openModal(char)
+      expect(within(getDialog()).getByText("Wand of Magic Missiles")).toBeInTheDocument()
+    })
+
+    it("does not list a 'long-rest' equipment item in the short rest recharging features", () => {
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ rechargeOn: "long-rest" })],
+      })
+      openModal(char)
+      expect(within(getDialog()).queryByText("Wand of Magic Missiles")).not.toBeInTheDocument()
+    })
+
+    it("lists a 'long-rest' equipment item in the long rest recharging features", () => {
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ rechargeOn: "long-rest" })],
+      })
+      openModal(char)
+      fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /long rest/i }))
+      expect(within(getDialog()).getByText("Wand of Magic Missiles")).toBeInTheDocument()
+    })
+
+    it("calls onRest with equipment uses reset to 0 for a short-rest item on short rest confirm", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ rechargeOn: "short-rest", uses: 2, maxUses: 3 })],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.equipment![0].uses).toBe(0)
+    })
+
+    it("calls onRest with equipment uses reset to 0 for both short-rest and long-rest items on long rest confirm", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        equipment: [
+          makeEquipmentItem({ id: "e1", name: "Wand", rechargeOn: "short-rest", uses: 1, maxUses: 2 }),
+          makeEquipmentItem({ id: "e2", name: "Staff", rechargeOn: "long-rest", uses: 1, maxUses: 1 }),
+        ],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /long rest/i }))
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.equipment![0].uses).toBe(0)
+      expect(updated.equipment![1].uses).toBe(0)
+    })
+
+    it("does not reset a long-rest equipment item's uses when only a short rest is taken", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ rechargeOn: "long-rest", uses: 2, maxUses: 3 })],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.equipment![0].uses).toBe(2)
     })
   })
 

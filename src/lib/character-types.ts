@@ -53,7 +53,34 @@ export interface Skills {
 
 export type ActionType = 'attack' | 'ability' | 'class-feature' | 'feat' | 'species-ability' | 'other' | string
 
-export interface Equipment extends CharacterEntry {
+export type ItemRarity = "common" | "uncommon" | "rare" | "very-rare" | "legendary" | "artifact"
+
+export type SenseType = "darkvision" | "blindsight" | "tremorsense" | "truesight"
+
+export interface ItemModifiers {
+  armorClass?: number
+  initiative?: number
+  savingThrows?: Partial<Record<keyof AbilityScores, number>>
+  abilityScores?: Partial<Record<keyof AbilityScores, number>>
+  resistances?: string[]
+  immunities?: string[]
+  vulnerabilities?: string[]
+  conditionImmunities?: string[]
+  senses?: Partial<Record<SenseType, number>>
+  speed?: number
+  flySpeed?: number
+  swimSpeed?: number
+  climbSpeed?: number
+  burrowSpeed?: number
+  carryingCapacityBonus?: number
+  carryingCapacityMultiplier?: number
+  abilityScoreFloors?: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreMaxCaps?: Partial<Record<keyof AbilityScores, number>>
+  languages?: string[]
+  proficiencies?: string[]
+}
+
+export interface Equipment extends UseableEntry {
   quantity: number
   weight: number
   equipped: boolean
@@ -69,10 +96,11 @@ export interface Equipment extends CharacterEntry {
     baseAC: number
     armorType: "light" | "medium" | "heavy" | "shield"
   }
-}
-
-export interface MagicItem extends CharacterEntry {
-  attuned: boolean
+  magic?: boolean
+  requiresAttunement?: boolean
+  attuned?: boolean
+  rarity?: ItemRarity
+  modifiers?: ItemModifiers
 }
 
 export interface Spell extends CharacterEntry {
@@ -90,6 +118,8 @@ export interface Spell extends CharacterEntry {
   atHigherLevel?: string;
   concentration?: boolean;
   ritual?: boolean;
+  grantedBy?: string;
+  freeCast?: boolean;
 }
 
 export type FeatureKind = 'class-feature' | 'species-trait' | 'feat'
@@ -132,6 +162,8 @@ export interface Character {
   experiencePoints: number
 
   abilityScores: AbilityScores
+  abilityScoreOverrides?: Partial<Record<keyof AbilityScores, number>>
+  useCalculatedAbilityScores?: Partial<Record<keyof AbilityScores, boolean>>
   savingThrows: SavingThrows
   skills: Skills
 
@@ -148,6 +180,11 @@ export interface Character {
   }
   hitDice: string
   speed: number
+  flySpeed?: number
+  swimSpeed?: number
+  climbSpeed?: number
+  burrowSpeed?: number
+  senses?: Partial<Record<SenseType, number>>
   initiative: number
   proficiencyBonus: number
   useCalculatedInitiative?: boolean
@@ -161,6 +198,10 @@ export interface Character {
   useCalculatedPassiveInvestigation?: boolean
 
   equipment: Equipment[]
+  attunementLimit?: number
+  useCalculatedAttunementLimit?: boolean
+  carryingCapacity?: number
+  useCalculatedCarryingCapacity?: boolean
   spells: Spell[]
   spellcastingAbility: keyof AbilityScores | ""
   spellSaveDC: number
@@ -183,6 +224,10 @@ export interface Character {
 
   languages: string[]
   otherProficiencies: string[]
+  damageResistances?: string[]
+  damageImmunities?: string[]
+  damageVulnerabilities?: string[]
+  conditionImmunities?: string[]
 
   attacks: Attack[]
   bonusActions: BonusAction[]
@@ -219,7 +264,6 @@ export interface Character {
   // 2024-only
   subclass?: string
   size?: string
-  magicItems?: MagicItem[]
   classFeatures?: Feature[]
   speciesTraits?: Feature[]
   feats?: Feature[]
@@ -283,6 +327,7 @@ export function createDefaultCharacter(): Character {
     },
 
     armorClass: 10,
+    useCalculatedArmorClass: true,
     hitPoints: {
       current: 8,
       maximum: 8,
@@ -298,6 +343,7 @@ export function createDefaultCharacter(): Character {
     proficiencyBonus: 2,
 
     equipment: [],
+    useCalculatedCarryingCapacity: true,
     spells: [],
     spellcastingAbility: "",
     spellSaveDC: 8,
@@ -316,6 +362,10 @@ export function createDefaultCharacter(): Character {
 
     languages: [],
     otherProficiencies: [],
+    damageResistances: [],
+    damageImmunities: [],
+    damageVulnerabilities: [],
+    conditionImmunities: [],
 
     attacks: [],
     bonusActions: [],

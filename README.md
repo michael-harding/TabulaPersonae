@@ -5,13 +5,19 @@ A D&D 5e/5.5e character sheet web app built with SolidJS and Firebase.
 ## Features
 
 - **Character management** — create, edit, and switch between multiple characters
-- **Full 5e sheet** — ability scores, combat stats, skills, spells, equipment, actions, features, and notes
-- **Short & long rest** — track HP, hit dice, and spell slot recovery
-- **Import / Export** — JSON round-trip and PDF character sheet import (D&D Beyond–style PDFs)
+- **Full 5e sheet** — ability scores, combat stats, skills, spells, equipment/inventory (including magic items with rarity, attunement, and modifiers), actions, features, and notes
+- **Customizable tabs** — arrange sheet content into user-defined tabs, each with its own set of drag-and-drop-ordered modules
+- **Calculated stats with manual override** — initiative, proficiency bonus, armor class, passive perception/insight/investigation, spell save DC, and spell attack/modifier are auto-derived from character data, each with a per-field toggle for a manual value
+- **Short & long rest** — track HP, hit dice, spell slot recovery, and equipment recharge (e.g. wands, charged items)
+- **Markdown notes** — character notes, description fields, and action/spell descriptions render as sanitized Markdown
+- **Public character sharing** — generate a read-only `/share/:id` link and QR code that works without an account
+- **Import / Export** — JSON round-trip and PDF character sheet import (D&D Beyond–style PDFs), with reconciliation for conflicting or partial imports
 - **Authentication** — Firebase Auth with optional guest/skip mode
-- **Cloud sync** — Firestore-backed storage when signed in, localStorage fallback
+- **Cloud sync** — Firestore-backed storage when signed in, localStorage fallback when offline or unauthenticated
+- **Installable / offline-ready** — PWA with service worker caching
 - **Dark mode** — system-aware theme toggle
-- **Visual regression tests** — Playwright snapshots across Chromium, Firefox, and WebKit
+- **Accessibility** — WCAG 2.1 AA target, enforced with axe-core in component tests and axe-playwright in E2E tests
+- **Automated testing** — Vitest unit/integration tests, Playwright E2E and visual regression tests (Chromium + Firefox), and Vitest benchmarks
 
 ## Tech Stack
 
@@ -21,10 +27,14 @@ A D&D 5e/5.5e character sheet web app built with SolidJS and Firebase.
 | Routing | @solidjs/router |
 | Components | [Kobalte](https://kobalte.dev) |
 | Styling | Tailwind CSS + tw-animate-css |
+| Drag and drop | @thisbeyond/solid-dnd |
+| Markdown | marked + DOMPurify |
+| QR codes | qrcode |
 | Backend | Firebase (Auth + Firestore) |
 | PDF parsing | pdfjs-dist + pdf-lib |
-| Unit tests | Vitest + @solidjs/testing-library |
-| Visual tests | Playwright |
+| PWA | vite-plugin-pwa |
+| Unit/integration tests | Vitest + @solidjs/testing-library |
+| E2E & visual tests | Playwright + axe-core |
 
 ## Getting Started
 
@@ -69,12 +79,18 @@ pnpm dev
 | `pnpm dev` | Start dev server |
 | `pnpm build` | Production build |
 | `pnpm preview` | Preview production build |
-| `pnpm test` | Run unit tests (Vitest) |
-| `pnpm test:coverage` | Unit tests with coverage |
-| `pnpm test:visual` | Run Playwright visual tests |
-| `pnpm test:visual:update` | Update Playwright snapshots |
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | TypeScript type check |
+| `pnpm test` | Run unit/integration tests (Vitest) |
+| `pnpm test:watch` | Unit tests in watch mode |
+| `pnpm test:coverage` | Unit tests with coverage |
+| `pnpm test:bench` | Run Vitest benchmarks |
+| `pnpm test:e2e` | Run Playwright E2E tests (functional + accessibility + performance) |
+| `pnpm test:visual` | Run Playwright visual regression tests |
+| `pnpm test:visual:update` | Update Playwright visual snapshots |
+| `pnpm test:visual:chromium` | Visual tests, Chromium only |
+| `pnpm test:visual:firefox` | Visual tests, Firefox only |
+| `pnpm test:perf` | Run performance E2E tests only |
 
 ## License
 

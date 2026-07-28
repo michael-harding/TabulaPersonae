@@ -54,6 +54,47 @@ describe("StatsBar", () => {
     expect(results.violations).toHaveLength(0)
   })
 
+  describe("AC and initiative", () => {
+    it("computes AC live from equipped armor rather than a stale stored field", () => {
+      const character = {
+        ...createDefaultCharacter(),
+        armorClass: 99, // stale/unsaved value — should be ignored while useCalculatedArmorClass is true (default)
+        abilityScores: { ...createDefaultCharacter().abilityScores, dexterity: 14 },
+        equipment: [{
+          id: "arm-1", name: "Chain Shirt", quantity: 1, weight: 20, description: "",
+          equipped: true, type: "armor" as const,
+          armorStats: { baseAC: 13, armorType: "light" as const },
+        }],
+      }
+      render(<StatsBar character={character} />)
+      // 13 base + DEX +2 = 15, not the stale armorClass: 99
+      expect(screen.getByText("15")).toBeInTheDocument()
+    })
+
+    it("shows the manually-entered armorClass when useCalculatedArmorClass is false", () => {
+      const character = { ...createDefaultCharacter(), armorClass: 17, useCalculatedArmorClass: false }
+      render(<StatsBar character={character} />)
+      expect(screen.getByText("17")).toBeInTheDocument()
+    })
+
+    it("computes initiative live from DEX when useCalculatedInitiative is true", () => {
+      const character = {
+        ...createDefaultCharacter(),
+        initiative: 99, // stale/unsaved value
+        abilityScores: { ...createDefaultCharacter().abilityScores, dexterity: 16 },
+        useCalculatedInitiative: true,
+      }
+      render(<StatsBar character={character} />)
+      expect(screen.getByText("+3")).toBeInTheDocument()
+    })
+
+    it("shows the manually-entered initiative when useCalculatedInitiative is false (default)", () => {
+      const character = { ...createDefaultCharacter(), initiative: 5 }
+      render(<StatsBar character={character} />)
+      expect(screen.getByText("+5")).toBeInTheDocument()
+    })
+  })
+
   describe("spell hit/DC tooltip", () => {
     beforeEach(() => cleanupPortals())
 
@@ -77,6 +118,24 @@ describe("StatsBar", () => {
       // WIS 18 → +4, Prof +3 → Hit +7, DC 15
       expect(screen.getByRole("tooltip")).toHaveTextContent("Spell Hit: WIS +4 + Prof +3 = +7")
       expect(screen.getByRole("tooltip")).toHaveTextContent("DC: 8 + WIS +4 + Prof +3 = 15")
+    })
+
+    it("reflects an item-boosted spellcasting ability score in the tooltip breakdown", async () => {
+      const character = {
+        ...makeSpellcaster(),
+        equipment: [{
+          id: "item-1", name: "Headband of Intellect", quantity: 1, weight: 0, description: "",
+          equipped: true, type: "other" as const, magic: true, requiresAttunement: false,
+          modifiers: { abilityScores: { wisdom: 2 } },
+        }],
+      }
+      render(<StatsBar character={character} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      // WIS 18+2=20 → +5, Prof +3 → Hit +8, DC 16 — the tooltip's own arithmetic must match
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Spell Hit: WIS +5 + Prof +3 = +8")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("DC: 8 + WIS +5 + Prof +3 = 16")
     })
   })
 })

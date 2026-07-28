@@ -27,6 +27,23 @@ function makeCharacter(overrides: Record<string, any> = {}) {
   }
 }
 
+function makeMagicItem(overrides: Record<string, any> = {}) {
+  return {
+    id: "item-1",
+    name: "Test Item",
+    description: "",
+    quantity: 1,
+    weight: 0,
+    equipped: true,
+    type: "other" as const,
+    magic: true,
+    requiresAttunement: true,
+    attuned: true,
+    rarity: "rare" as const,
+    ...overrides,
+  }
+}
+
 function clickEditButton() {
   fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
@@ -202,11 +219,102 @@ describe("AbilityScoresModule", () => {
       expect(screen.getByRole("tooltip")).toHaveTextContent("STR +3 + Prof +3 = +6")
     })
 
-    it("does not render focusable tooltip triggers in edit mode", () => {
+    it("renders one focusable effective-score tooltip trigger per ability in edit mode", () => {
       render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
+      // Each ability's "Effective" CalculatedValue control renders its own focusable tooltip trigger
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      expect(triggers).toHaveLength(0)
+      expect(triggers).toHaveLength(6)
+    })
+  })
+
+  describe("item modifiers", () => {
+    it("raises the displayed effective score and modifier when an active item boosts an ability", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      // base STR 16 + item +2 = 18 -> modifier +4
+      expect(screen.getByText("18")).toBeInTheDocument()
+      expect(screen.getByText("+4")).toBeInTheDocument()
+    })
+
+    it("shows an item bonus badge next to the boosted score", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("item +2")).toBeInTheDocument()
+    })
+
+    it("ignores an item's ability bonus when it requires attunement and is not attuned", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ attuned: false, modifiers: { abilityScores: { strength: 2 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("16")).toBeInTheDocument()
+      expect(screen.queryByText("item +2")).not.toBeInTheDocument()
+    })
+
+    it("keeps the base-score input in edit mode unaffected by the item bonus", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const strInput = screen.getAllByRole("spinbutton")[0]
+      expect(strInput).toHaveValue(16)
+    })
+
+    it("reflects a per-ability saving throw item bonus", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { savingThrows: { strength: 1 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      // STR 16 -> +3, Prof +3, Item +1 -> total +7
+      expect(screen.getByText("+7")).toBeInTheDocument()
+    })
+
+    it("applies an item's ability-score floor even when base+item bonus is lower", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreFloors: { wisdom: 18 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      // base WIS 8, no item bonus, floor 18 -> displayed 18, modifier +4
+      expect(screen.getByText("18")).toBeInTheDocument()
+      expect(screen.getByText("+4")).toBeInTheDocument()
+    })
+
+    it("mentions the floor in the effective-score tooltip when it raises the value", async () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreFloors: { wisdom: 18 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      // View mode order: STR card(0), STR saving throw(1), DEX(2), CON(3), INT(4), WIS(5), CHA(6) —
+      // only strength has a proficient save in makeCharacter, adding one extra trigger before DEX.
+      fireEvent.focus(triggers[5])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent(/floor 18/i)
+      expect(screen.getByRole("tooltip")).toHaveTextContent("(18 − 10) / 2 = +4")
+    })
+
+    it("persists a manual effective-score override on save", () => {
+      const onUpdate = vi.fn()
+      const character = makeCharacter()
+      render(<AbilityScoresModule character={character} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom strength effective score/i }))
+      const overrideInput = screen.getByRole("spinbutton", { name: /strength effective score/i })
+      fireEvent.input(overrideInput, { target: { value: "20" } })
+      fireEvent.blur(overrideInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          abilityScoreOverrides: expect.objectContaining({ strength: 20 }),
+          useCalculatedAbilityScores: expect.objectContaining({ strength: false }),
+        })
+      )
     })
   })
 })

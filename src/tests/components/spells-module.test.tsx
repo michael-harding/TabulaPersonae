@@ -2,10 +2,8 @@ import { axe } from "vitest-axe"
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 import { SpellsModule } from "@/components/spells-module"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Spell } from "@/lib/character-types"
+import type { Character, Spell, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
-
-vi.mock("@/lib/character-storage", () => ({ saveCharacter: vi.fn() }))
 
 function makeSpell(overrides: Partial<Spell> = {}): Spell {
   return {
@@ -20,6 +18,22 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
     description: "A mote of fire.",
     prepared: false,
     known: true,
+    ...overrides,
+  }
+}
+
+function makeMagicItem(overrides: Partial<Equipment> = {}): Equipment {
+  return {
+    id: "item-1",
+    name: "Ring of Spell Storing",
+    quantity: 1,
+    weight: 0,
+    description: "",
+    equipped: true,
+    type: "other",
+    magic: true,
+    requiresAttunement: true,
+    attuned: true,
     ...overrides,
   }
 }
@@ -166,8 +180,7 @@ describe("SpellsModule", () => {
       expect(onUpdate).not.toHaveBeenCalled()
     })
 
-    it("calls onUpdate and saveCharacter with the new spell when valid name is submitted", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate with the new spell when valid name is submitted", () => {
       const onUpdate = vi.fn()
       render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add spell/i })[0])
@@ -181,13 +194,11 @@ describe("SpellsModule", () => {
           spells: expect.arrayContaining([expect.objectContaining({ name: "Lightning Bolt" })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 
   describe("spell operations", () => {
-    it("calls onUpdate and saveCharacter when a spell is deleted", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("calls onUpdate when a spell is deleted", () => {
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0 })
       render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
@@ -198,11 +209,9 @@ describe("SpellsModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ spells: [] })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
-    it("toggles prepared state when the prepared checkbox is clicked for a level 1 spell", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("toggles prepared state when the prepared checkbox is clicked for a level 1 spell", () => {
       const onUpdate = vi.fn()
       const spell = makeSpell({ id: "s1", name: "Fireball", level: 1, prepared: true, known: true })
       render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
@@ -213,7 +222,6 @@ describe("SpellsModule", () => {
           spells: expect.arrayContaining([expect.objectContaining({ prepared: false })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
     it("shows level 1 spells without clicking the header first", () => {
@@ -346,6 +354,92 @@ describe("SpellsModule", () => {
     })
   })
 
+  describe("granted spells / free casts", () => {
+    beforeEach(() => cleanupPortals())
+
+    it("does not show the Granted By field when the character has no magic items", () => {
+      render(<SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).queryByText(/granted by/i)).not.toBeInTheDocument()
+    })
+
+    it("saves grantedBy and freeCast when a magic item is selected", () => {
+      const item = makeMagicItem()
+      const onUpdate = vi.fn()
+      render(<SpellsModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/spell name/i), { target: { value: "Magic Missile" } })
+      fireEvent.click(within(modal).getByLabelText(/granted by/i))
+      fireEvent.click(screen.getByRole("option", { name: "Ring of Spell Storing" }))
+      fireEvent.click(within(modal).getByText(/free cast/i))
+      fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([
+            expect.objectContaining({ name: "Magic Missile", grantedBy: "item-1", freeCast: true }),
+          ]),
+        })
+      )
+    })
+
+    it("shows a 'Granted:' badge on a spell tagged with grantedBy", () => {
+      const item = makeMagicItem()
+      const spell = makeSpell({ name: "Identify", level: 1, grantedBy: item.id })
+      render(<SpellsModule character={makeCharacter({ equipment: [item], spells: [spell] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      expect(screen.getByText(/granted: ring of spell storing/i)).toBeInTheDocument()
+    })
+
+    it("shows the Free Cast badge only when both grantedBy and freeCast are set", () => {
+      const item = makeMagicItem()
+      const spell = makeSpell({ name: "Identify", level: 1, grantedBy: item.id, freeCast: true })
+      render(<SpellsModule character={makeCharacter({ equipment: [item], spells: [spell] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      expect(screen.getByText("Free Cast")).toBeInTheDocument()
+    })
+
+    it("does not show a Granted badge when the granting item no longer exists", () => {
+      const spell = makeSpell({ name: "Identify", level: 1, grantedBy: "missing-item" })
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      expect(screen.queryByText(/granted:/i)).not.toBeInTheDocument()
+    })
+
+    it("resolves the correct item when two magic items share the same display name", () => {
+      const itemA = makeMagicItem({ id: "item-a", name: "Ring of Protection" })
+      const itemB = makeMagicItem({ id: "item-b", name: "Ring of Protection" })
+      const onUpdate = vi.fn()
+      render(<SpellsModule character={makeCharacter({ equipment: [itemA, itemB] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/spell name/i), { target: { value: "Shield" } })
+      fireEvent.click(within(modal).getByLabelText(/granted by/i))
+      const options = screen.getAllByRole("option", { name: "Ring of Protection" })
+      fireEvent.click(options[1])
+      fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spells: expect.arrayContaining([expect.objectContaining({ name: "Shield", grantedBy: "item-b" })]),
+        })
+      )
+    })
+
+    it("shows the 'Not item-granted' placeholder in the trigger after clearing a selection", () => {
+      const item = makeMagicItem()
+      render(<SpellsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
+      const modal = screen.getByRole("dialog")
+      const trigger = within(modal).getByLabelText(/granted by/i)
+      fireEvent.click(trigger)
+      fireEvent.click(screen.getByRole("option", { name: "Ring of Spell Storing" }))
+      fireEvent.click(trigger)
+      fireEvent.click(screen.getByRole("option", { name: /not item-granted/i }))
+      expect(trigger).toHaveTextContent(/not item-granted/i)
+    })
+  })
+
   describe("combobox fields in spell form", () => {
     it("saves a custom spell school typed into the School combobox", () => {
       const onUpdate = vi.fn()
@@ -405,8 +499,7 @@ describe("SpellsModule", () => {
       expect(checkboxes).toHaveLength(1)
     })
 
-    it("toggling known off for a cantrip sets known: false and prepared: false", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("toggling known off for a cantrip sets known: false and prepared: false", () => {
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0, known: true, prepared: true })
       render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
@@ -418,11 +511,9 @@ describe("SpellsModule", () => {
           ]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
 
-    it("toggling known on for an unknown cantrip sets known: true", async () => {
-      const { saveCharacter } = await import("@/lib/character-storage")
+    it("toggling known on for an unknown cantrip sets known: true", () => {
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0, known: false, prepared: false })
       render(<SpellsModule character={makeCharacter({ spells: [cantrip] })} onUpdate={onUpdate} />)
@@ -432,7 +523,6 @@ describe("SpellsModule", () => {
           spells: expect.arrayContaining([expect.objectContaining({ known: true })]),
         })
       )
-      expect(saveCharacter).toHaveBeenCalled()
     })
   })
 

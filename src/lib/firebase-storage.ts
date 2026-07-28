@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Character } from './character-types';
+import { migrateCharacter } from './character-migrations';
 import { isValidTabConfig } from './tab-config-types';
 import type { UserTabConfig } from './tab-config-types';
 
@@ -63,10 +64,10 @@ export async function getCharactersFromFirebase(userId: string): Promise<Charact
 
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      characters.push({
+      characters.push(migrateCharacter({
         ...data,
         id: doc.id,
-      } as Character);
+      }));
     });
 
     return characters;
@@ -90,10 +91,10 @@ export async function getCharacterFromFirebase(id: string, userId: string): Prom
         return null;
       }
 
-      return {
+      return migrateCharacter({
         ...data,
         id: characterSnap.id,
-      } as Character;
+      });
     }
 
     return null;
@@ -159,7 +160,7 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
       try {
         const parsed = JSON.parse(seed) as Character | null
         if (parsed && !parsed.isPublic) return null
-        return parsed
+        return parsed ? migrateCharacter(parsed) : null
       } catch { /* fall through */ }
     }
   }
@@ -171,7 +172,7 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
     if (!characterSnap.exists()) return null
     const data = characterSnap.data()
     if (!data.isPublic) return null
-    return { ...data, id: characterSnap.id } as Character
+    return migrateCharacter({ ...data, id: characterSnap.id })
   } catch (error) {
     console.error('Failed to get public character:', error)
     return null

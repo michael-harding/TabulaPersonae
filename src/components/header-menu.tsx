@@ -23,6 +23,7 @@ import { theme, setTheme } from "@/lib/theme"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { parsePdfCharacterSheet, mergeWithDefault } from "@/lib/pdf-parser"
+import { reconcileImportedCharacter, reconcileImportedCharacters } from "@/lib/character-import-reconciliation"
 import type { Character } from "@/lib/character-types"
 
 interface HeaderMenuProps {
@@ -85,11 +86,13 @@ export function HeaderMenu(props: HeaderMenuProps) {
             toast({ title: "Import Failed", description: "No valid characters found in file", variant: "destructive" })
             return
           }
-          props.onImportMultiple(valid)
-          toast({ title: "Import Successful", description: `Imported ${valid.length} characters successfully!` })
+          const reconciled = reconcileImportedCharacters(valid)
+          props.onImportMultiple(reconciled)
+          toast({ title: "Import Successful", description: `Imported ${reconciled.length} characters successfully!` })
         } else if (data && typeof data === "object" && data.id) {
-          props.onImportCharacter(data)
-          toast({ title: "Import Successful", description: `Imported ${data.name || "character"} successfully!` })
+          const reconciled = reconcileImportedCharacter(data)
+          props.onImportCharacter(reconciled)
+          toast({ title: "Import Successful", description: `Imported ${reconciled.name || "character"} successfully!` })
         } else {
           toast({ title: "Import Failed", description: "Invalid character file format", variant: "destructive" })
         }
@@ -108,7 +111,8 @@ export function HeaderMenu(props: HeaderMenuProps) {
     setIsPdfParsing(true)
     try {
       const parsed = await parsePdfCharacterSheet(file)
-      const character = mergeWithDefault(parsed)
+      const merged = mergeWithDefault(parsed)
+      const character = reconcileImportedCharacter(merged)
       await props.onImportCharacter(character)
       toast({ title: "PDF Import Successful", description: `Imported ${character.name || "character"} from PDF!` })
       setIsImportOpen(false)

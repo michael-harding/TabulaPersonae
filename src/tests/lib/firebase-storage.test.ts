@@ -148,6 +148,16 @@ describe('getPublicCharacterFromFirebase', () => {
       expect((result as any).name).toBe('Thorin')
     })
   })
+
+  it('defaults useCalculatedArmorClass to false for a legacy document missing the key', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    const publicCharData = { ...charData, isPublic: true }
+    mockGetDoc.mockResolvedValue(makeDocSnap(true, publicCharData))
+
+    const result = await getPublicCharacterFromFirebase('char-1')
+
+    expect((result as any).useCalculatedArmorClass).toBe(false)
+  })
 })
 
 describe('getCharactersFromFirebase', () => {
@@ -186,6 +196,15 @@ describe('getCharactersFromFirebase', () => {
 
     expect(result).toEqual([])
   })
+
+  it('defaults useCalculatedArmorClass to false for a legacy document missing the key', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    mockGetDocs.mockResolvedValue(makeQuerySnapshot([{ id: 'char-1', data: () => charData }]))
+
+    const result = await getCharactersFromFirebase(userId)
+
+    expect(result[0].useCalculatedArmorClass).toBe(false)
+  })
 })
 
 describe('getCharacterFromFirebase', () => {
@@ -222,6 +241,15 @@ describe('getCharacterFromFirebase', () => {
     const result = await getCharacterFromFirebase('char-1', userId)
 
     expect(result).toBeNull()
+  })
+
+  it('defaults useCalculatedArmorClass to false for a legacy document missing the key', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    mockGetDoc.mockResolvedValue(makeDocSnap(true, charData))
+
+    const result = await getCharacterFromFirebase('char-1', userId)
+
+    expect((result as any).useCalculatedArmorClass).toBe(false)
   })
 })
 

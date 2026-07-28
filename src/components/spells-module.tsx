@@ -1,10 +1,9 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, Spell } from "@/lib/character-types"
+import type { Character, Spell, Equipment } from "@/lib/character-types"
 
 const EMPTY_SPELLS: Spell[] = []
-import { getSpellSaveDC, getSpellAttackBonus, formatModifier } from "@/lib/character-utils"
-import { saveCharacter } from "@/lib/character-storage"
+import { getSpellSaveDC, getSpellAttackBonus, formatModifier, isItemModifierActive } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,6 +49,8 @@ interface SpellFormData {
   known: boolean
   concentration?: boolean
   ritual?: boolean
+  grantedBy: string
+  freeCast: boolean
 }
 
 interface SpellsModuleProps {
@@ -91,6 +92,8 @@ const defaultSpellForm: SpellFormData = {
   known: true,
   concentration: false,
   ritual: false,
+  grantedBy: "",
+  freeCast: false,
 }
 
 interface SpellFormProps {
@@ -98,10 +101,12 @@ interface SpellFormProps {
   onSubmit: (data: SpellFormData) => void
   onCancel: () => void
   editing: boolean
+  magicItems: Equipment[]
 }
 
 function SpellForm(props: SpellFormProps) {
   const [formData, setFormData] = createSignal<SpellFormData>(props.initialData)
+  const grantedByName = () => props.magicItems.find((item) => item.id === formData().grantedBy)?.name
 
   return (
     <div class="space-y-4">
@@ -172,41 +177,72 @@ function SpellForm(props: SpellFormProps) {
         <Textarea id="description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Spell description and effects" rows={4} />
       </div>
 
-      <label class="flex items-center gap-3 cursor-pointer min-h-[44px]">
-        <Checkbox
-          checked={formData().known}
-          onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
-        />
-        <span class="text-sm font-medium leading-none">Known</span>
-      </label>
+      <Checkbox
+        checked={formData().known}
+        onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
+        label="Known"
+        labelClass="text-sm font-medium leading-none cursor-pointer"
+        containerClass="gap-3 min-h-[44px]"
+      />
 
       <Show when={formData().level > 0}>
-        <label class="flex items-center gap-3 cursor-pointer min-h-[44px]" classList={{ "opacity-50 cursor-not-allowed": !formData().known }}>
-          <Checkbox
-            checked={formData().prepared}
-            disabled={!formData().known}
-            onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
-          />
-          <span class="text-sm font-medium leading-none">Prepared</span>
-        </label>
+        <Checkbox
+          checked={formData().prepared}
+          disabled={!formData().known}
+          onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
+          label="Prepared"
+          labelClass={`text-sm font-medium leading-none ${formData().known ? "cursor-pointer" : "cursor-not-allowed"}`}
+          containerClass={`gap-3 min-h-[44px] ${formData().known ? "" : "opacity-50 cursor-not-allowed"}`}
+        />
       </Show>
 
       <div class="flex flex-wrap gap-x-6 gap-y-2">
-        <label class="flex items-center gap-3 cursor-pointer min-h-[44px]">
-          <Checkbox
-            checked={!!formData().concentration}
-            onChange={(checked: boolean) => setFormData((p) => ({ ...p, concentration: checked }))}
-          />
-          <span class="text-sm font-medium leading-none">Concentration</span>
-        </label>
-        <label class="flex items-center gap-3 cursor-pointer min-h-[44px]">
-          <Checkbox
-            checked={!!formData().ritual}
-            onChange={(checked: boolean) => setFormData((p) => ({ ...p, ritual: checked }))}
-          />
-          <span class="text-sm font-medium leading-none">Ritual</span>
-        </label>
+        <Checkbox
+          checked={!!formData().concentration}
+          onChange={(checked: boolean) => setFormData((p) => ({ ...p, concentration: checked }))}
+          label="Concentration"
+          labelClass="text-sm font-medium leading-none cursor-pointer"
+          containerClass="gap-3 min-h-[44px]"
+        />
+        <Checkbox
+          checked={!!formData().ritual}
+          onChange={(checked: boolean) => setFormData((p) => ({ ...p, ritual: checked }))}
+          label="Ritual"
+          labelClass="text-sm font-medium leading-none cursor-pointer"
+          containerClass="gap-3 min-h-[44px]"
+        />
       </div>
+
+      <Show when={props.magicItems.length > 0}>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <Label for="spell-granted-by">Granted By (optional)</Label>
+            <Select
+              value={formData().grantedBy}
+              onValueChange={(id) => setFormData((p) => ({ ...p, grantedBy: id }))}
+            >
+              <SelectTrigger id="spell-granted-by">
+                <span class="flex-1 text-left">{grantedByName() ?? "Not item-granted"}</span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Not item-granted</SelectItem>
+                <For each={props.magicItems}>
+                  {(item) => <SelectItem value={item.id}>{item.name}</SelectItem>}
+                </For>
+              </SelectContent>
+            </Select>
+          </div>
+          <Show when={formData().grantedBy}>
+            <Checkbox
+              checked={formData().freeCast}
+              onChange={(checked: boolean) => setFormData((p) => ({ ...p, freeCast: checked }))}
+              label="Free Cast (no slot)"
+              labelClass="text-sm font-medium leading-none cursor-pointer"
+              containerClass="gap-3 min-h-[44px] mt-auto"
+            />
+          </Show>
+        </div>
+      </Show>
 
       <div class="flex gap-2 pt-4">
         <Button onClick={() => props.onSubmit(formData())} class="gap-2">
@@ -232,6 +268,8 @@ export function SpellsModule(props: SpellsModuleProps) {
 
 
   const safeSpells = createMemo(() => props.character.spells || [])
+  const magicItems = createMemo(() => (props.character.equipment ?? []).filter((item) => item.magic))
+  const magicItemById = (id: string | undefined) => magicItems().find((item) => item.id === id)
   const filteredSpells = createMemo(() =>
     safeSpells().filter(
       (spell) =>
@@ -305,10 +343,11 @@ export function SpellsModule(props: SpellsModuleProps) {
       atHigherLevel: formData.atHigherLevel,
       concentration: formData.concentration,
       ritual: formData.ritual,
+      grantedBy: formData.grantedBy || undefined,
+      freeCast: formData.grantedBy && formData.freeCast ? true : undefined,
     }
     const updated = { ...props.character, spells: [...safeSpells(), newSpell] }
     props.onUpdate(updated)
-    saveCharacter(updated)
     setIsAddModalOpen(false)
   }
 
@@ -334,10 +373,11 @@ export function SpellsModule(props: SpellsModuleProps) {
       atHigherLevel: formData.atHigherLevel,
       concentration: formData.concentration,
       ritual: formData.ritual,
+      grantedBy: formData.grantedBy || undefined,
+      freeCast: formData.grantedBy && formData.freeCast ? true : undefined,
     }
     const updated = { ...props.character, spells: safeSpells().map((s) => (s.id === spell.id ? updatedSpell : s)) }
     props.onUpdate(updated)
-    saveCharacter(updated)
     setEditingSpell(null)
   }
 
@@ -345,7 +385,6 @@ export function SpellsModule(props: SpellsModuleProps) {
     if (isReadOnly) return
     const updated = { ...props.character, spells: safeSpells().filter((spell) => spell.id !== spellId) }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const togglePrepared = (spellId: string) => {
@@ -355,7 +394,6 @@ export function SpellsModule(props: SpellsModuleProps) {
       spells: safeSpells().map((spell) => (spell.id === spellId ? { ...spell, prepared: !spell.prepared } : spell)),
     }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const toggleKnown = (spellId: string) => {
@@ -369,7 +407,6 @@ export function SpellsModule(props: SpellsModuleProps) {
       ),
     }
     props.onUpdate(updated)
-    saveCharacter(updated)
   }
 
   const editSpellData = (): SpellFormData => {
@@ -392,6 +429,8 @@ export function SpellsModule(props: SpellsModuleProps) {
       atHigherLevel: spell.atHigherLevel || "",
       concentration: spell.concentration ?? false,
       ritual: spell.ritual ?? false,
+      grantedBy: spell.grantedBy || "",
+      freeCast: spell.freeCast ?? false,
     }
   }
 
@@ -431,7 +470,6 @@ export function SpellsModule(props: SpellsModuleProps) {
                     onInput={(e) => {
                       const updated = { ...props.character, spellcastingClass: e.currentTarget.value }
                       props.onUpdate(updated)
-                      saveCharacter(updated)
                     }}
                     placeholder="e.g. Wizard"
                   />
@@ -536,32 +574,56 @@ export function SpellsModule(props: SpellsModuleProps) {
                                 <div class="flex items-start justify-between">
                                   <div class="flex-1">
                                     <div class="flex items-center gap-2 mb-1">
-                                      <label class="flex items-center gap-2 cursor-pointer">
-                                        <Show when={!isReadOnly}>
-                                          <Show when={spell.level === 0}>
-                                            <Tooltip content="Known">
-                                              <Checkbox
-                                                checked={spell.known ?? true}
-                                                onChange={() => toggleKnown(spell.id)}
-                                              />
-                                            </Tooltip>
-                                          </Show>
-                                          <Show when={spell.level > 0}>
-                                            <Tooltip content="Prepared">
-                                              <Checkbox
-                                                checked={spell.prepared || false}
-                                                disabled={!(spell.known ?? true)}
-                                                onChange={() => togglePrepared(spell.id)}
-                                              />
-                                            </Tooltip>
-                                          </Show>
+                                      <Show when={!isReadOnly}>
+                                        <Show when={spell.level === 0}>
+                                          <Tooltip content="Known">
+                                            <Checkbox
+                                              checked={spell.known ?? true}
+                                              onChange={() => toggleKnown(spell.id)}
+                                              aria-label={`Known: ${spell.name}`}
+                                            />
+                                          </Tooltip>
                                         </Show>
-                                        <h3 class="font-medium">{spell.name}</h3>
-                                      </label>
+                                        <Show when={spell.level > 0}>
+                                          <Tooltip content="Prepared">
+                                            <Checkbox
+                                              checked={spell.prepared || false}
+                                              disabled={!(spell.known ?? true)}
+                                              onChange={() => togglePrepared(spell.id)}
+                                              aria-label={`Prepared: ${spell.name}`}
+                                            />
+                                          </Tooltip>
+                                        </Show>
+                                      </Show>
+                                      <h3
+                                        class={`font-medium ${isReadOnly ? "" : "cursor-pointer"}`}
+                                        onClick={() => {
+                                          if (isReadOnly) return
+                                          if (spell.level === 0) toggleKnown(spell.id)
+                                          else if (!(spell.known ?? true)) return
+                                          else togglePrepared(spell.id)
+                                        }}
+                                      >
+                                        {spell.name}
+                                      </h3>
                                       <Badge variant="outline" class="text-xs">{spell.school}</Badge>
                                       <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>
                                       <Show when={spell.ritual}>
                                         <Badge variant="secondary" class="text-xs" title="Ritual">R</Badge>
+                                      </Show>
+                                      <Show when={magicItemById(spell.grantedBy)}>
+                                        {(item) => (
+                                          <Badge
+                                            variant="outline"
+                                            class={`text-xs ${isItemModifierActive(item()) ? "" : "text-muted-foreground italic"}`}
+                                            title={isItemModifierActive(item()) ? undefined : "Item not currently equipped/attuned"}
+                                          >
+                                            Granted: {item().name}
+                                          </Badge>
+                                        )}
+                                      </Show>
+                                      <Show when={spell.grantedBy && spell.freeCast}>
+                                        <Badge variant="secondary" class="text-xs">Free Cast</Badge>
                                       </Show>
 
                                     </div>
@@ -621,6 +683,7 @@ export function SpellsModule(props: SpellsModuleProps) {
             onSubmit={handleAddSpell}
             onCancel={() => setIsAddModalOpen(false)}
             editing={false}
+            magicItems={magicItems()}
           />
         </ModalContent>
       </Modal>
@@ -634,6 +697,7 @@ export function SpellsModule(props: SpellsModuleProps) {
             onSubmit={handleUpdateSpell}
             onCancel={() => setEditingSpell(null)}
             editing={true}
+            magicItems={magicItems()}
           />
         </ModalContent>
       </Modal>
