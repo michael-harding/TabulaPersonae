@@ -1,5 +1,5 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
-import type { Character, AbilityScores } from "@/lib/character-types"
+import type { Character } from "@/lib/character-types"
 import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -23,13 +23,6 @@ const SPECIES = [
   "Human","Elf","Dwarf","Halfling","Dragonborn","Gnome",
   "Orc","Tiefling","Aasimar","Goliath","Ardling","Other",
 ]
-
-const CLASS_TO_SPELLCASTING_ABILITY: Record<string, keyof AbilityScores | ""> = {
-  Barbarian: "", Bard: "charisma", Cleric: "wisdom", Druid: "wisdom",
-  Fighter: "", Monk: "", Paladin: "charisma", Ranger: "wisdom",
-  Rogue: "", Sorcerer: "charisma", Warlock: "charisma",
-  Wizard: "intelligence", Artificer: "intelligence", Other: "",
-}
 
 const CLASSES = [
   "Barbarian","Bard","Cleric","Druid","Fighter","Monk","Paladin",
@@ -67,12 +60,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
   const inspirationLabel = () => edition() === "2014" ? "Inspiration" : "Heroic Inspiration"
 
   const updateField = (field: keyof Character, value: any) => { // Character fields are heterogeneous; a union of all field types is not usable as an assignment target
-    if (field === "class") {
-      const spellcastingAbility = CLASS_TO_SPELLCASTING_ABILITY[value] ?? ""
-      setEdited((prev) => ({ ...prev, class: value, spellcastingAbility }))
-    } else {
-      setEdited((prev) => ({ ...prev, [field]: value }))
-    }
+    setEdited((prev) => ({ ...prev, [field]: value }))
   }
 
   const handleSave = () => { props.onUpdate(edited()); setIsEditing(false) }
