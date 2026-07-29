@@ -1,6 +1,6 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getEffectiveConditionImmunities } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getEffectiveConditionImmunities, getEffectiveHitDiceSize, getActiveFeatureEffects } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { DIE_SIZES } from "@/lib/dice"
@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { CalculatedValue } from "@/components/ui/calculated-value"
+import { Tooltip } from "@/components/ui/tooltip"
 import { useReadOnly } from "@/lib/read-only-context"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
@@ -94,6 +95,10 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   const edition = createMemo(() => props.character.edition ?? "2024")
+
+  const hitDiceGrant = createMemo(() => getActiveFeatureEffects(current()))
+  const hitDiceGranted = createMemo(() => hitDiceGrant().hitDiceSize !== undefined)
+  const effectiveHitDiceSize = createMemo(() => getEffectiveHitDiceSize(current()))
 
   const updateHP = (field: "current" | "maximum" | "temporary" | "temporaryMaximum", value: number) =>
     setEdited((prev) => {
@@ -329,15 +334,29 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             <div class="space-y-3">
               <div>
                 <Label class="text-xs">Die Type</Label>
-                <Select
-                  value={String(edited().hitDiceSize)}
-                  onValueChange={(v) => setEdited(prev => ({ ...prev, hitDiceSize: Number(v) }))}
+                <Show
+                  when={hitDiceGranted()}
+                  fallback={
+                    <Select
+                      value={String(edited().hitDiceSize)}
+                      onValueChange={(v) => setEdited(prev => ({ ...prev, hitDiceSize: Number(v) }))}
+                    >
+                      <SelectTrigger class="w-24"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
+                      </SelectContent>
+                    </Select>
+                  }
                 >
-                  <SelectTrigger class="w-24"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
-                  </SelectContent>
-                </Select>
+                  <Tooltip content={`Granted by ${hitDiceGrant().hitDiceSizeSource}`}>
+                    <Select value={String(effectiveHitDiceSize())} disabled>
+                      <SelectTrigger class="w-24"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
+                      </SelectContent>
+                    </Select>
+                  </Tooltip>
+                </Show>
               </div>
               <div>
                 <Label class="text-xs">Spent Hit Dice</Label>

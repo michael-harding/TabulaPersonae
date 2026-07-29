@@ -125,11 +125,25 @@ export interface Spell extends CharacterEntry {
 export type FeatureKind = 'class-feature' | 'species-trait' | 'feat'
 export type ActionKind = 'action' | 'bonus-action' | 'reaction' | 'other'
 
+export interface FeatureEffects {
+  spellcastingAbility?: keyof AbilityScores
+  hitDiceSize?: number
+  savingThrowProficiencies?: (keyof AbilityScores)[]
+  skillProficiencies?: { skill: keyof Skills; expertise?: boolean }[]
+  otherProficiencies?: string[]
+}
+
+export interface FeatureLevelEffect {
+  level: number
+  effects: FeatureEffects
+}
+
 export interface Feature extends UseableEntry {
   source: FeatureKind
   actionKind?: ActionKind
   type?: ActionType
   range?: string
+  levelEffects?: FeatureLevelEffect[]
 }
 
 interface ActionBase extends UseableEntry {

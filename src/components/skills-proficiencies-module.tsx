@@ -1,6 +1,6 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, SENSE_TYPES, SENSE_LABELS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, SENSE_TYPES, SENSE_LABELS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -84,7 +84,7 @@ function EditableTagList(props: {
         </For>
         <For each={props.grantedValues}>
           {(value) => (
-            <Badge variant="secondary" class="gap-1" title="Granted by an equipped item">
+            <Badge variant="secondary" class="gap-1" title="Granted automatically">
               {value}
             </Badge>
           )}
@@ -136,7 +136,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
     useField: "useCalculatedPassivePerception" | "useCalculatedPassiveInsight" | "useCalculatedPassiveInvestigation",
   ) => {
     const ability = SKILL_ABILITY_MAP[skillKey]
-    const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false }
+    const skill = () => getEffectiveSkillProficiency(current(), skillKey)
     const calc = createMemo(() => getPassiveScore(effectiveScores()[ability], current().proficiencyBonus, skill().proficient, skill().expertise))
     const tooltip = createMemo(() => {
       const mod = getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
@@ -248,7 +248,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
           <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
             <For each={Object.keys(ABILITY_ABBREVIATIONS) as AbilityKey[]}>
               {(ability) => {
-                const isProficient = () => current().savingThrows?.[ability] ?? false
+                const effectiveSave = () => getEffectiveSavingThrowProficiency(current(), ability)
+                const isProficient = () => effectiveSave().proficient
                 const saveItemBonus = () => modifierTotals().savingThrows[ability]
                 const modifier = () => getSavingThrowModifier(effectiveScores()[ability], current().proficiencyBonus, isProficient(), saveItemBonus())
                 const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
@@ -268,16 +269,37 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           <Show when={isProficient()}>
                             <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
                           </Show>
+                          <Show when={effectiveSave().granted}>
+                            <Tooltip content={`Granted by ${effectiveSave().grantedBy}`}>
+                              <Badge variant="outline" class="text-xs px-1 py-0">Granted</Badge>
+                            </Tooltip>
+                          </Show>
                         </div>
                       }
                     >
-                      <Checkbox
-                        checked={isProficient()}
-                        onChange={() => toggleSavingThrow(ability)}
-                        label={ABILITY_ABBREVIATIONS[ability]}
-                        labelClass="text-sm font-medium cursor-pointer"
-                        containerClass="gap-2"
-                      />
+                      <Show
+                        when={effectiveSave().granted}
+                        fallback={
+                          <Checkbox
+                            checked={isProficient()}
+                            onChange={() => toggleSavingThrow(ability)}
+                            label={ABILITY_ABBREVIATIONS[ability]}
+                            labelClass="text-sm font-medium cursor-pointer"
+                            containerClass="gap-2"
+                          />
+                        }
+                      >
+                        <Tooltip content={`Granted by ${effectiveSave().grantedBy}`} triggerFocusable>
+                          <Checkbox
+                            checked={isProficient()}
+                            disabled
+                            onChange={() => toggleSavingThrow(ability)}
+                            label={ABILITY_ABBREVIATIONS[ability]}
+                            labelClass="text-sm font-medium cursor-pointer"
+                            containerClass="gap-2"
+                          />
+                        </Tooltip>
+                      </Show>
                     </Show>
                     <Tooltip content={saveTooltip()} triggerFocusable>
                       <span class="font-semibold">{formatModifier(modifier())}</span>
@@ -299,12 +321,13 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
               {(skillKey) => {
                 const ability = SKILL_ABILITY_MAP[skillKey]
                 const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false, disadvantage: false }
-                const modifier = () => getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
+                const effectiveSkill = () => getEffectiveSkillProficiency(current(), skillKey)
+                const modifier = () => getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, effectiveSkill().proficient, effectiveSkill().expertise)
                 const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
                 const skillTooltip = () => {
                   const parts = [`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())}`]
-                  if (skill().proficient) parts.push(`Prof +${current().proficiencyBonus}`)
-                  if (skill().expertise) parts.push(`Exp +${current().proficiencyBonus}`)
+                  if (effectiveSkill().proficient) parts.push(`Prof +${current().proficiencyBonus}`)
+                  if (effectiveSkill().expertise) parts.push(`Exp +${current().proficiencyBonus}`)
                   return parts.join(" + ") + (parts.length > 1 ? ` = ${formatModifier(modifier())}` : "")
                 }
                 return (
@@ -312,8 +335,14 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                     <div class="flex items-center gap-3 w-full transition-colors duration-150">
                       <Show when={isEditing()}>
                         <div class="flex gap-1">
-                          <Tooltip content="Proficiency (adds proficiency bonus)">
-                            <Checkbox aria-label="Proficient" checked={skill().proficient} onChange={() => toggleSkillProf(skillKey)} class="border-secondary data-[checked]:bg-secondary" />
+                          <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
+                            <Checkbox
+                              aria-label="Proficient"
+                              checked={effectiveSkill().proficient}
+                              disabled={effectiveSkill().granted}
+                              onChange={() => toggleSkillProf(skillKey)}
+                              class="border-secondary data-[checked]:bg-secondary"
+                            />
                           </Tooltip>
                           <Tooltip content="Expertise (doubles proficiency bonus)">
                             <Checkbox aria-label="Expertise" checked={skill().expertise} onChange={() => toggleSkillExp(skillKey)} />
@@ -325,7 +354,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           <span
                             class={`font-medium ${isEditing() ? "cursor-pointer" : ""}`}
                             onClick={() => isEditing() && toggleSkillProf(skillKey)}
-                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={skill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={skill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show></span></Show></span>
+                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show><Show when={effectiveSkill().granted}><Tooltip content={`Granted by ${effectiveSkill().grantedBy}`}><Badge variant="outline" class="text-xs px-1 py-0">Granted</Badge></Tooltip></Show></span></Show></span>
                         </div>
                       </div>
                     </div>

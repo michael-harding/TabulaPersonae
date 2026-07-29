@@ -669,4 +669,57 @@ describe("SkillsProficienciesModule", () => {
       expect(screen.getAllByText("Elvish").length).toBe(1)
     })
   })
+
+  describe("feature-granted saving throw and skill proficiencies", () => {
+    function makeFeature(overrides: Record<string, any> = {}) {
+      return {
+        id: "feature-1",
+        name: "Divine Sense",
+        description: "",
+        source: "class-feature" as const,
+        ...overrides,
+      }
+    }
+
+    it("shows a locked, checked saving throw checkbox when a feature grants it", () => {
+      const feature = makeFeature({ levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["dexterity"] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+
+      // First 6 checkboxes are saving throws: strength(0), dexterity(1), ...
+      const allCheckboxes = screen.getAllByRole("checkbox")
+      expect(allCheckboxes[1]).toBeChecked()
+      expect(allCheckboxes[1]).toBeDisabled()
+    })
+
+    it("does not lock a saving throw when the granting feature's level requirement is unmet", () => {
+      const feature = makeFeature({ levelEffects: [{ level: 10, effects: { savingThrowProficiencies: ["dexterity"] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+
+      const allCheckboxes = screen.getAllByRole("checkbox")
+      expect(allCheckboxes[1]).not.toBeChecked()
+      expect(allCheckboxes[1]).not.toBeDisabled()
+    })
+
+    it("shows a locked, checked Proficient checkbox for a feature-granted skill", () => {
+      const feature = makeFeature({ levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception" }] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+
+      const profCheckboxes = screen.getAllByRole("checkbox", { name: "Proficient" })
+      expect(profCheckboxes[11]).toBeChecked() // perception is index 11
+      expect(profCheckboxes[11]).toBeDisabled()
+    })
+
+    it("shows a Granted badge for a feature-granted skill", () => {
+      const feature = makeFeature({ name: "Keen Senses", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception" }] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Granted")).toBeInTheDocument()
+    })
+  })
 })

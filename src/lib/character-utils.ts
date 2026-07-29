@@ -1,4 +1,4 @@
-import type { AbilityScores, Character, Equipment, Feature, SenseType } from "./character-types"
+import type { AbilityScores, Character, Equipment, Feature, FeatureEffects, SenseType, Skills } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -158,6 +158,101 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
   return totals
 }
 
+export interface FeatureEffectTotals {
+  spellcastingAbility?: keyof AbilityScores
+  spellcastingAbilitySource?: string
+  hitDiceSize?: number
+  hitDiceSizeSource?: string
+  savingThrowProficiencies: Partial<Record<keyof AbilityScores, string>>
+  skillProficiencies: Partial<Record<keyof Skills, { expertise: boolean; source: string }>>
+  otherProficiencies: string[]
+}
+
+export function getActiveLevelEffect(feature: Feature, level: number): FeatureEffects | undefined {
+  const tiers = (feature.levelEffects ?? []).filter((tier) => tier.level <= level)
+  if (tiers.length === 0) return undefined
+  return tiers.reduce((best, tier) => (tier.level > best.level ? tier : best)).effects
+}
+
+type FeatureEffectCharacter = Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "level">
+
+export function getActiveFeatureEffects(character: FeatureEffectCharacter): FeatureEffectTotals {
+  const totals: FeatureEffectTotals = {
+    savingThrowProficiencies: {},
+    skillProficiencies: {},
+    otherProficiencies: [],
+  }
+  const otherProficiencyLists: string[][] = []
+  const level = character.level ?? 1
+
+  for (const features of [safeFeatures(character.classFeatures), safeFeatures(character.speciesTraits), safeFeatures(character.feats)]) {
+    for (const feature of features) {
+      const effects = getActiveLevelEffect(feature, level)
+      if (!effects) continue
+
+      if (effects.spellcastingAbility) {
+        totals.spellcastingAbility = effects.spellcastingAbility
+        totals.spellcastingAbilitySource = feature.name
+      }
+      if (effects.hitDiceSize) {
+        totals.hitDiceSize = effects.hitDiceSize
+        totals.hitDiceSizeSource = feature.name
+      }
+      for (const ability of effects.savingThrowProficiencies ?? []) {
+        if (!totals.savingThrowProficiencies[ability]) {
+          totals.savingThrowProficiencies[ability] = feature.name
+        }
+      }
+      for (const grant of effects.skillProficiencies ?? []) {
+        const existing = totals.skillProficiencies[grant.skill]
+        totals.skillProficiencies[grant.skill] = {
+          expertise: (existing?.expertise ?? false) || !!grant.expertise,
+          source: existing?.source ?? feature.name,
+        }
+      }
+      otherProficiencyLists.push(effects.otherProficiencies ?? [])
+    }
+  }
+
+  totals.otherProficiencies = dedupUnion(...otherProficiencyLists)
+  return totals
+}
+
+export function getEffectiveSpellcastingAbility(
+  character: Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "level" | "spellcastingAbility">
+): keyof AbilityScores | "" {
+  return getActiveFeatureEffects(character).spellcastingAbility ?? character.spellcastingAbility ?? ""
+}
+
+export function getEffectiveHitDiceSize(
+  character: Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "level" | "hitDiceSize" | "hitDice">
+): number {
+  return getActiveFeatureEffects(character).hitDiceSize ?? character.hitDiceSize ?? parseHitDiceSize(character.hitDice ?? "1d8")
+}
+
+export function getEffectiveSavingThrowProficiency(
+  character: Pick<Character, "savingThrows" | "classFeatures" | "speciesTraits" | "feats" | "level">,
+  ability: keyof AbilityScores,
+): { proficient: boolean; granted: boolean; grantedBy?: string } {
+  const own = character.savingThrows?.[ability] ?? false
+  const grantedBy = getActiveFeatureEffects(character).savingThrowProficiencies[ability]
+  return { proficient: own || !!grantedBy, granted: !!grantedBy, grantedBy }
+}
+
+export function getEffectiveSkillProficiency(
+  character: Pick<Character, "skills" | "classFeatures" | "speciesTraits" | "feats" | "level">,
+  skill: keyof Skills,
+): { proficient: boolean; expertise: boolean; granted: boolean; grantedBy?: string } {
+  const own = character.skills?.[skill]
+  const grant = getActiveFeatureEffects(character).skillProficiencies[skill]
+  return {
+    proficient: (own?.proficient ?? false) || !!grant,
+    expertise: (own?.expertise ?? false) || (grant?.expertise ?? false),
+    granted: !!grant,
+    grantedBy: grant?.source,
+  }
+}
+
 type AbilityScoreCharacter = Pick<
   Character,
   "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores"
@@ -275,10 +370,13 @@ export function getEffectiveLanguages(character: Pick<Character, "languages" | "
   return { own, granted: itemGranted.filter((l) => !own.includes(l)) }
 }
 
-export function getEffectiveProficiencies(character: Pick<Character, "otherProficiencies" | "equipment">): EffectiveGrantList {
+export function getEffectiveProficiencies(
+  character: Pick<Character, "otherProficiencies" | "equipment" | "classFeatures" | "speciesTraits" | "feats" | "level">
+): EffectiveGrantList {
   const own = character.otherProficiencies ?? []
   const itemGranted = getEquipmentModifierTotals(character.equipment).proficiencies
-  return { own, granted: itemGranted.filter((p) => !own.includes(p)) }
+  const featureGranted = getActiveFeatureEffects(character).otherProficiencies
+  return { own, granted: dedupUnion(itemGranted, featureGranted).filter((p) => !own.includes(p)) }
 }
 
 export function getEffectiveCarryingCapacity(character: AbilityScoreCharacter): number {
@@ -305,8 +403,9 @@ export function getSpellSaveDC(
   // If first parameter is a Character object
   if (typeof characterOrAbility === "object" && "spellcastingAbility" in characterOrAbility) {
     const character = characterOrAbility
-    if (!character.spellcastingAbility) return 8
-    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, character.spellcastingAbility))
+    const ability = getEffectiveSpellcastingAbility(character)
+    if (!ability) return 8
+    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
     return 8 + (character.proficiencyBonus || 2) + abilityMod
   }
 
@@ -331,8 +430,9 @@ export function getSpellAttackBonus(
   // If first parameter is a Character object
   if (typeof characterOrAbility === "object" && "spellcastingAbility" in characterOrAbility) {
     const character = characterOrAbility
-    if (!character.spellcastingAbility) return 0
-    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, character.spellcastingAbility))
+    const ability = getEffectiveSpellcastingAbility(character)
+    if (!ability) return 0
+    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
     return (character.proficiencyBonus || 2) + abilityMod
   }
 
@@ -344,7 +444,7 @@ export function getSpellAttackBonus(
 }
 
 export function computeSpellModifier(character: Character): number {
-  const ability = character.spellcastingAbility
+  const ability = getEffectiveSpellcastingAbility(character)
   if (!ability) return 0
   return getAbilityModifier(getEffectiveAbilityScore(character, ability))
 }

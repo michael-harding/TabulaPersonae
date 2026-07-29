@@ -28,8 +28,14 @@ import {
   getEffectiveLanguages,
   getEffectiveProficiencies,
   getEffectiveCarryingCapacity,
+  getActiveLevelEffect,
+  getActiveFeatureEffects,
+  getEffectiveSpellcastingAbility,
+  getEffectiveHitDiceSize,
+  getEffectiveSavingThrowProficiency,
+  getEffectiveSkillProficiency,
 } from "@/lib/character-utils"
-import { createDefaultCharacter, type AbilityScores, type Equipment } from "@/lib/character-types"
+import { createDefaultCharacter, type AbilityScores, type Equipment, type Feature } from "@/lib/character-types"
 
 describe("Character Utils", () => {
   describe("getAbilityModifier", () => {
@@ -470,6 +476,16 @@ function makeMagicItem(overrides: Partial<Equipment> = {}): Equipment {
   }
 }
 
+function makeFeature(overrides: Partial<Feature> = {}): Feature {
+  return {
+    id: "feature-1",
+    name: "Test Feature",
+    description: "",
+    source: "class-feature",
+    ...overrides,
+  }
+}
+
 const baseScores = { strength: 16, dexterity: 14, constitution: 14, intelligence: 10, wisdom: 10, charisma: 10 }
 
 describe("isItemModifierActive", () => {
@@ -754,6 +770,7 @@ describe("getEffectiveLanguages / getEffectiveProficiencies", () => {
       languages: ["Common", "Elvish"],
       otherProficiencies: ["Longsword"],
       equipment: [makeMagicItem({ modifiers: { languages: ["Elvish", "Dwarvish"], proficiencies: ["Longsword", "Herbalism Kit"] } })],
+      level: 1,
     }
     const languages = getEffectiveLanguages(character)
     expect(languages.own).toEqual(["Common", "Elvish"])
@@ -762,6 +779,21 @@ describe("getEffectiveLanguages / getEffectiveProficiencies", () => {
     const proficiencies = getEffectiveProficiencies(character)
     expect(proficiencies.own).toEqual(["Longsword"])
     expect(proficiencies.granted).toEqual(["Herbalism Kit"])
+  })
+
+  it("merges feature-granted proficiencies alongside item-granted ones", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { otherProficiencies: ["Light Armor", "Herbalism Kit"] } }] })
+    const character = {
+      otherProficiencies: ["Longsword"],
+      equipment: [makeMagicItem({ modifiers: { proficiencies: ["Herbalism Kit"] } })],
+      classFeatures: [feature],
+      speciesTraits: [],
+      feats: [],
+      level: 1,
+    }
+    const proficiencies = getEffectiveProficiencies(character)
+    expect(proficiencies.own).toEqual(["Longsword"])
+    expect(proficiencies.granted.sort()).toEqual(["Herbalism Kit", "Light Armor"])
   })
 })
 
@@ -1013,5 +1045,157 @@ describe("getEffectiveMaxHp", () => {
   it("defaults maximum to 1 and temporaryMaximum to 0 when missing", () => {
     expect(getEffectiveMaxHp({})).toBe(1)
     expect(getEffectiveMaxHp(undefined)).toBe(1)
+  })
+})
+
+describe("getActiveLevelEffect", () => {
+  it("returns undefined when the feature has no levelEffects", () => {
+    expect(getActiveLevelEffect(makeFeature(), 5)).toBeUndefined()
+  })
+
+  it("returns undefined when the character level is below every tier", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 3, effects: { spellcastingAbility: "wisdom" } }] })
+    expect(getActiveLevelEffect(feature, 1)).toBeUndefined()
+  })
+
+  it("resolves a single tier as granted-at-level, active at and above that level", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] })
+    expect(getActiveLevelEffect(feature, 1)?.spellcastingAbility).toBe("wisdom")
+    expect(getActiveLevelEffect(feature, 20)?.spellcastingAbility).toBe("wisdom")
+  })
+
+  it("resolves the highest qualifying tier when a feature changes at multiple levels", () => {
+    const feature = makeFeature({
+      levelEffects: [
+        { level: 1, effects: { hitDiceSize: 8 } },
+        { level: 9, effects: { hitDiceSize: 10 } },
+        { level: 16, effects: { hitDiceSize: 12 } },
+      ],
+    })
+    expect(getActiveLevelEffect(feature, 1)?.hitDiceSize).toBe(8)
+    expect(getActiveLevelEffect(feature, 8)?.hitDiceSize).toBe(8)
+    expect(getActiveLevelEffect(feature, 9)?.hitDiceSize).toBe(10)
+    expect(getActiveLevelEffect(feature, 15)?.hitDiceSize).toBe(10)
+    expect(getActiveLevelEffect(feature, 16)?.hitDiceSize).toBe(12)
+    expect(getActiveLevelEffect(feature, 20)?.hitDiceSize).toBe(12)
+  })
+})
+
+describe("getActiveFeatureEffects", () => {
+  it("returns empty totals when there are no features", () => {
+    const totals = getActiveFeatureEffects({ classFeatures: [], speciesTraits: [], feats: [], level: 5 })
+    expect(totals.spellcastingAbility).toBeUndefined()
+    expect(totals.hitDiceSize).toBeUndefined()
+    expect(totals.savingThrowProficiencies).toEqual({})
+    expect(totals.skillProficiencies).toEqual({})
+    expect(totals.otherProficiencies).toEqual([])
+  })
+
+  it("only applies effects from features whose level threshold has been reached", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 4, effects: { skillProficiencies: [{ skill: "perception" }] } }] })
+    const below = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 3 })
+    expect(below.skillProficiencies.perception).toBeUndefined()
+
+    const at = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 4 })
+    expect(at.skillProficiencies.perception?.source).toBe("Test Feature")
+  })
+
+  it("last-source-wins for scalar fields in class -> species -> feat order, recording provenance", () => {
+    const classFeature = makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })
+    const feat = makeFeature({ name: "Homebrew Feat", source: "feat", levelEffects: [{ level: 1, effects: { spellcastingAbility: "charisma" } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [classFeature], speciesTraits: [], feats: [feat], level: 1 })
+    expect(totals.spellcastingAbility).toBe("charisma")
+    expect(totals.spellcastingAbilitySource).toBe("Homebrew Feat")
+  })
+
+  it("additively unions saving throw and other-proficiency grants across features", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["strength"], otherProficiencies: ["Light Armor"] } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["strength", "constitution"], otherProficiencies: ["Light Armor", "Simple Weapons"] } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.savingThrowProficiencies.strength).toBe("A")
+    expect(totals.savingThrowProficiencies.constitution).toBe("B")
+    expect([...totals.otherProficiencies].sort()).toEqual(["Light Armor", "Simple Weapons"])
+  })
+
+  it("ORs the expertise flag together when two features grant the same skill", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "stealth", expertise: false }] } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "stealth", expertise: true }] } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.skillProficiencies.stealth).toEqual({ expertise: true, source: "A" })
+  })
+})
+
+describe("getEffectiveSpellcastingAbility", () => {
+  it("falls back to the raw field when no feature grants an ability", () => {
+    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, spellcastingAbility: "wisdom" as const }
+    expect(getEffectiveSpellcastingAbility(character)).toBe("wisdom")
+  })
+
+  it("prefers a feature-granted ability over a stale raw field", () => {
+    const feature = makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })
+    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 1, spellcastingAbility: "wisdom" as const }
+    expect(getEffectiveSpellcastingAbility(character)).toBe("intelligence")
+  })
+
+  it("returns empty string when neither a feature nor the raw field set one", () => {
+    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, spellcastingAbility: "" as const }
+    expect(getEffectiveSpellcastingAbility(character)).toBe("")
+  })
+})
+
+describe("getEffectiveHitDiceSize", () => {
+  it("falls back to hitDiceSize, then to parsing the hitDice string", () => {
+    expect(getEffectiveHitDiceSize({ classFeatures: [], speciesTraits: [], feats: [], level: 1, hitDiceSize: 10, hitDice: "1d8" })).toBe(10)
+    expect(getEffectiveHitDiceSize({ classFeatures: [], speciesTraits: [], feats: [], level: 1, hitDiceSize: undefined, hitDice: "1d6" })).toBe(6)
+  })
+
+  it("prefers a feature-granted hit die size over the character's own value", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitDiceSize: 12 } }] })
+    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 1, hitDiceSize: 8, hitDice: "1d8" }
+    expect(getEffectiveHitDiceSize(character)).toBe(12)
+  })
+})
+
+describe("getEffectiveSavingThrowProficiency / getEffectiveSkillProficiency", () => {
+  it("is proficient via the character's own flag when no feature grants it", () => {
+    const character = { savingThrows: { strength: true } as any, classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSavingThrowProficiency(character, "strength")).toEqual({ proficient: true, granted: false, grantedBy: undefined })
+  })
+
+  it("is proficient and marked granted when a feature grants the save, independent of the own flag", () => {
+    const feature = makeFeature({ name: "Divine Protection", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom"] } }] })
+    const character = { savingThrows: { wisdom: false } as any, classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSavingThrowProficiency(character, "wisdom")).toEqual({ proficient: true, granted: true, grantedBy: "Divine Protection" })
+  })
+
+  it("preserves the character's own flag once a granting feature's level requirement is no longer met", () => {
+    const feature = makeFeature({ name: "Late Bonus", levelEffects: [{ level: 10, effects: { savingThrowProficiencies: ["dexterity"] } }] })
+    const character = { savingThrows: { dexterity: false } as any, classFeatures: [feature], speciesTraits: [], feats: [], level: 5 }
+    expect(getEffectiveSavingThrowProficiency(character, "dexterity")).toEqual({ proficient: false, granted: false, grantedBy: undefined })
+  })
+
+  it("merges skill proficiency and expertise from own and granted sources", () => {
+    const feature = makeFeature({ name: "Skilled", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception", expertise: true }] } }] })
+    const character = {
+      skills: { perception: { proficient: false, expertise: false } } as any,
+      classFeatures: [feature], speciesTraits: [], feats: [], level: 1,
+    }
+    expect(getEffectiveSkillProficiency(character, "perception")).toEqual({ proficient: true, expertise: true, granted: true, grantedBy: "Skilled" })
+  })
+})
+
+describe("spell calculations with a feature-granted spellcasting ability", () => {
+  it("uses the feature-granted ability instead of a stale raw spellcastingAbility field", () => {
+    const feature = makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] })
+    const character = createDefaultCharacter()
+    character.classFeatures = [feature]
+    character.spellcastingAbility = "charisma"
+    character.abilityScores.wisdom = 16
+    character.abilityScores.charisma = 10
+    character.proficiencyBonus = 3
+
+    expect(getSpellSaveDC(character)).toBe(14) // 8 + 3 prof + 3 WIS mod
+    expect(getSpellAttackBonus(character)).toBe(6) // 3 prof + 3 WIS mod
+    expect(computeSpellModifier(character)).toBe(3)
   })
 })

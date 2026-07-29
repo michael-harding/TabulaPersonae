@@ -1,7 +1,8 @@
 import { createSignal, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, Feature, FeatureKind, ActionKind, ActionType } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining } from "@/lib/character-utils"
+import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills } from "@/lib/character-types"
+import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES } from "@/lib/character-utils"
+import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +10,7 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -26,6 +28,7 @@ import Pencil from "lucide-solid/icons/pencil"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
 import Layers from "lucide-solid/icons/layers"
+import X from "lucide-solid/icons/x"
 import { useReadOnly } from "@/lib/read-only-context"
 
 interface FeaturesModuleProps {
@@ -58,6 +61,15 @@ const ACTION_KIND_LABELS: Record<ActionKind, string> = {
 
 const ACTION_TYPE_LABELS = ['Attack', 'Ability', 'Other']
 
+const SAVE_ABILITIES: (keyof AbilityScores)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
+
+const SPELLCASTING_ABILITY_OPTIONS: { value: keyof AbilityScores | ''; label: string }[] = [
+  { value: '', label: 'None' },
+  ...SAVE_ABILITIES.map((ability) => ({ value: ability, label: ability.charAt(0).toUpperCase() + ability.slice(1) })),
+]
+
+const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
+
 interface FeatureFormData {
   name: string
   description: string
@@ -67,6 +79,7 @@ interface FeatureFormData {
   uses: number
   maxUses: number
   rechargeOn: '' | 'short-rest' | 'long-rest'
+  levelEffects: FeatureLevelEffect[]
 }
 
 interface FeatureFormProps {
@@ -75,10 +88,199 @@ interface FeatureFormProps {
   onCancel: () => void
 }
 
+function LevelEffectRow(props: {
+  tier: FeatureLevelEffect
+  onLevelChange: (level: number) => void
+  onEffectsChange: (effects: FeatureEffects) => void
+  onRemove: () => void
+}) {
+  const [newSkillLabel, setNewSkillLabel] = createSignal('')
+  const [newProficiency, setNewProficiency] = createSignal('')
+
+  const effects = () => props.tier.effects
+  const update = (patch: Partial<FeatureEffects>) => props.onEffectsChange({ ...effects(), ...patch })
+
+  const toggleSave = (ability: keyof AbilityScores) => {
+    const current = effects().savingThrowProficiencies ?? []
+    const next = current.includes(ability) ? current.filter((a) => a !== ability) : [...current, ability]
+    update({ savingThrowProficiencies: next.length > 0 ? next : undefined })
+  }
+
+  const availableSkills = () => {
+    const granted = effects().skillProficiencies ?? []
+    return SKILL_KEYS.filter((skill) => !granted.some((g) => g.skill === skill))
+  }
+
+  const addSkill = () => {
+    const skill = SKILL_KEYS.find((s) => SKILL_DISPLAY_NAMES[s] === newSkillLabel())
+    if (!skill) return
+    const current = effects().skillProficiencies ?? []
+    update({ skillProficiencies: [...current, { skill, expertise: false }] })
+    setNewSkillLabel('')
+  }
+  const removeSkill = (skill: keyof Skills) => {
+    const next = (effects().skillProficiencies ?? []).filter((g) => g.skill !== skill)
+    update({ skillProficiencies: next.length > 0 ? next : undefined })
+  }
+  const toggleSkillExpertise = (skill: keyof Skills) => {
+    const next = (effects().skillProficiencies ?? []).map((g) => (g.skill === skill ? { ...g, expertise: !g.expertise } : g))
+    update({ skillProficiencies: next })
+  }
+
+  const addOtherProficiency = () => {
+    const trimmed = newProficiency().trim()
+    if (!trimmed || (effects().otherProficiencies ?? []).includes(trimmed)) return
+    update({ otherProficiencies: [...(effects().otherProficiencies ?? []), trimmed] })
+    setNewProficiency('')
+  }
+  const removeOtherProficiency = (value: string) => {
+    const next = (effects().otherProficiencies ?? []).filter((v) => v !== value)
+    update({ otherProficiencies: next.length > 0 ? next : undefined })
+  }
+
+  return (
+    <div class="border rounded-md p-3 space-y-3">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <Label class="text-xs whitespace-nowrap">At Level</Label>
+          <NumericInput aria-label="At Level" class="w-20" min={1} max={20} value={props.tier.level} onChange={props.onLevelChange} />
+        </div>
+        <button
+          type="button"
+          aria-label={`Remove level ${props.tier.level} tier`}
+          onClick={props.onRemove}
+          class="text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 class="h-4 w-4" />
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div class="space-y-1">
+          <Label class="text-xs">Spellcasting Ability</Label>
+          <Select
+            value={effects().spellcastingAbility ?? ''}
+            onValueChange={(v) => update({ spellcastingAbility: (v || undefined) as keyof AbilityScores | undefined })}
+          >
+            <SelectTrigger aria-label="Spellcasting Ability"><SelectValue placeholder="None" /></SelectTrigger>
+            <SelectContent>
+              <For each={SPELLCASTING_ABILITY_OPTIONS}>
+                {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
+              </For>
+            </SelectContent>
+          </Select>
+        </div>
+        <div class="space-y-1">
+          <Label class="text-xs">Hit Die</Label>
+          <Select
+            value={effects().hitDiceSize ? String(effects().hitDiceSize) : ''}
+            onValueChange={(v) => update({ hitDiceSize: v ? Number(v) : undefined })}
+          >
+            <SelectTrigger aria-label="Hit Die"><SelectValue placeholder="None" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">None</SelectItem>
+              <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div class="space-y-1">
+        <Label class="text-xs">Saving Throw Proficiencies</Label>
+        <div class="grid grid-cols-3 gap-1">
+          <For each={SAVE_ABILITIES}>
+            {(ability) => (
+              <Checkbox
+                checked={(effects().savingThrowProficiencies ?? []).includes(ability)}
+                onChange={() => toggleSave(ability)}
+                label={ABILITY_ABBREVIATIONS[ability]}
+                labelClass="text-xs cursor-pointer"
+                containerClass="gap-1.5"
+              />
+            )}
+          </For>
+        </div>
+      </div>
+
+      <div class="space-y-1">
+        <Label class="text-xs">Skill Proficiencies</Label>
+        <Show when={(effects().skillProficiencies ?? []).length > 0}>
+          <div class="flex flex-wrap gap-2 mb-2">
+            <For each={effects().skillProficiencies ?? []}>
+              {(grant) => (
+                <Badge variant="secondary" class="gap-1.5 pr-1">
+                  {SKILL_DISPLAY_NAMES[grant.skill]}
+                  <label class="flex items-center gap-1 text-xs font-normal cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={grant.expertise ?? false}
+                      onChange={() => toggleSkillExpertise(grant.skill)}
+                    />
+                    Exp
+                  </label>
+                  <button type="button" aria-label={`Remove ${SKILL_DISPLAY_NAMES[grant.skill]}`} onClick={() => removeSkill(grant.skill)}>
+                    <X class="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+            </For>
+          </div>
+        </Show>
+        <Show when={availableSkills().length > 0}>
+          <div class="flex gap-2">
+            <Combobox
+              value={newSkillLabel()}
+              onValueChange={setNewSkillLabel}
+              options={availableSkills().map((s) => SKILL_DISPLAY_NAMES[s])}
+              placeholder="Add skill..."
+              aria-label="Add skill"
+            />
+            <Button type="button" size="sm" variant="outline" onClick={addSkill}>Add</Button>
+          </div>
+        </Show>
+      </div>
+
+      <div class="space-y-1">
+        <Label class="text-xs">Other Proficiencies (armor/weapon/tool)</Label>
+        <Show when={(effects().otherProficiencies ?? []).length > 0}>
+          <div class="flex flex-wrap gap-2 mb-2">
+            <For each={effects().otherProficiencies ?? []}>
+              {(prof) => (
+                <Badge variant="secondary" class="gap-1.5 pr-1">
+                  {prof}
+                  <button type="button" aria-label={`Remove ${prof}`} onClick={() => removeOtherProficiency(prof)}>
+                    <X class="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+            </For>
+          </div>
+        </Show>
+        <div class="flex gap-2">
+          <Input
+            aria-label="Add other proficiency"
+            value={newProficiency()}
+            onInput={(e) => setNewProficiency(e.currentTarget.value)}
+            placeholder="e.g. Light Armor"
+          />
+          <Button type="button" size="sm" variant="outline" onClick={addOtherProficiency}>Add</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FeatureForm(props: FeatureFormProps) {
   const [formData, setFormData] = createSignal<FeatureFormData>(
-    props.initialData ?? { name: '', description: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '' }
+    props.initialData ?? { name: '', description: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '', levelEffects: [] }
   )
+  const [effectsOpen, setEffectsOpen] = createSignal((props.initialData?.levelEffects.length ?? 0) > 0)
+
+  const updateTier = (index: number, patch: Partial<FeatureLevelEffect>) => {
+    setFormData((d) => ({ ...d, levelEffects: d.levelEffects.map((t, i) => (i === index ? { ...t, ...patch } : t)) }))
+  }
+  const addTier = () => setFormData((d) => ({ ...d, levelEffects: [...d.levelEffects, { level: 1, effects: {} }] }))
+  const removeTier = (index: number) => setFormData((d) => ({ ...d, levelEffects: d.levelEffects.filter((_, i) => i !== index) }))
 
   const handleSubmit = (e: Event) => {
     e.preventDefault()
@@ -166,6 +368,30 @@ function FeatureForm(props: FeatureFormProps) {
           </Select>
         </div>
       </Show>
+
+      <Collapsible open={effectsOpen()} onOpenChange={setEffectsOpen}>
+        <CollapsibleTrigger class="flex items-center gap-2 text-sm font-medium hover:text-primary">
+          <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180" />
+          Effects
+        </CollapsibleTrigger>
+        <CollapsibleContent class="space-y-3 mt-2">
+          <For each={formData().levelEffects}>
+            {(tier, i) => (
+              <LevelEffectRow
+                tier={tier}
+                onLevelChange={(level) => updateTier(i(), { level })}
+                onEffectsChange={(effects) => updateTier(i(), { effects })}
+                onRemove={() => removeTier(i())}
+              />
+            )}
+          </For>
+          <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addTier}>
+            <Plus class="h-3 w-3" />
+            Add Level Tier
+          </Button>
+        </CollapsibleContent>
+      </Collapsible>
+
       <div class="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={props.onCancel}>Cancel</Button>
         <Button type="submit">Save</Button>
@@ -203,6 +429,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
       uses: (data.actionKind && data.uses) ? data.uses : undefined,
       maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
       rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
+      levelEffects: data.levelEffects.length > 0 ? data.levelEffects : undefined,
     }
     props.onUpdate({
       ...props.character,
@@ -228,6 +455,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
               uses: (data.actionKind && data.uses) ? data.uses : undefined,
               maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
               rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
+              levelEffects: data.levelEffects.length > 0 ? data.levelEffects : undefined,
             }
           : f
       ),
@@ -416,6 +644,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                       uses: feature().uses ?? 0,
                       maxUses: feature().maxUses ?? 0,
                       rechargeOn: feature().rechargeOn ?? '',
+                      levelEffects: feature().levelEffects ?? [],
                     }}
                     onSubmit={(data) => handleUpdate(section.field, data)}
                     onCancel={() => setEditingFeature(null)}

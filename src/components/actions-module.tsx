@@ -1,7 +1,7 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -293,17 +293,18 @@ export function ActionsModule(props: ActionsModuleProps) {
   const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
   const spellModifier = createMemo(() => computeSpellModifier(props.character))
 
-  const spellAbilityAbbr = createMemo(() => (props.character.spellcastingAbility || "").slice(0, 3).toUpperCase())
+  const effectiveSpellcastingAbility = createMemo(() => getEffectiveSpellcastingAbility(props.character))
+  const spellAbilityAbbr = createMemo(() => (effectiveSpellcastingAbility() || "").slice(0, 3).toUpperCase())
   const spellModifierTooltip = createMemo(() =>
-    props.character.spellcastingAbility ? `${spellAbilityAbbr()} ${formatModifier(spellModifier())}` : "No spellcasting ability set"
+    effectiveSpellcastingAbility() ? `${spellAbilityAbbr()} ${formatModifier(spellModifier())}` : "No spellcasting ability set"
   )
   const spellAttackTooltip = createMemo(() =>
-    props.character.spellcastingAbility
+    effectiveSpellcastingAbility()
       ? `Prof +${props.character.proficiencyBonus || 2} + ${spellAbilityAbbr()} ${formatModifier(spellModifier())}`
       : "No spellcasting ability set"
   )
   const spellSaveDCTooltip = createMemo(() =>
-    props.character.spellcastingAbility
+    effectiveSpellcastingAbility()
       ? `8 + Prof +${props.character.proficiencyBonus || 2} + ${spellAbilityAbbr()} ${formatModifier(spellModifier())}`
       : "No spellcasting ability set"
   )

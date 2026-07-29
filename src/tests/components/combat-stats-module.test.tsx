@@ -381,6 +381,20 @@ describe("CombatStatsModule", () => {
         expect.objectContaining({ hitDiceSize: 8 })
       )
     })
+
+    it("disables the Die Type select and shows the granted value when a feature grants hitDiceSize", () => {
+      const feature = {
+        id: "feature-1",
+        name: "Hit Points",
+        description: "",
+        source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8, classFeatures: [feature], level: 1 })} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const trigger = screen.getByRole("button", { name: "10" })
+      expect(trigger).toBeDisabled()
+    })
   })
 
   describe("size combobox (2024)", () => {

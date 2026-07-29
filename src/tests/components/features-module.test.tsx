@@ -467,6 +467,113 @@ describe("FeaturesModule", () => {
     })
   })
 
+  describe("Effects sub-section", () => {
+    it("keeps the Effects section collapsed by default for a new feature", () => {
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).queryByRole("button", { name: /add level tier/i })).not.toBeInTheDocument()
+    })
+
+    it("reveals the Add Level Tier button after expanding Effects", () => {
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("button", { name: /^effects$/i }))
+      expect(within(modal).getByRole("button", { name: /add level tier/i })).toBeInTheDocument()
+    })
+
+    it("does not persist levelEffects when the Effects section is never touched", () => {
+      const onUpdate = vi.fn()
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Second Wind" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          classFeatures: expect.arrayContaining([
+            expect.objectContaining({ name: "Second Wind", levelEffects: undefined }),
+          ]),
+        })
+      )
+    })
+
+    it("adds a level tier and persists a spellcasting ability grant", () => {
+      const onUpdate = vi.fn()
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Spellcasting" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /^effects$/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /add level tier/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /spellcasting ability/i }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Wisdom" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          classFeatures: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Spellcasting",
+              levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }],
+            }),
+          ]),
+        })
+      )
+    })
+
+    it("removes a level tier", () => {
+      const onUpdate = vi.fn()
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Test" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /^effects$/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /add level tier/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /remove level 1 tier/i }))
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          classFeatures: expect.arrayContaining([
+            expect.objectContaining({ name: "Test", levelEffects: undefined }),
+          ]),
+        })
+      )
+    })
+
+    it("pre-fills and auto-expands the Effects section when editing a feature with existing levelEffects", () => {
+      const feature = makeFeature({
+        name: "Divine Sense",
+        levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom"] } }],
+      })
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /edit divine sense/i }))
+      expect(screen.getByRole("button", { name: /add level tier/i })).toBeInTheDocument()
+      expect(screen.getByRole("checkbox", { name: "WIS" })).toBeChecked()
+    })
+
+    it("round-trips levelEffects through edit and save unchanged", () => {
+      const onUpdate = vi.fn()
+      const feature = makeFeature({
+        name: "Divine Sense",
+        levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom"] } }],
+      })
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /edit divine sense/i }))
+      fireEvent.click(screen.getByRole("button", { name: /save/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          classFeatures: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Divine Sense",
+              levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom"] } }],
+            }),
+          ]),
+        })
+      )
+    })
+  })
+
   describe("uses tracker in feature card", () => {
     it("shows pip tracker when feature has maxUses > 0", () => {
       const feature = makeFeature({ actionKind: "action", maxUses: 3, uses: 0 })

@@ -18,6 +18,7 @@ interface SelectContextType {
   open: () => boolean
   setOpen: (open: boolean) => void
   placeholder: () => string | undefined
+  disabled: () => boolean
 }
 
 const SelectContext = createContext<SelectContextType>()
@@ -49,7 +50,7 @@ export function Select(props: SelectRootProps) {
   }
 
   return (
-    <SelectContext.Provider value={{ value, onValueChange, open, setOpen, placeholder: () => props.placeholder }}>
+    <SelectContext.Provider value={{ value, onValueChange, open, setOpen, placeholder: () => props.placeholder, disabled: () => props.disabled ?? false }}>
       <div data-sem="select" class="relative">
         {props.children}
       </div>
@@ -65,7 +66,8 @@ export function SelectTrigger(props: ComponentProps<"button">) {
       type="button"
       aria-expanded={ctx.open()}
       aria-haspopup="listbox"
-      onClick={() => ctx.setOpen(!ctx.open())}
+      disabled={ctx.disabled()}
+      onClick={() => !ctx.disabled() && ctx.setOpen(!ctx.open())}
       class={cn(
         "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
         local.class

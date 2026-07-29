@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getEffectiveAbilityScore, parseHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp } from "@/lib/character-utils"
+import { getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -20,8 +20,7 @@ export function RestModal(props: RestModalProps) {
   const [dicesToSpend, setDicesToSpend] = createSignal(0)
   const [rollResult, setRollResult] = createSignal<{ rolls: number[]; total: number } | null>(null)
 
-  const dieSize = () =>
-    (props.character.hitDiceSize ?? parseHitDiceSize(props.character.hitDice ?? "1d8")) as DieSize
+  const dieSize = () => getEffectiveHitDiceSize(props.character) as DieSize
   const totalHitDice = () => props.character.level ?? 1
   const spentHitDice = () => props.character.spentHitDice ?? 0
   const availableHitDice = () => totalHitDice() - spentHitDice()
