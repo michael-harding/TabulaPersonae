@@ -165,7 +165,8 @@ export interface FeatureEffectTotals {
   hitDiceSizeSource?: string
   savingThrowProficiencies: Partial<Record<keyof AbilityScores, string>>
   skillProficiencies: Partial<Record<keyof Skills, { expertise: boolean; source: string }>>
-  otherProficiencies: string[]
+  /** Proficiency name -> name of the granting feature (first source wins). */
+  otherProficiencies: Record<string, string>
 }
 
 export function getActiveLevelEffect(feature: Feature, level: number): FeatureEffects | undefined {
@@ -180,9 +181,8 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
   const totals: FeatureEffectTotals = {
     savingThrowProficiencies: {},
     skillProficiencies: {},
-    otherProficiencies: [],
+    otherProficiencies: {},
   }
-  const otherProficiencyLists: string[][] = []
   const level = character.level ?? 1
 
   for (const features of [safeFeatures(character.classFeatures), safeFeatures(character.speciesTraits), safeFeatures(character.feats)]) {
@@ -210,11 +210,14 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
           source: existing?.source ?? feature.name,
         }
       }
-      otherProficiencyLists.push(effects.otherProficiencies ?? [])
+      for (const prof of effects.otherProficiencies ?? []) {
+        if (!totals.otherProficiencies[prof]) {
+          totals.otherProficiencies[prof] = feature.name
+        }
+      }
     }
   }
 
-  totals.otherProficiencies = dedupUnion(...otherProficiencyLists)
   return totals
 }
 
@@ -377,13 +380,23 @@ export function getEffectiveLanguages(character: Pick<Character, "languages" | "
   return { own, granted: itemGranted.filter((l) => !own.includes(l)) }
 }
 
+export interface EffectiveProficiencyList extends EffectiveGrantList {
+  /** For each granted proficiency: the granting feature's name, or "equipment" if granted by gear. */
+  grantedBy: Record<string, string>
+}
+
 export function getEffectiveProficiencies(
   character: Pick<Character, "otherProficiencies" | "equipment" | "classFeatures" | "speciesTraits" | "feats" | "level">
-): EffectiveGrantList {
+): EffectiveProficiencyList {
   const own = character.otherProficiencies ?? []
   const itemGranted = getEquipmentModifierTotals(character.equipment).proficiencies
   const featureGranted = getActiveFeatureEffects(character).otherProficiencies
-  return { own, granted: dedupUnion(itemGranted, featureGranted).filter((p) => !own.includes(p)) }
+  const granted = dedupUnion(itemGranted, Object.keys(featureGranted)).filter((p) => !own.includes(p))
+  const grantedBy: Record<string, string> = {}
+  for (const p of granted) {
+    grantedBy[p] = itemGranted.includes(p) ? "equipment" : featureGranted[p]
+  }
+  return { own, granted, grantedBy }
 }
 
 export function getEffectiveCarryingCapacity(character: AbilityScoreCharacter): number {

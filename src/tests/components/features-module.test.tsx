@@ -614,7 +614,17 @@ describe("FeaturesModule", () => {
         expect(within(modal).getByRole("button", { name: /add level/i })).toBeInTheDocument()
       })
 
-      it("adds and removes a level entry for a Saving Throw Proficiency grant", () => {
+      it("automatically adds a level 1 entry when a level-tiered Feature Type is selected", () => {
+        render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Saving Throw Proficiency" }))
+        expect(within(modal).getByRole("button", { name: /remove level 1 entry/i })).toBeInTheDocument()
+        expect(within(modal).getByLabelText(/at level/i)).toHaveValue(1)
+      })
+
+      it("auto-adds a level 1 entry for a Saving Throw Proficiency grant, and removing it clears levelEffects", () => {
         const onUpdate = vi.fn()
         render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
@@ -622,7 +632,6 @@ describe("FeaturesModule", () => {
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Test" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Saving Throw Proficiency" }))
-        fireEvent.click(within(modal).getByRole("button", { name: /add level/i }))
         fireEvent.click(within(modal).getByRole("button", { name: /remove level 1 entry/i }))
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(onUpdate).toHaveBeenCalledWith(
@@ -664,6 +673,41 @@ describe("FeaturesModule", () => {
             ]),
           })
         )
+      })
+
+      it("pressing Enter in the Add other proficiency input adds it without submitting the form", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Test" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Other Proficiency" }))
+        const input = within(modal).getByLabelText(/add other proficiency/i)
+        fireEvent.input(input, { target: { value: "Light Armor" } })
+        fireEvent.keyDown(input, { key: "Enter" })
+        expect(within(modal).getByText("Light Armor")).toBeInTheDocument()
+        expect(within(modal).getByLabelText(/add other proficiency/i)).toHaveValue("")
+        // the modal must still be open — Enter should not have submitted the form
+        expect(screen.getByRole("dialog")).toBeInTheDocument()
+        expect(onUpdate).not.toHaveBeenCalled()
+      })
+
+      it("pressing Enter in the Add skill input adds the selected skill without submitting the form", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Test" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Skill Proficiency" }))
+        const input = within(modal).getByLabelText(/add skill/i)
+        fireEvent.input(input, { target: { value: "Perception" } })
+        fireEvent.keyDown(input, { key: "Enter" })
+        expect(within(modal).getByText("Perception")).toBeInTheDocument()
+        // the modal must still be open — Enter should not have submitted the form
+        expect(screen.getByRole("dialog")).toBeInTheDocument()
+        expect(onUpdate).not.toHaveBeenCalled()
       })
     })
 

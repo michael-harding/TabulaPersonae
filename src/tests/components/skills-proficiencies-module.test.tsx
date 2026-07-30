@@ -668,6 +668,25 @@ describe("SkillsProficienciesModule", () => {
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       expect(screen.getAllByText("Elvish").length).toBe(1)
     })
+
+    it("tooltips an equipment-granted proficiency as granted by equipment", () => {
+      const character = makeCharacter({
+        otherProficiencies: [],
+        equipment: [makeMagicItem({ modifiers: { proficiencies: ["Herbalism Kit"] } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Herbalism Kit")).toHaveAttribute("title", "Granted by equipment")
+    })
+
+    it("tooltips a Class-Feature-granted proficiency, naming the feature and pointing to Features", () => {
+      const feature = {
+        id: "feature-1", name: "Martial Training", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { otherProficiencies: ["Light Armor"] } }],
+      }
+      const character = makeCharacter({ otherProficiencies: [], classFeatures: [feature] })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Light Armor")).toHaveAttribute("title", "Granted by Martial Training Class Feature — edit in Features")
+    })
   })
 
   describe("feature-granted saving throw and skill proficiencies", () => {
@@ -715,11 +734,20 @@ describe("SkillsProficienciesModule", () => {
       expect(profCheckboxes[11]).toBeDisabled()
     })
 
-    it("shows a Granted badge for a feature-granted skill", () => {
+    it("does not show a Granted badge in the view for a feature-granted skill (still shows Prof)", () => {
       const feature = makeFeature({ name: "Keen Senses", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception" }] } }] })
       const character = makeCharacter({ classFeatures: [feature], level: 1 })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Granted")).toBeInTheDocument()
+      expect(screen.queryByText("Granted")).not.toBeInTheDocument()
+      expect(screen.getAllByText("Prof").length).toBeGreaterThan(0)
+    })
+
+    it("does not show a Granted badge in the view for a feature-granted saving throw (still shows Prof)", () => {
+      const feature = makeFeature({ name: "Divine Sense", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["dexterity"] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Granted")).not.toBeInTheDocument()
+      expect(screen.getAllByText("Prof").length).toBeGreaterThan(0)
     })
   })
 })

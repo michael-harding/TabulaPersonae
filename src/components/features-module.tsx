@@ -230,7 +230,7 @@ function LevelEffectRow(props: {
             </div>
           </Show>
           <Show when={availableSkills().length > 0}>
-            <div class="flex gap-2">
+            <div class="flex gap-2" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill() } }}>
               <Combobox
                 value={newSkillLabel()}
                 onValueChange={setNewSkillLabel}
@@ -266,6 +266,7 @@ function LevelEffectRow(props: {
               aria-label="Add other proficiency"
               value={newProficiency()}
               onInput={(e) => setNewProficiency(e.currentTarget.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addOtherProficiency() } }}
               placeholder="e.g. Light Armor"
             />
             <Button type="button" size="sm" variant="outline" onClick={addOtherProficiency}>Add</Button>
@@ -305,7 +306,7 @@ function FeatureForm(props: FeatureFormProps) {
         actionKind: next === 'Action' ? 'action' : '',
         type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '',
         level: 1,
-        levelEffects: (SINGLE_EFFECT_TYPES as string[]).includes(next) ? [{ level: 1, effects: {} }] : [],
+        levelEffects: (SINGLE_EFFECT_TYPES as string[]).includes(next) || isTieredEffectType(next) ? [{ level: 1, effects: {} }] : [],
       }
     })
   }

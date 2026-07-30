@@ -53,6 +53,7 @@ function EditableTagList(props: {
   emptyText?: string
   ownValues: string[]
   grantedValues: string[]
+  grantedTooltip?: (value: string) => string
   editing: boolean
   onAdd: (value: string) => void
   onRemove: (value: string) => void
@@ -84,7 +85,7 @@ function EditableTagList(props: {
         </For>
         <For each={props.grantedValues}>
           {(value) => (
-            <Badge variant="secondary" class="gap-1" title="Granted automatically">
+            <Badge variant="secondary" class="gap-1" title={props.grantedTooltip?.(value) ?? "Granted automatically"}>
               {value}
             </Badge>
           )}
@@ -269,11 +270,6 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           <Show when={isProficient()}>
                             <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
                           </Show>
-                          <Show when={effectiveSave().granted}>
-                            <Tooltip content={`Granted by ${effectiveSave().grantedBy} Class Feature`}>
-                              <Badge variant="outline" class="text-xs px-1 py-0">Granted</Badge>
-                            </Tooltip>
-                          </Show>
                         </div>
                       }
                     >
@@ -354,7 +350,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           <span
                             class={`font-medium ${isEditing() ? "cursor-pointer" : ""}`}
                             onClick={() => isEditing() && toggleSkillProf(skillKey)}
-                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show><Show when={effectiveSkill().granted}><Tooltip content={`Granted by ${effectiveSkill().grantedBy} Class Feature`}><Badge variant="outline" class="text-xs px-1 py-0">Granted</Badge></Tooltip></Show></span></Show></span>
+                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show></span></Show></span>
                         </div>
                       </div>
                     </div>
@@ -496,6 +492,10 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
           emptyText="No additional proficiencies"
           ownValues={effectiveProficiencies().own}
           grantedValues={effectiveProficiencies().granted}
+          grantedTooltip={(v) => {
+            const source = effectiveProficiencies().grantedBy[v]
+            return source === "equipment" ? "Granted by equipment" : `Granted by ${source} Class Feature — edit in Features`
+          }}
           editing={isEditing()}
           onAdd={(v) => addTag("otherProficiencies", v)}
           onRemove={(v) => removeTag("otherProficiencies", v)}

@@ -792,6 +792,21 @@ describe("getEffectiveLanguages / getEffectiveProficiencies", () => {
     expect(proficiencies.own).toEqual(["Longsword"])
     expect(proficiencies.granted.sort()).toEqual(["Herbalism Kit", "Light Armor"])
   })
+
+  it("records grantedBy per proficiency, distinguishing equipment from a granting feature", () => {
+    const feature = makeFeature({ name: "Martial Training", levelEffects: [{ level: 1, effects: { otherProficiencies: ["Light Armor"] } }] })
+    const character = {
+      otherProficiencies: [],
+      equipment: [makeMagicItem({ modifiers: { proficiencies: ["Herbalism Kit"] } })],
+      classFeatures: [feature],
+      speciesTraits: [],
+      feats: [],
+      level: 1,
+    }
+    const proficiencies = getEffectiveProficiencies(character)
+    expect(proficiencies.grantedBy["Herbalism Kit"]).toBe("equipment")
+    expect(proficiencies.grantedBy["Light Armor"]).toBe("Martial Training")
+  })
 })
 
 describe("getEffectiveCarryingCapacity", () => {
@@ -1085,7 +1100,7 @@ describe("getActiveFeatureEffects", () => {
     expect(totals.hitDiceSize).toBeUndefined()
     expect(totals.savingThrowProficiencies).toEqual({})
     expect(totals.skillProficiencies).toEqual({})
-    expect(totals.otherProficiencies).toEqual([])
+    expect(totals.otherProficiencies).toEqual({})
   })
 
   it("only applies effects from features whose level threshold has been reached", () => {
@@ -1105,13 +1120,13 @@ describe("getActiveFeatureEffects", () => {
     expect(totals.spellcastingAbilitySource).toBe("Homebrew Feat")
   })
 
-  it("additively unions saving throw and other-proficiency grants across features", () => {
+  it("additively unions saving throw and other-proficiency grants across features, recording the first-source feature", () => {
     const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["strength"], otherProficiencies: ["Light Armor"] } }] })
     const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["strength", "constitution"], otherProficiencies: ["Light Armor", "Simple Weapons"] } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
     expect(totals.savingThrowProficiencies.strength).toBe("A")
     expect(totals.savingThrowProficiencies.constitution).toBe("B")
-    expect([...totals.otherProficiencies].sort()).toEqual(["Light Armor", "Simple Weapons"])
+    expect(totals.otherProficiencies).toEqual({ "Light Armor": "A", "Simple Weapons": "B" })
   })
 
   it("ORs the expertise flag together when two features grant the same skill", () => {
