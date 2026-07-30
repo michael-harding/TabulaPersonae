@@ -146,10 +146,15 @@ describe("reconcileImportedCharacter", () => {
       expect(result.useCalculatedSpellModifier).toBe(true)
     })
 
-    it("marks a matching caster's stats as calculated", () => {
+    it("marks a matching caster's stats as calculated when a Class Feature grants the ability", () => {
+      // spellcastingAbility is only ever consulted via a Class Feature grant now — the raw field
+      // alone (with no granting feature) can never produce a "calculated" match.
       const character: any = {
         ...createDefaultCharacter(),
-        spellcastingAbility: "intelligence",
+        classFeatures: [{
+          id: "f-1", name: "Spellcasting", description: "", source: "class-feature",
+          levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }],
+        }],
         spellSaveDC: 13,
         spellAttackBonus: 5,
         spellModifier: 3,
@@ -164,7 +169,10 @@ describe("reconcileImportedCharacter", () => {
     it("marks a mismatched caster's stats as custom and preserves the values", () => {
       const character: any = {
         ...createDefaultCharacter(),
-        spellcastingAbility: "intelligence",
+        classFeatures: [{
+          id: "f-1", name: "Spellcasting", description: "", source: "class-feature",
+          levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }],
+        }],
         spellSaveDC: 99,
         spellAttackBonus: 99,
         spellModifier: 99,
@@ -177,6 +185,24 @@ describe("reconcileImportedCharacter", () => {
       expect(result.spellSaveDC).toBe(99)
       expect(result.spellAttackBonus).toBe(99)
       expect(result.spellModifier).toBe(99)
+    })
+
+    it("treats a raw spellcastingAbility with no granting Class Feature as a custom override, not a calculated match", () => {
+      const character: any = {
+        ...createDefaultCharacter(),
+        spellcastingAbility: "intelligence",
+        spellSaveDC: 13,
+        spellAttackBonus: 5,
+        spellModifier: 3,
+      }
+      character.abilityScores = { ...character.abilityScores, intelligence: 16 }
+      const result = reconcileImportedCharacter(character)
+      expect(result.useCalculatedSpellSaveDC).toBe(false)
+      expect(result.useCalculatedSpellAttackBonus).toBe(false)
+      expect(result.useCalculatedSpellModifier).toBe(false)
+      expect(result.spellSaveDC).toBe(13)
+      expect(result.spellAttackBonus).toBe(5)
+      expect(result.spellModifier).toBe(3)
     })
 
     it("falls back to the non-caster calculation when spellcastingAbility is entirely missing", () => {

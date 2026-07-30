@@ -145,9 +145,9 @@ describe("Character Utils", () => {
 
   describe("getSpellSaveDC", () => {
     describe("with Character object", () => {
-      it("calculates spell save DC for character with spellcasting ability", () => {
+      it("calculates spell save DC for character with a Feature-granted spellcasting ability", () => {
         const character = createDefaultCharacter()
-        character.spellcastingAbility = "intelligence"
+        character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
         character.abilityScores.intelligence = 16
         character.proficiencyBonus = 3
 
@@ -155,9 +155,8 @@ describe("Character Utils", () => {
         expect(result).toBe(14) // 8 + 3 proficiency + 3 ability modifier
       })
 
-      it("returns 8 for character without spellcasting ability", () => {
+      it("returns 8 for character without a Feature-granted spellcasting ability", () => {
         const character = createDefaultCharacter()
-        character.spellcastingAbility = ""
 
         const result = getSpellSaveDC(character)
         expect(result).toBe(8)
@@ -165,7 +164,7 @@ describe("Character Utils", () => {
 
       it("handles character with undefined ability scores", () => {
         const character = createDefaultCharacter()
-        character.spellcastingAbility = "wisdom"
+        character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] })]
         character.abilityScores = undefined as any
 
         const result = getSpellSaveDC(character)
@@ -174,7 +173,7 @@ describe("Character Utils", () => {
 
       it("cascades an equipped ability-score-boosting item into spell save DC", () => {
         const character = createDefaultCharacter()
-        character.spellcastingAbility = "intelligence"
+        character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
         character.abilityScores.intelligence = 16
         character.proficiencyBonus = 3
         character.equipment = [makeMagicItem({ modifiers: { abilityScores: { intelligence: 2 } } })]
@@ -218,9 +217,9 @@ describe("Character Utils", () => {
 
   describe("getSpellAttackBonus", () => {
     describe("with Character object", () => {
-      it("calculates spell attack bonus for character with spellcasting ability", () => {
+      it("calculates spell attack bonus for character with a Feature-granted spellcasting ability", () => {
         const character = createDefaultCharacter()
-        character.spellcastingAbility = "intelligence"
+        character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
         character.abilityScores.intelligence = 16
         character.proficiencyBonus = 3
 
@@ -228,9 +227,8 @@ describe("Character Utils", () => {
         expect(result).toBe(6) // 3 proficiency + 3 ability modifier
       })
 
-      it("returns 0 for character without spellcasting ability", () => {
+      it("returns 0 for character without a Feature-granted spellcasting ability", () => {
         const character = createDefaultCharacter()
-        character.spellcastingAbility = ""
 
         const result = getSpellAttackBonus(character)
         expect(result).toBe(0)
@@ -238,7 +236,7 @@ describe("Character Utils", () => {
 
       it("handles character with undefined ability scores", () => {
         const character = createDefaultCharacter()
-        character.spellcastingAbility = "wisdom"
+        character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] })]
         character.abilityScores = undefined as any
 
         const result = getSpellAttackBonus(character)
@@ -247,7 +245,7 @@ describe("Character Utils", () => {
 
       it("cascades an equipped ability-score-boosting item into spell attack bonus", () => {
         const character = createDefaultCharacter()
-        character.spellcastingAbility = "intelligence"
+        character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
         character.abilityScores.intelligence = 16
         character.proficiencyBonus = 3
         character.equipment = [makeMagicItem({ modifiers: { abilityScores: { intelligence: 2 } } })]
@@ -290,22 +288,21 @@ describe("Character Utils", () => {
   })
 
   describe("computeSpellModifier", () => {
-    it("returns 0 for a character without a spellcasting ability", () => {
+    it("returns 0 for a character without a Feature-granted spellcasting ability", () => {
       const character = createDefaultCharacter()
-      character.spellcastingAbility = ""
       expect(computeSpellModifier(character)).toBe(0)
     })
 
-    it("returns the spellcasting ability's modifier", () => {
+    it("returns the Feature-granted spellcasting ability's modifier", () => {
       const character = createDefaultCharacter()
-      character.spellcastingAbility = "intelligence"
+      character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
       character.abilityScores.intelligence = 16
       expect(computeSpellModifier(character)).toBe(3)
     })
 
     it("resolves through getEffectiveAbilityScore, respecting an ability score override", () => {
       const character = createDefaultCharacter()
-      character.spellcastingAbility = "intelligence"
+      character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
       character.abilityScores.intelligence = 10
       character.abilityScoreOverrides = { intelligence: 18 }
       character.useCalculatedAbilityScores = { intelligence: false }
@@ -1126,19 +1123,21 @@ describe("getActiveFeatureEffects", () => {
 })
 
 describe("getEffectiveSpellcastingAbility", () => {
-  it("falls back to the raw field when no feature grants an ability", () => {
-    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, spellcastingAbility: "wisdom" as const }
-    expect(getEffectiveSpellcastingAbility(character)).toBe("wisdom")
+  it("ignores the raw field when no feature grants an ability", () => {
+    // spellcastingAbility can only ever be set via a Class Feature/Trait/Feat grant — the raw
+    // field is legacy/import metadata only (see pdf-parser's synthetic "Spellcasting" feature).
+    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSpellcastingAbility(character)).toBe("")
   })
 
-  it("prefers a feature-granted ability over a stale raw field", () => {
+  it("returns the feature-granted ability", () => {
     const feature = makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })
-    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 1, spellcastingAbility: "wisdom" as const }
+    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveSpellcastingAbility(character)).toBe("intelligence")
   })
 
-  it("returns empty string when neither a feature nor the raw field set one", () => {
-    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, spellcastingAbility: "" as const }
+  it("returns empty string once the granting feature is removed, even if a stale raw field remains", () => {
+    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, spellcastingAbility: "wisdom" as const }
     expect(getEffectiveSpellcastingAbility(character)).toBe("")
   })
 })

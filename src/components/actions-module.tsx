@@ -360,8 +360,10 @@ export function ActionsModule(props: ActionsModuleProps) {
     ...safeFeatures(props.character.feats),
   ])
   const featuresByKind = createMemo(() => {
+    const level = props.character.level ?? 1
     const actions: Feature[] = [], bonuses: Feature[] = [], reactions: Feature[] = [], others: Feature[] = []
     for (const f of allFeatures()) {
+      if ((f.level ?? 1) > level) continue
       if (f.actionKind === 'action')              actions.push(f)
       else if (f.actionKind === 'bonus-action')   bonuses.push(f)
       else if (f.actionKind === 'reaction')       reactions.push(f)

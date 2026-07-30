@@ -143,6 +143,7 @@ export interface Feature extends UseableEntry {
   actionKind?: ActionKind
   type?: ActionType
   range?: string
+  level?: number
   levelEffects?: FeatureLevelEffect[]
 }
 

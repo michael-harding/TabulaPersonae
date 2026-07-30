@@ -70,15 +70,44 @@ const SPELLCASTING_ABILITY_OPTIONS: { value: keyof AbilityScores | ''; label: st
 
 const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 
+// Values double as their own display labels — the shared Select component's trigger renders
+// the raw controlled value verbatim (it doesn't look up a SelectItem's rendered children), so
+// using human-readable strings here avoids showing raw codes like "skill-proficiency" in the UI.
+type FeatureTypeValue = 'Action' | 'Spellcasting Ability' | 'Hit Die' | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+
+// Spellcasting Ability and Hit Die are fixed facts of a class, not something that changes at
+// higher levels, so they get a single always-on control. The proficiency-grant types genuinely
+// can be granted or expanded at different levels, so they keep the repeatable level-tier list.
+const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Die']
+const TIERED_EFFECT_TYPES: FeatureTypeValue[] = ['Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency']
+const FEATURE_TYPES: FeatureTypeValue[] = ['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES]
+
+function isTieredEffectType(t: FeatureTypeValue | ''): boolean {
+  return (TIERED_EFFECT_TYPES as string[]).includes(t)
+}
+
+function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue | '' {
+  if (actionKind) return 'Action'
+  const effects = levelEffects?.[0]?.effects
+  if (effects?.spellcastingAbility) return 'Spellcasting Ability'
+  if (effects?.hitDiceSize) return 'Hit Die'
+  if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
+  if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
+  if (effects?.otherProficiencies?.length) return 'Other Proficiency'
+  return ''
+}
+
 interface FeatureFormData {
   name: string
   description: string
+  featureType: FeatureTypeValue | ''
   actionKind: ActionKind | ''
   type: string
   range: string
   uses: number
   maxUses: number
   rechargeOn: '' | 'short-rest' | 'long-rest'
+  level: number
   levelEffects: FeatureLevelEffect[]
 }
 
@@ -89,6 +118,7 @@ interface FeatureFormProps {
 }
 
 function LevelEffectRow(props: {
+  featureType: 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   tier: FeatureLevelEffect
   onLevelChange: (level: number) => void
   onEffectsChange: (effects: FeatureEffects) => void
@@ -147,7 +177,7 @@ function LevelEffectRow(props: {
         </div>
         <button
           type="button"
-          aria-label={`Remove level ${props.tier.level} tier`}
+          aria-label={`Remove level ${props.tier.level} entry`}
           onClick={props.onRemove}
           class="text-muted-foreground hover:text-destructive"
         >
@@ -155,132 +185,130 @@ function LevelEffectRow(props: {
         </button>
       </div>
 
-      <div class="grid grid-cols-2 gap-2">
+      <Show when={props.featureType === 'Saving Throw Proficiency'}>
         <div class="space-y-1">
-          <Label class="text-xs">Spellcasting Ability</Label>
-          <Select
-            value={effects().spellcastingAbility ?? ''}
-            onValueChange={(v) => update({ spellcastingAbility: (v || undefined) as keyof AbilityScores | undefined })}
-          >
-            <SelectTrigger aria-label="Spellcasting Ability"><SelectValue placeholder="None" /></SelectTrigger>
-            <SelectContent>
-              <For each={SPELLCASTING_ABILITY_OPTIONS}>
-                {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
+          <Label class="text-xs">Saving Throw Proficiencies</Label>
+          <div class="grid grid-cols-3 gap-1">
+            <For each={SAVE_ABILITIES}>
+              {(ability) => (
+                <Checkbox
+                  checked={(effects().savingThrowProficiencies ?? []).includes(ability)}
+                  onChange={() => toggleSave(ability)}
+                  label={ABILITY_ABBREVIATIONS[ability]}
+                  labelClass="text-xs cursor-pointer"
+                  containerClass="gap-1.5"
+                />
+              )}
+            </For>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={props.featureType === 'Skill Proficiency'}>
+        <div class="space-y-1">
+          <Label class="text-xs">Skill Proficiencies</Label>
+          <Show when={(effects().skillProficiencies ?? []).length > 0}>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <For each={effects().skillProficiencies ?? []}>
+                {(grant) => (
+                  <Badge variant="secondary" class="gap-1.5 pr-1">
+                    {SKILL_DISPLAY_NAMES[grant.skill]}
+                    <label class="flex items-center gap-1 text-xs font-normal cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={grant.expertise ?? false}
+                        onChange={() => toggleSkillExpertise(grant.skill)}
+                      />
+                      Exp
+                    </label>
+                    <button type="button" aria-label={`Remove ${SKILL_DISPLAY_NAMES[grant.skill]}`} onClick={() => removeSkill(grant.skill)}>
+                      <X class="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
               </For>
-            </SelectContent>
-          </Select>
-        </div>
-        <div class="space-y-1">
-          <Label class="text-xs">Hit Die</Label>
-          <Select
-            value={effects().hitDiceSize ? String(effects().hitDiceSize) : ''}
-            onValueChange={(v) => update({ hitDiceSize: v ? Number(v) : undefined })}
-          >
-            <SelectTrigger aria-label="Hit Die"><SelectValue placeholder="None" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">None</SelectItem>
-              <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div class="space-y-1">
-        <Label class="text-xs">Saving Throw Proficiencies</Label>
-        <div class="grid grid-cols-3 gap-1">
-          <For each={SAVE_ABILITIES}>
-            {(ability) => (
-              <Checkbox
-                checked={(effects().savingThrowProficiencies ?? []).includes(ability)}
-                onChange={() => toggleSave(ability)}
-                label={ABILITY_ABBREVIATIONS[ability]}
-                labelClass="text-xs cursor-pointer"
-                containerClass="gap-1.5"
+            </div>
+          </Show>
+          <Show when={availableSkills().length > 0}>
+            <div class="flex gap-2">
+              <Combobox
+                value={newSkillLabel()}
+                onValueChange={setNewSkillLabel}
+                options={availableSkills().map((s) => SKILL_DISPLAY_NAMES[s])}
+                placeholder="Add skill..."
+                aria-label="Add skill"
               />
-            )}
-          </For>
+              <Button type="button" size="sm" variant="outline" onClick={addSkill}>Add</Button>
+            </div>
+          </Show>
         </div>
-      </div>
+      </Show>
 
-      <div class="space-y-1">
-        <Label class="text-xs">Skill Proficiencies</Label>
-        <Show when={(effects().skillProficiencies ?? []).length > 0}>
-          <div class="flex flex-wrap gap-2 mb-2">
-            <For each={effects().skillProficiencies ?? []}>
-              {(grant) => (
-                <Badge variant="secondary" class="gap-1.5 pr-1">
-                  {SKILL_DISPLAY_NAMES[grant.skill]}
-                  <label class="flex items-center gap-1 text-xs font-normal cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={grant.expertise ?? false}
-                      onChange={() => toggleSkillExpertise(grant.skill)}
-                    />
-                    Exp
-                  </label>
-                  <button type="button" aria-label={`Remove ${SKILL_DISPLAY_NAMES[grant.skill]}`} onClick={() => removeSkill(grant.skill)}>
-                    <X class="h-3 w-3" />
-                  </button>
-                </Badge>
-              )}
-            </For>
-          </div>
-        </Show>
-        <Show when={availableSkills().length > 0}>
+      <Show when={props.featureType === 'Other Proficiency'}>
+        <div class="space-y-1">
+          <Label class="text-xs">Other Proficiencies (armor/weapon/tool)</Label>
+          <Show when={(effects().otherProficiencies ?? []).length > 0}>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <For each={effects().otherProficiencies ?? []}>
+                {(prof) => (
+                  <Badge variant="secondary" class="gap-1.5 pr-1">
+                    {prof}
+                    <button type="button" aria-label={`Remove ${prof}`} onClick={() => removeOtherProficiency(prof)}>
+                      <X class="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+              </For>
+            </div>
+          </Show>
           <div class="flex gap-2">
-            <Combobox
-              value={newSkillLabel()}
-              onValueChange={setNewSkillLabel}
-              options={availableSkills().map((s) => SKILL_DISPLAY_NAMES[s])}
-              placeholder="Add skill..."
-              aria-label="Add skill"
+            <Input
+              aria-label="Add other proficiency"
+              value={newProficiency()}
+              onInput={(e) => setNewProficiency(e.currentTarget.value)}
+              placeholder="e.g. Light Armor"
             />
-            <Button type="button" size="sm" variant="outline" onClick={addSkill}>Add</Button>
+            <Button type="button" size="sm" variant="outline" onClick={addOtherProficiency}>Add</Button>
           </div>
-        </Show>
-      </div>
-
-      <div class="space-y-1">
-        <Label class="text-xs">Other Proficiencies (armor/weapon/tool)</Label>
-        <Show when={(effects().otherProficiencies ?? []).length > 0}>
-          <div class="flex flex-wrap gap-2 mb-2">
-            <For each={effects().otherProficiencies ?? []}>
-              {(prof) => (
-                <Badge variant="secondary" class="gap-1.5 pr-1">
-                  {prof}
-                  <button type="button" aria-label={`Remove ${prof}`} onClick={() => removeOtherProficiency(prof)}>
-                    <X class="h-3 w-3" />
-                  </button>
-                </Badge>
-              )}
-            </For>
-          </div>
-        </Show>
-        <div class="flex gap-2">
-          <Input
-            aria-label="Add other proficiency"
-            value={newProficiency()}
-            onInput={(e) => setNewProficiency(e.currentTarget.value)}
-            placeholder="e.g. Light Armor"
-          />
-          <Button type="button" size="sm" variant="outline" onClick={addOtherProficiency}>Add</Button>
         </div>
-      </div>
+      </Show>
     </div>
   )
 }
 
 function FeatureForm(props: FeatureFormProps) {
   const [formData, setFormData] = createSignal<FeatureFormData>(
-    props.initialData ?? { name: '', description: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '', levelEffects: [] }
+    props.initialData ?? { name: '', description: '', featureType: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '', level: 1, levelEffects: [] }
   )
-  const [effectsOpen, setEffectsOpen] = createSignal((props.initialData?.levelEffects.length ?? 0) > 0)
 
-  const updateTier = (index: number, patch: Partial<FeatureLevelEffect>) => {
+  // Spellcasting Ability / Hit Die aren't level-dependent, so they're always in force as soon as
+  // the feature exists — modeled as a single tier fixed at level 1 rather than a user-editable level.
+  const singleTierEffects = () => formData().levelEffects[0]?.effects ?? {}
+  const setSingleTierEffects = (effects: FeatureEffects) => setFormData((d) => ({
+    ...d,
+    levelEffects: [{ level: d.levelEffects[0]?.level ?? 1, effects }],
+  }))
+
+  const updateLevelEffect = (index: number, patch: Partial<FeatureLevelEffect>) => {
     setFormData((d) => ({ ...d, levelEffects: d.levelEffects.map((t, i) => (i === index ? { ...t, ...patch } : t)) }))
   }
-  const addTier = () => setFormData((d) => ({ ...d, levelEffects: [...d.levelEffects, { level: 1, effects: {} }] }))
-  const removeTier = (index: number) => setFormData((d) => ({ ...d, levelEffects: d.levelEffects.filter((_, i) => i !== index) }))
+  const addLevelEffect = () => setFormData((d) => ({ ...d, levelEffects: [...d.levelEffects, { level: 1, effects: {} }] }))
+  const removeLevelEffect = (index: number) => setFormData((d) => ({ ...d, levelEffects: d.levelEffects.filter((_, i) => i !== index) }))
+
+  const changeFeatureType = (value: string) => {
+    const next = value as FeatureTypeValue | ''
+    setFormData((d) => {
+      if (next === d.featureType) return d
+      return {
+        ...d,
+        featureType: next,
+        actionKind: next === 'Action' ? 'action' : '',
+        type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '',
+        level: 1,
+        levelEffects: (SINGLE_EFFECT_TYPES as string[]).includes(next) ? [{ level: 1, effects: {} }] : [],
+      }
+    })
+  }
 
   const handleSubmit = (e: Event) => {
     e.preventDefault()
@@ -312,85 +340,136 @@ function FeatureForm(props: FeatureFormProps) {
         />
       </div>
       <div class="space-y-1">
-        <Label for="feature-action-kind">Used as Action</Label>
-        <Select value={formData().actionKind || ''} onValueChange={(v) => setFormData((d) => ({ ...d, actionKind: v as ActionKind | '' }))}>
-          <SelectTrigger id="feature-action-kind" aria-label="Used as Action">
-            <SelectValue placeholder="Not an action" />
+        <Label for="feature-type-select">Feature Type</Label>
+        <Select value={formData().featureType} onValueChange={changeFeatureType}>
+          <SelectTrigger id="feature-type-select" aria-label="Feature Type">
+            <SelectValue placeholder="None" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Not an action</SelectItem>
-            <SelectItem value="action">Action</SelectItem>
-            <SelectItem value="bonus-action">Bonus Action</SelectItem>
-            <SelectItem value="reaction">Reaction</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
+            <SelectItem value="">None</SelectItem>
+            <For each={FEATURE_TYPES}>
+              {(t) => <SelectItem value={t}>{t}</SelectItem>}
+            </For>
           </SelectContent>
         </Select>
       </div>
-      <Show when={formData().actionKind !== ''}>
-        <div class="space-y-1">
-          <Label for="feature-type">Type</Label>
-          <Combobox
-            value={formData().type}
-            onValueChange={(v) => setFormData((d) => ({ ...d, type: v }))}
-            options={ACTION_TYPE_LABELS}
-          />
-        </div>
-        <div class="space-y-1">
-          <Label for="feature-range">Range</Label>
-          <Input
-            id="feature-range"
-            value={formData().range}
-            onInput={(e) => setFormData((d) => ({ ...d, range: e.currentTarget.value }))}
-            placeholder="5 ft, 30 ft, Touch, Self"
-          />
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div class="space-y-1">
-            <Label for="feature-uses">Uses Spent</Label>
-            <NumericInput id="feature-uses" min={0} value={formData().uses}
-              onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
+
+      <Show when={formData().featureType === 'Action'}>
+        <div class="space-y-4 border rounded-md p-3">
+          <div class="flex items-center gap-2">
+            <Label class="text-xs whitespace-nowrap">At Level</Label>
+            <NumericInput aria-label="At Level" class="w-20" min={1} max={20} value={formData().level} onChange={(v) => setFormData((d) => ({ ...d, level: v }))} />
           </div>
           <div class="space-y-1">
-            <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
-            <NumericInput id="feature-max-uses" min={0} value={formData().maxUses}
-              onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
+            <Label for="feature-action-kind">Action Kind</Label>
+            <Select value={formData().actionKind || 'action'} onValueChange={(v) => setFormData((d) => ({ ...d, actionKind: v as ActionKind | '' }))}>
+              <SelectTrigger id="feature-action-kind" aria-label="Action Kind">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="action">Action</SelectItem>
+                <SelectItem value="bonus-action">Bonus Action</SelectItem>
+                <SelectItem value="reaction">Reaction</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="space-y-1">
+            <Label for="feature-action-type">Type</Label>
+            <Combobox
+              value={formData().type}
+              onValueChange={(v) => setFormData((d) => ({ ...d, type: v }))}
+              options={ACTION_TYPE_LABELS}
+              aria-label="Type"
+            />
+          </div>
+          <div class="space-y-1">
+            <Label for="feature-range">Range</Label>
+            <Input
+              id="feature-range"
+              value={formData().range}
+              onInput={(e) => setFormData((d) => ({ ...d, range: e.currentTarget.value }))}
+              placeholder="5 ft, 30 ft, Touch, Self"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="space-y-1">
+              <Label for="feature-uses">Uses Spent</Label>
+              <NumericInput id="feature-uses" min={0} value={formData().uses}
+                onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
+            </div>
+            <div class="space-y-1">
+              <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
+              <NumericInput id="feature-max-uses" min={0} value={formData().maxUses}
+                onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
+            </div>
+          </div>
+          <div class="space-y-1">
+            <Label for="feature-recharge">Recharge On</Label>
+            <Select value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
+              <SelectTrigger id="feature-recharge"><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                <SelectItem value="short-rest">Short Rest</SelectItem>
+                <SelectItem value="long-rest">Long Rest</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
+      </Show>
+
+      <Show when={formData().featureType === 'Spellcasting Ability'}>
         <div class="space-y-1">
-          <Label for="feature-recharge">Recharge On</Label>
-          <Select value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
-            <SelectTrigger id="feature-recharge"><SelectValue placeholder="None" /></SelectTrigger>
+          <Label for="feature-spellcasting-ability">Spellcasting Ability</Label>
+          <Select
+            value={singleTierEffects().spellcastingAbility ?? ''}
+            onValueChange={(v) => setSingleTierEffects({ spellcastingAbility: (v || undefined) as keyof AbilityScores | undefined })}
+          >
+            <SelectTrigger id="feature-spellcasting-ability" aria-label="Spellcasting Ability"><SelectValue placeholder="None" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">None</SelectItem>
-              <SelectItem value="short-rest">Short Rest</SelectItem>
-              <SelectItem value="long-rest">Long Rest</SelectItem>
+              <For each={SPELLCASTING_ABILITY_OPTIONS}>
+                {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
+              </For>
             </SelectContent>
           </Select>
         </div>
       </Show>
 
-      <Collapsible open={effectsOpen()} onOpenChange={setEffectsOpen}>
-        <CollapsibleTrigger class="flex items-center gap-2 text-sm font-medium hover:text-primary">
-          <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180" />
-          Effects
-        </CollapsibleTrigger>
-        <CollapsibleContent class="space-y-3 mt-2">
+      <Show when={formData().featureType === 'Hit Die'}>
+        <div class="space-y-1">
+          <Label for="feature-hit-die">Hit Die</Label>
+          <Select
+            value={singleTierEffects().hitDiceSize ? String(singleTierEffects().hitDiceSize) : ''}
+            onValueChange={(v) => setSingleTierEffects({ hitDiceSize: v ? Number(v) : undefined })}
+          >
+            <SelectTrigger id="feature-hit-die" aria-label="Hit Die"><SelectValue placeholder="None" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">None</SelectItem>
+              <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
+            </SelectContent>
+          </Select>
+        </div>
+      </Show>
+
+      <Show when={isTieredEffectType(formData().featureType)}>
+        <div class="space-y-3">
           <For each={formData().levelEffects}>
             {(tier, i) => (
               <LevelEffectRow
+                featureType={formData().featureType as 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'}
                 tier={tier}
-                onLevelChange={(level) => updateTier(i(), { level })}
-                onEffectsChange={(effects) => updateTier(i(), { effects })}
-                onRemove={() => removeTier(i())}
+                onLevelChange={(level) => updateLevelEffect(i(), { level })}
+                onEffectsChange={(effects) => updateLevelEffect(i(), { effects })}
+                onRemove={() => removeLevelEffect(i())}
               />
             )}
           </For>
-          <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addTier}>
+          <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addLevelEffect}>
             <Plus class="h-3 w-3" />
-            Add Level Tier
+            Add Level
           </Button>
-        </CollapsibleContent>
-      </Collapsible>
+        </div>
+      </Show>
 
       <div class="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={props.onCancel}>Cancel</Button>
@@ -426,6 +505,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
       actionKind: data.actionKind || undefined,
       type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
       range: (data.actionKind && data.range) ? data.range : undefined,
+      level: data.actionKind ? (data.level || undefined) : undefined,
       uses: (data.actionKind && data.uses) ? data.uses : undefined,
       maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
       rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
@@ -452,6 +532,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
               actionKind: data.actionKind || undefined,
               type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
               range: (data.actionKind && data.range) ? data.range : undefined,
+              level: data.actionKind ? (data.level || undefined) : undefined,
               uses: (data.actionKind && data.uses) ? data.uses : undefined,
               maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
               rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
@@ -638,12 +719,14 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                     initialData={{
                       name: feature().name,
                       description: feature().description,
+                      featureType: inferFeatureType(feature().actionKind, feature().levelEffects),
                       actionKind: feature().actionKind ?? '',
                       type: feature().type ?? '',
                       range: feature().range ?? '',
                       uses: feature().uses ?? 0,
                       maxUses: feature().maxUses ?? 0,
                       rechargeOn: feature().rechargeOn ?? '',
+                      level: feature().level ?? 1,
                       levelEffects: feature().levelEffects ?? [],
                     }}
                     onSubmit={(data) => handleUpdate(section.field, data)}

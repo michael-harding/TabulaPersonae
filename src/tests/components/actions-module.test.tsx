@@ -117,7 +117,10 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
   describe("calculated spell stats", () => {
     function makeSpellcaster(overrides: Partial<Character> = {}): Character {
       return makeCharacter({
-        spellcastingAbility: "intelligence",
+        classFeatures: [{
+          id: "spellcasting-1", name: "Spellcasting", description: "", source: "class-feature",
+          levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }],
+        }],
         abilityScores: { ...createDefaultCharacter().abilityScores, intelligence: 16 },
         proficiencyBonus: 3,
         ...overrides,
@@ -230,6 +233,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       expect(dcInput.value).toBe("14")
     })
   })
+
 
   describe("SpellSlotTracker integration", () => {
     it("renders slot circles for levels with total > 0", () => {
@@ -897,6 +901,26 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
         />
       )
       expect(screen.queryByText("Expertise")).not.toBeInTheDocument()
+    })
+
+    it("action feature granted at a later level is hidden below that level", () => {
+      render(
+        <ActionsModule
+          character={makeCharacter({ level: 3, classFeatures: [makeFeature({ name: "Extra Attack", actionKind: "action", level: 5 })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.queryByText("Extra Attack")).not.toBeInTheDocument()
+    })
+
+    it("action feature granted at a later level appears once the character reaches that level", () => {
+      render(
+        <ActionsModule
+          character={makeCharacter({ level: 5, classFeatures: [makeFeature({ name: "Extra Attack", actionKind: "action", level: 5 })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Extra Attack")).toBeInTheDocument()
     })
 
     it("species trait with actionKind='action' appears in the Actions subsection", () => {

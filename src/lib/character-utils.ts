@@ -218,10 +218,13 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
   return totals
 }
 
+// Spellcasting ability is only ever set via a Class Feature/Species Trait/Feat grant — the raw
+// `character.spellcastingAbility` field is legacy/import metadata and is never consulted here, so
+// removing the granting feature always fully clears it from every calculation.
 export function getEffectiveSpellcastingAbility(
-  character: Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "level" | "spellcastingAbility">
+  character: Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "level">
 ): keyof AbilityScores | "" {
-  return getActiveFeatureEffects(character).spellcastingAbility ?? character.spellcastingAbility ?? ""
+  return getActiveFeatureEffects(character).spellcastingAbility ?? ""
 }
 
 export function getEffectiveHitDiceSize(
