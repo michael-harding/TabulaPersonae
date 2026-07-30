@@ -1143,15 +1143,19 @@ describe("getEffectiveSpellcastingAbility", () => {
 })
 
 describe("getEffectiveHitDiceSize", () => {
-  it("falls back to hitDiceSize, then to parsing the hitDice string", () => {
-    expect(getEffectiveHitDiceSize({ classFeatures: [], speciesTraits: [], feats: [], level: 1, hitDiceSize: 10, hitDice: "1d8" })).toBe(10)
-    expect(getEffectiveHitDiceSize({ classFeatures: [], speciesTraits: [], feats: [], level: 1, hitDiceSize: undefined, hitDice: "1d6" })).toBe(6)
+  it("returns undefined when no feature grants a hit die size", () => {
+    expect(getEffectiveHitDiceSize({ classFeatures: [], speciesTraits: [], feats: [], level: 1 })).toBeUndefined()
   })
 
-  it("prefers a feature-granted hit die size over the character's own value", () => {
+  it("returns the feature-granted hit die size", () => {
     const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitDiceSize: 12 } }] })
-    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 1, hitDiceSize: 8, hitDice: "1d8" }
+    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveHitDiceSize(character)).toBe(12)
+  })
+
+  it("ignores stale raw hitDiceSize/hitDice fields once no feature grants one, even if they're still present", () => {
+    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, hitDiceSize: 10, hitDice: "1d8" } as any
+    expect(getEffectiveHitDiceSize(character)).toBeUndefined()
   })
 })
 

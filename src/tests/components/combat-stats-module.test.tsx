@@ -340,63 +340,6 @@ describe("CombatStatsModule", () => {
     })
   })
 
-  describe("hit dice section", () => {
-    it("does not show hit dice section in view mode", () => {
-      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", level: 4, spentHitDice: 1 })} onUpdate={vi.fn()} />)
-      expect(screen.queryByText(/die type/i)).not.toBeInTheDocument()
-      expect(screen.queryByText(/spent hit dice/i)).not.toBeInTheDocument()
-      expect(screen.queryByText(/available/i)).not.toBeInTheDocument()
-    })
-
-    it("shows hit dice section in edit mode", () => {
-      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      expect(screen.getByText(/die type/i)).toBeInTheDocument()
-      expect(screen.getByRole("button", { name: "8" })).toBeInTheDocument()
-    })
-  })
-
-  describe("hit dice section — edit mode", () => {
-    it("renders a 'Die Type' label and select trigger button in edit mode", () => {
-      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      expect(screen.getByText(/die type/i)).toBeInTheDocument()
-      // Kobalte Select trigger renders as a button showing the current value
-      expect(screen.getByRole("button", { name: "8" })).toBeInTheDocument()
-    })
-
-    it("renders 'Spent Hit Dice' label and stepper buttons when level > 5", () => {
-      render(<CombatStatsModule character={makeCharacter({ level: 8, spentHitDice: 2, hitDice: "1d10" })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      expect(screen.getByText(/spent hit dice/i)).toBeInTheDocument()
-      expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
-    })
-
-    it("saves the updated hitDiceSize on save", () => {
-      const onUpdate = vi.fn()
-      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ hitDiceSize: 8 })
-      )
-    })
-
-    it("disables the Die Type select and shows the granted value when a feature grants hitDiceSize", () => {
-      const feature = {
-        id: "feature-1",
-        name: "Hit Points",
-        description: "",
-        source: "class-feature" as const,
-        levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }],
-      }
-      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8, classFeatures: [feature], level: 1 })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      const trigger = screen.getByRole("button", { name: "10" })
-      expect(trigger).toBeDisabled()
-    })
-  })
-
   describe("size combobox (2024)", () => {
     it("saves a custom size value typed into the Size combobox", () => {
       const onUpdate = vi.fn()

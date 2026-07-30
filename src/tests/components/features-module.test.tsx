@@ -770,6 +770,49 @@ describe("FeaturesModule", () => {
     })
   })
 
+  describe("spent hit dice tracker in feature card", () => {
+    it("shows the pip tracker on the card of the feature currently granting hitDiceSize", () => {
+      const feature = makeFeature({ name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 1, spentHitDice: 0 })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Spent Hit Dice")).toBeInTheDocument()
+      expect(screen.getAllByTitle("Hit die available")).toHaveLength(1)
+    })
+
+    it("does not show the tracker on a feature that doesn't grant hitDiceSize", () => {
+      const feature = makeFeature({ name: "Action Surge" })
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Spent Hit Dice")).not.toBeInTheDocument()
+    })
+
+    it("does not show the tracker anywhere when no feature grants hitDiceSize", () => {
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Spent Hit Dice")).not.toBeInTheDocument()
+    })
+
+    it("shows a stepper instead of pips when character level is above 5", () => {
+      const feature = makeFeature({ name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 8, spentHitDice: 2 })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Spent Hit Dice")).toBeInTheDocument()
+      expect(screen.queryByTitle("Hit die available")).not.toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
+    })
+
+    it("calls onUpdate with the character's spentHitDice updated when a pip is clicked", () => {
+      const onUpdate = vi.fn()
+      const feature = makeFeature({ name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 1, spentHitDice: 0 })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByTitle("Hit die available")[0])
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentHitDice: 1 }))
+    })
+
+    it("shows the tracker only once when multiple features could grant hitDiceSize", () => {
+      const featureA = makeFeature({ id: "f-a", name: "A", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
+      const featureB = makeFeature({ id: "f-b", name: "B", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [featureA, featureB], level: 1 })} onUpdate={vi.fn()} />)
+      expect(screen.getAllByTitle("Hit die available")).toHaveLength(1)
+    })
+  })
+
   describe("Delete feature", () => {
     it("calls onUpdate with the feature removed", () => {
       const onUpdate = vi.fn()

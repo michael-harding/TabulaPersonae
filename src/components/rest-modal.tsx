@@ -20,7 +20,12 @@ export function RestModal(props: RestModalProps) {
   const [dicesToSpend, setDicesToSpend] = createSignal(0)
   const [rollResult, setRollResult] = createSignal<{ rolls: number[]; total: number } | null>(null)
 
-  const dieSize = () => getEffectiveHitDiceSize(props.character) as DieSize
+  // Hit die size is only ever set via a Feature grant — with no such feature there's no valid
+  // hit die to speak of, so the whole "spend hit dice" section stays hidden rather than falling
+  // back to a base/legacy value the user has no way to see or control.
+  const activeHitDiceSize = () => getEffectiveHitDiceSize(props.character)
+  const hasHitDieFeature = () => activeHitDiceSize() !== undefined
+  const dieSize = () => activeHitDiceSize() as DieSize
   const totalHitDice = () => props.character.level ?? 1
   const spentHitDice = () => props.character.spentHitDice ?? 0
   const availableHitDice = () => totalHitDice() - spentHitDice()
@@ -148,14 +153,16 @@ export function RestModal(props: RestModalProps) {
               }
             >
               <ul class="text-sm text-muted-foreground space-y-0.5 list-disc list-inside">
-                <li>Spend Hit Dice to regain HP</li>
+                <Show when={hasHitDieFeature()}>
+                  <li>Spend Hit Dice to regain HP</li>
+                </Show>
                 <li>Short-rest features recharge</li>
               </ul>
             </Show>
           </div>
 
-          {/* Hit Dice section — short rest only */}
-          <Show when={restType() === "short"}>
+          {/* Hit Dice section — short rest only, and only when a feature grants a hit die size */}
+          <Show when={restType() === "short" && hasHitDieFeature()}>
             <div class="space-y-2">
               <div class="flex items-center justify-between">
                 <div class="text-sm font-medium">Hit Dice to Spend</div>

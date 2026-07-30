@@ -1,7 +1,7 @@
 import { createSignal, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveLevelEffect, getActiveFeatureEffects } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -551,6 +551,16 @@ export function FeaturesModule(props: FeaturesModuleProps) {
     })
   }
 
+  // Hit die size is only ever set via a Feature grant — this identifies the single feature that
+  // is *currently* the active source, so the spent-hit-dice tracker renders on that one card only.
+  const isActiveHitDieSource = (feature: Feature) =>
+    getActiveLevelEffect(feature, props.character.level ?? 1)?.hitDiceSize !== undefined &&
+    getActiveFeatureEffects(props.character).hitDiceSizeSource === feature.name
+
+  const handleSpentHitDiceChange = (v: number) => {
+    props.onUpdate({ ...props.character, spentHitDice: v })
+  }
+
   const handleDelete = (field: FeatureField, id: string) => {
     props.onUpdate({
       ...props.character,
@@ -667,6 +677,32 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                 readOnly={isReadOnly}
                               />
                             </Show>
+                          </Show>
+                          <Show when={isActiveHitDieSource(feature)}>
+                            <div class="space-y-1">
+                              <Label class="text-xs text-muted-foreground">Spent Hit Dice</Label>
+                              <Show
+                                when={(props.character.level ?? 1) <= 5}
+                                fallback={
+                                  <StepperInput
+                                    value={props.character.spentHitDice ?? 0}
+                                    min={0}
+                                    max={props.character.level ?? 1}
+                                    onChange={handleSpentHitDiceChange}
+                                    readOnly={isReadOnly}
+                                  />
+                                }
+                              >
+                                <PipTracker
+                                  total={props.character.level ?? 1}
+                                  used={props.character.spentHitDice ?? 0}
+                                  onToggle={handleSpentHitDiceChange}
+                                  usedTitle="Hit die spent"
+                                  availableTitle="Hit die available"
+                                  readOnly={isReadOnly}
+                                />
+                              </Show>
+                            </div>
                           </Show>
                         </div>
                       )}

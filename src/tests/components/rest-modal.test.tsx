@@ -12,6 +12,12 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
     hitPoints: { current: 15, maximum: 24, temporary: 0 },
     spentHitDice: 0,
     hitDice: "1d8",
+    // Hit die size is only ever consulted via a Feature grant — most of this file's tests exercise
+    // the hit-dice-spending flow, so the default fixture carries a granting feature matching hitDice.
+    classFeatures: [{
+      id: "hit-die-feature", name: "Hit Points", description: "", source: "class-feature",
+      levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+    }],
     abilityScores: { ...createDefaultCharacter().abilityScores, constitution: 14 }, // +2 mod
     ...overrides,
   }
@@ -188,6 +194,30 @@ describe("RestModal", () => {
       const increaseBtn = within(getDialog()).getByRole("button", { name: /increase/i })
       fireEvent.click(increaseBtn) // spend 1 die
       expect(within(getDialog()).getByText(/\+2 per die/i)).toBeInTheDocument()
+    })
+  })
+
+  describe("hit dice require a granting feature", () => {
+    it("does not show the Hit Dice section when no feature grants a hit die size", () => {
+      const char = makeCharacter({ classFeatures: [] })
+      openModal(char)
+      expect(within(getDialog()).queryByText(/hit dice to spend/i)).not.toBeInTheDocument()
+      expect(within(getDialog()).queryByText(/spend hit dice to regain hp/i)).not.toBeInTheDocument()
+    })
+
+    it("does not fall back to the base hitDice string once the granting feature is gone (no stale die size shown)", () => {
+      // Simulates a Paladin (base hit die d10) whose Hit Die feature (e.g. a d12 override) was
+      // removed — hit die size must never fall back to the raw hitDice field once Class-Feature-only.
+      const char = makeCharacter({ classFeatures: [], hitDice: "1d10" })
+      openModal(char)
+      expect(within(getDialog()).queryByText(/d10 available/i)).not.toBeInTheDocument()
+      expect(within(getDialog()).queryByText(/hit dice to spend/i)).not.toBeInTheDocument()
+    })
+
+    it("shows the Hit Dice section again once a feature grants a hit die size", () => {
+      const char = makeCharacter() // default fixture carries a hit-die-granting feature
+      openModal(char)
+      expect(within(getDialog()).getByText(/hit dice to spend/i)).toBeInTheDocument()
     })
   })
 

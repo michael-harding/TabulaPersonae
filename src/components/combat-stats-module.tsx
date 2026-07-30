@@ -1,20 +1,17 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, parseHitDiceSize, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getEffectiveConditionImmunities, getEffectiveHitDiceSize, getActiveFeatureEffects } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getEffectiveConditionImmunities } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
-import { DIE_SIZES } from "@/lib/dice"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { CalculatedValue } from "@/components/ui/calculated-value"
-import { Tooltip } from "@/components/ui/tooltip"
 import { useReadOnly } from "@/lib/read-only-context"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
@@ -51,8 +48,6 @@ const toEdit = (c: Character) => {
     burrowSpeed: c.burrowSpeed ?? 0,
     proficiencyBonus: c.proficiencyBonus || 2,
     deathSaves: { successes: c.deathSaves?.successes || 0, failures: c.deathSaves?.failures || 0 },
-    spentHitDice: c.spentHitDice ?? 0,
-    hitDiceSize: c.hitDiceSize ?? parseHitDiceSize(c.hitDice ?? "1d8"),
     size: c.size ?? "Medium",
     useCalculatedInitiative: c.useCalculatedInitiative ?? false,
     useCalculatedProficiencyBonus: c.useCalculatedProficiencyBonus ?? false,
@@ -95,10 +90,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   const edition = createMemo(() => props.character.edition ?? "2024")
-
-  const hitDiceGrant = createMemo(() => getActiveFeatureEffects(current()))
-  const hitDiceGranted = createMemo(() => hitDiceGrant().hitDiceSize !== undefined)
-  const effectiveHitDiceSize = createMemo(() => getEffectiveHitDiceSize(current()))
 
   const updateHP = (field: "current" | "maximum" | "temporary" | "temporaryMaximum", value: number) =>
     setEdited((prev) => {
@@ -326,63 +317,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             </div>
           </Show>
         </div>
-
-        {/* Hit Dice — edit mode only */}
-        <Show when={isEditing()}>
-          <div class="space-y-2">
-            <Label class="text-sm text-muted-foreground">Hit Dice</Label>
-            <div class="space-y-3">
-              <div>
-                <Label class="text-xs">Die Type</Label>
-                <Show
-                  when={hitDiceGranted()}
-                  fallback={
-                    <Select
-                      value={String(edited().hitDiceSize)}
-                      onValueChange={(v) => setEdited(prev => ({ ...prev, hitDiceSize: Number(v) }))}
-                    >
-                      <SelectTrigger class="w-24"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
-                      </SelectContent>
-                    </Select>
-                  }
-                >
-                  <Tooltip content={`Granted by ${hitDiceGrant().hitDiceSizeSource}`}>
-                    <Select value={String(effectiveHitDiceSize())} disabled>
-                      <SelectTrigger class="w-24"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
-                      </SelectContent>
-                    </Select>
-                  </Tooltip>
-                </Show>
-              </div>
-              <div>
-                <Label class="text-xs">Spent Hit Dice</Label>
-                <Show
-                  when={(props.character.level ?? 1) <= 5}
-                  fallback={
-                    <StepperInput
-                      value={edited().spentHitDice ?? 0}
-                      min={0}
-                      max={props.character.level ?? 1}
-                      onChange={(v) => setEdited(prev => ({ ...prev, spentHitDice: v }))}
-                    />
-                  }
-                >
-                  <PipTracker
-                    total={props.character.level ?? 1}
-                    used={edited().spentHitDice ?? 0}
-                    onToggle={(v) => setEdited(prev => ({ ...prev, spentHitDice: v }))}
-                    usedTitle="Hit die spent"
-                    availableTitle="Hit die available"
-                  />
-                </Show>
-              </div>
-            </div>
-          </div>
-        </Show>
 
         {/* Death Saves — only at 0 HP */}
         <Show when={currentHP() === 0}>

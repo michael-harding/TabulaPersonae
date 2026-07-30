@@ -227,10 +227,14 @@ export function getEffectiveSpellcastingAbility(
   return getActiveFeatureEffects(character).spellcastingAbility ?? ""
 }
 
+// Hit die size is only ever set via a Class Feature/Trait/Feat grant — no fallback to the raw
+// `character.hitDiceSize` or `character.hitDice` fields, both legacy/import metadata with no
+// editing surface of their own. Returns undefined when nothing currently grants one; callers must
+// treat that as "no valid hit die" rather than guessing a default.
 export function getEffectiveHitDiceSize(
-  character: Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "level" | "hitDiceSize" | "hitDice">
-): number {
-  return getActiveFeatureEffects(character).hitDiceSize ?? character.hitDiceSize ?? parseHitDiceSize(character.hitDice ?? "1d8")
+  character: Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "level">
+): number | undefined {
+  return getActiveFeatureEffects(character).hitDiceSize
 }
 
 export function getEffectiveSavingThrowProficiency(

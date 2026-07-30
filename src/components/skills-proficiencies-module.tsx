@@ -270,7 +270,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                             <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
                           </Show>
                           <Show when={effectiveSave().granted}>
-                            <Tooltip content={`Granted by ${effectiveSave().grantedBy}`}>
+                            <Tooltip content={`Granted by ${effectiveSave().grantedBy} Class Feature`}>
                               <Badge variant="outline" class="text-xs px-1 py-0">Granted</Badge>
                             </Tooltip>
                           </Show>
@@ -289,7 +289,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           />
                         }
                       >
-                        <Tooltip content={`Granted by ${effectiveSave().grantedBy}`} triggerFocusable>
+                        <Tooltip content={`Granted by ${effectiveSave().grantedBy} Class Feature`} triggerFocusable>
                           <Checkbox
                             checked={isProficient()}
                             disabled
@@ -335,7 +335,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                     <div class="flex items-center gap-3 w-full transition-colors duration-150">
                       <Show when={isEditing()}>
                         <div class="flex gap-1">
-                          <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
+                          <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy} Class Feature` : "Proficiency (adds proficiency bonus)"}>
                             <Checkbox
                               aria-label="Proficient"
                               checked={effectiveSkill().proficient}
@@ -354,7 +354,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           <span
                             class={`font-medium ${isEditing() ? "cursor-pointer" : ""}`}
                             onClick={() => isEditing() && toggleSkillProf(skillKey)}
-                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show><Show when={effectiveSkill().granted}><Tooltip content={`Granted by ${effectiveSkill().grantedBy}`}><Badge variant="outline" class="text-xs px-1 py-0">Granted</Badge></Tooltip></Show></span></Show></span>
+                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show><Show when={effectiveSkill().granted}><Tooltip content={`Granted by ${effectiveSkill().grantedBy} Class Feature`}><Badge variant="outline" class="text-xs px-1 py-0">Granted</Badge></Tooltip></Show></span></Show></span>
                         </div>
                       </div>
                     </div>
