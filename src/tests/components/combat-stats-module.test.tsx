@@ -300,6 +300,15 @@ describe("CombatStatsModule", () => {
       render(<CombatStatsModule character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Size")).not.toBeInTheDocument()
     })
+
+    it("shows the feature-granted size instead of the character's own size", () => {
+      const feature = {
+        id: "feature-1", name: "Powerful Build", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { size: "Large" } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024", size: "Medium", speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Large")).toBeInTheDocument()
+    })
   })
 
   describe("edit mode", () => {
@@ -366,6 +375,19 @@ describe("CombatStatsModule", () => {
       fireEvent.click(screen.getByRole("option", { name: "Huge" }))
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Huge" }))
+    })
+
+    it("locks the size combobox and shows a tooltip when a feature grants size", () => {
+      const feature = {
+        id: "feature-1", name: "Powerful Build", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { size: "Large" } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024", size: "Medium", speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const sizeInput = screen.getAllByRole("combobox").find(
+        (el) => (el as HTMLInputElement).value === "Large"
+      )! as HTMLInputElement
+      expect(sizeInput).toBeDisabled()
     })
   })
 
@@ -498,6 +520,16 @@ describe("CombatStatsModule", () => {
         expect.objectContaining({ conditionImmunities: [] })
       )
     })
+
+    it("shows a feature-granted condition immunity as non-removable, tooltipped with the granting feature", () => {
+      const feature = {
+        id: "feature-1", name: "Fey Ancestry", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { conditionImmunities: ["Charmed"] } }],
+      }
+      const { container } = render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Charmed")).toHaveAttribute("title", "Granted by Fey Ancestry — edit in Features")
+      expect(container.querySelector('[data-test="remove-condition-immunity-Charmed"]')).not.toBeInTheDocument()
+    })
   })
 
   describe("Movement modes", () => {
@@ -522,6 +554,15 @@ describe("CombatStatsModule", () => {
       fireEvent.blur(flyInput)
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ flySpeed: 30 }))
+    })
+
+    it("adds a feature-granted fly speed to the displayed fly speed", () => {
+      const feature = {
+        id: "feature-1", name: "Aarakocra Ancestry", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { flySpeed: 30 } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
     })
   })
 

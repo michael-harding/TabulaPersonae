@@ -1,6 +1,6 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, SENSE_TYPES, SENSE_LABELS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, SENSE_TYPES, SENSE_LABELS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -123,6 +123,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   const current = () => isEditing() ? edited() : props.character
   const effectiveScores = createMemo(() => getEffectiveAbilityScores(current()))
   const modifierTotals = createMemo(() => getEquipmentModifierTotals(current().equipment))
+  const featureTotals = createMemo(() => getActiveFeatureEffects(current()))
   const effectiveSenses = createMemo(() => getEffectiveSenses(current()))
 
   const effectiveDamageResistances = createMemo(() => getEffectiveDamageResistances(current()))
@@ -421,6 +422,9 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                       <Show when={itemBonus() !== 0}>
                         <span class="text-xs text-muted-foreground">{formatModifier(itemBonus())} item</span>
                       </Show>
+                      <Show when={featureTotals().senses[sense] !== 0}>
+                        <span class="text-xs text-muted-foreground">{formatModifier(featureTotals().senses[sense])} feature</span>
+                      </Show>
                     </div>
                   </Show>
                 )
@@ -440,6 +444,10 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             emptyText="No resistances"
             ownValues={effectiveDamageResistances().own}
             grantedValues={effectiveDamageResistances().granted}
+            grantedTooltip={(v) => {
+              const source = effectiveDamageResistances().grantedBy[v]
+              return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
+            }}
             editing={isEditing()}
             onAdd={(v) => addTag("damageResistances", v)}
             onRemove={(v) => removeTag("damageResistances", v)}
@@ -451,6 +459,10 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             emptyText="No immunities"
             ownValues={effectiveDamageImmunities().own}
             grantedValues={effectiveDamageImmunities().granted}
+            grantedTooltip={(v) => {
+              const source = effectiveDamageImmunities().grantedBy[v]
+              return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
+            }}
             editing={isEditing()}
             onAdd={(v) => addTag("damageImmunities", v)}
             onRemove={(v) => removeTag("damageImmunities", v)}
@@ -462,6 +474,10 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             emptyText="No vulnerabilities"
             ownValues={effectiveDamageVulnerabilities().own}
             grantedValues={effectiveDamageVulnerabilities().granted}
+            grantedTooltip={(v) => {
+              const source = effectiveDamageVulnerabilities().grantedBy[v]
+              return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
+            }}
             editing={isEditing()}
             onAdd={(v) => addTag("damageVulnerabilities", v)}
             onRemove={(v) => removeTag("damageVulnerabilities", v)}
@@ -477,6 +493,10 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
           placeholder="Add language"
           ownValues={effectiveLanguages().own}
           grantedValues={effectiveLanguages().granted}
+          grantedTooltip={(v) => {
+            const source = effectiveLanguages().grantedBy[v]
+            return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
+          }}
           editing={isEditing()}
           onAdd={(v) => addTag("languages", v)}
           onRemove={(v) => removeTag("languages", v)}

@@ -1,6 +1,6 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getEffectiveConditionImmunities } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getEffectiveConditionImmunities, getEffectiveSize, SIZES } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
@@ -8,6 +8,7 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Combobox } from "@/components/ui/combobox"
+import { Tooltip } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
@@ -26,8 +27,6 @@ interface CombatStatsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
 }
-
-const SIZES = ["Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"]
 
 const toEdit = (c: Character) => {
   const percSkill = c.skills?.perception
@@ -154,6 +153,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
   const effectiveConditionImmunities = createMemo(() => getEffectiveConditionImmunities(props.character))
   const effectiveMovement = createMemo(() => getEffectiveMovementSpeeds(props.character))
+  const effectiveSize = createMemo(() => getEffectiveSize(props.character))
 
   const passivePerceptionCalc = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
@@ -466,19 +466,23 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           </div>
           <div class="flex flex-wrap gap-1.5 min-h-[1.5rem]">
             <Show
-              when={effectiveConditionImmunities().length > 0}
+              when={effectiveConditionImmunities().own.length + effectiveConditionImmunities().granted.length > 0}
               fallback={<span class="text-xs text-muted-foreground italic">None</span>}
             >
-              <For each={effectiveConditionImmunities()}>
+              <For each={[...effectiveConditionImmunities().own, ...effectiveConditionImmunities().granted]}>
                 {(condition) => {
-                  const isOwn = () => (props.character.conditionImmunities ?? []).includes(condition)
+                  const isOwn = () => effectiveConditionImmunities().own.includes(condition)
+                  const grantedTooltip = () => {
+                    const source = effectiveConditionImmunities().grantedBy[condition]
+                    return source === "equipment" ? "Granted by an equipped item" : `Granted by ${source} — edit in Features`
+                  }
                   return (
                     <Show
                       when={!isReadOnly && isOwn()}
                       fallback={
                         <span
                           class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground"
-                          title={isOwn() ? undefined : "Granted by an equipped item"}
+                          title={isOwn() ? undefined : grantedTooltip()}
                         >
                           {condition}
                         </span>
@@ -597,14 +601,23 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             <div class="text-center">
               <Label class="text-sm text-muted-foreground">Size</Label>
               <Show when={isEditing()} fallback={
-                <div class="text-2xl font-bold text-primary mt-1">{props.character.size ?? "Medium"}</div>
+                <div class="text-2xl font-bold text-primary mt-1">{effectiveSize().size}</div>
               }>
-                <Combobox
-                  value={edited().size ?? "Medium"}
-                  onValueChange={(v) => setEdited(prev => ({ ...prev, size: v }))}
-                  options={SIZES}
-                  class="mt-1"
-                />
+                <Show
+                  when={!effectiveSize().granted}
+                  fallback={
+                    <Tooltip content={`Granted by ${effectiveSize().grantedBy} — edit in Features`} triggerFocusable>
+                      <Combobox value={effectiveSize().size} options={SIZES} class="mt-1" disabled />
+                    </Tooltip>
+                  }
+                >
+                  <Combobox
+                    value={edited().size ?? "Medium"}
+                    onValueChange={(v) => setEdited(prev => ({ ...prev, size: v }))}
+                    options={SIZES}
+                    class="mt-1"
+                  />
+                </Show>
               </Show>
             </div>
           </Show>

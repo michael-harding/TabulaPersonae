@@ -852,7 +852,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       props.onUpdate(updated)
     },
     calculatedValue: () => getEffectiveCarryingCapacity(props.character),
-    calculatedTooltip: () => "STR score x 15, plus item bonuses/multipliers",
+    calculatedTooltip: () => "STR score x 15, plus item/feature bonuses and multipliers",
   })
   const overCarryingCapacity = () => totalWeight() > carryingCapacityField.resolvedValue()
 

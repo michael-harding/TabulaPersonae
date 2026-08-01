@@ -28,6 +28,7 @@ import {
   getEffectiveLanguages,
   getEffectiveProficiencies,
   getEffectiveCarryingCapacity,
+  getEffectiveSize,
   getActiveLevelEffect,
   getActiveFeatureEffects,
   getEffectiveSpellcastingAbility,
@@ -715,6 +716,16 @@ describe("getEffectiveSenses", () => {
     const character = { senses: undefined, equipment: [] }
     expect(getEffectiveSenses(character)).toEqual({ darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0 })
   })
+
+  it("adds feature-granted senses alongside own and item bonuses", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }] })
+    const character = {
+      senses: { darkvision: 30 },
+      equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 10 } } })],
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+    }
+    expect(getEffectiveSenses(character).darkvision).toBe(100)
+  })
 })
 
 describe("getEffectiveMovementSpeeds", () => {
@@ -729,6 +740,16 @@ describe("getEffectiveMovementSpeeds", () => {
   it("defaults walk speed to 30 when unset", () => {
     const character = { equipment: [] } as unknown as Parameters<typeof getEffectiveMovementSpeeds>[0]
     expect(getEffectiveMovementSpeeds(character).walk).toBe(30)
+  })
+
+  it("adds feature-granted movement alongside own and item bonuses", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { flySpeed: 30 } }] })
+    const character = {
+      speed: 30, flySpeed: 0, swimSpeed: 0, climbSpeed: 0, burrowSpeed: 0,
+      equipment: [makeMagicItem({ modifiers: { flySpeed: 10 } })],
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+    }
+    expect(getEffectiveMovementSpeeds(character).fly).toBe(40)
   })
 })
 
@@ -752,12 +773,39 @@ describe("getEffectiveDamageResistances / Immunities / Vulnerabilities", () => {
     expect(vulnerabilities.own).toEqual([])
     expect(vulnerabilities.granted).toEqual(["Radiant"])
   })
+
+  it("merges feature-granted resistances/immunities/vulnerabilities and records grantedBy", () => {
+    const feature = makeFeature({ name: "Dwarven Resilience", source: "species-trait", levelEffects: [{ level: 1, effects: { resistances: ["Poison"] } }] })
+    const character = {
+      damageResistances: [], damageImmunities: [], damageVulnerabilities: [],
+      equipment: [makeMagicItem({ modifiers: { resistances: ["Cold"] } })],
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+    }
+    const resistances = getEffectiveDamageResistances(character)
+    expect(resistances.granted.sort()).toEqual(["Cold", "Poison"])
+    expect(resistances.grantedBy["Cold"]).toBe("equipment")
+    expect(resistances.grantedBy["Poison"]).toBe("Dwarven Resilience")
+  })
 })
 
 describe("getEffectiveConditionImmunities", () => {
   it("merges the character's own list with active item grants, deduped", () => {
     const character = { conditionImmunities: ["Poisoned"], equipment: [makeMagicItem({ modifiers: { conditionImmunities: ["Poisoned", "Charmed"] } })] }
-    expect(getEffectiveConditionImmunities(character).sort()).toEqual(["Charmed", "Poisoned"])
+    const result = getEffectiveConditionImmunities(character)
+    expect(result.own).toEqual(["Poisoned"])
+    expect(result.granted).toEqual(["Charmed"])
+  })
+
+  it("merges feature-granted condition immunities and records grantedBy", () => {
+    const feature = makeFeature({ name: "Fey Ancestry", source: "species-trait", levelEffects: [{ level: 1, effects: { conditionImmunities: ["Charmed"] } }] })
+    const character = {
+      conditionImmunities: [],
+      equipment: [],
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+    }
+    const result = getEffectiveConditionImmunities(character)
+    expect(result.granted).toEqual(["Charmed"])
+    expect(result.grantedBy["Charmed"]).toBe("Fey Ancestry")
   })
 })
 
@@ -776,6 +824,19 @@ describe("getEffectiveLanguages / getEffectiveProficiencies", () => {
     const proficiencies = getEffectiveProficiencies(character)
     expect(proficiencies.own).toEqual(["Longsword"])
     expect(proficiencies.granted).toEqual(["Herbalism Kit"])
+  })
+
+  it("merges feature-granted languages alongside item-granted ones", () => {
+    const feature = makeFeature({ name: "Draconic Ancestry", source: "species-trait", levelEffects: [{ level: 1, effects: { languages: ["Draconic"] } }] })
+    const character = {
+      languages: ["Common"],
+      equipment: [makeMagicItem({ modifiers: { languages: ["Elvish"] } })],
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+    }
+    const languages = getEffectiveLanguages(character)
+    expect(languages.granted.sort()).toEqual(["Draconic", "Elvish"])
+    expect(languages.grantedBy["Elvish"]).toBe("equipment")
+    expect(languages.grantedBy["Draconic"]).toBe("Draconic Ancestry")
   })
 
   it("merges feature-granted proficiencies alongside item-granted ones", () => {
@@ -821,6 +882,51 @@ describe("getEffectiveCarryingCapacity", () => {
       equipment: [makeMagicItem({ modifiers: { carryingCapacityBonus: 20, carryingCapacityMultiplier: 2 } })],
     }
     expect(getEffectiveCarryingCapacity(character)).toBe((16 * 15 + 20) * 2)
+  })
+
+  it("adds a feature-granted bonus alongside the item bonus", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { carryingCapacityBonus: 10 } }] })
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { carryingCapacityBonus: 20 } })],
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+    }
+    expect(getEffectiveCarryingCapacity(character)).toBe(16 * 15 + 30)
+  })
+
+  it("takes the max multiplier between item- and feature-granted values rather than stacking them", () => {
+    const feature = makeFeature({ name: "Powerful Build", source: "species-trait", levelEffects: [{ level: 1, effects: { carryingCapacityMultiplier: 2 } }] })
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { carryingCapacityMultiplier: 1.5 } })],
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+    }
+    expect(getEffectiveCarryingCapacity(character)).toBe(16 * 15 * 2)
+  })
+})
+
+describe("getEffectiveSize", () => {
+  it("falls back to the character's own size when no feature grants one", () => {
+    expect(getEffectiveSize({ size: "Small", classFeatures: [], speciesTraits: [], feats: [], level: 1 })).toEqual({ size: "Small", granted: false })
+  })
+
+  it("defaults to Medium when unset and no feature grants one", () => {
+    expect(getEffectiveSize({ classFeatures: [], speciesTraits: [], feats: [], level: 1 })).toEqual({ size: "Medium", granted: false })
+  })
+
+  it("uses the feature-granted size and records provenance", () => {
+    const feature = makeFeature({ name: "Powerful Build", source: "species-trait", levelEffects: [{ level: 1, effects: { size: "Large" } }] })
+    const character = { size: "Medium", classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
+    expect(getEffectiveSize(character)).toEqual({ size: "Large", granted: true, grantedBy: "Powerful Build" })
+  })
+
+  it("respects level-gating", () => {
+    const feature = makeFeature({ name: "Large Form", source: "species-trait", levelEffects: [{ level: 5, effects: { size: "Large" } }] })
+    const below = { size: "Medium", classFeatures: [], speciesTraits: [feature], feats: [], level: 4 }
+    expect(getEffectiveSize(below)).toEqual({ size: "Medium", granted: false })
+
+    const at = { size: "Medium", classFeatures: [], speciesTraits: [feature], feats: [], level: 5 }
+    expect(getEffectiveSize(at)).toEqual({ size: "Large", granted: true, grantedBy: "Large Form" })
   })
 })
 
@@ -1134,6 +1240,52 @@ describe("getActiveFeatureEffects", () => {
     const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "stealth", expertise: true }] } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
     expect(totals.skillProficiencies.stealth).toEqual({ expertise: true, source: "A" })
+  })
+
+  it("sums numeric fields (senses, speed, carrying capacity bonus) across features", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 }, flySpeed: 10, carryingCapacityBonus: 20 } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { senses: { darkvision: 30 }, flySpeed: 20, carryingCapacityBonus: 10 } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.senses.darkvision).toBe(90)
+    expect(totals.flySpeed).toBe(30)
+    expect(totals.carryingCapacityBonus).toBe(30)
+  })
+
+  it("takes the max carrying capacity multiplier across features", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { carryingCapacityMultiplier: 2 } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { carryingCapacityMultiplier: 1.5 } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.carryingCapacityMultiplier).toBe(2)
+  })
+
+  it("last-source-wins for size, recording provenance", () => {
+    const species = makeFeature({ name: "Goliath", source: "species-trait", levelEffects: [{ level: 1, effects: { size: "Medium" } }] })
+    const feat = makeFeature({ name: "Giant Ancestry", source: "feat", levelEffects: [{ level: 1, effects: { size: "Large" } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [], speciesTraits: [species], feats: [feat], level: 1 })
+    expect(totals.size).toBe("Large")
+    expect(totals.sizeSource).toBe("Giant Ancestry")
+  })
+
+  it("first-source-wins for resistances/immunities/vulnerabilities/conditionImmunities/languages", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { resistances: ["Poison"], immunities: ["Disease"], vulnerabilities: ["Radiant"], conditionImmunities: ["Poisoned"], languages: ["Dwarvish"] } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { resistances: ["Poison", "Cold"], immunities: ["Disease"], vulnerabilities: ["Radiant", "Fire"], conditionImmunities: ["Poisoned", "Charmed"], languages: ["Dwarvish", "Giant"] } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.resistances).toEqual({ Poison: "A", Cold: "B" })
+    expect(totals.immunities).toEqual({ Disease: "A" })
+    expect(totals.vulnerabilities).toEqual({ Radiant: "A", Fire: "B" })
+    expect(totals.conditionImmunities).toEqual({ Poisoned: "A", Charmed: "B" })
+    expect(totals.languages).toEqual({ Dwarvish: "A", Giant: "B" })
+  })
+
+  it("only applies newly-added numeric/list effects from features whose level threshold has been reached", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 4, effects: { flySpeed: 30, languages: ["Draconic"] } }] })
+    const below = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 3 })
+    expect(below.flySpeed).toBe(0)
+    expect(below.languages).toEqual({})
+
+    const at = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 4 })
+    expect(at.flySpeed).toBe(30)
+    expect(at.languages).toEqual({ Draconic: "Test Feature" })
   })
 })
 

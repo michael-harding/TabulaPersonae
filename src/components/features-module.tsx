@@ -1,7 +1,7 @@
 import { createSignal, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveLevelEffect, getActiveFeatureEffects } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveLevelEffect, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -73,13 +73,20 @@ const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 // Values double as their own display labels — the shared Select component's trigger renders
 // the raw controlled value verbatim (it doesn't look up a SelectItem's rendered children), so
 // using human-readable strings here avoids showing raw codes like "skill-proficiency" in the UI.
-type FeatureTypeValue = 'Action' | 'Spellcasting Ability' | 'Hit Die' | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+type FeatureTypeValue =
+  | 'Action' | 'Spellcasting Ability' | 'Hit Die' | 'Size'
+  | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
 
-// Spellcasting Ability and Hit Die are fixed facts of a class, not something that changes at
-// higher levels, so they get a single always-on control. The proficiency-grant types genuinely
-// can be granted or expanded at different levels, so they keep the repeatable level-tier list.
-const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Die']
-const TIERED_EFFECT_TYPES: FeatureTypeValue[] = ['Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency']
+// Spellcasting Ability, Hit Die, and Size are fixed facts of a class/species, not something that
+// changes at higher levels, so they get a single always-on control. The proficiency-grant types
+// (and the other species-trait-shaped effects below) genuinely can be granted or expanded at
+// different levels, so they keep the repeatable level-tier list.
+const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Die', 'Size']
+const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
+  'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
+  'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
+]
 const FEATURE_TYPES: FeatureTypeValue[] = ['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES]
 
 function isTieredEffectType(t: FeatureTypeValue | ''): boolean {
@@ -91,9 +98,16 @@ function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: Feat
   const effects = levelEffects?.[0]?.effects
   if (effects?.spellcastingAbility) return 'Spellcasting Ability'
   if (effects?.hitDiceSize) return 'Hit Die'
+  if (effects?.size) return 'Size'
   if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
   if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
   if (effects?.otherProficiencies?.length) return 'Other Proficiency'
+  if (effects?.speed || effects?.flySpeed || effects?.swimSpeed || effects?.climbSpeed || effects?.burrowSpeed) return 'Speed'
+  if (effects?.senses && Object.values(effects.senses).some((v) => v)) return 'Senses'
+  if (effects?.resistances?.length || effects?.immunities?.length || effects?.vulnerabilities?.length) return 'Damage Resistance/Immunity/Vulnerability'
+  if (effects?.conditionImmunities?.length) return 'Condition Immunity'
+  if (effects?.languages?.length) return 'Language'
+  if (effects?.carryingCapacityBonus || effects?.carryingCapacityMultiplier) return 'Carrying Capacity'
   return ''
 }
 
@@ -117,15 +131,116 @@ interface FeatureFormProps {
   onCancel: () => void
 }
 
+// Reusable picker for string-list effect fields (resistances/immunities/vulnerabilities/condition
+// immunities) drawn from a closed 5e rules enum — mirrors the Skill Proficiency picker's
+// Combobox+Add+Badge idiom, but for a plain string list instead of skill-keyed grants.
+function ClosedListEditor(props: {
+  label: string
+  ariaLabel: string
+  options: string[]
+  values: string[]
+  onChange: (next: string[]) => void
+}) {
+  const [newValue, setNewValue] = createSignal('')
+  const available = () => props.options.filter((o) => !props.values.includes(o))
+  const add = () => {
+    if (!available().includes(newValue())) return
+    props.onChange([...props.values, newValue()])
+    setNewValue('')
+  }
+  const remove = (v: string) => props.onChange(props.values.filter((x) => x !== v))
+  return (
+    <div class="space-y-1">
+      <Label class="text-xs">{props.label}</Label>
+      <Show when={props.values.length > 0}>
+        <div class="flex flex-wrap gap-2 mb-2">
+          <For each={props.values}>
+            {(v) => (
+              <Badge variant="secondary" class="gap-1.5 pr-1">
+                {v}
+                <button type="button" aria-label={`Remove ${v}`} onClick={() => remove(v)}>
+                  <X class="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+          </For>
+        </div>
+      </Show>
+      <Show when={available().length > 0}>
+        <div class="flex gap-2" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add() } }}>
+          <Combobox
+            value={newValue()}
+            onValueChange={setNewValue}
+            options={available()}
+            placeholder={`Add ${props.ariaLabel.toLowerCase()}...`}
+            aria-label={props.ariaLabel}
+          />
+          <Button type="button" size="sm" variant="outline" onClick={add}>Add</Button>
+        </div>
+      </Show>
+    </div>
+  )
+}
+
+// Reusable picker for free-text string-list effect fields (no fixed enum) — mirrors the same
+// Add+Badge idiom as ClosedListEditor, but accepts any typed value (used by Other Proficiency
+// and Language, neither of which has a closed list of valid values).
+function FreeTextListEditor(props: {
+  label: string
+  ariaLabel: string
+  placeholder: string
+  values: string[]
+  onChange: (next: string[]) => void
+}) {
+  const [newValue, setNewValue] = createSignal('')
+  const add = () => {
+    const trimmed = newValue().trim()
+    if (!trimmed || props.values.includes(trimmed)) return
+    props.onChange([...props.values, trimmed])
+    setNewValue('')
+  }
+  const remove = (v: string) => props.onChange(props.values.filter((x) => x !== v))
+  return (
+    <div class="space-y-1">
+      <Label class="text-xs">{props.label}</Label>
+      <Show when={props.values.length > 0}>
+        <div class="flex flex-wrap gap-2 mb-2">
+          <For each={props.values}>
+            {(v) => (
+              <Badge variant="secondary" class="gap-1.5 pr-1">
+                {v}
+                <button type="button" aria-label={`Remove ${v}`} onClick={() => remove(v)}>
+                  <X class="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+          </For>
+        </div>
+      </Show>
+      <div class="flex gap-2">
+        <Input
+          aria-label={props.ariaLabel}
+          value={newValue()}
+          onInput={(e) => setNewValue(e.currentTarget.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add() } }}
+          placeholder={props.placeholder}
+        />
+        <Button type="button" size="sm" variant="outline" onClick={add}>Add</Button>
+      </div>
+    </div>
+  )
+}
+
 function LevelEffectRow(props: {
-  featureType: 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+  featureType:
+    | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+    | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
   tier: FeatureLevelEffect
   onLevelChange: (level: number) => void
   onEffectsChange: (effects: FeatureEffects) => void
   onRemove: () => void
 }) {
   const [newSkillLabel, setNewSkillLabel] = createSignal('')
-  const [newProficiency, setNewProficiency] = createSignal('')
 
   const effects = () => props.tier.effects
   const update = (patch: Partial<FeatureEffects>) => props.onEffectsChange({ ...effects(), ...patch })
@@ -155,17 +270,6 @@ function LevelEffectRow(props: {
   const toggleSkillExpertise = (skill: keyof Skills) => {
     const next = (effects().skillProficiencies ?? []).map((g) => (g.skill === skill ? { ...g, expertise: !g.expertise } : g))
     update({ skillProficiencies: next })
-  }
-
-  const addOtherProficiency = () => {
-    const trimmed = newProficiency().trim()
-    if (!trimmed || (effects().otherProficiencies ?? []).includes(trimmed)) return
-    update({ otherProficiencies: [...(effects().otherProficiencies ?? []), trimmed] })
-    setNewProficiency('')
-  }
-  const removeOtherProficiency = (value: string) => {
-    const next = (effects().otherProficiencies ?? []).filter((v) => v !== value)
-    update({ otherProficiencies: next.length > 0 ? next : undefined })
   }
 
   return (
@@ -245,31 +349,126 @@ function LevelEffectRow(props: {
       </Show>
 
       <Show when={props.featureType === 'Other Proficiency'}>
+        <FreeTextListEditor
+          label="Other Proficiencies (armor/weapon/tool)"
+          ariaLabel="Add other proficiency"
+          placeholder="e.g. Light Armor"
+          values={effects().otherProficiencies ?? []}
+          onChange={(next) => update({ otherProficiencies: next.length > 0 ? next : undefined })}
+        />
+      </Show>
+
+      <Show when={props.featureType === 'Speed'}>
         <div class="space-y-1">
-          <Label class="text-xs">Other Proficiencies (armor/weapon/tool)</Label>
-          <Show when={(effects().otherProficiencies ?? []).length > 0}>
-            <div class="flex flex-wrap gap-2 mb-2">
-              <For each={effects().otherProficiencies ?? []}>
-                {(prof) => (
-                  <Badge variant="secondary" class="gap-1.5 pr-1">
-                    {prof}
-                    <button type="button" aria-label={`Remove ${prof}`} onClick={() => removeOtherProficiency(prof)}>
-                      <X class="h-3 w-3" />
-                    </button>
-                  </Badge>
-                )}
-              </For>
+          <Label class="text-xs">Speed (ft)</Label>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <Label for="fx-speed-walk" class="text-xs text-muted-foreground">Walk</Label>
+              <NumericInput id="fx-speed-walk" value={effects().speed ?? 0} onChange={(v) => update({ speed: v || undefined })} />
             </div>
-          </Show>
-          <div class="flex gap-2">
-            <Input
-              aria-label="Add other proficiency"
-              value={newProficiency()}
-              onInput={(e) => setNewProficiency(e.currentTarget.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addOtherProficiency() } }}
-              placeholder="e.g. Light Armor"
+            <div>
+              <Label for="fx-speed-fly" class="text-xs text-muted-foreground">Fly</Label>
+              <NumericInput id="fx-speed-fly" min={0} value={effects().flySpeed ?? 0} onChange={(v) => update({ flySpeed: v || undefined })} />
+            </div>
+            <div>
+              <Label for="fx-speed-swim" class="text-xs text-muted-foreground">Swim</Label>
+              <NumericInput id="fx-speed-swim" min={0} value={effects().swimSpeed ?? 0} onChange={(v) => update({ swimSpeed: v || undefined })} />
+            </div>
+            <div>
+              <Label for="fx-speed-climb" class="text-xs text-muted-foreground">Climb</Label>
+              <NumericInput id="fx-speed-climb" min={0} value={effects().climbSpeed ?? 0} onChange={(v) => update({ climbSpeed: v || undefined })} />
+            </div>
+            <div>
+              <Label for="fx-speed-burrow" class="text-xs text-muted-foreground">Burrow</Label>
+              <NumericInput id="fx-speed-burrow" min={0} value={effects().burrowSpeed ?? 0} onChange={(v) => update({ burrowSpeed: v || undefined })} />
+            </div>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={props.featureType === 'Senses'}>
+        <div class="space-y-1">
+          <Label class="text-xs">Senses (ft)</Label>
+          <div class="grid grid-cols-2 gap-2">
+            <For each={SENSE_TYPES}>
+              {(sense) => (
+                <div>
+                  <Label for={`fx-sense-${sense}`} class="text-xs text-muted-foreground">{SENSE_LABELS[sense]}</Label>
+                  <NumericInput
+                    id={`fx-sense-${sense}`}
+                    min={0}
+                    value={effects().senses?.[sense] ?? 0}
+                    onChange={(v) => update({ senses: { ...effects().senses, [sense]: v || undefined } })}
+                  />
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={props.featureType === 'Damage Resistance/Immunity/Vulnerability'}>
+        <div class="space-y-3">
+          <ClosedListEditor
+            label="Damage Resistances"
+            ariaLabel="Damage resistance"
+            options={DAMAGE_TYPE_OPTIONS}
+            values={effects().resistances ?? []}
+            onChange={(next) => update({ resistances: next.length > 0 ? next : undefined })}
+          />
+          <ClosedListEditor
+            label="Damage Immunities"
+            ariaLabel="Damage immunity"
+            options={DAMAGE_TYPE_OPTIONS}
+            values={effects().immunities ?? []}
+            onChange={(next) => update({ immunities: next.length > 0 ? next : undefined })}
+          />
+          <ClosedListEditor
+            label="Damage Vulnerabilities"
+            ariaLabel="Damage vulnerability"
+            options={DAMAGE_TYPE_OPTIONS}
+            values={effects().vulnerabilities ?? []}
+            onChange={(next) => update({ vulnerabilities: next.length > 0 ? next : undefined })}
+          />
+        </div>
+      </Show>
+
+      <Show when={props.featureType === 'Condition Immunity'}>
+        <ClosedListEditor
+          label="Condition Immunities"
+          ariaLabel="Condition immunity"
+          options={CONDITIONS}
+          values={effects().conditionImmunities ?? []}
+          onChange={(next) => update({ conditionImmunities: next.length > 0 ? next : undefined })}
+        />
+      </Show>
+
+      <Show when={props.featureType === 'Language'}>
+        <FreeTextListEditor
+          label="Languages"
+          ariaLabel="Add language"
+          placeholder="e.g. Elvish"
+          values={effects().languages ?? []}
+          onChange={(next) => update({ languages: next.length > 0 ? next : undefined })}
+        />
+      </Show>
+
+      <Show when={props.featureType === 'Carrying Capacity'}>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <Label for="fx-capacity-bonus" class="text-xs text-muted-foreground">Bonus (lbs)</Label>
+            <NumericInput id="fx-capacity-bonus" value={effects().carryingCapacityBonus ?? 0} onChange={(v) => update({ carryingCapacityBonus: v || undefined })} />
+          </div>
+          <div>
+            <Label for="fx-capacity-multiplier" class="text-xs text-muted-foreground">Multiplier (0 = none)</Label>
+            <NumericInput
+              id="fx-capacity-multiplier"
+              min={0}
+              step="0.5"
+              parser={parseFloat}
+              value={effects().carryingCapacityMultiplier ?? 0}
+              onChange={(v) => update({ carryingCapacityMultiplier: v || undefined })}
             />
-            <Button type="button" size="sm" variant="outline" onClick={addOtherProficiency}>Add</Button>
           </div>
         </div>
       </Show>
@@ -452,12 +651,30 @@ function FeatureForm(props: FeatureFormProps) {
         </div>
       </Show>
 
+      <Show when={formData().featureType === 'Size'}>
+        <div class="space-y-1">
+          <Label for="feature-size">Size</Label>
+          <Select
+            value={singleTierEffects().size ?? ''}
+            onValueChange={(v) => setSingleTierEffects({ size: v || undefined })}
+          >
+            <SelectTrigger id="feature-size" aria-label="Size"><SelectValue placeholder="None" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">None</SelectItem>
+              <For each={SIZES}>{(s) => <SelectItem value={s}>{s}</SelectItem>}</For>
+            </SelectContent>
+          </Select>
+        </div>
+      </Show>
+
       <Show when={isTieredEffectType(formData().featureType)}>
         <div class="space-y-3">
           <For each={formData().levelEffects}>
             {(tier, i) => (
               <LevelEffectRow
-                featureType={formData().featureType as 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'}
+                featureType={formData().featureType as
+                  | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+                  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'}
                 tier={tier}
                 onLevelChange={(level) => updateLevelEffect(i(), { level })}
                 onEffectsChange={(effects) => updateLevelEffect(i(), { effects })}

@@ -163,10 +163,25 @@ export interface FeatureEffectTotals {
   spellcastingAbilitySource?: string
   hitDiceSize?: number
   hitDiceSizeSource?: string
+  size?: string
+  sizeSource?: string
   savingThrowProficiencies: Partial<Record<keyof AbilityScores, string>>
   skillProficiencies: Partial<Record<keyof Skills, { expertise: boolean; source: string }>>
-  /** Proficiency name -> name of the granting feature (first source wins). */
+  /** Proficiency/resistance/etc. name -> name of the granting feature (first source wins). */
   otherProficiencies: Record<string, string>
+  resistances: Record<string, string>
+  immunities: Record<string, string>
+  vulnerabilities: Record<string, string>
+  conditionImmunities: Record<string, string>
+  languages: Record<string, string>
+  senses: Record<SenseType, number>
+  speed: number
+  flySpeed: number
+  swimSpeed: number
+  climbSpeed: number
+  burrowSpeed: number
+  carryingCapacityBonus: number
+  carryingCapacityMultiplier: number
 }
 
 export function getActiveLevelEffect(feature: Feature, level: number): FeatureEffects | undefined {
@@ -175,13 +190,26 @@ export function getActiveLevelEffect(feature: Feature, level: number): FeatureEf
   return tiers.reduce((best, tier) => (tier.level > best.level ? tier : best)).effects
 }
 
-type FeatureEffectCharacter = Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "level">
+type FeatureEffectCharacter = Pick<Character, "classFeatures" | "speciesTraits" | "feats"> & Partial<Pick<Character, "level">>
 
 export function getActiveFeatureEffects(character: FeatureEffectCharacter): FeatureEffectTotals {
   const totals: FeatureEffectTotals = {
     savingThrowProficiencies: {},
     skillProficiencies: {},
     otherProficiencies: {},
+    resistances: {},
+    immunities: {},
+    vulnerabilities: {},
+    conditionImmunities: {},
+    languages: {},
+    senses: { ...ZERO_SENSES },
+    speed: 0,
+    flySpeed: 0,
+    swimSpeed: 0,
+    climbSpeed: 0,
+    burrowSpeed: 0,
+    carryingCapacityBonus: 0,
+    carryingCapacityMultiplier: 1,
   }
   const level = character.level ?? 1
 
@@ -197,6 +225,10 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
       if (effects.hitDiceSize) {
         totals.hitDiceSize = effects.hitDiceSize
         totals.hitDiceSizeSource = feature.name
+      }
+      if (effects.size) {
+        totals.size = effects.size
+        totals.sizeSource = feature.name
       }
       for (const ability of effects.savingThrowProficiencies ?? []) {
         if (!totals.savingThrowProficiencies[ability]) {
@@ -214,6 +246,33 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
         if (!totals.otherProficiencies[prof]) {
           totals.otherProficiencies[prof] = feature.name
         }
+      }
+      for (const r of effects.resistances ?? []) {
+        if (!totals.resistances[r]) totals.resistances[r] = feature.name
+      }
+      for (const i of effects.immunities ?? []) {
+        if (!totals.immunities[i]) totals.immunities[i] = feature.name
+      }
+      for (const v of effects.vulnerabilities ?? []) {
+        if (!totals.vulnerabilities[v]) totals.vulnerabilities[v] = feature.name
+      }
+      for (const c of effects.conditionImmunities ?? []) {
+        if (!totals.conditionImmunities[c]) totals.conditionImmunities[c] = feature.name
+      }
+      for (const l of effects.languages ?? []) {
+        if (!totals.languages[l]) totals.languages[l] = feature.name
+      }
+      for (const sense of SENSE_TYPES) {
+        totals.senses[sense] += Number(effects.senses?.[sense] ?? 0)
+      }
+      totals.speed += Number(effects.speed ?? 0)
+      totals.flySpeed += Number(effects.flySpeed ?? 0)
+      totals.swimSpeed += Number(effects.swimSpeed ?? 0)
+      totals.climbSpeed += Number(effects.climbSpeed ?? 0)
+      totals.burrowSpeed += Number(effects.burrowSpeed ?? 0)
+      totals.carryingCapacityBonus += Number(effects.carryingCapacityBonus ?? 0)
+      if (effects.carryingCapacityMultiplier !== undefined) {
+        totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, effects.carryingCapacityMultiplier)
       }
     }
   }
@@ -315,13 +374,14 @@ export function getPassiveScore(
   return 10 + getSkillModifier(abilityScore, proficiencyBonus, isProficient, hasExpertise)
 }
 
-type SensesCharacter = Pick<Character, "senses" | "equipment">
+type SensesCharacter = Pick<Character, "senses" | "equipment"> & FeatureEffectCharacter
 
 export function getEffectiveSenses(character: SensesCharacter): Record<SenseType, number> {
   const itemTotals = getEquipmentModifierTotals(character.equipment).senses
+  const featureTotals = getActiveFeatureEffects(character).senses
   const result = {} as Record<SenseType, number>
   for (const sense of SENSE_TYPES) {
-    result[sense] = (character.senses?.[sense] ?? 0) + itemTotals[sense]
+    result[sense] = (character.senses?.[sense] ?? 0) + itemTotals[sense] + featureTotals[sense]
   }
   return result
 }
@@ -334,21 +394,18 @@ export interface MovementSpeeds {
   burrow: number
 }
 
-type MovementCharacter = Pick<Character, "speed" | "flySpeed" | "swimSpeed" | "climbSpeed" | "burrowSpeed" | "equipment">
+type MovementCharacter = Pick<Character, "speed" | "flySpeed" | "swimSpeed" | "climbSpeed" | "burrowSpeed" | "equipment"> & FeatureEffectCharacter
 
 export function getEffectiveMovementSpeeds(character: MovementCharacter): MovementSpeeds {
   const itemTotals = getEquipmentModifierTotals(character.equipment)
+  const featureTotals = getActiveFeatureEffects(character)
   return {
-    walk: (character.speed ?? 30) + itemTotals.speed,
-    fly: (character.flySpeed ?? 0) + itemTotals.flySpeed,
-    swim: (character.swimSpeed ?? 0) + itemTotals.swimSpeed,
-    climb: (character.climbSpeed ?? 0) + itemTotals.climbSpeed,
-    burrow: (character.burrowSpeed ?? 0) + itemTotals.burrowSpeed,
+    walk: (character.speed ?? 30) + itemTotals.speed + featureTotals.speed,
+    fly: (character.flySpeed ?? 0) + itemTotals.flySpeed + featureTotals.flySpeed,
+    swim: (character.swimSpeed ?? 0) + itemTotals.swimSpeed + featureTotals.swimSpeed,
+    climb: (character.climbSpeed ?? 0) + itemTotals.climbSpeed + featureTotals.climbSpeed,
+    burrow: (character.burrowSpeed ?? 0) + itemTotals.burrowSpeed + featureTotals.burrowSpeed,
   }
-}
-
-export function getEffectiveConditionImmunities(character: Pick<Character, "conditionImmunities" | "equipment">): string[] {
-  return dedupUnion(character.conditionImmunities, getEquipmentModifierTotals(character.equipment).conditionImmunities)
 }
 
 export interface EffectiveGrantList {
@@ -356,53 +413,92 @@ export interface EffectiveGrantList {
   granted: string[]
 }
 
-export function getEffectiveDamageResistances(character: Pick<Character, "damageResistances" | "equipment">): EffectiveGrantList {
-  const own = character.damageResistances ?? []
-  const itemGranted = getEquipmentModifierTotals(character.equipment).resistances
-  return { own, granted: itemGranted.filter((r) => !own.includes(r)) }
-}
-
-export function getEffectiveDamageImmunities(character: Pick<Character, "damageImmunities" | "equipment">): EffectiveGrantList {
-  const own = character.damageImmunities ?? []
-  const itemGranted = getEquipmentModifierTotals(character.equipment).immunities
-  return { own, granted: itemGranted.filter((r) => !own.includes(r)) }
-}
-
-export function getEffectiveDamageVulnerabilities(character: Pick<Character, "damageVulnerabilities" | "equipment">): EffectiveGrantList {
-  const own = character.damageVulnerabilities ?? []
-  const itemGranted = getEquipmentModifierTotals(character.equipment).vulnerabilities
-  return { own, granted: itemGranted.filter((r) => !own.includes(r)) }
-}
-
-export function getEffectiveLanguages(character: Pick<Character, "languages" | "equipment">): EffectiveGrantList {
-  const own = character.languages ?? []
-  const itemGranted = getEquipmentModifierTotals(character.equipment).languages
-  return { own, granted: itemGranted.filter((l) => !own.includes(l)) }
-}
-
 export interface EffectiveProficiencyList extends EffectiveGrantList {
-  /** For each granted proficiency: the granting feature's name, or "equipment" if granted by gear. */
+  /** For each granted value: the granting feature's name, or "equipment" if granted by gear. */
   grantedBy: Record<string, string>
 }
 
-export function getEffectiveProficiencies(
-  character: Pick<Character, "otherProficiencies" | "equipment" | "classFeatures" | "speciesTraits" | "feats" | "level">
+function mergeGrantList(
+  own: string[] | undefined,
+  itemGranted: string[],
+  featureGranted: Record<string, string>,
 ): EffectiveProficiencyList {
-  const own = character.otherProficiencies ?? []
-  const itemGranted = getEquipmentModifierTotals(character.equipment).proficiencies
-  const featureGranted = getActiveFeatureEffects(character).otherProficiencies
-  const granted = dedupUnion(itemGranted, Object.keys(featureGranted)).filter((p) => !own.includes(p))
+  const ownList = own ?? []
+  const granted = dedupUnion(itemGranted, Object.keys(featureGranted)).filter((v) => !ownList.includes(v))
   const grantedBy: Record<string, string> = {}
-  for (const p of granted) {
-    grantedBy[p] = itemGranted.includes(p) ? "equipment" : featureGranted[p]
+  for (const v of granted) {
+    grantedBy[v] = itemGranted.includes(v) ? "equipment" : featureGranted[v]
   }
-  return { own, granted, grantedBy }
+  return { own: ownList, granted, grantedBy }
 }
 
-export function getEffectiveCarryingCapacity(character: AbilityScoreCharacter): number {
+export function getEffectiveConditionImmunities(
+  character: Pick<Character, "conditionImmunities" | "equipment"> & FeatureEffectCharacter
+): EffectiveProficiencyList {
+  const itemGranted = getEquipmentModifierTotals(character.equipment).conditionImmunities
+  const featureGranted = getActiveFeatureEffects(character).conditionImmunities
+  return mergeGrantList(character.conditionImmunities, itemGranted, featureGranted)
+}
+
+export function getEffectiveDamageResistances(
+  character: Pick<Character, "damageResistances" | "equipment"> & FeatureEffectCharacter
+): EffectiveProficiencyList {
+  const itemGranted = getEquipmentModifierTotals(character.equipment).resistances
+  const featureGranted = getActiveFeatureEffects(character).resistances
+  return mergeGrantList(character.damageResistances, itemGranted, featureGranted)
+}
+
+export function getEffectiveDamageImmunities(
+  character: Pick<Character, "damageImmunities" | "equipment"> & FeatureEffectCharacter
+): EffectiveProficiencyList {
+  const itemGranted = getEquipmentModifierTotals(character.equipment).immunities
+  const featureGranted = getActiveFeatureEffects(character).immunities
+  return mergeGrantList(character.damageImmunities, itemGranted, featureGranted)
+}
+
+export function getEffectiveDamageVulnerabilities(
+  character: Pick<Character, "damageVulnerabilities" | "equipment"> & FeatureEffectCharacter
+): EffectiveProficiencyList {
+  const itemGranted = getEquipmentModifierTotals(character.equipment).vulnerabilities
+  const featureGranted = getActiveFeatureEffects(character).vulnerabilities
+  return mergeGrantList(character.damageVulnerabilities, itemGranted, featureGranted)
+}
+
+export function getEffectiveLanguages(
+  character: Pick<Character, "languages" | "equipment"> & FeatureEffectCharacter
+): EffectiveProficiencyList {
+  const itemGranted = getEquipmentModifierTotals(character.equipment).languages
+  const featureGranted = getActiveFeatureEffects(character).languages
+  return mergeGrantList(character.languages, itemGranted, featureGranted)
+}
+
+export function getEffectiveProficiencies(
+  character: Pick<Character, "otherProficiencies" | "equipment"> & FeatureEffectCharacter
+): EffectiveProficiencyList {
+  const itemGranted = getEquipmentModifierTotals(character.equipment).proficiencies
+  const featureGranted = getActiveFeatureEffects(character).otherProficiencies
+  return mergeGrantList(character.otherProficiencies, itemGranted, featureGranted)
+}
+
+type CarryingCapacityCharacter = AbilityScoreCharacter & FeatureEffectCharacter
+
+export function getEffectiveCarryingCapacity(character: CarryingCapacityCharacter): number {
   const strengthScore = getEffectiveAbilityScore(character, "strength")
   const itemTotals = getEquipmentModifierTotals(character.equipment)
-  return Math.floor((strengthScore * 15 + itemTotals.carryingCapacityBonus) * itemTotals.carryingCapacityMultiplier)
+  const featureTotals = getActiveFeatureEffects(character)
+  const bonus = itemTotals.carryingCapacityBonus + featureTotals.carryingCapacityBonus
+  const multiplier = Math.max(itemTotals.carryingCapacityMultiplier, featureTotals.carryingCapacityMultiplier)
+  return Math.floor((strengthScore * 15 + bonus) * multiplier)
+}
+
+export function getEffectiveSize(
+  character: Pick<Character, "size"> & FeatureEffectCharacter
+): { size: string; granted: boolean; grantedBy?: string } {
+  const featureTotals = getActiveFeatureEffects(character)
+  if (featureTotals.size) {
+    return { size: featureTotals.size, granted: true, grantedBy: featureTotals.sizeSource }
+  }
+  return { size: character.size ?? "Medium", granted: false }
 }
 
 export function getEffectiveMaxHp(hitPoints?: { maximum?: number; temporaryMaximum?: number }): number {
@@ -546,6 +642,8 @@ export const SENSE_LABELS: Record<SenseType, string> = {
   tremorsense: "Tremorsense",
   truesight: "Truesight",
 }
+
+export const SIZES = ["Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"]
 
 export const BASE_ATTUNEMENT_LIMIT = 3
 

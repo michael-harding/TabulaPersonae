@@ -711,6 +711,227 @@ describe("FeaturesModule", () => {
       })
     })
 
+    describe("Size (not level-dependent)", () => {
+      it("shows only the Size control, with no Add Level button", () => {
+        render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Size" }))
+        expect(within(modal).getByRole("button", { name: /^size$/i })).toBeInTheDocument()
+        expect(within(modal).queryByRole("button", { name: /add level/i })).not.toBeInTheDocument()
+      })
+
+      it("persists a size grant with no At Level input", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Powerful Build" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Size" }))
+        expect(within(modal).queryByLabelText(/at level/i)).not.toBeInTheDocument()
+        fireEvent.click(within(modal).getByRole("button", { name: /^size$/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Large" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Powerful Build",
+                levelEffects: [{ level: 1, effects: { size: "Large" } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("pre-fills and round-trips the Size control when editing", () => {
+        const onUpdate = vi.fn()
+        const feature = makeFeature({
+          name: "Powerful Build",
+          levelEffects: [{ level: 1, effects: { size: "Large" } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit powerful build/i }))
+        expect(screen.getByRole("button", { name: /^size$/i })).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Powerful Build",
+                levelEffects: [{ level: 1, effects: { size: "Large" } }],
+              }),
+            ]),
+          })
+        )
+      })
+    })
+
+    describe("Speed (level-tiered)", () => {
+      it("shows the Add Level button and persists Walk/Fly values", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Fleet of Foot" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Speed" }))
+        expect(within(modal).getByRole("button", { name: /add level/i })).toBeInTheDocument()
+        fireEvent.input(within(modal).getByLabelText(/^walk$/i), { target: { value: "10" } })
+        fireEvent.keyDown(within(modal).getByLabelText(/^walk$/i), { key: "Enter" })
+        fireEvent.input(within(modal).getByLabelText(/^fly$/i), { target: { value: "30" } })
+        fireEvent.keyDown(within(modal).getByLabelText(/^fly$/i), { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Fleet of Foot",
+                levelEffects: [{ level: 1, effects: { speed: 10, flySpeed: 30 } }],
+              }),
+            ]),
+          })
+        )
+      })
+    })
+
+    describe("Senses (level-tiered)", () => {
+      it("persists a Darkvision grant", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Darkvision" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Senses" }))
+        fireEvent.input(within(modal).getByLabelText(/^darkvision$/i), { target: { value: "60" } })
+        fireEvent.keyDown(within(modal).getByLabelText(/^darkvision$/i), { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Darkvision",
+                levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+              }),
+            ]),
+          })
+        )
+      })
+    })
+
+    describe("Damage Resistance/Immunity/Vulnerability (level-tiered)", () => {
+      it("persists a granted damage resistance", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Dwarven Resilience" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Damage Resistance/Immunity/Vulnerability" }))
+        const input = within(modal).getByLabelText(/^damage resistance$/i)
+        fireEvent.input(input, { target: { value: "Poison" } })
+        fireEvent.keyDown(input, { key: "Enter" })
+        expect(within(modal).getByText("Poison")).toBeInTheDocument()
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Dwarven Resilience",
+                levelEffects: [{ level: 1, effects: { resistances: ["Poison"] } }],
+              }),
+            ]),
+          })
+        )
+      })
+    })
+
+    describe("Condition Immunity (level-tiered)", () => {
+      it("persists a granted condition immunity", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Fey Ancestry" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Condition Immunity" }))
+        const input = within(modal).getByLabelText(/^condition immunity$/i)
+        fireEvent.input(input, { target: { value: "Charmed" } })
+        fireEvent.keyDown(input, { key: "Enter" })
+        expect(within(modal).getByText("Charmed")).toBeInTheDocument()
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Fey Ancestry",
+                levelEffects: [{ level: 1, effects: { conditionImmunities: ["Charmed"] } }],
+              }),
+            ]),
+          })
+        )
+      })
+    })
+
+    describe("Language (level-tiered)", () => {
+      it("persists a granted language", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Draconic Ancestry" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Language" }))
+        const input = within(modal).getByLabelText(/add language/i)
+        fireEvent.input(input, { target: { value: "Draconic" } })
+        fireEvent.keyDown(input, { key: "Enter" })
+        expect(within(modal).getByText("Draconic")).toBeInTheDocument()
+        // Enter should not have submitted the form
+        expect(screen.getByRole("dialog")).toBeInTheDocument()
+        expect(onUpdate).not.toHaveBeenCalled()
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Draconic Ancestry",
+                levelEffects: [{ level: 1, effects: { languages: ["Draconic"] } }],
+              }),
+            ]),
+          })
+        )
+      })
+    })
+
+    describe("Carrying Capacity (level-tiered)", () => {
+      it("persists a bonus and multiplier", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Powerful Build" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Carrying Capacity" }))
+        const multiplierInput = within(modal).getByLabelText(/multiplier/i)
+        fireEvent.input(multiplierInput, { target: { value: "2" } })
+        fireEvent.keyDown(multiplierInput, { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Powerful Build",
+                levelEffects: [{ level: 1, effects: { carryingCapacityMultiplier: 2 } }],
+              }),
+            ]),
+          })
+        )
+      })
+    })
+
     it("clears level effects and action fields when switching the Feature Type", () => {
       const onUpdate = vi.fn()
       render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)

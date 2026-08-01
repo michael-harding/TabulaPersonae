@@ -131,6 +131,20 @@ export interface FeatureEffects {
   savingThrowProficiencies?: (keyof AbilityScores)[]
   skillProficiencies?: { skill: keyof Skills; expertise?: boolean }[]
   otherProficiencies?: string[]
+  size?: string
+  speed?: number
+  flySpeed?: number
+  swimSpeed?: number
+  climbSpeed?: number
+  burrowSpeed?: number
+  senses?: Partial<Record<SenseType, number>>
+  resistances?: string[]
+  immunities?: string[]
+  vulnerabilities?: string[]
+  conditionImmunities?: string[]
+  languages?: string[]
+  carryingCapacityBonus?: number
+  carryingCapacityMultiplier?: number
 }
 
 export interface FeatureLevelEffect {

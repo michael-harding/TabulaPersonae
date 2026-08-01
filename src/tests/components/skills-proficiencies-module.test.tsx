@@ -623,6 +623,20 @@ describe("SkillsProficienciesModule", () => {
         expect.objectContaining({ senses: expect.objectContaining({ darkvision: 60 }) })
       )
     })
+
+    it("adds a feature-granted darkvision bonus alongside the item bonus", () => {
+      const feature = {
+        id: "feature-1", name: "Darkvision", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+      }
+      const character = makeCharacter({
+        senses: { darkvision: 30 },
+        equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 10 } } })],
+        speciesTraits: [feature],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("100 ft")).toBeInTheDocument()
+    })
   })
 
   describe("damage resistances / immunities / vulnerabilities", () => {
@@ -647,6 +661,16 @@ describe("SkillsProficienciesModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ damageResistances: expect.arrayContaining(["Necrotic"]) })
       )
+    })
+
+    it("shows a feature-granted resistance, tooltipped with the granting feature", () => {
+      const feature = {
+        id: "feature-1", name: "Dwarven Resilience", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { resistances: ["Poison"] } }],
+      }
+      const character = makeCharacter({ damageResistances: [], speciesTraits: [feature] })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Poison")).toHaveAttribute("title", "Granted by Dwarven Resilience — edit in Features")
     })
   })
 
@@ -686,6 +710,16 @@ describe("SkillsProficienciesModule", () => {
       const character = makeCharacter({ otherProficiencies: [], classFeatures: [feature] })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       expect(screen.getByText("Light Armor")).toHaveAttribute("title", "Granted by Martial Training Class Feature — edit in Features")
+    })
+
+    it("shows a feature-granted language, tooltipped with the granting feature", () => {
+      const feature = {
+        id: "feature-1", name: "Draconic Ancestry", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { languages: ["Draconic"] } }],
+      }
+      const character = makeCharacter({ speciesTraits: [feature] })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Draconic")).toHaveAttribute("title", "Granted by Draconic Ancestry — edit in Features")
     })
   })
 
