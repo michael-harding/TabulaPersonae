@@ -107,13 +107,13 @@ describe("useStorageManager — unauthenticated (user: null)", () => {
     expect(manager.isAuthenticated).toBe(false)
   })
 
-  it("getCharacters defaults useCalculatedArmorClass to false for a legacy character missing the key", async () => {
+  it("getCharacters backfills useCalculatedArmorClass to true for a legacy character missing the key when its stored AC already matches the calculated AC", async () => {
     const legacy: any = { ...testCharacter }
     delete legacy.useCalculatedArmorClass
     localStorage.setItem(STORAGE_KEY, JSON.stringify([legacy]))
     const manager = renderManager()
     const result = await manager.getCharacters()
-    expect(result[0].useCalculatedArmorClass).toBe(false)
+    expect(result[0].useCalculatedArmorClass).toBe(true)
   })
 })
 

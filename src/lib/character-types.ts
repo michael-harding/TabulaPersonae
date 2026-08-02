@@ -213,6 +213,11 @@ export interface Character {
   swimSpeed?: number
   climbSpeed?: number
   burrowSpeed?: number
+  useCalculatedSpeed?: boolean
+  useCalculatedFlySpeed?: boolean
+  useCalculatedSwimSpeed?: boolean
+  useCalculatedClimbSpeed?: boolean
+  useCalculatedBurrowSpeed?: boolean
   senses?: Partial<Record<SenseType, number>>
   initiative: number
   proficiencyBonus: number
@@ -293,6 +298,7 @@ export interface Character {
   // 2024-only
   subclass?: string
   size?: string
+  useCalculatedSize?: boolean
   classFeatures?: Feature[]
   speciesTraits?: Feature[]
   feats?: Feature[]
@@ -368,6 +374,11 @@ export function createDefaultCharacter(): Character {
     },
     hitDice: "1d8",
     speed: 30,
+    useCalculatedSpeed: true,
+    useCalculatedFlySpeed: true,
+    useCalculatedSwimSpeed: true,
+    useCalculatedClimbSpeed: true,
+    useCalculatedBurrowSpeed: true,
     initiative: 0,
     proficiencyBonus: 2,
 
@@ -424,6 +435,7 @@ export function createDefaultCharacter(): Character {
 
     subclass: "",
     size: "Medium",
+    useCalculatedSize: true,
     classFeatures: [],
     speciesTraits: [],
     feats: [],

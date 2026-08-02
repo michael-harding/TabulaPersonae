@@ -541,39 +541,30 @@ export function ActionsModule(props: ActionsModuleProps) {
     >
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
           <div class="text-center">
-            <div class="flex items-center justify-center gap-1 mb-1">
-              <Zap class="h-4 w-4 text-primary" />
-              <span class="text-sm font-medium">Spell Attack</span>
-            </div>
             <CalculatedValue
-              class="mt-1"
-              label="spell attack"
+              label="Spell Attack"
+              labelClass="text-sm font-medium"
+              icon={<Zap class="h-4 w-4 text-primary" />}
               editable={isEditing()}
               {...spellAttackField.binding()}
               format={formatModifier}
             />
           </div>
           <div class="text-center">
-            <div class="flex items-center justify-center gap-1 mb-1">
-              <Zap class="h-4 w-4 text-primary" />
-              <span class="text-sm font-medium">Spell Modifier</span>
-            </div>
             <CalculatedValue
-              class="mt-1"
-              label="spell modifier"
+              label="Spell Modifier"
+              labelClass="text-sm font-medium"
+              icon={<Zap class="h-4 w-4 text-primary" />}
               editable={isEditing()}
               {...spellModifierField.binding()}
               format={formatModifier}
             />
           </div>
           <div class="text-center">
-            <div class="flex items-center justify-center gap-1 mb-1">
-              <Shield class="h-4 w-4 text-primary" />
-              <span class="text-sm font-medium">Spell Save DC</span>
-            </div>
             <CalculatedValue
-              class="mt-1"
-              label="spell save DC"
+              label="Spell Save DC"
+              labelClass="text-sm font-medium"
+              icon={<Shield class="h-4 w-4 text-primary" />}
               editable={isEditing()}
               {...spellSaveDCField.binding()}
             />

@@ -388,10 +388,9 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             <For each={passiveStats}>
               {(stat) => (
                 <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                  <span class="text-xs text-muted-foreground">{stat.label}</span>
                   <CalculatedValue
-                    class="mt-1"
-                    label={stat.label.toLowerCase()}
+                    label={stat.label}
+                    labelClass="text-xs text-muted-foreground"
                     editable={isEditing()}
                     {...stat.binding()}
                   />

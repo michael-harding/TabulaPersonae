@@ -729,27 +729,49 @@ describe("getEffectiveSenses", () => {
 })
 
 describe("getEffectiveMovementSpeeds", () => {
-  it("combines base movement with active item grants", () => {
-    const character = { speed: 30, flySpeed: 0, swimSpeed: 0, climbSpeed: 0, burrowSpeed: 0, equipment: [makeMagicItem({ modifiers: { flySpeed: 30, speed: 10 } })] }
+  it("is all zero with no features and no equipment — no hardcoded '30 ft' fallback", () => {
+    // getEffectiveMovementSpeeds is the "calculated value" fed into the useCalculatedSpeed
+    // toggle in combat-stats-module.tsx (mirroring calculateEquippedAC, which never reads
+    // character.armorClass either) — character.speed/flySpeed/etc. are never read here at all,
+    // they're purely the custom-override storage fields.
+    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, equipment: [] }
+    expect(getEffectiveMovementSpeeds(character)).toEqual({ walk: 0, fly: 0, swim: 0, climb: 0, burrow: 0 })
+  })
+
+  it("ignores character.speed/flySpeed entirely, even when set", () => {
+    const character = { speed: 30, flySpeed: 10, classFeatures: [], speciesTraits: [], feats: [], level: 1, equipment: [] }
+    expect(getEffectiveMovementSpeeds(character)).toEqual({ walk: 0, fly: 0, swim: 0, climb: 0, burrow: 0 })
+  })
+
+  it("combines a feature-granted speed with active item grants", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { speed: 30 } }] })
+    const character = { classFeatures: [], speciesTraits: [feature], feats: [], level: 1, equipment: [makeMagicItem({ modifiers: { flySpeed: 30, speed: 10 } })] }
     const speeds = getEffectiveMovementSpeeds(character)
     expect(speeds.walk).toBe(40)
     expect(speeds.fly).toBe(30)
     expect(speeds.swim).toBe(0)
   })
 
-  it("defaults walk speed to 30 when unset", () => {
-    const character = { equipment: [] } as unknown as Parameters<typeof getEffectiveMovementSpeeds>[0]
-    expect(getEffectiveMovementSpeeds(character).walk).toBe(30)
-  })
-
-  it("adds feature-granted movement alongside own and item bonuses", () => {
+  it("adds an item bonus on top of a feature-granted movement speed", () => {
     const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { flySpeed: 30 } }] })
     const character = {
-      speed: 30, flySpeed: 0, swimSpeed: 0, climbSpeed: 0, burrowSpeed: 0,
       equipment: [makeMagicItem({ modifiers: { flySpeed: 10 } })],
       classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
     }
     expect(getEffectiveMovementSpeeds(character).fly).toBe(40)
+  })
+
+  it("does not double-count a feature-granted walk speed against a stale character.speed value", () => {
+    // Regression test: a species's speed (e.g. Dwarf 25 ft) is an absolute characteristic, not a
+    // "+X ft" bonus. Since character.speed is no longer read here at all, there's no way for a
+    // leftover manual value to leak into the calculated total.
+    const feature = makeFeature({ name: "Dwarf Speed", source: "species-trait", levelEffects: [{ level: 1, effects: { speed: 25 } }] })
+    const character = {
+      speed: 30, // stale value from a prior custom override, or the createDefaultCharacter seed
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+      equipment: [],
+    }
+    expect(getEffectiveMovementSpeeds(character).walk).toBe(25)
   })
 })
 
@@ -906,27 +928,26 @@ describe("getEffectiveCarryingCapacity", () => {
 })
 
 describe("getEffectiveSize", () => {
-  it("falls back to the character's own size when no feature grants one", () => {
-    expect(getEffectiveSize({ size: "Small", classFeatures: [], speciesTraits: [], feats: [], level: 1 })).toEqual({ size: "Small", granted: false })
-  })
-
-  it("defaults to Medium when unset and no feature grants one", () => {
-    expect(getEffectiveSize({ classFeatures: [], speciesTraits: [], feats: [], level: 1 })).toEqual({ size: "Medium", granted: false })
+  it("returns an empty size with no source when no feature grants one", () => {
+    // No fallback to "Medium" (or any other guess) — character.size is never read here, it's
+    // purely the custom-override storage field for the useCalculatedSize toggle in
+    // combat-stats-module.tsx. An unset size honestly reflects that nothing has defined it yet.
+    expect(getEffectiveSize({ classFeatures: [], speciesTraits: [], feats: [], level: 1 })).toEqual({ size: "", source: undefined })
   })
 
   it("uses the feature-granted size and records provenance", () => {
     const feature = makeFeature({ name: "Powerful Build", source: "species-trait", levelEffects: [{ level: 1, effects: { size: "Large" } }] })
-    const character = { size: "Medium", classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
-    expect(getEffectiveSize(character)).toEqual({ size: "Large", granted: true, grantedBy: "Powerful Build" })
+    const character = { classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
+    expect(getEffectiveSize(character)).toEqual({ size: "Large", source: "Powerful Build" })
   })
 
   it("respects level-gating", () => {
     const feature = makeFeature({ name: "Large Form", source: "species-trait", levelEffects: [{ level: 5, effects: { size: "Large" } }] })
-    const below = { size: "Medium", classFeatures: [], speciesTraits: [feature], feats: [], level: 4 }
-    expect(getEffectiveSize(below)).toEqual({ size: "Medium", granted: false })
+    const below = { classFeatures: [], speciesTraits: [feature], feats: [], level: 4 }
+    expect(getEffectiveSize(below)).toEqual({ size: "", source: undefined })
 
-    const at = { size: "Medium", classFeatures: [], speciesTraits: [feature], feats: [], level: 5 }
-    expect(getEffectiveSize(at)).toEqual({ size: "Large", granted: true, grantedBy: "Large Form" })
+    const at = { classFeatures: [], speciesTraits: [feature], feats: [], level: 5 }
+    expect(getEffectiveSize(at)).toEqual({ size: "Large", source: "Large Form" })
   })
 })
 
@@ -1242,13 +1263,22 @@ describe("getActiveFeatureEffects", () => {
     expect(totals.skillProficiencies.stealth).toEqual({ expertise: true, source: "A" })
   })
 
-  it("sums numeric fields (senses, speed, carrying capacity bonus) across features", () => {
-    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 }, flySpeed: 10, carryingCapacityBonus: 20 } }] })
-    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { senses: { darkvision: 30 }, flySpeed: 20, carryingCapacityBonus: 10 } }] })
+  it("sums senses and carrying capacity bonus across features", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 }, carryingCapacityBonus: 20 } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { senses: { darkvision: 30 }, carryingCapacityBonus: 10 } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
     expect(totals.senses.darkvision).toBe(90)
-    expect(totals.flySpeed).toBe(30)
     expect(totals.carryingCapacityBonus).toBe(30)
+  })
+
+  it("last-source-wins for movement speeds (an absolute characteristic, not a stacking bonus), recording provenance", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { speed: 25, flySpeed: 10 } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { flySpeed: 20 } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.speed).toBe(25)
+    expect(totals.speedSource).toBe("A")
+    expect(totals.flySpeed).toBe(20)
+    expect(totals.flySpeedSource).toBe("B")
   })
 
   it("takes the max carrying capacity multiplier across features", () => {
@@ -1280,7 +1310,7 @@ describe("getActiveFeatureEffects", () => {
   it("only applies newly-added numeric/list effects from features whose level threshold has been reached", () => {
     const feature = makeFeature({ levelEffects: [{ level: 4, effects: { flySpeed: 30, languages: ["Draconic"] } }] })
     const below = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 3 })
-    expect(below.flySpeed).toBe(0)
+    expect(below.flySpeed).toBeUndefined()
     expect(below.languages).toEqual({})
 
     const at = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 4 })

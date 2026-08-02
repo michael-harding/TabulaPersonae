@@ -132,15 +132,14 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                         onChange={(v) => setEditedScores((prev) => ({ ...prev, [ability]: v }))}
                         class="text-center text-2xl font-bold h-16"
                       />
-                      <div class="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                        <span>Effective:</span>
-                        <CalculatedValue
-                          label={`${ABILITY_NAMES[ability]} effective score`}
-                          editable={true}
-                          class="text-xs"
-                          {...abilityField.binding()}
-                        />
-                      </div>
+                      <CalculatedValue
+                        label={`${ABILITY_NAMES[ability]} Effective`}
+                        labelPosition="left"
+                        labelClass="text-xs text-muted-foreground"
+                        editable={true}
+                        class="justify-center"
+                        {...abilityField.binding()}
+                      />
                       <label class="flex items-center gap-1 justify-center text-xs cursor-pointer">
                         <input
                           type="checkbox"

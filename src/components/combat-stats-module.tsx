@@ -1,18 +1,17 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getEffectiveConditionImmunities, getEffectiveSize, SIZES } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Combobox } from "@/components/ui/combobox"
-import { Tooltip } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { CalculatedValue } from "@/components/ui/calculated-value"
+import { CalculatedValueSelect } from "@/components/ui/calculated-value-select"
 import { useReadOnly } from "@/lib/read-only-context"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
@@ -26,6 +25,10 @@ import X from "lucide-solid/icons/x"
 interface CombatStatsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
+}
+
+function movementTooltip(source: string | undefined): string {
+  return source ? `Granted by ${source}` : "No species trait grants this — add one in Features, or switch to custom entry"
 }
 
 const toEdit = (c: Character) => {
@@ -52,6 +55,12 @@ const toEdit = (c: Character) => {
     useCalculatedProficiencyBonus: c.useCalculatedProficiencyBonus ?? false,
     useCalculatedArmorClass: c.useCalculatedArmorClass ?? true,
     useCalculatedPassivePerception: c.useCalculatedPassivePerception ?? true,
+    useCalculatedSpeed: c.useCalculatedSpeed ?? true,
+    useCalculatedFlySpeed: c.useCalculatedFlySpeed ?? true,
+    useCalculatedSwimSpeed: c.useCalculatedSwimSpeed ?? true,
+    useCalculatedClimbSpeed: c.useCalculatedClimbSpeed ?? true,
+    useCalculatedBurrowSpeed: c.useCalculatedBurrowSpeed ?? true,
+    useCalculatedSize: c.useCalculatedSize ?? true,
     passivePerception: c.passivePerception ?? getPassiveScore(
       c.abilityScores?.wisdom ?? 10,
       c.proficiencyBonus ?? 2,
@@ -82,6 +91,12 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       proficiencyBonus: profBonusField.resolvedValue(),
       armorClass: acField.resolvedValue(),
       passivePerception: passivePerceptionField.resolvedValue(),
+      speed: speedField.resolvedValue(),
+      flySpeed: flySpeedField.resolvedValue(),
+      swimSpeed: swimSpeedField.resolvedValue(),
+      climbSpeed: climbSpeedField.resolvedValue(),
+      burrowSpeed: burrowSpeedField.resolvedValue(),
+      size: sizeField.resolvedValue(),
     }
     props.onUpdate(normalized)
     setIsEditing(false)
@@ -153,6 +168,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
   const effectiveConditionImmunities = createMemo(() => getEffectiveConditionImmunities(props.character))
   const effectiveMovement = createMemo(() => getEffectiveMovementSpeeds(props.character))
+  const movementGrants = createMemo(() => getMovementSpeedGrants(props.character))
   const effectiveSize = createMemo(() => getEffectiveSize(props.character))
 
   const passivePerceptionCalc = createMemo(() => {
@@ -195,6 +211,60 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     setManualValue: (v) => setEdited((prev) => ({ ...prev, armorClass: v })),
     calculatedValue: () => equippedAC().ac,
     calculatedTooltip: acTooltip,
+  })
+
+  const speedField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedSpeed ?? true,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSpeed: v })),
+    manualValue: () => current().speed ?? 30,
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, speed: v })),
+    calculatedValue: () => effectiveMovement().walk,
+    calculatedTooltip: () => movementTooltip(movementGrants().walk),
+  })
+
+  const flySpeedField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedFlySpeed ?? true,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedFlySpeed: v })),
+    manualValue: () => current().flySpeed ?? 0,
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, flySpeed: v })),
+    calculatedValue: () => effectiveMovement().fly,
+    calculatedTooltip: () => movementTooltip(movementGrants().fly),
+  })
+
+  const swimSpeedField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedSwimSpeed ?? true,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSwimSpeed: v })),
+    manualValue: () => current().swimSpeed ?? 0,
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, swimSpeed: v })),
+    calculatedValue: () => effectiveMovement().swim,
+    calculatedTooltip: () => movementTooltip(movementGrants().swim),
+  })
+
+  const climbSpeedField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedClimbSpeed ?? true,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedClimbSpeed: v })),
+    manualValue: () => current().climbSpeed ?? 0,
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, climbSpeed: v })),
+    calculatedValue: () => effectiveMovement().climb,
+    calculatedTooltip: () => movementTooltip(movementGrants().climb),
+  })
+
+  const burrowSpeedField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedBurrowSpeed ?? true,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedBurrowSpeed: v })),
+    manualValue: () => current().burrowSpeed ?? 0,
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, burrowSpeed: v })),
+    calculatedValue: () => effectiveMovement().burrow,
+    calculatedTooltip: () => movementTooltip(movementGrants().burrow),
+  })
+
+  const sizeField = useCalculatedValue<string>({
+    useCalculated: () => current().useCalculatedSize ?? true,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSize: v })),
+    manualValue: () => current().size ?? "Medium",
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, size: v })),
+    calculatedValue: () => effectiveSize().size,
+    calculatedTooltip: () => movementTooltip(effectiveSize().source),
   })
 
   const initiativeField = useCalculatedValue({
@@ -510,10 +580,8 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
         <div class="grid grid-cols-2 gap-4">
           {/* AC */}
           <div class="text-center">
-            <Label class="text-sm text-muted-foreground">Armor Class</Label>
             <CalculatedValue
-              class="mt-1"
-              label="armor class"
+              label="Armor Class"
               editable={isEditing()}
               {...acField.binding()}
             />
@@ -521,10 +589,8 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
           {/* Initiative */}
           <div class="text-center">
-            <Label class="text-sm text-muted-foreground">Initiative</Label>
             <CalculatedValue
-              class="mt-1"
-              label="initiative"
+              label="Initiative"
               editable={isEditing()}
               {...initiativeField.binding()}
               format={formatModifier}
@@ -533,52 +599,36 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
           {/* Speed */}
           <div class="text-center">
-            <Label class="text-sm text-muted-foreground">Speed</Label>
-            <Show when={isEditing()} fallback={
-              <div>
-                <div class="text-2xl font-bold text-primary mt-1">{effectiveMovement().walk} ft</div>
+            <CalculatedValue
+              label="Speed"
+              editable={isEditing()}
+              {...speedField.binding()}
+              format={(n) => `${n} ft`}
+            />
+            <Show
+              when={isEditing()}
+              fallback={
                 <div class="flex flex-wrap justify-center gap-x-2 text-xs text-muted-foreground mt-0.5">
-                  <Show when={effectiveMovement().fly > 0}><span>Fly {effectiveMovement().fly} ft</span></Show>
-                  <Show when={effectiveMovement().swim > 0}><span>Swim {effectiveMovement().swim} ft</span></Show>
-                  <Show when={effectiveMovement().climb > 0}><span>Climb {effectiveMovement().climb} ft</span></Show>
-                  <Show when={effectiveMovement().burrow > 0}><span>Burrow {effectiveMovement().burrow} ft</span></Show>
+                  <Show when={flySpeedField.resolvedValue() > 0}><span>Fly {flySpeedField.resolvedValue()} ft</span></Show>
+                  <Show when={swimSpeedField.resolvedValue() > 0}><span>Swim {swimSpeedField.resolvedValue()} ft</span></Show>
+                  <Show when={climbSpeedField.resolvedValue() > 0}><span>Climb {climbSpeedField.resolvedValue()} ft</span></Show>
+                  <Show when={burrowSpeedField.resolvedValue() > 0}><span>Burrow {burrowSpeedField.resolvedValue()} ft</span></Show>
                 </div>
-              </div>
-            }>
-              <div class="space-y-1">
-                <NumericInput
-                  value={edited().speed}
-                  onChange={(v) => setEdited(prev => ({ ...prev, speed: v }))}
-                  class="text-center text-xl font-bold mt-1"
-                />
-                <div class="grid grid-cols-2 gap-1">
-                  <div>
-                    <Label for="movement-fly" class="text-xs">Fly</Label>
-                    <NumericInput id="movement-fly" min={0} value={edited().flySpeed ?? 0} onChange={(v) => setEdited(prev => ({ ...prev, flySpeed: v }))} class="text-center h-8 text-sm" />
-                  </div>
-                  <div>
-                    <Label for="movement-swim" class="text-xs">Swim</Label>
-                    <NumericInput id="movement-swim" min={0} value={edited().swimSpeed ?? 0} onChange={(v) => setEdited(prev => ({ ...prev, swimSpeed: v }))} class="text-center h-8 text-sm" />
-                  </div>
-                  <div>
-                    <Label for="movement-climb" class="text-xs">Climb</Label>
-                    <NumericInput id="movement-climb" min={0} value={edited().climbSpeed ?? 0} onChange={(v) => setEdited(prev => ({ ...prev, climbSpeed: v }))} class="text-center h-8 text-sm" />
-                  </div>
-                  <div>
-                    <Label for="movement-burrow" class="text-xs">Burrow</Label>
-                    <NumericInput id="movement-burrow" min={0} value={edited().burrowSpeed ?? 0} onChange={(v) => setEdited(prev => ({ ...prev, burrowSpeed: v }))} class="text-center h-8 text-sm" />
-                  </div>
-                </div>
+              }
+            >
+              <div class="grid grid-cols-2 gap-1 mt-2">
+                <CalculatedValue variant="compact" label="Fly" editable={isEditing()} min={0} {...flySpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue variant="compact" label="Swim" editable={isEditing()} min={0} {...swimSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue variant="compact" label="Climb" editable={isEditing()} min={0} {...climbSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue variant="compact" label="Burrow" editable={isEditing()} min={0} {...burrowSpeedField.binding()} format={(n) => `${n} ft`} />
               </div>
             </Show>
           </div>
 
           {/* Proficiency Bonus */}
           <div class="text-center">
-            <Label class="text-sm text-muted-foreground">Proficiency Bonus</Label>
             <CalculatedValue
-              class="mt-1"
-              label="proficiency bonus"
+              label="Proficiency Bonus"
               editable={isEditing()}
               {...profBonusField.binding()}
               format={formatModifier}
@@ -587,10 +637,8 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
           {/* Passive Perception — both editions */}
           <div class="text-center">
-            <Label class="text-sm text-muted-foreground">{passivePerceptionLabel()}</Label>
             <CalculatedValue
-              class="mt-1"
-              label="passive perception"
+              label={passivePerceptionLabel()}
               editable={isEditing()}
               {...passivePerceptionField.binding()}
             />
@@ -599,26 +647,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           {/* Size — 2024 only */}
           <Show when={edition() === "2024"}>
             <div class="text-center">
-              <Label class="text-sm text-muted-foreground">Size</Label>
-              <Show when={isEditing()} fallback={
-                <div class="text-2xl font-bold text-primary mt-1">{effectiveSize().size}</div>
-              }>
-                <Show
-                  when={!effectiveSize().granted}
-                  fallback={
-                    <Tooltip content={`Granted by ${effectiveSize().grantedBy} — edit in Features`} triggerFocusable>
-                      <Combobox value={effectiveSize().size} options={SIZES} class="mt-1" disabled />
-                    </Tooltip>
-                  }
-                >
-                  <Combobox
-                    value={edited().size ?? "Medium"}
-                    onValueChange={(v) => setEdited(prev => ({ ...prev, size: v }))}
-                    options={SIZES}
-                    class="mt-1"
-                  />
-                </Show>
-              </Show>
+              <CalculatedValueSelect label="Size" editable={isEditing()} options={SIZES} {...sizeField.binding()} />
             </div>
           </Show>
         </div>

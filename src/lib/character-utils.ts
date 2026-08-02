@@ -175,11 +175,24 @@ export interface FeatureEffectTotals {
   conditionImmunities: Record<string, string>
   languages: Record<string, string>
   senses: Record<SenseType, number>
-  speed: number
-  flySpeed: number
-  swimSpeed: number
-  climbSpeed: number
-  burrowSpeed: number
+  /**
+   * Movement fields are last-source-wins overrides, not additive bonuses, unlike every other
+   * numeric field here — a species's walking/fly/swim/climb/burrow speed is an absolute
+   * characteristic (e.g. "Dwarves have a speed of 25 ft"), not a "+X ft" bonus. Summing it with
+   * the character's own `speed` (which already defaults to 30, representing a Medium species'
+   * baseline) would double-count. Equipment bonuses on top of this remain additive (see
+   * getEffectiveMovementSpeeds) since gear genuinely does grant incremental bonuses.
+   */
+  speed?: number
+  speedSource?: string
+  flySpeed?: number
+  flySpeedSource?: string
+  swimSpeed?: number
+  swimSpeedSource?: string
+  climbSpeed?: number
+  climbSpeedSource?: string
+  burrowSpeed?: number
+  burrowSpeedSource?: string
   carryingCapacityBonus: number
   carryingCapacityMultiplier: number
 }
@@ -203,11 +216,6 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     conditionImmunities: {},
     languages: {},
     senses: { ...ZERO_SENSES },
-    speed: 0,
-    flySpeed: 0,
-    swimSpeed: 0,
-    climbSpeed: 0,
-    burrowSpeed: 0,
     carryingCapacityBonus: 0,
     carryingCapacityMultiplier: 1,
   }
@@ -265,11 +273,11 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
       for (const sense of SENSE_TYPES) {
         totals.senses[sense] += Number(effects.senses?.[sense] ?? 0)
       }
-      totals.speed += Number(effects.speed ?? 0)
-      totals.flySpeed += Number(effects.flySpeed ?? 0)
-      totals.swimSpeed += Number(effects.swimSpeed ?? 0)
-      totals.climbSpeed += Number(effects.climbSpeed ?? 0)
-      totals.burrowSpeed += Number(effects.burrowSpeed ?? 0)
+      if (effects.speed !== undefined) { totals.speed = effects.speed; totals.speedSource = feature.name }
+      if (effects.flySpeed !== undefined) { totals.flySpeed = effects.flySpeed; totals.flySpeedSource = feature.name }
+      if (effects.swimSpeed !== undefined) { totals.swimSpeed = effects.swimSpeed; totals.swimSpeedSource = feature.name }
+      if (effects.climbSpeed !== undefined) { totals.climbSpeed = effects.climbSpeed; totals.climbSpeedSource = feature.name }
+      if (effects.burrowSpeed !== undefined) { totals.burrowSpeed = effects.burrowSpeed; totals.burrowSpeedSource = feature.name }
       totals.carryingCapacityBonus += Number(effects.carryingCapacityBonus ?? 0)
       if (effects.carryingCapacityMultiplier !== undefined) {
         totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, effects.carryingCapacityMultiplier)
@@ -394,17 +402,43 @@ export interface MovementSpeeds {
   burrow: number
 }
 
-type MovementCharacter = Pick<Character, "speed" | "flySpeed" | "swimSpeed" | "climbSpeed" | "burrowSpeed" | "equipment"> & FeatureEffectCharacter
+type MovementCharacter = Pick<Character, "equipment"> & FeatureEffectCharacter
 
+// No fallback to a hardcoded "30 ft" baseline — a species's walking speed only has a real answer
+// once a Species Trait (or, failing that, a manual custom override — see useCalculatedSpeed in
+// combat-stats-module.tsx) provides one, exactly like getEffectiveSpellcastingAbility/
+// getEffectiveHitDiceSize have no fallback either. `character.speed`/`flySpeed`/etc. are never
+// read here; they're purely the custom-override storage fields, analogous to how
+// calculateEquippedAC never reads the raw `character.armorClass`.
 export function getEffectiveMovementSpeeds(character: MovementCharacter): MovementSpeeds {
   const itemTotals = getEquipmentModifierTotals(character.equipment)
   const featureTotals = getActiveFeatureEffects(character)
   return {
-    walk: (character.speed ?? 30) + itemTotals.speed + featureTotals.speed,
-    fly: (character.flySpeed ?? 0) + itemTotals.flySpeed + featureTotals.flySpeed,
-    swim: (character.swimSpeed ?? 0) + itemTotals.swimSpeed + featureTotals.swimSpeed,
-    climb: (character.climbSpeed ?? 0) + itemTotals.climbSpeed + featureTotals.climbSpeed,
-    burrow: (character.burrowSpeed ?? 0) + itemTotals.burrowSpeed + featureTotals.burrowSpeed,
+    walk: (featureTotals.speed ?? 0) + itemTotals.speed,
+    fly: (featureTotals.flySpeed ?? 0) + itemTotals.flySpeed,
+    swim: (featureTotals.swimSpeed ?? 0) + itemTotals.swimSpeed,
+    climb: (featureTotals.climbSpeed ?? 0) + itemTotals.climbSpeed,
+    burrow: (featureTotals.burrowSpeed ?? 0) + itemTotals.burrowSpeed,
+  }
+}
+
+export interface MovementSpeedGrants {
+  walk?: string
+  fly?: string
+  swim?: string
+  climb?: string
+  burrow?: string
+}
+
+/** Which of the character's movement speeds are currently granted by a feature, and by what — used to explain the calculated value in a tooltip. */
+export function getMovementSpeedGrants(character: FeatureEffectCharacter): MovementSpeedGrants {
+  const totals = getActiveFeatureEffects(character)
+  return {
+    walk: totals.speedSource,
+    fly: totals.flySpeedSource,
+    swim: totals.swimSpeedSource,
+    climb: totals.climbSpeedSource,
+    burrow: totals.burrowSpeedSource,
   }
 }
 
@@ -491,14 +525,13 @@ export function getEffectiveCarryingCapacity(character: CarryingCapacityCharacte
   return Math.floor((strengthScore * 15 + bonus) * multiplier)
 }
 
-export function getEffectiveSize(
-  character: Pick<Character, "size"> & FeatureEffectCharacter
-): { size: string; granted: boolean; grantedBy?: string } {
+// No fallback to a hardcoded "Medium" default — like getEffectiveMovementSpeeds, this is purely
+// what the Species Trait system says (empty string if nothing grants a size yet). `character.size`
+// is never read here; it's purely the custom-override storage field (see useCalculatedSize in
+// combat-stats-module.tsx).
+export function getEffectiveSize(character: FeatureEffectCharacter): { size: string; source?: string } {
   const featureTotals = getActiveFeatureEffects(character)
-  if (featureTotals.size) {
-    return { size: featureTotals.size, granted: true, grantedBy: featureTotals.sizeSource }
-  }
-  return { size: character.size ?? "Medium", granted: false }
+  return { size: featureTotals.size ?? "", source: featureTotals.sizeSource }
 }
 
 export function getEffectiveMaxHp(hitPoints?: { maximum?: number; temporaryMaximum?: number }): number {

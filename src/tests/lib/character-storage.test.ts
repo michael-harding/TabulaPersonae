@@ -123,13 +123,13 @@ describe("Character Storage", () => {
       global.window = originalWindow
     })
 
-    it("defaults useCalculatedArmorClass to false for a legacy character missing the key", () => {
+    it("backfills useCalculatedArmorClass to true for a legacy character missing the key when its stored AC already matches the calculated AC", () => {
       const legacy: any = createDefaultCharacter()
       delete legacy.useCalculatedArmorClass
       localStorageMock.setItem("dnd-characters", JSON.stringify([legacy]))
 
       const characters = getCharacters()
-      expect(characters[0].useCalculatedArmorClass).toBe(false)
+      expect(characters[0].useCalculatedArmorClass).toBe(true)
     })
 
     it("leaves useCalculatedArmorClass untouched when the key is already present", () => {

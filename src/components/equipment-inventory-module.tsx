@@ -1079,7 +1079,8 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span>Carrying Capacity: {totalWeight()} /</span>
           <CalculatedValue
-            label="carrying capacity"
+            label="Carrying Capacity"
+            labelClass="sr-only"
             editable={!isReadOnly}
             class="text-xs"
             {...carryingCapacityField.binding()}
@@ -1144,7 +1145,8 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
           <div class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
             <span>{attunedCount()}/</span>
             <CalculatedValue
-              label="attunement limit"
+              label="Attunement Limit"
+              labelClass="sr-only"
               editable={!isReadOnly}
               class="text-xs"
               {...attunementLimitField.binding()}
