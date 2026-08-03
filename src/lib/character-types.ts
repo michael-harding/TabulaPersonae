@@ -221,7 +221,6 @@ export interface Character {
   useCalculatedClimbSpeed?: boolean
   useCalculatedBurrowSpeed?: boolean
   senses?: Partial<Record<SenseType, number>>
-  senseOverrides?: Partial<Record<SenseType, number>>
   useCalculatedSenses?: Partial<Record<SenseType, boolean>>
   initiative: number
   proficiencyBonus: number

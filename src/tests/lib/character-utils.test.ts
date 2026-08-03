@@ -741,25 +741,31 @@ describe("getEffectiveAbilityScore / getEffectiveAbilityScores", () => {
 })
 
 describe("getEffectiveSenses", () => {
-  it("sums base senses with active item bonuses", () => {
-    const character = { senses: { darkvision: 30 }, equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 60 } } })] }
-    expect(getEffectiveSenses(character).darkvision).toBe(90)
+  it("sums active item bonuses", () => {
+    const character = { equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 60 } } })] }
+    expect(getEffectiveSenses(character).darkvision).toBe(60)
     expect(getEffectiveSenses(character).blindsight).toBe(0)
   })
 
-  it("defaults to 0 with no base senses or equipment", () => {
-    const character = { senses: undefined, equipment: [] }
+  it("defaults to 0 with no equipment or features", () => {
+    const character = { equipment: [] }
     expect(getEffectiveSenses(character)).toEqual({ darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0 })
   })
 
-  it("adds feature-granted senses alongside own and item bonuses", () => {
+  it("ignores character.senses entirely, even when set", () => {
+    // character.senses is never read here; it's purely the custom-override storage field,
+    // analogous to character.speed in getEffectiveMovementSpeeds.
+    const character = { senses: { darkvision: 30 }, equipment: [] }
+    expect(getEffectiveSenses(character).darkvision).toBe(0)
+  })
+
+  it("adds feature-granted senses alongside item bonuses", () => {
     const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }] })
     const character = {
-      senses: { darkvision: 30 },
       equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 10 } } })],
       classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
     }
-    expect(getEffectiveSenses(character).darkvision).toBe(100)
+    expect(getEffectiveSenses(character).darkvision).toBe(70)
   })
 })
 

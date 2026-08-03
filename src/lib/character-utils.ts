@@ -432,14 +432,17 @@ export function getPassiveScore(
   return 10 + getSkillModifier(abilityScore, proficiencyBonus, isProficient, hasExpertise)
 }
 
-type SensesCharacter = Pick<Character, "senses" | "equipment"> & FeatureEffectCharacter
+type SensesCharacter = Pick<Character, "equipment"> & FeatureEffectCharacter
 
+// No fallback to a hardcoded base — like getEffectiveMovementSpeeds, a sense only has a real
+// answer once a Species Trait or item grants it. character.senses is never read here; it's
+// purely the custom-override storage field, analogous to character.speed.
 export function getEffectiveSenses(character: SensesCharacter): Record<SenseType, number> {
   const itemTotals = getEquipmentModifierTotals(character.equipment).senses
   const featureTotals = getActiveFeatureEffects(character).senses
   const result = {} as Record<SenseType, number>
   for (const sense of SENSE_TYPES) {
-    result[sense] = (character.senses?.[sense] ?? 0) + itemTotals[sense] + featureTotals[sense]
+    result[sense] = itemTotals[sense] + featureTotals[sense]
   }
   return result
 }

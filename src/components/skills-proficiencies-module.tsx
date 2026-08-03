@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { NumericInput } from "@/components/ui/numeric-input"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip } from "@/components/ui/tooltip"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -401,36 +400,27 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
           <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
             <For each={SENSE_TYPES}>
               {(sense) => {
-                const baseValue = () => current().senses?.[sense] ?? 0
                 const senseField = useCalculatedValue({
                   useCalculated: () => current().useCalculatedSenses?.[sense] ?? true,
                   setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSenses: { ...prev.useCalculatedSenses, [sense]: v } })),
-                  manualValue: () => current().senseOverrides?.[sense] ?? effectiveSenses()[sense],
-                  setManualValue: (v) => setEdited((prev) => ({ ...prev, senseOverrides: { ...prev.senseOverrides, [sense]: v } })),
+                  manualValue: () => current().senses?.[sense] ?? 0,
+                  setManualValue: (v) => setEdited((prev) => ({ ...prev, senses: { ...prev.senses, [sense]: v } })),
                   calculatedValue: () => effectiveSenses()[sense],
                   calculatedTooltip: () => {
                     const grants = [...modifierTotals().senseGrants[sense], ...featureTotals().senseGrants[sense]]
-                    const terms = grants.map((g) => (g.amount > 0 ? ` + ${g.amount} (${g.source})` : ` - ${Math.abs(g.amount)} (${g.source})`)).join("")
-                    return `${baseValue()} base${terms} = ${effectiveSenses()[sense]} ft`
+                    if (grants.length === 0) return `${effectiveSenses()[sense]} ft`
+                    const terms = grants.map((g) => (g.amount > 0 ? `+${g.amount} (${g.source})` : `-${Math.abs(g.amount)} (${g.source})`))
+                    return `${terms.join(" ")} = ${effectiveSenses()[sense]} ft`
                   },
                 })
                 return (
                   <Show when={isEditing() || senseField.resolvedValue() !== 0}>
                     <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                      <Show when={isEditing()}>
-                        <span class="text-xs text-muted-foreground">{SENSE_LABELS[sense]} Base</span>
-                        <NumericInput
-                          min={0}
-                          value={baseValue()}
-                          onChange={(v) => setEdited((prev) => ({ ...prev, senses: { ...prev.senses, [sense]: v } }))}
-                          class="text-center h-8 text-sm mt-1"
-                          aria-label={`${SENSE_LABELS[sense]} Base`}
-                        />
-                      </Show>
                       <CalculatedValue
                         label={SENSE_LABELS[sense]}
                         labelClass="text-xs text-muted-foreground"
                         editable={isEditing()}
+                        min={0}
                         format={(n) => `${n} ft`}
                         {...senseField.binding()}
                       />
