@@ -511,16 +511,19 @@ describe("isItemModifierActive", () => {
 describe("getEquipmentModifierTotals", () => {
   it("returns all-zero totals for undefined or empty equipment", () => {
     const zero = { strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0 }
+    const zeroGrants = { strength: [], dexterity: [], constitution: [], intelligence: [], wisdom: [], charisma: [] }
     const zeroTotals = {
       armorClass: 0,
       initiative: 0,
       savingThrows: zero,
       abilityScores: zero,
+      abilityScoreGrants: zeroGrants,
       resistances: [],
       immunities: [],
       vulnerabilities: [],
       conditionImmunities: [],
       senses: { darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0 },
+      senseGrants: { darkvision: [], blindsight: [], tremorsense: [], truesight: [] },
       speed: 0,
       flySpeed: 0,
       swimSpeed: 0,
@@ -529,6 +532,7 @@ describe("getEquipmentModifierTotals", () => {
       carryingCapacityBonus: 0,
       carryingCapacityMultiplier: 1,
       abilityScoreFloors: {},
+      abilityScoreFloorSources: {},
       languages: [],
       proficiencies: [],
     }
@@ -702,6 +706,37 @@ describe("getEffectiveAbilityScore / getEffectiveAbilityScores", () => {
   it("does not lower the score when it already exceeds the floor", () => {
     const character = { abilityScores: baseScores, equipment: [makeMagicItem({ modifiers: { abilityScoreFloors: { strength: 10 } } })] }
     expect(getEffectiveAbilityScore(character, "strength")).toBe(16)
+  })
+
+  it("adds a feature-granted ability score bonus to the base score", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] })
+    const character = { abilityScores: baseScores, equipment: [], classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(18)
+  })
+
+  it("combines a feature-granted bonus with an equipment-granted bonus on the same ability", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] })
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 1 } } })],
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+    }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(19)
+  })
+
+  it("raises the score to a feature-granted floor when base + bonuses is lower", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScoreFloors: { wisdom: 18 } } }] })
+    const character = { abilityScores: baseScores, equipment: [], classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
+    expect(getEffectiveAbilityScore(character, "wisdom")).toBe(18)
+  })
+
+  it("getEffectiveAbilityScores folds a feature-granted bonus into the resolved set", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2, wisdom: 1 } } }] })
+    const character = { abilityScores: baseScores, equipment: [], classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
+    const scores = getEffectiveAbilityScores(character)
+    expect(scores.strength).toBe(18)
+    expect(scores.wisdom).toBe(11)
+    expect(scores.dexterity).toBe(14)
   })
 })
 
@@ -1050,6 +1085,15 @@ describe("getEquippedWeaponAttacks", () => {
     const [atk] = getEquippedWeaponAttacks(char)
     expect(atk.attackBonus).toBe(6) // DEX floored to 18 -> +4, +prof 2
   })
+
+  it("cascades a feature-granted ability score bonus into attack bonus", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 4 } } }] })
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
+      speciesTraits: [feature], equipment: [makeWeaponItem()] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(7) // STR 16+4=20 -> +5, +prof 2
+    expect(atk.damage).toBe("1d8+5")
+  })
 })
 
 describe("calculateEquippedAC", () => {
@@ -1135,6 +1179,13 @@ describe("calculateEquippedAC", () => {
     // DEX 14 -> +2 base, +2 item -> effective DEX 16 -> +3 mod
     expect(calculateEquippedAC(char).ac).toBe(14) // 11 + 3
   })
+
+  it("cascades a feature-granted ability score bonus into AC", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { dexterity: 2 } } }] })
+    const char = { ...defaultChar, speciesTraits: [feature] }
+    // DEX 14 -> +2 base, +2 feature -> effective DEX 16 -> +3 mod, unarmored AC = 13
+    expect(calculateEquippedAC(char).ac).toBe(13)
+  })
 })
 
 describe("calculateInitiative", () => {
@@ -1159,6 +1210,13 @@ describe("calculateInitiative", () => {
   it("cascades an ability-score-boosting item's effective DEX into initiative", () => {
     const char = { ...defaultChar, equipment: [makeMagicItem({ modifiers: { abilityScores: { dexterity: 2 } } })] }
     // DEX 14 + 2 item = 16 -> +3 mod
+    expect(calculateInitiative(char).initiative).toBe(3)
+  })
+
+  it("cascades a feature-granted ability score bonus into initiative", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { dexterity: 2 } } }] })
+    const char = { ...defaultChar, speciesTraits: [feature] }
+    // DEX 14 + 2 feature = 16 -> +3 mod
     expect(calculateInitiative(char).initiative).toBe(3)
   })
 })
@@ -1228,6 +1286,13 @@ describe("getActiveFeatureEffects", () => {
     expect(totals.savingThrowProficiencies).toEqual({})
     expect(totals.skillProficiencies).toEqual({})
     expect(totals.otherProficiencies).toEqual({})
+  })
+
+  it("aggregates backgroundFeatures the same way as classFeatures/speciesTraits/feats", () => {
+    const feature = makeFeature({ name: "Acolyte", source: "background", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "insight" }], otherProficiencies: ["Calligrapher's Supplies"] } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [], speciesTraits: [], feats: [], backgroundFeatures: [feature], level: 1 })
+    expect(totals.skillProficiencies.insight?.source).toBe("Acolyte")
+    expect(totals.otherProficiencies).toEqual({ "Calligrapher's Supplies": "Acolyte" })
   })
 
   it("only applies effects from features whose level threshold has been reached", () => {
@@ -1316,6 +1381,33 @@ describe("getActiveFeatureEffects", () => {
     const at = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 4 })
     expect(at.flySpeed).toBe(30)
     expect(at.languages).toEqual({ Draconic: "Test Feature" })
+  })
+
+  it("sums ability score bonuses across features and records each as a separate named grant", () => {
+    const featureA = makeFeature({ name: "Hill Dwarf Toughness", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] })
+    const featureB = makeFeature({ name: "Ability Score Improvement", levelEffects: [{ level: 4, effects: { abilityScores: { strength: 1 } } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureB], speciesTraits: [featureA], feats: [], level: 4 })
+    expect(totals.abilityScores.strength).toBe(3)
+    expect(totals.abilityScoreGrants.strength).toEqual([
+      { source: "Ability Score Improvement", amount: 1 },
+      { source: "Hill Dwarf Toughness", amount: 2 },
+    ])
+  })
+
+  it("takes the max ability score floor across features and records the winning source", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { abilityScoreFloors: { wisdom: 18 } } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { abilityScoreFloors: { wisdom: 21 } } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.abilityScoreFloors.wisdom).toBe(21)
+    expect(totals.abilityScoreFloorSources.wisdom).toBe("B")
+  })
+
+  it("aggregates a backgroundFeatures-sourced ability score bonus (2024 Background ASI path)", () => {
+    const backgroundFeature = makeFeature({ name: "Acolyte", source: "background", levelEffects: [{ level: 1, effects: { abilityScores: { wisdom: 2, intelligence: 1 } } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [], speciesTraits: [], feats: [], backgroundFeatures: [backgroundFeature], level: 1 })
+    expect(totals.abilityScores.wisdom).toBe(2)
+    expect(totals.abilityScores.intelligence).toBe(1)
+    expect(totals.abilityScoreGrants.wisdom).toEqual([{ source: "Acolyte", amount: 2 }])
   })
 })
 

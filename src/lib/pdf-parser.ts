@@ -119,7 +119,10 @@ export function parseFeaturesTraitsText(text: string): {
   feats: Feature[]
 } {
   const output = { classFeatures: [] as Feature[], speciesTraits: [] as Feature[], feats: [] as Feature[] }
-  const kindToKey: Record<FeatureKind, keyof typeof output> = {
+  // classifyFeatureSection never produces "background" (it has no /BACKGROUND/ case — see
+  // Phase 2 plan: teaching the PDF importer to recognize Background sections is a deliberate,
+  // separate follow-up), so this mapping is intentionally partial rather than exhaustive over FeatureKind.
+  const kindToKey: Partial<Record<FeatureKind, keyof typeof output>> = {
     "class-feature": "classFeatures",
     "species-trait": "speciesTraits",
     "feat": "feats",
@@ -132,11 +135,13 @@ export function parseFeaturesTraitsText(text: string): {
 
   function flush() {
     if (pendingName === null || currentKind === null) return
+    const key = kindToKey[currentKind]
+    if (!key) return
     const name = pendingName
     const description = buildFeatureDescription(pendingLines)
     const feature: Feature = { id: crypto.randomUUID(), name, description, source: currentKind }
     if (pendingActionKind) feature.actionKind = pendingActionKind
-    output[kindToKey[currentKind]].push(feature)
+    output[key].push(feature)
     pendingName = null
     pendingLines = []
     pendingActionKind = undefined

@@ -28,7 +28,7 @@ describe("FeaturesModule", () => {
   describe("section heading and structure", () => {
     it("renders the section heading", () => {
       render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Class Features, Species Traits & Feats")).toBeInTheDocument()
+      expect(screen.getByText("Class Features, Species Traits, Background & Feats")).toBeInTheDocument()
     })
 
     it("renders the Class Features section header", () => {
@@ -46,11 +46,49 @@ describe("FeaturesModule", () => {
       expect(screen.getByText("Feats")).toBeInTheDocument()
     })
 
+    it("renders the Background section header", () => {
+      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Background")).toBeInTheDocument()
+    })
+
     it("renders Add buttons for each section", () => {
       render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /add class feature/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /add species trait/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /add feat/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /add background feature/i })).toBeInTheDocument()
+    })
+  })
+
+  describe("Background group", () => {
+    it("adds a Background Feature and persists it under backgroundFeatures", () => {
+      const onUpdate = vi.fn()
+      render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add background feature/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Acolyte" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          backgroundFeatures: expect.arrayContaining([
+            expect.objectContaining({ name: "Acolyte", source: "background" }),
+          ]),
+        })
+      )
+    })
+
+    it("shows an existing background feature under the Background section", () => {
+      const feature = makeFeature({ name: "Acolyte", source: "background" })
+      render(<FeaturesModule character={makeCharacter({ backgroundFeatures: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Acolyte")).toBeInTheDocument()
+    })
+
+    it("deletes a background feature", () => {
+      const onUpdate = vi.fn()
+      const feature = makeFeature({ name: "Acolyte", source: "background" })
+      render(<FeaturesModule character={makeCharacter({ backgroundFeatures: [feature] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /delete acolyte/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ backgroundFeatures: [] }))
     })
   })
 
@@ -925,6 +963,116 @@ describe("FeaturesModule", () => {
               expect.objectContaining({
                 name: "Powerful Build",
                 levelEffects: [{ level: 1, effects: { carryingCapacityMultiplier: 2 } }],
+              }),
+            ]),
+          })
+        )
+      })
+    })
+
+    describe("Ability Score Bonus (level-tiered)", () => {
+      it("shows the Add Level button and persists a bonus to a Species Trait", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Hill Dwarf Toughness" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        expect(within(modal).getByRole("button", { name: /add level/i })).toBeInTheDocument()
+        const conBonus = within(modal).getByLabelText(/^con bonus$/i)
+        fireEvent.input(conBonus, { target: { value: "2" } })
+        fireEvent.keyDown(conBonus, { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Hill Dwarf Toughness",
+                levelEffects: [{ level: 1, effects: { abilityScores: { constitution: 2 } } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("persists an ability score floor to a Feat", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Boon of Combat Prowess" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        const strFloor = within(modal).getByLabelText(/^str floor$/i)
+        fireEvent.input(strFloor, { target: { value: "19" } })
+        fireEvent.keyDown(strFloor, { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            feats: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Boon of Combat Prowess",
+                levelEffects: [{ level: 1, effects: { abilityScoreFloors: { strength: 19 } } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("persists a Background-granted ability score bonus (2024 Background ASI)", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add background feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Acolyte" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        const wisBonus = within(modal).getByLabelText(/^wis bonus$/i)
+        fireEvent.input(wisBonus, { target: { value: "2" } })
+        fireEvent.keyDown(wisBonus, { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            backgroundFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Acolyte",
+                source: "background",
+                levelEffects: [{ level: 1, effects: { abilityScores: { wisdom: 2 } } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("pre-fills the Feature Type and shows the existing bonus when editing", () => {
+        const feature = makeFeature({
+          name: "Hill Dwarf Toughness",
+          source: "species-trait",
+          levelEffects: [{ level: 1, effects: { abilityScores: { constitution: 2 } } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit hill dwarf toughness/i }))
+        expect(screen.getByRole("button", { name: /add level/i })).toBeInTheDocument()
+        expect(screen.getByLabelText(/^con bonus$/i)).toHaveValue(2)
+      })
+
+      it("round-trips levelEffects through edit and save unchanged", () => {
+        const onUpdate = vi.fn()
+        const feature = makeFeature({
+          name: "Hill Dwarf Toughness",
+          source: "species-trait",
+          levelEffects: [{ level: 1, effects: { abilityScores: { constitution: 2 } } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit hill dwarf toughness/i }))
+        fireEvent.click(screen.getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Hill Dwarf Toughness",
+                levelEffects: [{ level: 1, effects: { abilityScores: { constitution: 2 } } }],
               }),
             ]),
           })

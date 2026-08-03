@@ -402,28 +402,38 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             <For each={SENSE_TYPES}>
               {(sense) => {
                 const baseValue = () => current().senses?.[sense] ?? 0
-                const itemBonus = () => modifierTotals().senses[sense]
+                const senseField = useCalculatedValue({
+                  useCalculated: () => current().useCalculatedSenses?.[sense] ?? true,
+                  setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSenses: { ...prev.useCalculatedSenses, [sense]: v } })),
+                  manualValue: () => current().senseOverrides?.[sense] ?? effectiveSenses()[sense],
+                  setManualValue: (v) => setEdited((prev) => ({ ...prev, senseOverrides: { ...prev.senseOverrides, [sense]: v } })),
+                  calculatedValue: () => effectiveSenses()[sense],
+                  calculatedTooltip: () => {
+                    const grants = [...modifierTotals().senseGrants[sense], ...featureTotals().senseGrants[sense]]
+                    const terms = grants.map((g) => (g.amount > 0 ? ` + ${g.amount} (${g.source})` : ` - ${Math.abs(g.amount)} (${g.source})`)).join("")
+                    return `${baseValue()} base${terms} = ${effectiveSenses()[sense]} ft`
+                  },
+                })
                 return (
-                  <Show when={isEditing() || effectiveSenses()[sense] !== 0}>
+                  <Show when={isEditing() || senseField.resolvedValue() !== 0}>
                     <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                      <span class="text-xs text-muted-foreground">{SENSE_LABELS[sense]}</span>
-                      <Show when={isEditing()} fallback={
-                        <span class="text-xl font-bold text-primary mt-1">{effectiveSenses()[sense]} ft</span>
-                      }>
+                      <Show when={isEditing()}>
+                        <span class="text-xs text-muted-foreground">{SENSE_LABELS[sense]} Base</span>
                         <NumericInput
                           min={0}
                           value={baseValue()}
                           onChange={(v) => setEdited((prev) => ({ ...prev, senses: { ...prev.senses, [sense]: v } }))}
                           class="text-center h-8 text-sm mt-1"
-                          aria-label={SENSE_LABELS[sense]}
+                          aria-label={`${SENSE_LABELS[sense]} Base`}
                         />
                       </Show>
-                      <Show when={itemBonus() !== 0}>
-                        <span class="text-xs text-muted-foreground">{formatModifier(itemBonus())} item</span>
-                      </Show>
-                      <Show when={featureTotals().senses[sense] !== 0}>
-                        <span class="text-xs text-muted-foreground">{formatModifier(featureTotals().senses[sense])} feature</span>
-                      </Show>
+                      <CalculatedValue
+                        label={SENSE_LABELS[sense]}
+                        labelClass="text-xs text-muted-foreground"
+                        editable={isEditing()}
+                        format={(n) => `${n} ft`}
+                        {...senseField.binding()}
+                      />
                     </div>
                   </Show>
                 )

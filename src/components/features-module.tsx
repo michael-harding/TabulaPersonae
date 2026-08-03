@@ -22,6 +22,7 @@ import { StepperInput } from "@/components/ui/stepper-input"
 import BookOpen from "lucide-solid/icons/book-open"
 import Leaf from "lucide-solid/icons/leaf"
 import Star from "lucide-solid/icons/star"
+import ScrollText from "lucide-solid/icons/scroll-text"
 import Plus from "lucide-solid/icons/plus"
 import Trash2 from "lucide-solid/icons/trash-2"
 import Pencil from "lucide-solid/icons/pencil"
@@ -36,7 +37,7 @@ interface FeaturesModuleProps {
   onUpdate: (character: Character) => void
 }
 
-type FeatureField = 'classFeatures' | 'speciesTraits' | 'feats'
+type FeatureField = 'classFeatures' | 'speciesTraits' | 'feats' | 'backgroundFeatures'
 
 interface FeatureFieldConfig {
   kind: FeatureKind
@@ -49,6 +50,7 @@ interface FeatureFieldConfig {
 const FEATURE_FIELD_CONFIG: FeatureFieldConfig[] = [
   { kind: 'class-feature', title: 'Class Features', singular: 'Class Feature', field: 'classFeatures', icon: BookOpen },
   { kind: 'species-trait', title: 'Species Traits',  singular: 'Species Trait',  field: 'speciesTraits', icon: Leaf    },
+  { kind: 'background',    title: 'Background',      singular: 'Background Feature', field: 'backgroundFeatures', icon: ScrollText },
   { kind: 'feat',          title: 'Feats',           singular: 'Feat',           field: 'feats',         icon: Star   },
 ]
 
@@ -77,6 +79,7 @@ type FeatureTypeValue =
   | 'Action' | 'Spellcasting Ability' | 'Hit Die' | 'Size'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
+  | 'Ability Score Bonus'
 
 // Spellcasting Ability, Hit Die, and Size are fixed facts of a class/species, not something that
 // changes at higher levels, so they get a single always-on control. The proficiency-grant types
@@ -86,6 +89,7 @@ const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Di
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
+  'Ability Score Bonus',
 ]
 const FEATURE_TYPES: FeatureTypeValue[] = ['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES]
 
@@ -108,6 +112,8 @@ function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: Feat
   if (effects?.conditionImmunities?.length) return 'Condition Immunity'
   if (effects?.languages?.length) return 'Language'
   if (effects?.carryingCapacityBonus || effects?.carryingCapacityMultiplier) return 'Carrying Capacity'
+  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v)) return 'Ability Score Bonus'
+  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v)) return 'Ability Score Bonus'
   return ''
 }
 
@@ -235,6 +241,7 @@ function LevelEffectRow(props: {
   featureType:
     | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
     | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
+    | 'Ability Score Bonus'
   tier: FeatureLevelEffect
   onLevelChange: (level: number) => void
   onEffectsChange: (effects: FeatureEffects) => void
@@ -472,6 +479,48 @@ function LevelEffectRow(props: {
           </div>
         </div>
       </Show>
+
+      <Show when={props.featureType === 'Ability Score Bonus'}>
+        <div class="space-y-3">
+          <div class="space-y-1">
+            <Label class="text-xs">Ability Score Bonus</Label>
+            <div class="grid grid-cols-2 gap-2">
+              <For each={SAVE_ABILITIES}>
+                {(ability) => (
+                  <div>
+                    <Label for={`fx-asi-bonus-${ability}`} class="text-xs text-muted-foreground">{ABILITY_ABBREVIATIONS[ability]}</Label>
+                    <NumericInput
+                      id={`fx-asi-bonus-${ability}`}
+                      aria-label={`${ABILITY_ABBREVIATIONS[ability]} Bonus`}
+                      value={effects().abilityScores?.[ability] ?? 0}
+                      onChange={(v) => update({ abilityScores: { ...effects().abilityScores, [ability]: v || undefined } })}
+                    />
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <Label class="text-xs">Ability Score Floor (minimum score, 0 = none)</Label>
+            <div class="grid grid-cols-2 gap-2">
+              <For each={SAVE_ABILITIES}>
+                {(ability) => (
+                  <div>
+                    <Label for={`fx-asi-floor-${ability}`} class="text-xs text-muted-foreground">{ABILITY_ABBREVIATIONS[ability]}</Label>
+                    <NumericInput
+                      id={`fx-asi-floor-${ability}`}
+                      aria-label={`${ABILITY_ABBREVIATIONS[ability]} Floor`}
+                      min={0}
+                      value={effects().abilityScoreFloors?.[ability] ?? 0}
+                      onChange={(v) => update({ abilityScoreFloors: { ...effects().abilityScoreFloors, [ability]: v || undefined } })}
+                    />
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+        </div>
+      </Show>
     </div>
   )
 }
@@ -674,7 +723,8 @@ function FeatureForm(props: FeatureFormProps) {
               <LevelEffectRow
                 featureType={formData().featureType as
                   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
-                  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'}
+                  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
+                  | 'Ability Score Bonus'}
                 tier={tier}
                 onLevelChange={(level) => updateLevelEffect(i(), { level })}
                 onEffectsChange={(effects) => updateLevelEffect(i(), { effects })}
@@ -703,7 +753,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
   const [editingFeature, setEditingFeature] = createSignal<Feature | null>(null)
   const [expandedSections, setExpandedSections] = createPersistedSetSignal<FeatureKind>(
     `dnd-collapsible-features-${props.character.id}`,
-    ['class-feature', 'species-trait', 'feat']
+    ['class-feature', 'species-trait', 'feat', 'background']
   )
 
   const toggleExpanded = (kind: FeatureKind, open: boolean) => {
@@ -791,7 +841,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
           <Layers class="h-5 w-5 text-primary" />
-          Class Features, Species Traits &amp; Feats
+          Class Features, Species Traits, Background &amp; Feats
         </CardTitle>
       </CardHeader>
       <CardContent class="space-y-2">

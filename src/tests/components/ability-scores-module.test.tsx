@@ -229,6 +229,8 @@ describe("AbilityScoresModule", () => {
   })
 
   describe("item modifiers", () => {
+    beforeEach(() => cleanupPortals())
+
     it("raises the displayed effective score and modifier when an active item boosts an ability", () => {
       const character = makeCharacter({
         equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
@@ -239,12 +241,72 @@ describe("AbilityScoresModule", () => {
       expect(screen.getByText("+4")).toBeInTheDocument()
     })
 
-    it("shows an item bonus badge next to the boosted score", () => {
+    it("names the granting item in the effective-score tooltip instead of a generic 'item' label", async () => {
       const character = makeCharacter({
-        equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
+        equipment: [makeMagicItem({ name: "Belt of Giant Strength", modifiers: { abilityScores: { strength: 2 } } })],
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("item +2")).toBeInTheDocument()
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) = 18")
+    })
+
+    it("does not show always-visible item/feature bonus text next to the score", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ name: "Belt of Giant Strength", modifiers: { abilityScores: { strength: 2 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.queryByText(/item|feature/i)).not.toBeInTheDocument()
+    })
+
+    it("names each item separately when two items each contribute to the same ability", async () => {
+      const character = makeCharacter({
+        equipment: [
+          makeMagicItem({ id: "item-1", name: "Belt of Giant Strength", modifiers: { abilityScores: { strength: 2 } } }),
+          makeMagicItem({ id: "item-2", name: "Gauntlets of Ogre Power", modifiers: { abilityScores: { strength: 1 } } }),
+        ],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) + 1 (Gauntlets of Ogre Power) = 19")
+    })
+
+    it("names the granting feature in the effective-score tooltip", async () => {
+      const character = makeCharacter({
+        speciesTraits: [{ id: "f1", name: "Hill Dwarf Toughness", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] }],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Hill Dwarf Toughness) = 18")
+    })
+
+    it("names both features when two different features each contribute to the same ability", async () => {
+      const character = makeCharacter({
+        speciesTraits: [{ id: "f1", name: "Hill Dwarf Toughness", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] }],
+        classFeatures: [{ id: "f2", name: "Ability Score Improvement", description: "", source: "class-feature", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 1 } } }] }],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 1 (Ability Score Improvement) + 2 (Hill Dwarf Toughness) = 19")
+    })
+
+    it("combines a named item bonus and a named feature bonus in the same tooltip", async () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ name: "Belt of Giant Strength", modifiers: { abilityScores: { strength: 2 } } })],
+        speciesTraits: [{ id: "f1", name: "Hill Dwarf Toughness", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 1 } } }] }],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) + 1 (Hill Dwarf Toughness) = 19")
     })
 
     it("ignores an item's ability bonus when it requires attunement and is not attuned", () => {
@@ -253,7 +315,7 @@ describe("AbilityScoresModule", () => {
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
       expect(screen.getByText("16")).toBeInTheDocument()
-      expect(screen.queryByText("item +2")).not.toBeInTheDocument()
+      expect(screen.queryByText(/item|feature/i)).not.toBeInTheDocument()
     })
 
     it("keeps the base-score input in edit mode unaffected by the item bonus", () => {

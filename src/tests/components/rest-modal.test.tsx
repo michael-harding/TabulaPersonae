@@ -373,6 +373,18 @@ describe("RestModal", () => {
       expect(updated.speciesTraits![0].uses).toBe(0)
     })
 
+    it("calls onRest with background feature uses reset on long rest", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        backgroundFeatures: [makeFeature({ id: "b1", source: "background", rechargeOn: "long-rest", uses: 1, maxUses: 2, actionKind: "action" })],
+      })
+      openModal(char, onRest)
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.backgroundFeatures![0].uses).toBe(0)
+    })
+
     it("does not reset class feature uses when rechargeOn is long-rest and only short rest is taken", () => {
       const onRest = vi.fn()
       const char = makeCharacter({

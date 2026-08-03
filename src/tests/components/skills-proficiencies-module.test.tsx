@@ -602,6 +602,8 @@ describe("SkillsProficienciesModule", () => {
   })
 
   describe("senses", () => {
+    beforeEach(() => cleanupPortals())
+
     it("shows the character's base darkvision plus an active item's bonus", () => {
       const character = makeCharacter({
         senses: { darkvision: 30 },
@@ -615,7 +617,7 @@ describe("SkillsProficienciesModule", () => {
       const onUpdate = vi.fn()
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
-      const input = screen.getByLabelText("Darkvision")
+      const input = screen.getByLabelText("Darkvision Base")
       fireEvent.input(input, { target: { value: "60" } })
       fireEvent.blur(input)
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
@@ -636,6 +638,90 @@ describe("SkillsProficienciesModule", () => {
       })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       expect(screen.getByText("100 ft")).toBeInTheDocument()
+    })
+
+    it("does not show always-visible item/feature bonus text next to a sense value", () => {
+      const feature = {
+        id: "feature-1", name: "Darkvision", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+      }
+      const character = makeCharacter({
+        senses: { darkvision: 30 },
+        equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 10 } } })],
+        speciesTraits: [feature],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.queryByText(/^\+?\d+ item$/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/^\+?\d+ feature$/i)).not.toBeInTheDocument()
+    })
+
+    it("names the granting item and feature in the sense's tooltip", async () => {
+      const feature = {
+        id: "feature-1", name: "Superior Darkvision", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+      }
+      const character = makeCharacter({
+        senses: { darkvision: 30 },
+        equipment: [makeMagicItem({ name: "Eyes of the Eagle", modifiers: { senses: { darkvision: 10 } } })],
+        speciesTraits: [feature],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      const card = screen.getByText("Darkvision").closest('[data-sem="calculated-value"]')!
+      const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("30 base + 10 (Eyes of the Eagle) + 60 (Superior Darkvision) = 100 ft")
+    })
+
+    it("names both features when two different features each grant the same sense", async () => {
+      const featureA = {
+        id: "feature-1", name: "Keen Senses", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 30 } } }],
+      }
+      const featureB = {
+        id: "feature-2", name: "Devil's Sight", description: "", source: "feat" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+      }
+      const character = makeCharacter({ speciesTraits: [featureA], feats: [featureB] })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      const card = screen.getByText("Darkvision").closest('[data-sem="calculated-value"]')!
+      const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("0 base + 30 (Keen Senses) + 60 (Devil's Sight) = 90 ft")
+    })
+
+    it("names both items when two different items each grant the same sense", async () => {
+      const character = makeCharacter({
+        equipment: [
+          makeMagicItem({ id: "item-1", name: "Eyes of the Eagle", modifiers: { senses: { darkvision: 30 } } }),
+          makeMagicItem({ id: "item-2", name: "Goggles of Night", modifiers: { senses: { darkvision: 60 } } }),
+        ],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      const card = screen.getByText("Darkvision").closest('[data-sem="calculated-value"]')!
+      const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("0 base + 30 (Eyes of the Eagle) + 60 (Goggles of Night) = 90 ft")
+    })
+
+    it("persists a manual sense-effective override on save", () => {
+      const onUpdate = vi.fn()
+      const character = makeCharacter({ senses: { darkvision: 30 } })
+      render(<SkillsProficienciesModule character={character} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom darkvision/i }))
+      const overrideInput = screen.getByRole("spinbutton", { name: /^darkvision$/i })
+      fireEvent.input(overrideInput, { target: { value: "120" } })
+      fireEvent.blur(overrideInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          senseOverrides: expect.objectContaining({ darkvision: 120 }),
+          useCalculatedSenses: expect.objectContaining({ darkvision: false }),
+        })
+      )
     })
   })
 

@@ -1,6 +1,6 @@
-import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
+import { createSignal, createEffect, createMemo, on, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, formatModifier, getSavingThrowModifier, getEquipmentModifierTotals, getCalculatedAbilityScore, ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -37,6 +37,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
   const [editedUseCalculatedAbility, setEditedUseCalculatedAbility] = createSignal(safeUseCalculatedAbility())
 
   const modifierTotals = createMemo(() => getEquipmentModifierTotals(props.character.equipment))
+  const featureTotals = createMemo(() => getActiveFeatureEffects(props.character))
 
   createEffect(on(() => props.character.id, () => {
     setEditedScores(safeScores())
@@ -83,8 +84,14 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
           <For each={Object.keys(ABILITY_NAMES) as AbilityKey[]}>
             {(ability) => {
               const score = () => isEditing() ? editedScores()[ability] : safeScores()[ability]
-              const itemBonus = () => modifierTotals().abilityScores[ability]
-              const floor = () => modifierTotals().abilityScoreFloors[ability]
+              const itemGrants = () => modifierTotals().abilityScoreGrants[ability]
+              const featureGrants = () => featureTotals().abilityScoreGrants[ability]
+              const floor = () => {
+                const itemFloor = modifierTotals().abilityScoreFloors[ability]
+                const featureFloor = featureTotals().abilityScoreFloors[ability]
+                if (itemFloor === undefined && featureFloor === undefined) return undefined
+                return Math.max(itemFloor ?? -Infinity, featureFloor ?? -Infinity)
+              }
               const saveItemBonus = () => modifierTotals().savingThrows[ability]
               const abilityCalculated = () =>
                 getCalculatedAbilityScore({ ...props.character, abilityScores: { ...safeScores(), [ability]: score() } }, ability)
@@ -98,11 +105,14 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                 setManualValue: (v) => setEditedAbilityOverrides((prev) => ({ ...prev, [ability]: v })),
                 calculatedValue: abilityCalculated,
                 calculatedTooltip: () => {
-                  const withBonus = score() + itemBonus()
+                  const grants = [...itemGrants(), ...featureGrants()]
+                  const bonusTotal = grants.reduce((sum, g) => sum + g.amount, 0)
+                  const withBonus = score() + bonusTotal
                   const effective = abilityCalculated()
                   const mod = getAbilityModifier(effective)
                   const flooredNote = floor() !== undefined && effective > withBonus ? `, floor ${floor()}` : ""
-                  const base = (itemBonus() !== 0 || flooredNote) ? `${score()} base + ${itemBonus()} (item)${flooredNote} = ${effective}; ` : ""
+                  const terms = grants.map((g) => (g.amount > 0 ? ` + ${g.amount} (${g.source})` : ` - ${Math.abs(g.amount)} (${g.source})`)).join("")
+                  const base = (grants.length > 0 || flooredNote) ? `${score()} base${terms}${flooredNote} = ${effective}; ` : ""
                   return `${base}(${effective} − 10) / 2 = ${formatModifier(mod)}`
                 },
               })
@@ -157,12 +167,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                       triggerClass="w-full"
                     >
                       <div class="ring-1 ring-black rounded-lg p-3 w-full">
-                        <div class="flex items-center justify-center gap-1">
-                          <div class="text-2xl font-bold text-primary">{abilityField.resolvedValue()}</div>
-                          <Show when={itemBonus() !== 0}>
-                            <Badge variant="outline" class="text-[10px] px-1 py-0">item {formatModifier(itemBonus())}</Badge>
-                          </Show>
-                        </div>
+                        <div class="text-2xl font-bold text-primary">{abilityField.resolvedValue()}</div>
                         <div class="text-lg font-semibold text-foreground">{formatModifier(modifier())}</div>
                       </div>
                     </Tooltip>

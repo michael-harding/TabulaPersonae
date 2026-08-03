@@ -358,6 +358,7 @@ export function ActionsModule(props: ActionsModuleProps) {
     ...safeFeatures(props.character.classFeatures),
     ...safeFeatures(props.character.speciesTraits),
     ...safeFeatures(props.character.feats),
+    ...safeFeatures(props.character.backgroundFeatures),
   ])
   const featuresByKind = createMemo(() => {
     const level = props.character.level ?? 1
@@ -478,10 +479,11 @@ export function ActionsModule(props: ActionsModuleProps) {
   }
   const handleFeatureUsesChange = (feature: Feature, v: number) => {
     const field = feature.source === 'class-feature' ? 'classFeatures'
-      : feature.source === 'species-trait' ? 'speciesTraits' : 'feats'
+      : feature.source === 'species-trait' ? 'speciesTraits'
+      : feature.source === 'background' ? 'backgroundFeatures' : 'feats'
     props.onUpdate({
       ...props.character,
-      [field]: safeFeatures(props.character[field as 'classFeatures' | 'speciesTraits' | 'feats']).map(f => f.id === feature.id ? { ...f, uses: v } : f),
+      [field]: safeFeatures(props.character[field as 'classFeatures' | 'speciesTraits' | 'feats' | 'backgroundFeatures']).map(f => f.id === feature.id ? { ...f, uses: v } : f),
     })
   }
 

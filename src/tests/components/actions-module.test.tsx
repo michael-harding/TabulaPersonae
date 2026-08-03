@@ -1041,6 +1041,22 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       )
     })
 
+    it("clicking pip calls onUpdate with updated backgroundFeatures uses", () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActionsModule
+          character={makeCharacter({ backgroundFeatures: [makeFeature({ id: "bg-1", source: "background", actionKind: "action", maxUses: 2, uses: 0 })] })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          backgroundFeatures: expect.arrayContaining([expect.objectContaining({ id: "bg-1", uses: 1 })]),
+        })
+      )
+    })
+
     it("feature with range shows Range: label in stats row", () => {
       render(
         <ActionsModule

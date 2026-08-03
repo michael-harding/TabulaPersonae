@@ -47,16 +47,24 @@ export function isItemModifierActive(
   return true
 }
 
+/** A single named contribution to an additive total — one item or one feature, never a lump category. */
+export interface SourcedBonus {
+  source: string
+  amount: number
+}
+
 export interface EquipmentModifierTotals {
   armorClass: number
   initiative: number
   savingThrows: Record<keyof AbilityScores, number>
   abilityScores: Record<keyof AbilityScores, number>
+  abilityScoreGrants: Record<keyof AbilityScores, SourcedBonus[]>
   resistances: string[]
   immunities: string[]
   vulnerabilities: string[]
   conditionImmunities: string[]
   senses: Record<SenseType, number>
+  senseGrants: Record<SenseType, SourcedBonus[]>
   speed: number
   flySpeed: number
   swimSpeed: number
@@ -65,6 +73,7 @@ export interface EquipmentModifierTotals {
   carryingCapacityBonus: number
   carryingCapacityMultiplier: number
   abilityScoreFloors: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreFloorSources: Partial<Record<keyof AbilityScores, string>>
   languages: string[]
   proficiencies: string[]
 }
@@ -93,11 +102,13 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
     initiative: 0,
     savingThrows: { ...ZERO_ABILITY_SCORES },
     abilityScores: { ...ZERO_ABILITY_SCORES },
+    abilityScoreGrants: { strength: [], dexterity: [], constitution: [], intelligence: [], wisdom: [], charisma: [] },
     resistances: [],
     immunities: [],
     vulnerabilities: [],
     conditionImmunities: [],
     senses: { ...ZERO_SENSES },
+    senseGrants: { darkvision: [], blindsight: [], tremorsense: [], truesight: [] },
     speed: 0,
     flySpeed: 0,
     swimSpeed: 0,
@@ -106,6 +117,7 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
     carryingCapacityBonus: 0,
     carryingCapacityMultiplier: 1,
     abilityScoreFloors: {},
+    abilityScoreFloorSources: {},
     languages: [],
     proficiencies: [],
   }
@@ -123,13 +135,22 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
     totals.initiative += Number(mods.initiative ?? 0)
     for (const ability of ABILITY_KEYS) {
       totals.savingThrows[ability] += Number(mods.savingThrows?.[ability] ?? 0)
-      totals.abilityScores[ability] += Number(mods.abilityScores?.[ability] ?? 0)
-      if (mods.abilityScoreFloors?.[ability] !== undefined) {
-        totals.abilityScoreFloors[ability] = Math.max(totals.abilityScoreFloors[ability] ?? -Infinity, mods.abilityScoreFloors[ability]!)
+      const abilityAmount = Number(mods.abilityScores?.[ability] ?? 0)
+      if (abilityAmount) {
+        totals.abilityScores[ability] += abilityAmount
+        totals.abilityScoreGrants[ability].push({ source: item.name, amount: abilityAmount })
+      }
+      if (mods.abilityScoreFloors?.[ability] !== undefined && mods.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
+        totals.abilityScoreFloors[ability] = mods.abilityScoreFloors[ability]
+        totals.abilityScoreFloorSources[ability] = item.name
       }
     }
     for (const sense of SENSE_TYPES) {
-      totals.senses[sense] += Number(mods.senses?.[sense] ?? 0)
+      const senseAmount = Number(mods.senses?.[sense] ?? 0)
+      if (senseAmount) {
+        totals.senses[sense] += senseAmount
+        totals.senseGrants[sense].push({ source: item.name, amount: senseAmount })
+      }
     }
     totals.speed += Number(mods.speed ?? 0)
     totals.flySpeed += Number(mods.flySpeed ?? 0)
@@ -175,6 +196,11 @@ export interface FeatureEffectTotals {
   conditionImmunities: Record<string, string>
   languages: Record<string, string>
   senses: Record<SenseType, number>
+  senseGrants: Record<SenseType, SourcedBonus[]>
+  abilityScores: Record<keyof AbilityScores, number>
+  abilityScoreGrants: Record<keyof AbilityScores, SourcedBonus[]>
+  abilityScoreFloors: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreFloorSources: Partial<Record<keyof AbilityScores, string>>
   /**
    * Movement fields are last-source-wins overrides, not additive bonuses, unlike every other
    * numeric field here — a species's walking/fly/swim/climb/burrow speed is an absolute
@@ -203,7 +229,7 @@ export function getActiveLevelEffect(feature: Feature, level: number): FeatureEf
   return tiers.reduce((best, tier) => (tier.level > best.level ? tier : best)).effects
 }
 
-type FeatureEffectCharacter = Pick<Character, "classFeatures" | "speciesTraits" | "feats"> & Partial<Pick<Character, "level">>
+type FeatureEffectCharacter = Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "backgroundFeatures"> & Partial<Pick<Character, "level">>
 
 export function getActiveFeatureEffects(character: FeatureEffectCharacter): FeatureEffectTotals {
   const totals: FeatureEffectTotals = {
@@ -216,12 +242,17 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     conditionImmunities: {},
     languages: {},
     senses: { ...ZERO_SENSES },
+    senseGrants: { darkvision: [], blindsight: [], tremorsense: [], truesight: [] },
+    abilityScores: { ...ZERO_ABILITY_SCORES },
+    abilityScoreGrants: { strength: [], dexterity: [], constitution: [], intelligence: [], wisdom: [], charisma: [] },
+    abilityScoreFloors: {},
+    abilityScoreFloorSources: {},
     carryingCapacityBonus: 0,
     carryingCapacityMultiplier: 1,
   }
   const level = character.level ?? 1
 
-  for (const features of [safeFeatures(character.classFeatures), safeFeatures(character.speciesTraits), safeFeatures(character.feats)]) {
+  for (const features of [safeFeatures(character.classFeatures), safeFeatures(character.speciesTraits), safeFeatures(character.feats), safeFeatures(character.backgroundFeatures)]) {
     for (const feature of features) {
       const effects = getActiveLevelEffect(feature, level)
       if (!effects) continue
@@ -271,7 +302,22 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
         if (!totals.languages[l]) totals.languages[l] = feature.name
       }
       for (const sense of SENSE_TYPES) {
-        totals.senses[sense] += Number(effects.senses?.[sense] ?? 0)
+        const senseAmount = Number(effects.senses?.[sense] ?? 0)
+        if (senseAmount) {
+          totals.senses[sense] += senseAmount
+          totals.senseGrants[sense].push({ source: feature.name, amount: senseAmount })
+        }
+      }
+      for (const ability of ABILITY_KEYS) {
+        const abilityAmount = Number(effects.abilityScores?.[ability] ?? 0)
+        if (abilityAmount) {
+          totals.abilityScores[ability] += abilityAmount
+          totals.abilityScoreGrants[ability].push({ source: feature.name, amount: abilityAmount })
+        }
+        if (effects.abilityScoreFloors?.[ability] !== undefined && effects.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
+          totals.abilityScoreFloors[ability] = effects.abilityScoreFloors[ability]
+          totals.abilityScoreFloorSources[ability] = feature.name
+        }
       }
       if (effects.speed !== undefined) { totals.speed = effects.speed; totals.speedSource = feature.name }
       if (effects.flySpeed !== undefined) { totals.flySpeed = effects.flySpeed; totals.flySpeedSource = feature.name }
@@ -333,42 +379,46 @@ export function getEffectiveSkillProficiency(
 type AbilityScoreCharacter = Pick<
   Character,
   "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores"
->
+> & FeatureEffectCharacter
 
 function getCalculatedAbilityScoreFromTotals(
   character: AbilityScoreCharacter,
   ability: keyof AbilityScores,
   itemTotals: EquipmentModifierTotals,
+  featureTotals: FeatureEffectTotals,
 ): number {
   const base = Number(character.abilityScores?.[ability] ?? 10)
   const itemBonus = itemTotals.abilityScores[ability]
-  const floor = itemTotals.abilityScoreFloors[ability]
-  return Math.max(base + itemBonus, floor ?? -Infinity)
+  const featureBonus = featureTotals.abilityScores[ability]
+  const floor = Math.max(itemTotals.abilityScoreFloors[ability] ?? -Infinity, featureTotals.abilityScoreFloors[ability] ?? -Infinity)
+  return Math.max(base + itemBonus + featureBonus, floor)
 }
 
 function getEffectiveAbilityScoreFromTotals(
   character: AbilityScoreCharacter,
   ability: keyof AbilityScores,
   itemTotals: EquipmentModifierTotals,
+  featureTotals: FeatureEffectTotals,
 ): number {
-  const calculated = getCalculatedAbilityScoreFromTotals(character, ability, itemTotals)
+  const calculated = getCalculatedAbilityScoreFromTotals(character, ability, itemTotals, featureTotals)
   const useCalculated = character.useCalculatedAbilityScores?.[ability] ?? true
   return useCalculated ? calculated : (character.abilityScoreOverrides?.[ability] ?? calculated)
 }
 
 export function getCalculatedAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
-  return getCalculatedAbilityScoreFromTotals(character, ability, getEquipmentModifierTotals(character.equipment))
+  return getCalculatedAbilityScoreFromTotals(character, ability, getEquipmentModifierTotals(character.equipment), getActiveFeatureEffects(character))
 }
 
 export function getEffectiveAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
-  return getEffectiveAbilityScoreFromTotals(character, ability, getEquipmentModifierTotals(character.equipment))
+  return getEffectiveAbilityScoreFromTotals(character, ability, getEquipmentModifierTotals(character.equipment), getActiveFeatureEffects(character))
 }
 
 export function getEffectiveAbilityScores(character: AbilityScoreCharacter): AbilityScores {
   const itemTotals = getEquipmentModifierTotals(character.equipment)
+  const featureTotals = getActiveFeatureEffects(character)
   const result = {} as AbilityScores
   for (const ability of ABILITY_KEYS) {
-    result[ability] = getEffectiveAbilityScoreFromTotals(character, ability, itemTotals)
+    result[ability] = getEffectiveAbilityScoreFromTotals(character, ability, itemTotals, featureTotals)
   }
   return result
 }
@@ -694,12 +744,14 @@ export interface DerivedWeaponAttack {
 
 export function getEquippedWeaponAttacks(
   character: Pick<Character, "equipment" | "abilityScores" | "proficiencyBonus" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
+    & FeatureEffectCharacter
 ): DerivedWeaponAttack[] {
   const equipment = character.equipment ?? []
   const profBonus = character.proficiencyBonus ?? 2
   const itemTotals = getEquipmentModifierTotals(equipment)
-  const strMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "strength", itemTotals))
-  const dexMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "dexterity", itemTotals))
+  const featureTotals = getActiveFeatureEffects(character)
+  const strMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "strength", itemTotals, featureTotals))
+  const dexMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "dexterity", itemTotals, featureTotals))
 
   return equipment
     .filter((item): item is Equipment & { weaponStats: NonNullable<Equipment["weaponStats"]> } =>
@@ -734,10 +786,12 @@ function formatBonusTerm(bonus: number, label: string): string {
 
 export function calculateEquippedAC(
   character: Pick<Character, "equipment" | "abilityScores" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
+    & FeatureEffectCharacter
 ): { ac: number; breakdown: string; isEquippedArmor: boolean } {
   const equipment = character.equipment ?? []
   const itemTotals = getEquipmentModifierTotals(equipment)
-  const dexMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "dexterity", itemTotals))
+  const featureTotals = getActiveFeatureEffects(character)
+  const dexMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "dexterity", itemTotals, featureTotals))
   const itemBonus = itemTotals.armorClass
 
   const equippedArmor = equipment.filter(
@@ -786,9 +840,11 @@ export function calculateEquippedAC(
 
 export function calculateInitiative(
   character: Pick<Character, "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
+    & FeatureEffectCharacter
 ): { initiative: number; breakdown: string } {
   const itemTotals = getEquipmentModifierTotals(character.equipment)
-  const dexMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "dexterity", itemTotals))
+  const featureTotals = getActiveFeatureEffects(character)
+  const dexMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "dexterity", itemTotals, featureTotals))
   const itemBonus = itemTotals.initiative
   return {
     initiative: dexMod + itemBonus,

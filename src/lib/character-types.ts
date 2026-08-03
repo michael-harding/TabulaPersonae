@@ -122,7 +122,7 @@ export interface Spell extends CharacterEntry {
   freeCast?: boolean;
 }
 
-export type FeatureKind = 'class-feature' | 'species-trait' | 'feat'
+export type FeatureKind = 'class-feature' | 'species-trait' | 'feat' | 'background'
 export type ActionKind = 'action' | 'bonus-action' | 'reaction' | 'other'
 
 export interface FeatureEffects {
@@ -145,6 +145,8 @@ export interface FeatureEffects {
   languages?: string[]
   carryingCapacityBonus?: number
   carryingCapacityMultiplier?: number
+  abilityScores?: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreFloors?: Partial<Record<keyof AbilityScores, number>>
 }
 
 export interface FeatureLevelEffect {
@@ -219,6 +221,8 @@ export interface Character {
   useCalculatedClimbSpeed?: boolean
   useCalculatedBurrowSpeed?: boolean
   senses?: Partial<Record<SenseType, number>>
+  senseOverrides?: Partial<Record<SenseType, number>>
+  useCalculatedSenses?: Partial<Record<SenseType, boolean>>
   initiative: number
   proficiencyBonus: number
   useCalculatedInitiative?: boolean
@@ -302,6 +306,7 @@ export interface Character {
   classFeatures?: Feature[]
   speciesTraits?: Feature[]
   feats?: Feature[]
+  backgroundFeatures?: Feature[]
 
   // 2014-only
   spellcastingClass?: string
@@ -439,6 +444,7 @@ export function createDefaultCharacter(): Character {
     classFeatures: [],
     speciesTraits: [],
     feats: [],
+    backgroundFeatures: [],
 
     spellcastingClass: "",
     alliesAndOrganizations: "",
