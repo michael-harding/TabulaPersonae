@@ -1,7 +1,7 @@
 import { createSignal, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveLevelEffect, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveLevelEffect, getActiveFeatureEffects, featureSourceLabel, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -823,7 +823,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
   // is *currently* the active source, so the spent-hit-dice tracker renders on that one card only.
   const isActiveHitDieSource = (feature: Feature) =>
     getActiveLevelEffect(feature, props.character.level ?? 1)?.hitDiceSize !== undefined &&
-    getActiveFeatureEffects(props.character).hitDiceSizeSource === feature.name
+    getActiveFeatureEffects(props.character).hitDiceSizeSource === featureSourceLabel(feature)
 
   const handleSpentHitDiceChange = (v: number) => {
     props.onUpdate({ ...props.character, spentHitDice: v })

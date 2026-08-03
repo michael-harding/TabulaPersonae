@@ -1,4 +1,4 @@
-import type { AbilityScores, Character, Equipment, Feature, FeatureEffects, SenseType, Skills } from "./character-types"
+import type { AbilityScores, Character, Equipment, Feature, FeatureEffects, FeatureKind, SenseType, Skills } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -86,6 +86,23 @@ export const ABILITY_KEYS: (keyof AbilityScores)[] = ["strength", "dexterity", "
 
 export const ABILITY_ABBREVIATIONS: Record<keyof AbilityScores, string> = {
   strength: "STR", dexterity: "DEX", constitution: "CON", intelligence: "INT", wisdom: "WIS", charisma: "CHA",
+}
+
+/** Title-case ability abbreviations for prose/tooltip breakdowns (e.g. "+2 (Dex)"), as opposed to the all-caps ABILITY_ABBREVIATIONS used for stat-block headers. */
+export const ABILITY_TITLE_CASE: Record<keyof AbilityScores, string> = {
+  strength: "Str", dexterity: "Dex", constitution: "Con", intelligence: "Int", wisdom: "Wis", charisma: "Cha",
+}
+
+const FEATURE_KIND_LABELS: Record<FeatureKind, string> = {
+  "class-feature": "Class Feature",
+  "species-trait": "Species Trait",
+  "feat": "Feat",
+  "background": "Background",
+}
+
+/** A feature's name plus its kind (e.g. "Speed Species Trait") — used everywhere a tooltip names the specific feature granting a value, so it never gets mislabeled as a generic "Class Feature". */
+export function featureSourceLabel(feature: Pick<Feature, "name" | "source">): string {
+  return `${feature.name} ${FEATURE_KIND_LABELS[feature.source]}`
 }
 
 export const ZERO_ABILITY_SCORES: Record<keyof AbilityScores, number> = {
@@ -257,73 +274,75 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
       const effects = getActiveLevelEffect(feature, level)
       if (!effects) continue
 
+      const sourceLabel = featureSourceLabel(feature)
+
       if (effects.spellcastingAbility) {
         totals.spellcastingAbility = effects.spellcastingAbility
-        totals.spellcastingAbilitySource = feature.name
+        totals.spellcastingAbilitySource = sourceLabel
       }
       if (effects.hitDiceSize) {
         totals.hitDiceSize = effects.hitDiceSize
-        totals.hitDiceSizeSource = feature.name
+        totals.hitDiceSizeSource = sourceLabel
       }
       if (effects.size) {
         totals.size = effects.size
-        totals.sizeSource = feature.name
+        totals.sizeSource = sourceLabel
       }
       for (const ability of effects.savingThrowProficiencies ?? []) {
         if (!totals.savingThrowProficiencies[ability]) {
-          totals.savingThrowProficiencies[ability] = feature.name
+          totals.savingThrowProficiencies[ability] = sourceLabel
         }
       }
       for (const grant of effects.skillProficiencies ?? []) {
         const existing = totals.skillProficiencies[grant.skill]
         totals.skillProficiencies[grant.skill] = {
           expertise: (existing?.expertise ?? false) || !!grant.expertise,
-          source: existing?.source ?? feature.name,
+          source: existing?.source ?? sourceLabel,
         }
       }
       for (const prof of effects.otherProficiencies ?? []) {
         if (!totals.otherProficiencies[prof]) {
-          totals.otherProficiencies[prof] = feature.name
+          totals.otherProficiencies[prof] = sourceLabel
         }
       }
       for (const r of effects.resistances ?? []) {
-        if (!totals.resistances[r]) totals.resistances[r] = feature.name
+        if (!totals.resistances[r]) totals.resistances[r] = sourceLabel
       }
       for (const i of effects.immunities ?? []) {
-        if (!totals.immunities[i]) totals.immunities[i] = feature.name
+        if (!totals.immunities[i]) totals.immunities[i] = sourceLabel
       }
       for (const v of effects.vulnerabilities ?? []) {
-        if (!totals.vulnerabilities[v]) totals.vulnerabilities[v] = feature.name
+        if (!totals.vulnerabilities[v]) totals.vulnerabilities[v] = sourceLabel
       }
       for (const c of effects.conditionImmunities ?? []) {
-        if (!totals.conditionImmunities[c]) totals.conditionImmunities[c] = feature.name
+        if (!totals.conditionImmunities[c]) totals.conditionImmunities[c] = sourceLabel
       }
       for (const l of effects.languages ?? []) {
-        if (!totals.languages[l]) totals.languages[l] = feature.name
+        if (!totals.languages[l]) totals.languages[l] = sourceLabel
       }
       for (const sense of SENSE_TYPES) {
         const senseAmount = Number(effects.senses?.[sense] ?? 0)
         if (senseAmount) {
           totals.senses[sense] += senseAmount
-          totals.senseGrants[sense].push({ source: feature.name, amount: senseAmount })
+          totals.senseGrants[sense].push({ source: sourceLabel, amount: senseAmount })
         }
       }
       for (const ability of ABILITY_KEYS) {
         const abilityAmount = Number(effects.abilityScores?.[ability] ?? 0)
         if (abilityAmount) {
           totals.abilityScores[ability] += abilityAmount
-          totals.abilityScoreGrants[ability].push({ source: feature.name, amount: abilityAmount })
+          totals.abilityScoreGrants[ability].push({ source: sourceLabel, amount: abilityAmount })
         }
         if (effects.abilityScoreFloors?.[ability] !== undefined && effects.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
           totals.abilityScoreFloors[ability] = effects.abilityScoreFloors[ability]
-          totals.abilityScoreFloorSources[ability] = feature.name
+          totals.abilityScoreFloorSources[ability] = sourceLabel
         }
       }
-      if (effects.speed !== undefined) { totals.speed = effects.speed; totals.speedSource = feature.name }
-      if (effects.flySpeed !== undefined) { totals.flySpeed = effects.flySpeed; totals.flySpeedSource = feature.name }
-      if (effects.swimSpeed !== undefined) { totals.swimSpeed = effects.swimSpeed; totals.swimSpeedSource = feature.name }
-      if (effects.climbSpeed !== undefined) { totals.climbSpeed = effects.climbSpeed; totals.climbSpeedSource = feature.name }
-      if (effects.burrowSpeed !== undefined) { totals.burrowSpeed = effects.burrowSpeed; totals.burrowSpeedSource = feature.name }
+      if (effects.speed !== undefined) { totals.speed = effects.speed; totals.speedSource = sourceLabel }
+      if (effects.flySpeed !== undefined) { totals.flySpeed = effects.flySpeed; totals.flySpeedSource = sourceLabel }
+      if (effects.swimSpeed !== undefined) { totals.swimSpeed = effects.swimSpeed; totals.swimSpeedSource = sourceLabel }
+      if (effects.climbSpeed !== undefined) { totals.climbSpeed = effects.climbSpeed; totals.climbSpeedSource = sourceLabel }
+      if (effects.burrowSpeed !== undefined) { totals.burrowSpeed = effects.burrowSpeed; totals.burrowSpeedSource = sourceLabel }
       totals.carryingCapacityBonus += Number(effects.carryingCapacityBonus ?? 0)
       if (effects.carryingCapacityMultiplier !== undefined) {
         totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, effects.carryingCapacityMultiplier)
@@ -569,13 +588,23 @@ export function getEffectiveProficiencies(
 
 type CarryingCapacityCharacter = AbilityScoreCharacter & FeatureEffectCharacter
 
-export function getEffectiveCarryingCapacity(character: CarryingCapacityCharacter): number {
+export function getCarryingCapacityBreakdown(character: CarryingCapacityCharacter): { capacity: number; breakdown: string } {
   const strengthScore = getEffectiveAbilityScore(character, "strength")
   const itemTotals = getEquipmentModifierTotals(character.equipment)
   const featureTotals = getActiveFeatureEffects(character)
   const bonus = itemTotals.carryingCapacityBonus + featureTotals.carryingCapacityBonus
   const multiplier = Math.max(itemTotals.carryingCapacityMultiplier, featureTotals.carryingCapacityMultiplier)
-  return Math.floor((strengthScore * 15 + bonus) * multiplier)
+  const capacity = Math.floor((strengthScore * 15 + bonus) * multiplier)
+
+  let breakdown = `${strengthScore} (${ABILITY_TITLE_CASE.strength}) × 15`
+  breakdown += formatBonusTerm(bonus, "item/feature bonus")
+  if (multiplier !== 1) breakdown = `(${breakdown}) × ${multiplier} (multiplier)`
+
+  return { capacity, breakdown }
+}
+
+export function getEffectiveCarryingCapacity(character: CarryingCapacityCharacter): number {
+  return getCarryingCapacityBreakdown(character).capacity
 }
 
 // No fallback to a hardcoded "Medium" default — like getEffectiveMovementSpeeds, this is purely
@@ -782,9 +811,15 @@ export function getEquippedWeaponAttacks(
     })
 }
 
-function formatBonusTerm(bonus: number, label: string): string {
+/** A joined additive term for a tooltip breakdown, e.g. " + 2 (Ring of Protection)" — omitted entirely when the bonus is zero. */
+export function formatBonusTerm(bonus: number, label: string): string {
   if (bonus === 0) return ""
   return bonus > 0 ? ` + ${bonus} (${label})` : ` - ${Math.abs(bonus)} (${label})`
+}
+
+/** Like formatBonusTerm, but never suppressed at zero — for terms that are always part of the formula (e.g. a Dex modifier that can legitimately be +0). */
+export function formatTerm(amount: number, label: string): string {
+  return amount >= 0 ? ` + ${amount} (${label})` : ` - ${Math.abs(amount)} (${label})`
 }
 
 export function calculateEquippedAC(
@@ -805,10 +840,12 @@ export function calculateEquippedAC(
   const bodyArmor = equippedArmor.find((item) => item.armorStats.armorType !== "shield")
   const shieldActive = equippedArmor.some((item) => item.armorStats.armorType === "shield")
 
+  const dexLabel = ABILITY_TITLE_CASE.dexterity
+
   if (!bodyArmor) {
     const base = 10 + dexMod
     const ac = (shieldActive ? base + 2 : base) + itemBonus
-    let breakdown = `10 + ${dexMod} DEX`
+    let breakdown = `10${formatTerm(dexMod, dexLabel)}`
     if (shieldActive) breakdown += " + 2 (shield)"
     breakdown += formatBonusTerm(itemBonus, "item bonus")
     return { ac, breakdown, isEquippedArmor: false }
@@ -820,14 +857,14 @@ export function calculateEquippedAC(
 
   if (armorType === "light") {
     ac = baseAC + dexMod
-    breakdown = `${baseAC} + ${dexMod} DEX`
+    breakdown = `${baseAC} (${bodyArmor.name})${formatTerm(dexMod, dexLabel)}`
   } else if (armorType === "medium") {
     const dexBonus = Math.min(dexMod, 2)
     ac = baseAC + dexBonus
-    breakdown = `${baseAC} + ${dexBonus} DEX (max +2)`
+    breakdown = `${baseAC} (${bodyArmor.name})${formatTerm(dexBonus, `${dexLabel}, max +2`)}`
   } else {
     ac = baseAC
-    breakdown = `${baseAC}`
+    breakdown = `${baseAC} (${bodyArmor.name})`
   }
 
   if (shieldActive) {
@@ -851,7 +888,7 @@ export function calculateInitiative(
   const itemBonus = itemTotals.initiative
   return {
     initiative: dexMod + itemBonus,
-    breakdown: `Dex ${formatModifier(dexMod)}${formatBonusTerm(itemBonus, "item bonus")}`,
+    breakdown: `${formatModifier(dexMod)} (${ABILITY_TITLE_CASE.dexterity})${formatBonusTerm(itemBonus, "item bonus")}`,
   }
 }
 

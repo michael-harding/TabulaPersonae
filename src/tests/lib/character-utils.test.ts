@@ -847,7 +847,7 @@ describe("getEffectiveDamageResistances / Immunities / Vulnerabilities", () => {
     const resistances = getEffectiveDamageResistances(character)
     expect(resistances.granted.sort()).toEqual(["Cold", "Poison"])
     expect(resistances.grantedBy["Cold"]).toBe("equipment")
-    expect(resistances.grantedBy["Poison"]).toBe("Dwarven Resilience")
+    expect(resistances.grantedBy["Poison"]).toBe("Dwarven Resilience Species Trait")
   })
 })
 
@@ -868,7 +868,7 @@ describe("getEffectiveConditionImmunities", () => {
     }
     const result = getEffectiveConditionImmunities(character)
     expect(result.granted).toEqual(["Charmed"])
-    expect(result.grantedBy["Charmed"]).toBe("Fey Ancestry")
+    expect(result.grantedBy["Charmed"]).toBe("Fey Ancestry Species Trait")
   })
 })
 
@@ -899,7 +899,7 @@ describe("getEffectiveLanguages / getEffectiveProficiencies", () => {
     const languages = getEffectiveLanguages(character)
     expect(languages.granted.sort()).toEqual(["Draconic", "Elvish"])
     expect(languages.grantedBy["Elvish"]).toBe("equipment")
-    expect(languages.grantedBy["Draconic"]).toBe("Draconic Ancestry")
+    expect(languages.grantedBy["Draconic"]).toBe("Draconic Ancestry Species Trait")
   })
 
   it("merges feature-granted proficiencies alongside item-granted ones", () => {
@@ -929,7 +929,7 @@ describe("getEffectiveLanguages / getEffectiveProficiencies", () => {
     }
     const proficiencies = getEffectiveProficiencies(character)
     expect(proficiencies.grantedBy["Herbalism Kit"]).toBe("equipment")
-    expect(proficiencies.grantedBy["Light Armor"]).toBe("Martial Training")
+    expect(proficiencies.grantedBy["Light Armor"]).toBe("Martial Training Class Feature")
   })
 })
 
@@ -979,7 +979,7 @@ describe("getEffectiveSize", () => {
   it("uses the feature-granted size and records provenance", () => {
     const feature = makeFeature({ name: "Powerful Build", source: "species-trait", levelEffects: [{ level: 1, effects: { size: "Large" } }] })
     const character = { classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
-    expect(getEffectiveSize(character)).toEqual({ size: "Large", source: "Powerful Build" })
+    expect(getEffectiveSize(character)).toEqual({ size: "Large", source: "Powerful Build Species Trait" })
   })
 
   it("respects level-gating", () => {
@@ -988,7 +988,7 @@ describe("getEffectiveSize", () => {
     expect(getEffectiveSize(below)).toEqual({ size: "", source: undefined })
 
     const at = { classFeatures: [], speciesTraits: [feature], feats: [], level: 5 }
-    expect(getEffectiveSize(at)).toEqual({ size: "Large", source: "Large Form" })
+    expect(getEffectiveSize(at)).toEqual({ size: "Large", source: "Large Form Species Trait" })
   })
 })
 
@@ -1199,7 +1199,7 @@ describe("calculateInitiative", () => {
 
   it("returns the base DEX modifier with no equipment", () => {
     expect(calculateInitiative(defaultChar).initiative).toBe(2) // DEX 14 -> +2
-    expect(calculateInitiative(defaultChar).breakdown).toBe("Dex +2")
+    expect(calculateInitiative(defaultChar).breakdown).toBe("+2 (Dex)")
   })
 
   it("adds an active item's initiative bonus", () => {
@@ -1297,8 +1297,8 @@ describe("getActiveFeatureEffects", () => {
   it("aggregates backgroundFeatures the same way as classFeatures/speciesTraits/feats", () => {
     const feature = makeFeature({ name: "Acolyte", source: "background", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "insight" }], otherProficiencies: ["Calligrapher's Supplies"] } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [], speciesTraits: [], feats: [], backgroundFeatures: [feature], level: 1 })
-    expect(totals.skillProficiencies.insight?.source).toBe("Acolyte")
-    expect(totals.otherProficiencies).toEqual({ "Calligrapher's Supplies": "Acolyte" })
+    expect(totals.skillProficiencies.insight?.source).toBe("Acolyte Background")
+    expect(totals.otherProficiencies).toEqual({ "Calligrapher's Supplies": "Acolyte Background" })
   })
 
   it("only applies effects from features whose level threshold has been reached", () => {
@@ -1307,7 +1307,7 @@ describe("getActiveFeatureEffects", () => {
     expect(below.skillProficiencies.perception).toBeUndefined()
 
     const at = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 4 })
-    expect(at.skillProficiencies.perception?.source).toBe("Test Feature")
+    expect(at.skillProficiencies.perception?.source).toBe("Test Feature Class Feature")
   })
 
   it("last-source-wins for scalar fields in class -> species -> feat order, recording provenance", () => {
@@ -1315,23 +1315,23 @@ describe("getActiveFeatureEffects", () => {
     const feat = makeFeature({ name: "Homebrew Feat", source: "feat", levelEffects: [{ level: 1, effects: { spellcastingAbility: "charisma" } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [classFeature], speciesTraits: [], feats: [feat], level: 1 })
     expect(totals.spellcastingAbility).toBe("charisma")
-    expect(totals.spellcastingAbilitySource).toBe("Homebrew Feat")
+    expect(totals.spellcastingAbilitySource).toBe("Homebrew Feat Feat")
   })
 
   it("additively unions saving throw and other-proficiency grants across features, recording the first-source feature", () => {
     const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["strength"], otherProficiencies: ["Light Armor"] } }] })
     const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["strength", "constitution"], otherProficiencies: ["Light Armor", "Simple Weapons"] } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
-    expect(totals.savingThrowProficiencies.strength).toBe("A")
-    expect(totals.savingThrowProficiencies.constitution).toBe("B")
-    expect(totals.otherProficiencies).toEqual({ "Light Armor": "A", "Simple Weapons": "B" })
+    expect(totals.savingThrowProficiencies.strength).toBe("A Class Feature")
+    expect(totals.savingThrowProficiencies.constitution).toBe("B Class Feature")
+    expect(totals.otherProficiencies).toEqual({ "Light Armor": "A Class Feature", "Simple Weapons": "B Class Feature" })
   })
 
   it("ORs the expertise flag together when two features grant the same skill", () => {
     const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "stealth", expertise: false }] } }] })
     const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "stealth", expertise: true }] } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
-    expect(totals.skillProficiencies.stealth).toEqual({ expertise: true, source: "A" })
+    expect(totals.skillProficiencies.stealth).toEqual({ expertise: true, source: "A Class Feature" })
   })
 
   it("sums senses and carrying capacity bonus across features", () => {
@@ -1347,9 +1347,9 @@ describe("getActiveFeatureEffects", () => {
     const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { flySpeed: 20 } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
     expect(totals.speed).toBe(25)
-    expect(totals.speedSource).toBe("A")
+    expect(totals.speedSource).toBe("A Class Feature")
     expect(totals.flySpeed).toBe(20)
-    expect(totals.flySpeedSource).toBe("B")
+    expect(totals.flySpeedSource).toBe("B Class Feature")
   })
 
   it("takes the max carrying capacity multiplier across features", () => {
@@ -1364,18 +1364,18 @@ describe("getActiveFeatureEffects", () => {
     const feat = makeFeature({ name: "Giant Ancestry", source: "feat", levelEffects: [{ level: 1, effects: { size: "Large" } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [], speciesTraits: [species], feats: [feat], level: 1 })
     expect(totals.size).toBe("Large")
-    expect(totals.sizeSource).toBe("Giant Ancestry")
+    expect(totals.sizeSource).toBe("Giant Ancestry Feat")
   })
 
   it("first-source-wins for resistances/immunities/vulnerabilities/conditionImmunities/languages", () => {
     const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { resistances: ["Poison"], immunities: ["Disease"], vulnerabilities: ["Radiant"], conditionImmunities: ["Poisoned"], languages: ["Dwarvish"] } }] })
     const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { resistances: ["Poison", "Cold"], immunities: ["Disease"], vulnerabilities: ["Radiant", "Fire"], conditionImmunities: ["Poisoned", "Charmed"], languages: ["Dwarvish", "Giant"] } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
-    expect(totals.resistances).toEqual({ Poison: "A", Cold: "B" })
-    expect(totals.immunities).toEqual({ Disease: "A" })
-    expect(totals.vulnerabilities).toEqual({ Radiant: "A", Fire: "B" })
-    expect(totals.conditionImmunities).toEqual({ Poisoned: "A", Charmed: "B" })
-    expect(totals.languages).toEqual({ Dwarvish: "A", Giant: "B" })
+    expect(totals.resistances).toEqual({ Poison: "A Class Feature", Cold: "B Class Feature" })
+    expect(totals.immunities).toEqual({ Disease: "A Class Feature" })
+    expect(totals.vulnerabilities).toEqual({ Radiant: "A Class Feature", Fire: "B Class Feature" })
+    expect(totals.conditionImmunities).toEqual({ Poisoned: "A Class Feature", Charmed: "B Class Feature" })
+    expect(totals.languages).toEqual({ Dwarvish: "A Class Feature", Giant: "B Class Feature" })
   })
 
   it("only applies newly-added numeric/list effects from features whose level threshold has been reached", () => {
@@ -1386,7 +1386,7 @@ describe("getActiveFeatureEffects", () => {
 
     const at = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 4 })
     expect(at.flySpeed).toBe(30)
-    expect(at.languages).toEqual({ Draconic: "Test Feature" })
+    expect(at.languages).toEqual({ Draconic: "Test Feature Class Feature" })
   })
 
   it("sums ability score bonuses across features and records each as a separate named grant", () => {
@@ -1395,8 +1395,8 @@ describe("getActiveFeatureEffects", () => {
     const totals = getActiveFeatureEffects({ classFeatures: [featureB], speciesTraits: [featureA], feats: [], level: 4 })
     expect(totals.abilityScores.strength).toBe(3)
     expect(totals.abilityScoreGrants.strength).toEqual([
-      { source: "Ability Score Improvement", amount: 1 },
-      { source: "Hill Dwarf Toughness", amount: 2 },
+      { source: "Ability Score Improvement Class Feature", amount: 1 },
+      { source: "Hill Dwarf Toughness Species Trait", amount: 2 },
     ])
   })
 
@@ -1405,7 +1405,7 @@ describe("getActiveFeatureEffects", () => {
     const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { abilityScoreFloors: { wisdom: 21 } } }] })
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
     expect(totals.abilityScoreFloors.wisdom).toBe(21)
-    expect(totals.abilityScoreFloorSources.wisdom).toBe("B")
+    expect(totals.abilityScoreFloorSources.wisdom).toBe("B Class Feature")
   })
 
   it("aggregates a backgroundFeatures-sourced ability score bonus (2024 Background ASI path)", () => {
@@ -1413,7 +1413,7 @@ describe("getActiveFeatureEffects", () => {
     const totals = getActiveFeatureEffects({ classFeatures: [], speciesTraits: [], feats: [], backgroundFeatures: [backgroundFeature], level: 1 })
     expect(totals.abilityScores.wisdom).toBe(2)
     expect(totals.abilityScores.intelligence).toBe(1)
-    expect(totals.abilityScoreGrants.wisdom).toEqual([{ source: "Acolyte", amount: 2 }])
+    expect(totals.abilityScoreGrants.wisdom).toEqual([{ source: "Acolyte Background", amount: 2 }])
   })
 })
 
@@ -1463,7 +1463,7 @@ describe("getEffectiveSavingThrowProficiency / getEffectiveSkillProficiency", ()
   it("is proficient and marked granted when a feature grants the save, independent of the own flag", () => {
     const feature = makeFeature({ name: "Divine Protection", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom"] } }] })
     const character = { savingThrows: { wisdom: false } as any, classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
-    expect(getEffectiveSavingThrowProficiency(character, "wisdom")).toEqual({ proficient: true, granted: true, grantedBy: "Divine Protection" })
+    expect(getEffectiveSavingThrowProficiency(character, "wisdom")).toEqual({ proficient: true, granted: true, grantedBy: "Divine Protection Class Feature" })
   })
 
   it("preserves the character's own flag once a granting feature's level requirement is no longer met", () => {
@@ -1478,7 +1478,7 @@ describe("getEffectiveSavingThrowProficiency / getEffectiveSkillProficiency", ()
       skills: { perception: { proficient: false, expertise: false } } as any,
       classFeatures: [feature], speciesTraits: [], feats: [], level: 1,
     }
-    expect(getEffectiveSkillProficiency(character, "perception")).toEqual({ proficient: true, expertise: true, granted: true, grantedBy: "Skilled" })
+    expect(getEffectiveSkillProficiency(character, "perception")).toEqual({ proficient: true, expertise: true, granted: true, grantedBy: "Skilled Class Feature" })
   })
 })
 

@@ -15,6 +15,7 @@ import {
   isItemModifierActive,
   formatModifier,
   getEffectiveCarryingCapacity,
+  getCarryingCapacityBreakdown,
 } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -836,7 +837,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       props.onUpdate(updated)
     },
     calculatedValue: () => BASE_ATTUNEMENT_LIMIT,
-    calculatedTooltip: () => "Base attunement limit",
+    calculatedTooltip: () => `${BASE_ATTUNEMENT_LIMIT} (base attunement limit)`,
   })
   const overAttunementLimit = () => attunedCount() > attunementLimitField.resolvedValue()
 
@@ -852,7 +853,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       props.onUpdate(updated)
     },
     calculatedValue: () => getEffectiveCarryingCapacity(props.character),
-    calculatedTooltip: () => "STR score x 15, plus item/feature bonuses and multipliers",
+    calculatedTooltip: () => getCarryingCapacityBreakdown(props.character).breakdown,
   })
   const overCarryingCapacity = () => totalWeight() > carryingCapacityField.resolvedValue()
 

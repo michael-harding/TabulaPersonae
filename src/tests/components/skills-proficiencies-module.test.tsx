@@ -377,7 +377,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Str +3 + Prof +3 = +6")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 3 (Prof)")
     })
 
     it("shows only ability modifier for a non-proficient saving throw", async () => {
@@ -386,7 +386,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[1])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +2")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Dex)")
       expect(screen.getByRole("tooltip").textContent).not.toContain("Prof")
     })
 
@@ -396,7 +396,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[22])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +2 + Prof +3 + Exp +3 = +8")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Dex) + 3 (Prof) + 3 (Exp)")
     })
 
     it("shows only ability modifier for a skill with no proficiency", async () => {
@@ -405,7 +405,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[6])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +2")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Dex)")
       expect(screen.getByRole("tooltip").textContent).not.toContain("Prof")
     })
 
@@ -415,7 +415,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[24])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Perception -1 = 9")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 - 1 (Wis)")
     })
   })
 
@@ -597,7 +597,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[24])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Perception +0 = 10")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 (Wis)")
     })
   })
 
@@ -662,7 +662,7 @@ describe("SkillsProficienciesModule", () => {
       const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("+10 (Eyes of the Eagle) +60 (Superior Darkvision) = 70 ft")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+10 (Eyes of the Eagle) +60 (Superior Darkvision Species Trait)")
     })
 
     it("names both features when two different features each grant the same sense", async () => {
@@ -680,7 +680,7 @@ describe("SkillsProficienciesModule", () => {
       const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("+30 (Keen Senses) +60 (Devil's Sight) = 90 ft")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+30 (Keen Senses Species Trait) +60 (Devil's Sight Feat)")
     })
 
     it("names both items when two different items each grant the same sense", async () => {
@@ -695,7 +695,7 @@ describe("SkillsProficienciesModule", () => {
       const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("+30 (Eyes of the Eagle) +60 (Goggles of Night) = 90 ft")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+30 (Eyes of the Eagle) +60 (Goggles of Night)")
     })
 
     it("persists a manual sense override on save", () => {
@@ -750,7 +750,7 @@ describe("SkillsProficienciesModule", () => {
       }
       const character = makeCharacter({ damageResistances: [], speciesTraits: [feature] })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Poison")).toHaveAttribute("title", "Granted by Dwarven Resilience — edit in Features")
+      expect(screen.getByText("Poison")).toHaveAttribute("title", "Granted by Dwarven Resilience Species Trait — edit in Features")
     })
   })
 
@@ -799,7 +799,7 @@ describe("SkillsProficienciesModule", () => {
       }
       const character = makeCharacter({ speciesTraits: [feature] })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Draconic")).toHaveAttribute("title", "Granted by Draconic Ancestry — edit in Features")
+      expect(screen.getByText("Draconic")).toHaveAttribute("title", "Granted by Draconic Ancestry Species Trait — edit in Features")
     })
   })
 

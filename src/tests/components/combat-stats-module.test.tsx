@@ -271,7 +271,7 @@ describe("CombatStatsModule", () => {
       fireEvent.focus(triggers[4])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // Wis 14 → +2, proficient with prof +2 → 10 + 2 + 2 = 14
-      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Wis +2 + Prof +2 = 14")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 2 (Wis) + 2 (Prof)")
     })
   })
 
@@ -283,7 +283,7 @@ describe("CombatStatsModule", () => {
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // No armor equipped, DEX 10 -> +0: unarmored AC = 10 + 0 DEX
-      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 DEX")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 (Dex)")
     })
 
     it("does not show always-visible AC breakdown text below the value", () => {
@@ -553,7 +553,7 @@ describe("CombatStatsModule", () => {
         levelEffects: [{ level: 1, effects: { conditionImmunities: ["Charmed"] } }],
       }
       const { container } = render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Charmed")).toHaveAttribute("title", "Granted by Fey Ancestry — edit in Features")
+      expect(screen.getByText("Charmed")).toHaveAttribute("title", "Granted by Fey Ancestry Species Trait — edit in Features")
       expect(container.querySelector('[data-test="remove-condition-immunity-Charmed"]')).not.toBeInTheDocument()
     })
   })
@@ -1055,7 +1055,7 @@ describe("CombatStatsModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[1])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +0")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+0 (Dex)")
     })
 
     it("shows 'Custom' tooltip when flag is false", async () => {
@@ -1084,7 +1084,7 @@ describe("CombatStatsModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[3])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Level 1 = +2")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Level 1)")
     })
 
     it("shows 'Custom' tooltip when flag is false", async () => {

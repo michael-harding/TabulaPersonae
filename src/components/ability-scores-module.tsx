@@ -1,6 +1,6 @@
 import { createSignal, createEffect, createMemo, on, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, formatModifier, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, ABILITY_ABBREVIATIONS, ABILITY_TITLE_CASE } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -124,11 +124,9 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
               }
               const isProfSave = () => isEditing() ? editedSaves()[ability] : (safeSaves()[ability] || false)
               const savingThrowMod = () => getSavingThrowModifier(abilityField.resolvedValue(), props.character.proficiencyBonus, true, saveItemBonus())
-              const saveTooltip = () => {
-                const parts = [`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(modifier())}`, `Prof +${props.character.proficiencyBonus}`]
-                if (saveItemBonus() !== 0) parts.push(`Item ${formatModifier(saveItemBonus())}`)
-                return `${parts.join(" + ")} = ${formatModifier(savingThrowMod())}`
-              }
+              const saveTooltip = () => `${formatModifier(modifier())} (${ABILITY_TITLE_CASE[ability]})`
+                + formatTerm(props.character.proficiencyBonus ?? 0, "Prof")
+                + formatBonusTerm(saveItemBonus(), "Item")
 
               return (
                 <div class="text-center space-y-2">

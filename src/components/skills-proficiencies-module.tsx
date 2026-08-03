@@ -1,6 +1,6 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, SENSE_TYPES, SENSE_LABELS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, SENSE_TYPES, SENSE_LABELS, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,11 +13,6 @@ import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import BookOpen from "lucide-solid/icons/book-open"
 import Plus from "lucide-solid/icons/plus"
 import X from "lucide-solid/icons/x"
-
-const ABILITY_ABBREVIATIONS = {
-  strength: "Str", dexterity: "Dex", constitution: "Con",
-  intelligence: "Int", wisdom: "Wis", charisma: "Cha",
-} as const
 
 const SKILL_ABILITY_MAP: Record<keyof Character["skills"], keyof Character["abilityScores"]> = {
   acrobatics: "dexterity", animalHandling: "wisdom", arcana: "intelligence",
@@ -140,8 +135,14 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
     const skill = () => getEffectiveSkillProficiency(current(), skillKey)
     const calc = createMemo(() => getPassiveScore(effectiveScores()[ability], current().proficiencyBonus, skill().proficient, skill().expertise))
     const tooltip = createMemo(() => {
-      const mod = getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, skill().proficient, skill().expertise)
-      return `10 + ${SKILL_DISPLAY_NAMES[skillKey]} ${formatModifier(mod)} = ${calc()}`
+      const abilityMod = getAbilityModifier(effectiveScores()[ability])
+      let formula = formatTerm(abilityMod, ABILITY_ABBREVIATIONS[ability])
+      if (skill().expertise) {
+        formula += formatTerm(current().proficiencyBonus, "Prof") + formatTerm(current().proficiencyBonus, "Exp")
+      } else if (skill().proficient) {
+        formula += formatTerm(current().proficiencyBonus, "Prof")
+      }
+      return `10${formula}`
     })
     return {
       skillKey,
@@ -255,10 +256,10 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 const modifier = () => getSavingThrowModifier(effectiveScores()[ability], current().proficiencyBonus, isProficient(), saveItemBonus())
                 const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
                 const saveTooltip = () => {
-                  const parts = [`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())}`]
-                  if (isProficient()) parts.push(`Prof +${current().proficiencyBonus}`)
-                  if (saveItemBonus() !== 0) parts.push(`Item ${formatModifier(saveItemBonus())}`)
-                  return parts.length > 1 ? `${parts.join(" + ")} = ${formatModifier(modifier())}` : parts[0]
+                  let formula = `${formatModifier(abilityMod())} (${ABILITY_ABBREVIATIONS[ability]})`
+                  if (isProficient()) formula += formatTerm(current().proficiencyBonus, "Prof")
+                  formula += formatBonusTerm(saveItemBonus(), "Item")
+                  return formula
                 }
                 return (
                   <div class="flex items-center justify-between p-2 rounded border">
@@ -285,7 +286,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           />
                         }
                       >
-                        <Tooltip content={`Granted by ${effectiveSave().grantedBy} Class Feature`} triggerFocusable>
+                        <Tooltip content={`Granted by ${effectiveSave().grantedBy}`} triggerFocusable>
                           <Checkbox
                             checked={isProficient()}
                             disabled
@@ -321,17 +322,17 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 const modifier = () => getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, effectiveSkill().proficient, effectiveSkill().expertise)
                 const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
                 const skillTooltip = () => {
-                  const parts = [`${ABILITY_ABBREVIATIONS[ability]} ${formatModifier(abilityMod())}`]
-                  if (effectiveSkill().proficient) parts.push(`Prof +${current().proficiencyBonus}`)
-                  if (effectiveSkill().expertise) parts.push(`Exp +${current().proficiencyBonus}`)
-                  return parts.join(" + ") + (parts.length > 1 ? ` = ${formatModifier(modifier())}` : "")
+                  let formula = `${formatModifier(abilityMod())} (${ABILITY_ABBREVIATIONS[ability]})`
+                  if (effectiveSkill().proficient) formula += formatTerm(current().proficiencyBonus, "Prof")
+                  if (effectiveSkill().expertise) formula += formatTerm(current().proficiencyBonus, "Exp")
+                  return formula
                 }
                 return (
                   <div class="break-inside-avoid flex items-center justify-between p-1 rounded hover:bg-gray-500 [&:nth-child(3n)]:mb-3">
                     <div class="flex items-center gap-3 w-full transition-colors duration-150">
                       <Show when={isEditing()}>
                         <div class="flex gap-1">
-                          <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy} Class Feature` : "Proficiency (adds proficiency bonus)"}>
+                          <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
                             <Checkbox
                               aria-label="Proficient"
                               checked={effectiveSkill().proficient}
@@ -410,7 +411,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                     const grants = [...modifierTotals().senseGrants[sense], ...featureTotals().senseGrants[sense]]
                     if (grants.length === 0) return `${effectiveSenses()[sense]} ft`
                     const terms = grants.map((g) => (g.amount > 0 ? `+${g.amount} (${g.source})` : `-${Math.abs(g.amount)} (${g.source})`))
-                    return `${terms.join(" ")} = ${effectiveSenses()[sense]} ft`
+                    return terms.join(" ")
                   },
                 })
                 return (
@@ -513,7 +514,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
           grantedValues={effectiveProficiencies().granted}
           grantedTooltip={(v) => {
             const source = effectiveProficiencies().grantedBy[v]
-            return source === "equipment" ? "Granted by equipment" : `Granted by ${source} Class Feature — edit in Features`
+            return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
           }}
           editing={isEditing()}
           onAdd={(v) => addTag("otherProficiencies", v)}

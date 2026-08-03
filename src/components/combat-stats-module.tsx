@@ -1,6 +1,6 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES } from "@/lib/character-utils"
+import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
@@ -28,7 +28,7 @@ interface CombatStatsModuleProps {
 }
 
 function movementTooltip(source: string | undefined): string {
-  return source ? `Granted by ${source}` : "No species trait grants this — add one in Features, or switch to custom entry"
+  return source ? `(${source})` : "No species trait grants this — add one in Features, or switch to custom entry"
 }
 
 const toEdit = (c: Character) => {
@@ -182,15 +182,14 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
     const prof = current().proficiencyBonus ?? 2
     const percSkill = current().skills?.perception
-    const skillMod = getSkillModifier(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
     const wisMod = getAbilityModifier(wis)
-    const parts = [`Wis ${wisMod >= 0 ? "+" : ""}${wisMod}`]
+    let formula = formatTerm(wisMod, ABILITY_TITLE_CASE.wisdom)
     if (percSkill?.expertise) {
-      parts.push(`Prof +${prof}`, `Exp +${prof}`)
+      formula += formatTerm(prof, "Prof") + formatTerm(prof, "Exp")
     } else if (percSkill?.proficient) {
-      parts.push(`Prof +${prof}`)
+      formula += formatTerm(prof, "Prof")
     }
-    return `10 + ${parts.join(" + ")} = ${passivePerceptionCalc()}`
+    return `10${formula}`
   })
 
   const passivePerceptionLabel = createMemo(() => edition() === "2014" ? "Passive Wisdom (Perception)" : "Passive Perception")
@@ -199,7 +198,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const calcInitiative = () => equippedInitiative().initiative
   const initiativeTooltip = () => equippedInitiative().breakdown
   const calcProfBonus = createMemo(() => getProficiencyBonus(props.character.level ?? 1))
-  const profBonusTooltip = createMemo(() => `Level ${props.character.level ?? 1} = ${formatModifier(calcProfBonus())}`)
+  const profBonusTooltip = createMemo(() => `${formatModifier(calcProfBonus())} (Level ${props.character.level ?? 1})`)
 
   const equippedAC = createMemo(() => calculateEquippedAC(props.character))
   const acTooltip = createMemo(() => equippedAC().breakdown)

@@ -216,7 +216,7 @@ describe("AbilityScoresModule", () => {
       fireEvent.focus(triggers[1])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // STR 16 → +3, Prof +3 → total +6
-      expect(screen.getByRole("tooltip")).toHaveTextContent("STR +3 + Prof +3 = +6")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 3 (Prof)")
     })
 
     it("renders one focusable effective-score tooltip trigger per ability in edit mode", () => {
@@ -282,7 +282,7 @@ describe("AbilityScoresModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Hill Dwarf Toughness) = 18")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Hill Dwarf Toughness Species Trait) = 18")
     })
 
     it("names both features when two different features each contribute to the same ability", async () => {
@@ -294,7 +294,7 @@ describe("AbilityScoresModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 1 (Ability Score Improvement) + 2 (Hill Dwarf Toughness) = 19")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 1 (Ability Score Improvement Class Feature) + 2 (Hill Dwarf Toughness Species Trait) = 19")
     })
 
     it("combines a named item bonus and a named feature bonus in the same tooltip", async () => {
@@ -306,7 +306,7 @@ describe("AbilityScoresModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) + 1 (Hill Dwarf Toughness) = 19")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) + 1 (Hill Dwarf Toughness Species Trait) = 19")
     })
 
     it("ignores an item's ability bonus when it requires attunement and is not attuned", () => {
