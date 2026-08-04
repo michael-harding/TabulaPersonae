@@ -70,7 +70,7 @@ export function RestModal(props: RestModalProps) {
         hpGained = result.total
         setRollResult(result)
       }
-      const newHP = Math.min(getEffectiveMaxHp(char.hitPoints), char.hitPoints.current + hpGained)
+      const newHP = Math.min(getEffectiveMaxHp(char), char.hitPoints.current + hpGained)
       props.onRest({
         ...char,
         hitPoints: { ...char.hitPoints, current: newHP },
@@ -91,7 +91,7 @@ export function RestModal(props: RestModalProps) {
       ) as typeof char.spellSlots
       props.onRest({
         ...char,
-        hitPoints: { ...char.hitPoints, current: getEffectiveMaxHp(char.hitPoints), temporary: 0 },
+        hitPoints: { ...char.hitPoints, current: getEffectiveMaxHp(char), temporary: 0 },
         spentHitDice: 0,
         spellSlots: resetSpellSlots,
         conditions: (char.conditions ?? []).filter((c) => c !== "Exhaustion"),

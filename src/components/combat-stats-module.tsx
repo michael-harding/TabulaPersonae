@@ -80,7 +80,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const handleSave = () => {
     ;(document.activeElement as HTMLElement | null)?.blur()
     const data = edited()
-    const effMax = getEffectiveMaxHp(data.hitPoints)
+    const effMax = getEffectiveMaxHp(data)
     const normalized = {
       ...data,
       hitPoints: {
@@ -108,7 +108,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const updateHP = (field: "current" | "maximum" | "temporary" | "temporaryMaximum", value: number) =>
     setEdited((prev) => {
       const next = { ...prev.hitPoints, [field]: value }
-      const effMax = getEffectiveMaxHp(next)
+      const effMax = getEffectiveMaxHp({ ...prev, hitPoints: next })
       next.current = Math.max(0, Math.min(next.current ?? 0, effMax))
       return { ...prev, hitPoints: next }
     })
@@ -116,7 +116,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const adjustHitPoints = (amount: number) => {
     if (isReadOnly) return
     const currentHP = props.character.hitPoints?.current ?? 0
-    const maxHP = getEffectiveMaxHp(props.character.hitPoints)
+    const maxHP = getEffectiveMaxHp(props.character)
     const tempHP = props.character.hitPoints?.temporary ?? 0
 
     let newTempHP = tempHP

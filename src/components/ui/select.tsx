@@ -109,7 +109,7 @@ export function SelectContent(props: ComponentProps<"ul">) {
         <ul
           role="listbox"
           class={cn(
-            "absolute z-50 max-h-96 min-w-[8rem] w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md mt-1",
+            "absolute z-50 max-h-96 min-w-[8rem] w-full overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md mt-1",
             local.class
           )}
           {...others}

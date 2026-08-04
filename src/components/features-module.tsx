@@ -79,7 +79,7 @@ type FeatureTypeValue =
   | 'Action' | 'Spellcasting Ability' | 'Hit Die' | 'Size'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-  | 'Ability Score Bonus'
+  | 'Ability Score Bonus' | 'Max HP Bonus'
 
 // Spellcasting Ability, Hit Die, and Size are fixed facts of a class/species, not something that
 // changes at higher levels, so they get a single always-on control. The proficiency-grant types
@@ -89,7 +89,7 @@ const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Di
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
-  'Ability Score Bonus',
+  'Ability Score Bonus', 'Max HP Bonus',
 ]
 const FEATURE_TYPES: FeatureTypeValue[] = ['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES]
 
@@ -114,6 +114,7 @@ function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: Feat
   if (effects?.carryingCapacityBonus || effects?.carryingCapacityMultiplier) return 'Carrying Capacity'
   if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v)) return 'Ability Score Bonus'
   if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v)) return 'Ability Score Bonus'
+  if (effects?.hpBonusPerLevel) return 'Max HP Bonus'
   return ''
 }
 
@@ -241,7 +242,7 @@ function LevelEffectRow(props: {
   featureType:
     | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
     | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-    | 'Ability Score Bonus'
+    | 'Ability Score Bonus' | 'Max HP Bonus'
   tier: FeatureLevelEffect
   onLevelChange: (level: number) => void
   onEffectsChange: (effects: FeatureEffects) => void
@@ -521,6 +522,18 @@ function LevelEffectRow(props: {
           </div>
         </div>
       </Show>
+
+      <Show when={props.featureType === 'Max HP Bonus'}>
+        <div class="space-y-1">
+          <Label for="fx-hp-bonus-per-level" class="text-xs">Max HP Bonus (per level)</Label>
+          <NumericInput
+            id="fx-hp-bonus-per-level"
+            aria-label="Max HP Bonus (per level)"
+            value={effects().hpBonusPerLevel ?? 0}
+            onChange={(v) => update({ hpBonusPerLevel: v || undefined })}
+          />
+        </div>
+      </Show>
     </div>
   )
 }
@@ -724,7 +737,7 @@ function FeatureForm(props: FeatureFormProps) {
                 featureType={formData().featureType as
                   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
                   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-                  | 'Ability Score Bonus'}
+                  | 'Ability Score Bonus' | 'Max HP Bonus'}
                 tier={tier}
                 onLevelChange={(level) => updateLevelEffect(i(), { level })}
                 onEffectsChange={(effects) => updateLevelEffect(i(), { effects })}

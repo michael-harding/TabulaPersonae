@@ -141,7 +141,7 @@ export default function Home() {
                           <CardContent>
                             <div class="space-y-2 text-sm text-muted-foreground">
                               <p>Level {character.level} {character.race} {character.class}</p>
-                              <p>HP: {character.hitPoints?.current ?? 0}/{getEffectiveMaxHp(character.hitPoints)}</p>
+                              <p>HP: {character.hitPoints?.current ?? 0}/{getEffectiveMaxHp(character)}</p>
                               <p>AC: {(character.useCalculatedArmorClass ?? true) ? ac() : (character.armorClass ?? 10)}</p>
                             </div>
                           </CardContent>

@@ -181,6 +181,28 @@ describe("RestModal", () => {
       expect(updated.hitPoints.current).toBeLessThanOrEqual(90)
     })
 
+    it("caps hit-dice healing at a feature-boosted effective max (Dwarven Toughness: +1/level)", () => {
+      const onRest = vi.fn()
+      const feature: Feature = {
+        id: "toughness", name: "Dwarven Toughness", description: "", source: "species-trait",
+        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+      }
+      const char = makeCharacter({
+        level: 10,
+        spentHitDice: 0,
+        hitPoints: { current: 88, maximum: 80, temporary: 0 },
+        speciesTraits: [feature],
+        abilityScores: { ...createDefaultCharacter().abilityScores, constitution: 20 }, // +5 mod, guarantees healing past 80 + bonus
+      })
+      openModal(char, onRest)
+      const increaseBtn = within(getDialog()).getByRole("button", { name: /increase/i })
+      fireEvent.click(increaseBtn) // spend 1 die
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      // effective max = 80 base + 1/level * level 10 = 90
+      expect(updated.hitPoints.current).toBeLessThanOrEqual(90)
+    })
+
     // Regression: hit-dice healing computed CON modifier from the raw base ability score,
     // ignoring equipment-granted CON bonuses that every other stat in this branch respects
     // via getEffectiveAbilityScore.
@@ -264,6 +286,23 @@ describe("RestModal", () => {
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.hitPoints.current).toBe(34)
+    })
+
+    it("calls onRest with HP restored to a feature-boosted effective max (Dwarven Toughness: +1/level)", () => {
+      const onRest = vi.fn()
+      const feature: Feature = {
+        id: "toughness", name: "Dwarven Toughness", description: "", source: "species-trait",
+        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+      }
+      openModal(
+        makeCharacter({ level: 5, hitPoints: { current: 5, maximum: 24, temporary: 0 }, speciesTraits: [feature] }),
+        onRest,
+      )
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      // 24 base + 1/level * level 5 = 29
+      expect(updated.hitPoints.current).toBe(29)
     })
 
     it("calls onRest with temporary HP cleared", () => {

@@ -1229,25 +1229,53 @@ describe("calculateInitiative", () => {
 
 describe("getEffectiveMaxHp", () => {
   it("returns maximum when there is no temporaryMaximum", () => {
-    expect(getEffectiveMaxHp({ maximum: 24 })).toBe(24)
+    expect(getEffectiveMaxHp({ hitPoints: { maximum: 24 } })).toBe(24)
   })
 
   it("adds a positive temporaryMaximum to maximum", () => {
-    expect(getEffectiveMaxHp({ maximum: 24, temporaryMaximum: 10 })).toBe(34)
+    expect(getEffectiveMaxHp({ hitPoints: { maximum: 24, temporaryMaximum: 10 } })).toBe(34)
   })
 
   it("adds a negative temporaryMaximum (curse scenario)", () => {
-    expect(getEffectiveMaxHp({ maximum: 20, temporaryMaximum: -5 })).toBe(15)
+    expect(getEffectiveMaxHp({ hitPoints: { maximum: 20, temporaryMaximum: -5 } })).toBe(15)
   })
 
   it("floors the result at 1 when temporaryMaximum drives it to zero or below", () => {
-    expect(getEffectiveMaxHp({ maximum: 5, temporaryMaximum: -5 })).toBe(1)
-    expect(getEffectiveMaxHp({ maximum: 5, temporaryMaximum: -999 })).toBe(1)
+    expect(getEffectiveMaxHp({ hitPoints: { maximum: 5, temporaryMaximum: -5 } })).toBe(1)
+    expect(getEffectiveMaxHp({ hitPoints: { maximum: 5, temporaryMaximum: -999 } })).toBe(1)
   })
 
   it("defaults maximum to 1 and temporaryMaximum to 0 when missing", () => {
-    expect(getEffectiveMaxHp({})).toBe(1)
+    expect(getEffectiveMaxHp({ hitPoints: {} })).toBe(1)
     expect(getEffectiveMaxHp(undefined)).toBe(1)
+  })
+
+  it("adds a feature-granted hpBonusPerLevel scaled by character level", () => {
+    const feature = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
+    const character = { hitPoints: { maximum: 24 }, classFeatures: [], speciesTraits: [feature], feats: [], level: 5 }
+    expect(getEffectiveMaxHp(character)).toBe(24 + 1 * 5)
+  })
+
+  it("sums hpBonusPerLevel across multiple granting features before scaling by level", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 2 } }] })
+    const character = { hitPoints: { maximum: 10 }, classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 3 }
+    expect(getEffectiveMaxHp(character)).toBe(10 + (1 + 2) * 3)
+  })
+
+  it("defaults level to 1 when the character has no level set", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 4 } }] })
+    const character = { hitPoints: { maximum: 8 }, classFeatures: [feature], speciesTraits: [], feats: [] }
+    expect(getEffectiveMaxHp(character)).toBe(8 + 4)
+  })
+
+  it("respects level-gating on the granting feature", () => {
+    const feature = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 5, effects: { hpBonusPerLevel: 1 } }] })
+    const below = { hitPoints: { maximum: 20 }, classFeatures: [], speciesTraits: [feature], feats: [], level: 4 }
+    expect(getEffectiveMaxHp(below)).toBe(20)
+
+    const at = { hitPoints: { maximum: 20 }, classFeatures: [], speciesTraits: [feature], feats: [], level: 5 }
+    expect(getEffectiveMaxHp(at)).toBe(20 + 5)
   })
 })
 
@@ -1340,6 +1368,22 @@ describe("getActiveFeatureEffects", () => {
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
     expect(totals.senses.darkvision).toBe(90)
     expect(totals.carryingCapacityBonus).toBe(30)
+  })
+
+  it("sums hpBonusPerLevel across features", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 2 } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.hpBonusPerLevel).toBe(3)
+  })
+
+  it("only applies hpBonusPerLevel from features whose level threshold has been reached", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 4, effects: { hpBonusPerLevel: 1 } }] })
+    const below = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 3 })
+    expect(below.hpBonusPerLevel).toBe(0)
+
+    const at = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 4 })
+    expect(at.hpBonusPerLevel).toBe(1)
   })
 
   it("last-source-wins for movement speeds (an absolute characteristic, not a stacking bonus), recording provenance", () => {

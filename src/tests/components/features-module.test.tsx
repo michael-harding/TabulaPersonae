@@ -1080,6 +1080,67 @@ describe("FeaturesModule", () => {
       })
     })
 
+    describe("Max HP Bonus (level-tiered)", () => {
+      it("shows the Add Level button and persists a per-level HP bonus to a Species Trait", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Dwarven Toughness" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Max HP Bonus" }))
+        expect(within(modal).getByRole("button", { name: /add level/i })).toBeInTheDocument()
+        const bonusInput = within(modal).getByLabelText(/max hp bonus/i)
+        fireEvent.input(bonusInput, { target: { value: "1" } })
+        fireEvent.keyDown(bonusInput, { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Dwarven Toughness",
+                levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("pre-fills the Feature Type and shows the existing bonus when editing", () => {
+        const feature = makeFeature({
+          name: "Dwarven Toughness",
+          source: "species-trait",
+          levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit dwarven toughness/i }))
+        expect(screen.getByRole("button", { name: /add level/i })).toBeInTheDocument()
+        expect(screen.getByLabelText(/max hp bonus/i)).toHaveValue(1)
+      })
+
+      it("round-trips levelEffects through edit and save unchanged", () => {
+        const onUpdate = vi.fn()
+        const feature = makeFeature({
+          name: "Dwarven Toughness",
+          source: "species-trait",
+          levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit dwarven toughness/i }))
+        fireEvent.click(screen.getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Dwarven Toughness",
+                levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+              }),
+            ]),
+          })
+        )
+      })
+    })
+
     it("clears level effects and action fields when switching the Feature Type", () => {
       const onUpdate = vi.fn()
       render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)

@@ -147,6 +147,7 @@ export interface FeatureEffects {
   carryingCapacityMultiplier?: number
   abilityScores?: Partial<Record<keyof AbilityScores, number>>
   abilityScoreFloors?: Partial<Record<keyof AbilityScores, number>>
+  hpBonusPerLevel?: number
 }
 
 export interface FeatureLevelEffect {

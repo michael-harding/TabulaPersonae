@@ -238,6 +238,7 @@ export interface FeatureEffectTotals {
   burrowSpeedSource?: string
   carryingCapacityBonus: number
   carryingCapacityMultiplier: number
+  hpBonusPerLevel: number
 }
 
 export function getActiveLevelEffect(feature: Feature, level: number): FeatureEffects | undefined {
@@ -266,6 +267,7 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     abilityScoreFloorSources: {},
     carryingCapacityBonus: 0,
     carryingCapacityMultiplier: 1,
+    hpBonusPerLevel: 0,
   }
   const level = character.level ?? 1
 
@@ -347,6 +349,7 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
       if (effects.carryingCapacityMultiplier !== undefined) {
         totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, effects.carryingCapacityMultiplier)
       }
+      totals.hpBonusPerLevel += Number(effects.hpBonusPerLevel ?? 0)
     }
   }
 
@@ -616,8 +619,17 @@ export function getEffectiveSize(character: FeatureEffectCharacter): { size: str
   return { size: featureTotals.size ?? "", source: featureTotals.sizeSource }
 }
 
-export function getEffectiveMaxHp(hitPoints?: { maximum?: number; temporaryMaximum?: number }): number {
-  return Math.max(1, (hitPoints?.maximum ?? 1) + (hitPoints?.temporaryMaximum ?? 0))
+type MaxHpCharacter = { hitPoints?: { maximum?: number; temporaryMaximum?: number } } & FeatureEffectCharacter
+
+// Takes the full character (not just hitPoints) so a Species Trait/Class Feature/Feat granting
+// hpBonusPerLevel (e.g. Dwarven Toughness: +1 max HP per level) can add its level-scaled bonus
+// to the stored maximum/temporaryMaximum, the same way every other effective-* getter here folds
+// in getActiveFeatureEffects.
+export function getEffectiveMaxHp(character?: MaxHpCharacter): number {
+  const hitPoints = character?.hitPoints
+  const level = character?.level ?? 1
+  const hpBonusPerLevel = getActiveFeatureEffects(character ?? {}).hpBonusPerLevel
+  return Math.max(1, (hitPoints?.maximum ?? 1) + (hitPoints?.temporaryMaximum ?? 0) + hpBonusPerLevel * level)
 }
 
 export function getSpellSaveDC(character: Character): number

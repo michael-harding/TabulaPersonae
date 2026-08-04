@@ -698,6 +698,61 @@ describe("CombatStatsModule", () => {
     })
   })
 
+  describe("feature-granted hpBonusPerLevel", () => {
+    it("adds the level-scaled bonus to the displayed max HP", () => {
+      const feature = {
+        id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+      }
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, hitPoints: { current: 10, maximum: 20, temporary: 0 }, speciesTraits: [feature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // 20 base + 1/level * level 5 = 25
+      expect(screen.getByText(/\/25/)).toBeInTheDocument()
+    })
+
+    it("allows increasing HP up to the feature-boosted effective max", () => {
+      const feature = {
+        id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+      }
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, hitPoints: { current: 25, maximum: 20, temporary: 0 }, speciesTraits: [feature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // currentHP (25) equals effective max (20 + 5), so the increase button is disabled
+      const increaseBtn = screen.getByRole("button", { name: /increase hp/i })
+      expect(increaseBtn).toBeDisabled()
+    })
+
+    it("clamps current HP to the feature-boosted effective max on save", () => {
+      const onUpdate = vi.fn()
+      const feature = {
+        id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+      }
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, hitPoints: { current: 20, maximum: 30, temporary: 0 }, speciesTraits: [feature] })}
+          onUpdate={onUpdate}
+        />
+      )
+      clickEditButton()
+      const spinbuttons = screen.getAllByRole("spinbutton")
+      fireEvent.input(spinbuttons[0], { target: { value: "40" } })
+      fireEvent.blur(spinbuttons[0])
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      // effective max = 30 + 1/level * level 5 = 35
+      const updated = onUpdate.mock.calls[0][0]
+      expect(updated.hitPoints.current).toBe(35)
+    })
+  })
+
   describe("temp HP control in view mode", () => {
     it("renders a Temp HP stepper in view mode when not read-only", () => {
       render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
