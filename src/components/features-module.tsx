@@ -1,6 +1,6 @@
-import { createSignal, For, Show } from "solid-js"
+import { createSignal, For, Index, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills } from "@/lib/character-types"
+import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
 import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveLevelEffect, getActiveFeatureEffects, featureSourceLabel, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -70,22 +70,30 @@ const SPELLCASTING_ABILITY_OPTIONS: { value: keyof AbilityScores | ''; label: st
   ...SAVE_ABILITIES.map((ability) => ({ value: ability, label: ability.charAt(0).toUpperCase() + ability.slice(1) })),
 ]
 
+const HIT_POINTS_MODE_OPTIONS: { value: HitPointsMode; label: string }[] = [
+  { value: 'per-level', label: 'Fixed value per level after 1st' },
+  { value: 'flat', label: 'Single value' },
+  { value: 'rolled', label: 'Rolled Values' },
+]
+
 const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 
 // Values double as their own display labels — the shared Select component's trigger renders
 // the raw controlled value verbatim (it doesn't look up a SelectItem's rendered children), so
 // using human-readable strings here avoids showing raw codes like "skill-proficiency" in the UI.
 type FeatureTypeValue =
-  | 'Action' | 'Spellcasting Ability' | 'Hit Die' | 'Size'
+  | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
   | 'Ability Score Bonus' | 'Max HP Bonus'
 
-// Spellcasting Ability, Hit Die, and Size are fixed facts of a class/species, not something that
-// changes at higher levels, so they get a single always-on control. The proficiency-grant types
-// (and the other species-trait-shaped effects below) genuinely can be granted or expanded at
-// different levels, so they keep the repeatable level-tier list.
-const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Die', 'Size']
+// Spellcasting Ability, Hit Points, and Size are fixed facts of a class/species, not something
+// that changes at higher levels, so they get a single always-on control. The proficiency-grant
+// types (and the other species-trait-shaped effects below) genuinely can be granted or expanded
+// at different levels, so they keep the repeatable level-tier list. Hit Points bundles a Hit Die
+// selector (used independently by Rest Modal's hit-dice-spending flow) with a choice of three Max
+// HP calculation modes (flat / per-level / rolled) — see the 'Hit Points' block in FeatureForm.
+const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size']
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
@@ -101,7 +109,13 @@ function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: Feat
   if (actionKind) return 'Action'
   const effects = levelEffects?.[0]?.effects
   if (effects?.spellcastingAbility) return 'Spellcasting Ability'
-  if (effects?.hitDiceSize) return 'Hit Die'
+  if (
+    effects?.hitDiceSize ||
+    effects?.hitPointsMode !== undefined ||
+    effects?.hitPointsFlatValue !== undefined ||
+    effects?.hitPointsPerLevelAmount !== undefined ||
+    (effects?.hitPointsRolledLevels?.length ?? 0) > 0
+  ) return 'Hit Points'
   if (effects?.size) return 'Size'
   if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
   if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
@@ -134,6 +148,7 @@ interface FeatureFormData {
 
 interface FeatureFormProps {
   initialData?: FeatureFormData
+  characterLevel: number
   onSubmit: (data: FeatureFormData) => void
   onCancel: () => void
 }
@@ -543,13 +558,37 @@ function FeatureForm(props: FeatureFormProps) {
     props.initialData ?? { name: '', description: '', featureType: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '', level: 1, levelEffects: [] }
   )
 
-  // Spellcasting Ability / Hit Die aren't level-dependent, so they're always in force as soon as
-  // the feature exists — modeled as a single tier fixed at level 1 rather than a user-editable level.
+  // Spellcasting Ability / Hit Points aren't level-dependent, so they're always in force as soon
+  // as the feature exists — modeled as a single tier fixed at level 1 rather than a user-editable level.
   const singleTierEffects = () => formData().levelEffects[0]?.effects ?? {}
   const setSingleTierEffects = (effects: FeatureEffects) => setFormData((d) => ({
     ...d,
     levelEffects: [{ level: d.levelEffects[0]?.level ?? 1, effects }],
   }))
+
+  // Local helpers for the Hit Points "rolled" mode's per-level value list — deliberately separate
+  // from addLevelEffect/removeLevelEffect/updateLevelEffect below, which operate on the top-level
+  // levelEffects array reserved for TIERED_EFFECT_TYPES. This list instead lives inside the single
+  // level-1 tier's effects object (singleTierEffects().hitPointsRolledLevels), indexed positionally
+  // (index 0 = level 1, ...) — there's exactly one roll per level, so level is never editable.
+  // Always shows at least one row per level the character has reached; rows beyond the character's
+  // current level are optional pre-planning entries and are the only ones that can be removed.
+  const rolledLevels = () => singleTierEffects().hitPointsRolledLevels ?? []
+  const rolledRowCount = () => Math.max(rolledLevels().length, props.characterLevel)
+  const rolledAmountAt = (index: number) => rolledLevels()[index] ?? 0
+  const updateRolledLevel = (index: number, amount: number) => {
+    const next = [...rolledLevels()]
+    while (next.length <= index) next.push(0)
+    next[index] = amount
+    setSingleTierEffects({ ...singleTierEffects(), hitPointsRolledLevels: next })
+  }
+  const addRolledLevel = () => {
+    const next = [...rolledLevels()]
+    while (next.length < rolledRowCount() + 1) next.push(0)
+    setSingleTierEffects({ ...singleTierEffects(), hitPointsRolledLevels: next })
+  }
+  const removeRolledLevel = (index: number) =>
+    setSingleTierEffects({ ...singleTierEffects(), hitPointsRolledLevels: rolledLevels().filter((_, i) => i !== index) })
 
   const updateLevelEffect = (index: number, patch: Partial<FeatureLevelEffect>) => {
     setFormData((d) => ({ ...d, levelEffects: d.levelEffects.map((t, i) => (i === index ? { ...t, ...patch } : t)) }))
@@ -697,19 +736,92 @@ function FeatureForm(props: FeatureFormProps) {
         </div>
       </Show>
 
-      <Show when={formData().featureType === 'Hit Die'}>
-        <div class="space-y-1">
-          <Label for="feature-hit-die">Hit Die</Label>
-          <Select
-            value={singleTierEffects().hitDiceSize ? String(singleTierEffects().hitDiceSize) : ''}
-            onValueChange={(v) => setSingleTierEffects({ hitDiceSize: v ? Number(v) : undefined })}
-          >
-            <SelectTrigger id="feature-hit-die" aria-label="Hit Die"><SelectValue placeholder="None" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">None</SelectItem>
-              <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
-            </SelectContent>
-          </Select>
+      <Show when={formData().featureType === 'Hit Points'}>
+        <div class="space-y-4 border rounded-md p-3">
+          <div class="space-y-1">
+            <Label for="feature-hit-die">Hit Die</Label>
+            <Select
+              value={singleTierEffects().hitDiceSize ? String(singleTierEffects().hitDiceSize) : ''}
+              onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitDiceSize: v ? Number(v) : undefined })}
+            >
+              <SelectTrigger id="feature-hit-die" aria-label="Hit Die"><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div class="space-y-1">
+            <Label for="feature-hp-mode">Max HP Calculation</Label>
+            <Select
+              value={singleTierEffects().hitPointsMode ?? 'per-level'}
+              onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsMode: v as HitPointsMode })}
+            >
+              <SelectTrigger id="feature-hp-mode" aria-label="Max HP Calculation">
+                {/* SelectValue renders the raw controlled value verbatim (see select.tsx), which would
+                    show the storage code ("per-level") rather than a readable label — unlike
+                    FeatureTypeValue, hitPointsMode's value is persisted data, so it stays a short code
+                    and this looks up its label locally instead of making the code itself the label. */}
+                <span class="flex-1 text-left">{HIT_POINTS_MODE_OPTIONS.find((o) => o.value === (singleTierEffects().hitPointsMode ?? 'per-level'))?.label}</span>
+              </SelectTrigger>
+              <SelectContent>
+                <For each={HIT_POINTS_MODE_OPTIONS}>{(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}</For>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Show when={(singleTierEffects().hitPointsMode ?? 'per-level') === 'flat'}>
+            <div class="space-y-1">
+              <Label for="feature-hp-flat">Flat Max HP Value</Label>
+              <NumericInput
+                id="feature-hp-flat" aria-label="Flat Max HP Value" min={0}
+                value={singleTierEffects().hitPointsFlatValue ?? 0}
+                onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsFlatValue: v || undefined })}
+              />
+            </div>
+          </Show>
+
+          <Show when={(singleTierEffects().hitPointsMode ?? 'per-level') === 'per-level'}>
+            <div class="space-y-1">
+              <Label for="feature-hp-per-level">HP per Level After 1st</Label>
+              <NumericInput
+                id="feature-hp-per-level" aria-label="HP per Level After 1st" min={0}
+                value={singleTierEffects().hitPointsPerLevelAmount ?? (Math.floor((singleTierEffects().hitDiceSize ?? 8) / 2) + 1)}
+                onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsPerLevelAmount: v })}
+              />
+            </div>
+          </Show>
+
+          <Show when={singleTierEffects().hitPointsMode === 'rolled'}>
+            <div class="space-y-2">
+              <Label class="text-xs">Rolled HP by Level</Label>
+              <Index each={Array.from({ length: rolledRowCount() })}>
+                {(_, index) => (
+                  <div class="flex items-center gap-2">
+                    <Label class="text-xs whitespace-nowrap w-16">Level {index + 1}</Label>
+                    <Label class="text-xs whitespace-nowrap">Rolled</Label>
+                    <NumericInput aria-label={`Rolled amount for level ${index + 1}`} class="w-16" min={0}
+                      value={rolledAmountAt(index)} onChange={(v) => updateRolledLevel(index, v)} />
+                    <Show when={index >= props.characterLevel}>
+                      <button
+                        type="button"
+                        aria-label={`Remove level ${index + 1} roll`}
+                        onClick={() => removeRolledLevel(index)}
+                        class="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 class="h-4 w-4" />
+                      </button>
+                    </Show>
+                  </div>
+                )}
+              </Index>
+              <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addRolledLevel}>
+                <Plus class="h-3 w-3" />
+                Add Level Roll
+              </Button>
+            </div>
+          </Show>
         </div>
       </Show>
 
@@ -1009,6 +1121,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                   <ModalTitle>Add {section.singular}</ModalTitle>
                 </ModalHeader>
                 <FeatureForm
+                  characterLevel={props.character.level ?? 1}
                   onSubmit={(data) => handleAdd(section.kind, section.field, data)}
                   onCancel={() => setIsAddOpen(null)}
                 />
@@ -1046,6 +1159,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                       level: feature().level ?? 1,
                       levelEffects: feature().levelEffects ?? [],
                     }}
+                    characterLevel={props.character.level ?? 1}
                     onSubmit={(data) => handleUpdate(section.field, data)}
                     onCancel={() => setEditingFeature(null)}
                   />

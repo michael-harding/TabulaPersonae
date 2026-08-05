@@ -189,18 +189,20 @@ describe("RestModal", () => {
       }
       const char = makeCharacter({
         level: 10,
+        useCalculatedMaximumHp: true,
         spentHitDice: 0,
         hitPoints: { current: 88, maximum: 80, temporary: 0 },
         speciesTraits: [feature],
-        abilityScores: { ...createDefaultCharacter().abilityScores, constitution: 20 }, // +5 mod, guarantees healing past 80 + bonus
+        abilityScores: { ...createDefaultCharacter().abilityScores, constitution: 20 }, // +5 mod, guarantees healing past the cap
       })
       openModal(char, onRest)
       const increaseBtn = within(getDialog()).getByRole("button", { name: /increase/i })
       fireEvent.click(increaseBtn) // spend 1 die
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
-      // effective max = 80 base + 1/level * level 10 = 90
-      expect(updated.hitPoints.current).toBeLessThanOrEqual(90)
+      // makeCharacter's default d8 Hit Die + CON 20 (+5 mod): level 1 = 13, +9 more levels * avg(5+5) = 90 -> base 103
+      // + 1/level bonus * level 10 = 10 -> effective max 113
+      expect(updated.hitPoints.current).toBeLessThanOrEqual(113)
     })
 
     // Regression: hit-dice healing computed CON modifier from the raw base ability score,
@@ -295,14 +297,20 @@ describe("RestModal", () => {
         levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
       }
       openModal(
-        makeCharacter({ level: 5, hitPoints: { current: 5, maximum: 24, temporary: 0 }, speciesTraits: [feature] }),
+        makeCharacter({
+          level: 5,
+          useCalculatedMaximumHp: true,
+          hitPoints: { current: 5, maximum: 24, temporary: 0 },
+          speciesTraits: [feature],
+        }),
         onRest,
       )
       switchToLong()
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
-      // 24 base + 1/level * level 5 = 29
-      expect(updated.hitPoints.current).toBe(29)
+      // makeCharacter's default d8 Hit Die + CON 14 (+2 mod): level 1 = 10, +4 more levels * avg(5+2) = 28 -> base 38
+      // + 1/level bonus * level 5 = 5 -> 43
+      expect(updated.hitPoints.current).toBe(43)
     })
 
     it("calls onRest with temporary HP cleared", () => {

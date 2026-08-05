@@ -527,6 +527,7 @@ describe("FeaturesModule", () => {
       expect(within(modal).queryByRole("button", { name: /add level/i })).not.toBeInTheDocument()
       expect(within(modal).queryByRole("button", { name: /^spellcasting ability$/i })).not.toBeInTheDocument()
       expect(within(modal).queryByRole("button", { name: /^hit die$/i })).not.toBeInTheDocument()
+      expect(within(modal).queryByRole("button", { name: /max hp calculation/i })).not.toBeInTheDocument()
     })
 
     it("does not persist levelEffects when no Feature Type is selected", () => {
@@ -545,7 +546,7 @@ describe("FeaturesModule", () => {
       )
     })
 
-    describe("Spellcasting Ability / Hit Die (not level-dependent)", () => {
+    describe("Spellcasting Ability / Hit Points (not level-dependent)", () => {
       it("shows only the Spellcasting Ability control, with no Add Level button", () => {
         render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
         fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
@@ -586,24 +587,28 @@ describe("FeaturesModule", () => {
         )
       })
 
-      it("shows only the Hit Die control, with no Add Level button", () => {
+      it("shows the Hit Die and Max HP Calculation controls, defaulted to 'per-level', with no Add Level button", () => {
         render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
         fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
         const modal = screen.getByRole("dialog")
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Hit Die" }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Hit Points" }))
         expect(within(modal).getByRole("button", { name: /^hit die$/i })).toBeInTheDocument()
+        expect(within(modal).getByRole("button", { name: /max hp calculation/i })).toBeInTheDocument()
+        expect(within(modal).getByLabelText(/hp per level after 1st/i)).toBeInTheDocument()
+        expect(within(modal).queryByLabelText(/flat max hp value/i)).not.toBeInTheDocument()
+        expect(within(modal).queryByLabelText(/rolled hp by level/i)).not.toBeInTheDocument()
         expect(within(modal).queryByRole("button", { name: /add level/i })).not.toBeInTheDocument()
       })
 
-      it("persists a hit die grant", () => {
+      it("persists a hit die grant with the mode left untouched (legacy-equivalent payload)", () => {
         const onUpdate = vi.fn()
         render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
         const modal = screen.getByRole("dialog")
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Draconic Resilience" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Hit Die" }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Hit Points" }))
         fireEvent.click(within(modal).getByRole("button", { name: /^hit die$/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "d10" }))
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
@@ -613,6 +618,182 @@ describe("FeaturesModule", () => {
               expect.objectContaining({
                 name: "Draconic Resilience",
                 levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("shows the per-level input defaulted to the selected Hit Die's average, and persists an override", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Fighter Hit Points" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Hit Points" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /^hit die$/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "d10" }))
+        // d10 average = floor(10/2)+1 = 6
+        expect(within(modal).getByLabelText(/hp per level after 1st/i)).toHaveValue(6)
+        fireEvent.input(within(modal).getByLabelText(/hp per level after 1st/i), { target: { value: "8" } })
+        fireEvent.blur(within(modal).getByLabelText(/hp per level after 1st/i))
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Fighter Hit Points",
+                levelEffects: [{ level: 1, effects: { hitDiceSize: 10, hitPointsPerLevelAmount: 8 } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("switching to 'Single value' mode shows the flat-value input and persists it", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Tough" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Hit Points" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /max hp calculation/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Single value" }))
+        expect(within(modal).queryByLabelText(/hp per level after 1st/i)).not.toBeInTheDocument()
+        fireEvent.input(within(modal).getByLabelText(/flat max hp value/i), { target: { value: "40" } })
+        fireEvent.blur(within(modal).getByLabelText(/flat max hp value/i))
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Tough",
+                levelEffects: [{ level: 1, effects: { hitPointsMode: "flat", hitPointsFlatValue: 40 } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("shows at least one roll row per level already reached, none removable", () => {
+        render(<FeaturesModule character={makeCharacter({ level: 3 })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Hit Points" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /max hp calculation/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Rolled Values" }))
+        expect(within(modal).getByLabelText(/rolled amount for level 1/i)).toBeInTheDocument()
+        expect(within(modal).getByLabelText(/rolled amount for level 2/i)).toBeInTheDocument()
+        expect(within(modal).getByLabelText(/rolled amount for level 3/i)).toBeInTheDocument()
+        expect(within(modal).queryByLabelText(/rolled amount for level 4/i)).not.toBeInTheDocument()
+        expect(within(modal).queryByRole("button", { name: /remove level 1 roll/i })).not.toBeInTheDocument()
+        expect(within(modal).queryByRole("button", { name: /remove level 2 roll/i })).not.toBeInTheDocument()
+        expect(within(modal).queryByRole("button", { name: /remove level 3 roll/i })).not.toBeInTheDocument()
+      })
+
+      it("switching to 'Rolled Values' mode lets per-level amounts be entered and persisted", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter({ level: 1 })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Rolled Hit Points" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Hit Points" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /max hp calculation/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Rolled Values" }))
+        expect(within(modal).queryByLabelText(/hp per level after 1st/i)).not.toBeInTheDocument()
+
+        fireEvent.input(within(modal).getByLabelText(/rolled amount for level 1/i), { target: { value: "8" } })
+        fireEvent.blur(within(modal).getByLabelText(/rolled amount for level 1/i))
+        fireEvent.click(within(modal).getByRole("button", { name: /add level roll/i }))
+        fireEvent.input(within(modal).getByLabelText(/rolled amount for level 2/i), { target: { value: "5" } })
+        fireEvent.blur(within(modal).getByLabelText(/rolled amount for level 2/i))
+
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Rolled Hit Points",
+                levelEffects: [{ level: 1, effects: { hitPointsMode: "rolled", hitPointsRolledLevels: [8, 5] } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("removes a rolled entry above the character's current level when its remove button is clicked", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter({ level: 1 })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Rolled Hit Points" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Hit Points" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /max hp calculation/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Rolled Values" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /add level roll/i }))
+        expect(within(modal).getByRole("button", { name: /remove level 2 roll/i })).toBeInTheDocument()
+        fireEvent.click(within(modal).getByRole("button", { name: /remove level 2 roll/i }))
+        expect(within(modal).queryByLabelText(/rolled amount for level 2/i)).not.toBeInTheDocument()
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Rolled Hit Points",
+                levelEffects: [{ level: 1, effects: { hitPointsMode: "rolled", hitPointsRolledLevels: [0] } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("infers 'Hit Points' and defaults the mode control when editing old-shape data (hitDiceSize only)", () => {
+        const feature = makeFeature({
+          name: "Legacy Hit Die",
+          levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit legacy hit die/i }))
+        expect(screen.getByRole("button", { name: /feature type/i })).toHaveTextContent("Hit Points")
+        expect(screen.getByLabelText(/hp per level after 1st/i)).toHaveValue(6)
+      })
+
+      it("infers 'Hit Points' and repopulates rolled entries when editing new-shape rolled data", () => {
+        const onUpdate = vi.fn()
+        const feature = makeFeature({
+          name: "Rolled Legacy",
+          levelEffects: [{
+            level: 1,
+            effects: {
+              hitDiceSize: 8,
+              hitPointsMode: "rolled",
+              hitPointsRolledLevels: [8, 5],
+            },
+          }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 2 })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit rolled legacy/i }))
+        expect(screen.getByLabelText(/rolled amount for level 1/i)).toHaveValue(8)
+        expect(screen.getByLabelText(/rolled amount for level 2/i)).toHaveValue(5)
+        fireEvent.click(screen.getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Rolled Legacy",
+                levelEffects: [{
+                  level: 1,
+                  effects: {
+                    hitDiceSize: 8,
+                    hitPointsMode: "rolled",
+                    hitPointsRolledLevels: [8, 5],
+                  },
+                }],
               }),
             ]),
           })

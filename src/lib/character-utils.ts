@@ -1,4 +1,4 @@
-import type { AbilityScores, Character, Equipment, Feature, FeatureEffects, FeatureKind, SenseType, Skills } from "./character-types"
+import type { AbilityScores, Character, Equipment, Feature, FeatureEffects, FeatureKind, HitPointsMode, SenseType, Skills } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -201,6 +201,10 @@ export interface FeatureEffectTotals {
   spellcastingAbilitySource?: string
   hitDiceSize?: number
   hitDiceSizeSource?: string
+  hitPointsMode?: HitPointsMode
+  hitPointsFlatValue?: number
+  hitPointsPerLevelAmount?: number
+  hitPointsRolledLevels?: number[]
   size?: string
   sizeSource?: string
   savingThrowProficiencies: Partial<Record<keyof AbilityScores, string>>
@@ -239,6 +243,7 @@ export interface FeatureEffectTotals {
   carryingCapacityBonus: number
   carryingCapacityMultiplier: number
   hpBonusPerLevel: number
+  hpBonusPerLevelGrants: SourcedBonus[]
 }
 
 export function getActiveLevelEffect(feature: Feature, level: number): FeatureEffects | undefined {
@@ -268,6 +273,7 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     carryingCapacityBonus: 0,
     carryingCapacityMultiplier: 1,
     hpBonusPerLevel: 0,
+    hpBonusPerLevelGrants: [],
   }
   const level = character.level ?? 1
 
@@ -285,6 +291,17 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
       if (effects.hitDiceSize) {
         totals.hitDiceSize = effects.hitDiceSize
         totals.hitDiceSizeSource = sourceLabel
+      }
+      if (
+        effects.hitPointsMode !== undefined ||
+        effects.hitPointsFlatValue !== undefined ||
+        effects.hitPointsPerLevelAmount !== undefined ||
+        (effects.hitPointsRolledLevels?.length ?? 0) > 0
+      ) {
+        totals.hitPointsMode = effects.hitPointsMode
+        totals.hitPointsFlatValue = effects.hitPointsFlatValue
+        totals.hitPointsPerLevelAmount = effects.hitPointsPerLevelAmount
+        totals.hitPointsRolledLevels = effects.hitPointsRolledLevels
       }
       if (effects.size) {
         totals.size = effects.size
@@ -349,7 +366,11 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
       if (effects.carryingCapacityMultiplier !== undefined) {
         totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, effects.carryingCapacityMultiplier)
       }
-      totals.hpBonusPerLevel += Number(effects.hpBonusPerLevel ?? 0)
+      const hpBonusPerLevelAmount = Number(effects.hpBonusPerLevel ?? 0)
+      if (hpBonusPerLevelAmount) {
+        totals.hpBonusPerLevel += hpBonusPerLevelAmount
+        totals.hpBonusPerLevelGrants.push({ source: sourceLabel, amount: hpBonusPerLevelAmount })
+      }
     }
   }
 
@@ -619,17 +640,87 @@ export function getEffectiveSize(character: FeatureEffectCharacter): { size: str
   return { size: featureTotals.size ?? "", source: featureTotals.sizeSource }
 }
 
-type MaxHpCharacter = { hitPoints?: { maximum?: number; temporaryMaximum?: number } } & FeatureEffectCharacter
+type BaseHitPointsCharacter = Partial<Pick<Character, "abilityScores" | "equipment">> & Pick<Character, "abilityScoreOverrides" | "useCalculatedAbilityScores"> & FeatureEffectCharacter
 
-// Takes the full character (not just hitPoints) so a Species Trait/Class Feature/Feat granting
-// hpBonusPerLevel (e.g. Dwarven Toughness: +1 max HP per level) can add its level-scaled bonus
-// to the stored maximum/temporaryMaximum, the same way every other effective-* getter here folds
-// in getActiveFeatureEffects.
+// A "Hit Points" Class Feature is the only source of a calculated base, via one of three
+// DM-chosen modes (FeatureEffects.hitPointsMode, defaulting to 'per-level' for legacy data that
+// predates this field): 'flat' (one fixed total, applied once, no CON), 'per-level' (5e-standard
+// math — max die + CON at level 1, then a fixed per-level amount + CON, defaulting to the die's
+// mathematical average when not overridden), or 'rolled' (a per-level list of actually-recorded
+// values, CON added per entry, missing levels contribute 0 and are flagged rather than guessed).
+// Each hpBonusPerLevel-granting feature (e.g. Dwarven Toughness) is named individually in the
+// breakdown and stacks on top of all three modes identically. Never reads hitPoints.maximum — like
+// calculateEquippedAC never reads character.armorClass, this is the fully-independent "calculated"
+// side of the Maximum HP CalculatedValue field in combat-stats-module.tsx.
+export function calculateMaxHitPoints(character: BaseHitPointsCharacter): { hp: number; breakdown: string } {
+  const featureTotals = getActiveFeatureEffects(character)
+  const hitDiceSize = featureTotals.hitDiceSize
+  const mode: HitPointsMode = featureTotals.hitPointsMode ?? 'per-level'
+  const level = character.level ?? 1
+  const abilityScoreCharacter: AbilityScoreCharacter = { ...character, abilityScores: character.abilityScores ?? ({} as AbilityScores), equipment: character.equipment ?? [] }
+  const conMod = getAbilityModifier(getEffectiveAbilityScore(abilityScoreCharacter, "constitution"))
+
+  let hp: number
+  let breakdown: string
+
+  if (mode === 'flat') {
+    hp = featureTotals.hitPointsFlatValue ?? 0
+    breakdown = `${hp} (Fixed Hit Points)`
+  } else if (mode === 'rolled') {
+    const rolls = featureTotals.hitPointsRolledLevels ?? []
+    const terms: string[] = []
+    const missing: number[] = []
+    hp = 0
+    for (let lvl = 1; lvl <= level; lvl++) {
+      const amount = rolls[lvl - 1]
+      // 0 (or a missing index) means "not yet recorded" — a real die roll is always >= 1.
+      if (!amount) { missing.push(lvl); continue }
+      const total = amount + conMod
+      hp += total
+      terms.push(`${total} (Level ${lvl}: ${amount}${formatTerm(conMod, "Constitution")})`)
+    }
+    breakdown = terms.length > 0 ? terms.join(" + ") : "No rolled HP entered yet"
+    if (missing.length > 0) {
+      breakdown += ` — missing roll${missing.length > 1 ? "s" : ""} for level${missing.length > 1 ? "s" : ""} ${missing.join(", ")} (contributing 0 until entered)`
+    }
+  } else {
+    if (!hitDiceSize) {
+      return { hp: 0, breakdown: "No class feature grants a Hit Die — add one in Features, or switch to custom entry" }
+    }
+    const perLevelAverage = Math.floor(hitDiceSize / 2) + 1
+    const perLevelAmount = featureTotals.hitPointsPerLevelAmount ?? perLevelAverage
+    const additionalLevels = level - 1
+
+    breakdown = `${hitDiceSize} (Level 1 d${hitDiceSize} Hit Die)${formatTerm(conMod, "Constitution")}`
+    if (additionalLevels > 0) {
+      const perLevelLabel = featureTotals.hitPointsPerLevelAmount !== undefined ? `${perLevelAmount} HP/level` : `${perLevelAmount} avg d${hitDiceSize}`
+      breakdown += ` + ${additionalLevels} × (${perLevelLabel}${formatTerm(conMod, "Constitution")})`
+    }
+    hp = hitDiceSize + conMod + additionalLevels * (perLevelAmount + conMod)
+  }
+
+  for (const grant of featureTotals.hpBonusPerLevelGrants) {
+    const amount = grant.amount * level
+    hp += amount
+    breakdown += formatBonusTerm(amount, grant.source)
+  }
+
+  return { hp, breakdown }
+}
+
+type MaxHpCharacter = { hitPoints?: { maximum?: number; temporaryMaximum?: number }; useCalculatedMaximumHp?: boolean } & BaseHitPointsCharacter
+
+// hitPoints.maximum is the manual/custom-override value — used as-is with nothing added, exactly
+// like a custom Armor Class ignores equipment bonuses. hpBonusPerLevel only applies inside the
+// calculated branch (see calculateMaxHitPoints); it must never silently apply on top of a custom
+// value, or the displayed max would disagree with what the player actually typed. temporaryMaximum
+// is not part of this calculated/custom split — it's a directly-edited field (its own Stepper in
+// combat-stats-module.tsx) representing a temporary buff/curse, so it stays additive either way.
 export function getEffectiveMaxHp(character?: MaxHpCharacter): number {
   const hitPoints = character?.hitPoints
-  const level = character?.level ?? 1
-  const hpBonusPerLevel = getActiveFeatureEffects(character ?? {}).hpBonusPerLevel
-  return Math.max(1, (hitPoints?.maximum ?? 1) + (hitPoints?.temporaryMaximum ?? 0) + hpBonusPerLevel * level)
+  const useCalculated = character?.useCalculatedMaximumHp ?? false
+  const baseHp = useCalculated && character ? calculateMaxHitPoints(character).hp : (hitPoints?.maximum ?? 1)
+  return Math.max(1, baseHp + (hitPoints?.temporaryMaximum ?? 0))
 }
 
 export function getSpellSaveDC(character: Character): number

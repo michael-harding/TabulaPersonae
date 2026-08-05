@@ -1,10 +1,9 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
+import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
-import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -41,6 +40,7 @@ const toEdit = (c: Character) => {
       temporary: c.hitPoints?.temporary ?? 0,
       temporaryMaximum: c.hitPoints?.temporaryMaximum ?? 0,
     },
+    useCalculatedMaximumHp: c.useCalculatedMaximumHp ?? false,
     armorClass: c.armorClass || 10,
     initiative: c.initiative || 0,
     speed: c.speed ?? 30,
@@ -212,6 +212,17 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     calculatedTooltip: acTooltip,
   })
 
+  const maxHpCalc = createMemo(() => calculateMaxHitPoints(current()))
+
+  const maximumHpField = useCalculatedValue({
+    useCalculated: () => current().useCalculatedMaximumHp ?? false,
+    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedMaximumHp: v })),
+    manualValue: () => current().hitPoints?.maximum ?? 1,
+    setManualValue: (v) => updateHP("maximum", v),
+    calculatedValue: () => maxHpCalc().hp,
+    calculatedTooltip: () => maxHpCalc().breakdown,
+  })
+
   const speedField = useCalculatedValue({
     useCalculated: () => current().useCalculatedSpeed ?? true,
     setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSpeed: v })),
@@ -362,26 +373,19 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               </Show>
             </div>
           }>
-            <div class="space-y-2">
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <Label class="text-xs">Current</Label>
-                  <NumericInput min={0} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} />
-                </div>
-                <div>
-                  <Label class="text-xs">Maximum</Label>
-                  <NumericInput min={1} value={edited().hitPoints?.maximum ?? 1} onChange={(v) => updateHP("maximum", v)} />
-                </div>
+            <div class="flex flex-wrap items-end justify-center gap-4">
+              <div class="space-y-1">
+                <Label class="text-xs">Current</Label>
+                <StepperInput min={0} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} aria-label="Current hit points" />
               </div>
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <Label class="text-xs">Temporary</Label>
-                  <NumericInput min={0} value={edited().hitPoints?.temporary ?? 0} onChange={(v) => updateHP("temporary", v)} />
-                </div>
-                <div>
-                  <Label class="text-xs">Temp Max HP</Label>
-                  <NumericInput min={-999} value={edited().hitPoints?.temporaryMaximum ?? 0} onChange={(v) => updateHP("temporaryMaximum", v)} />
-                </div>
+              <CalculatedValue label="Maximum" editable={isEditing()} min={1} {...maximumHpField.binding()} />
+              <div class="space-y-1">
+                <Label class="text-xs">Temporary</Label>
+                <StepperInput min={0} value={edited().hitPoints?.temporary ?? 0} onChange={(v) => updateHP("temporary", v)} aria-label="Temporary hit points" />
+              </div>
+              <div class="space-y-1">
+                <Label class="text-xs">Temp Max HP</Label>
+                <StepperInput min={-999} value={edited().hitPoints?.temporaryMaximum ?? 0} onChange={(v) => updateHP("temporaryMaximum", v)} aria-label="Temporary maximum hit points" />
               </div>
             </div>
           </Show>

@@ -699,46 +699,54 @@ describe("CombatStatsModule", () => {
   })
 
   describe("feature-granted hpBonusPerLevel", () => {
-    it("adds the level-scaled bonus to the displayed max HP", () => {
-      const feature = {
-        id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
-        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
-      }
+    const hitDieFeature = {
+      id: "feature-hd", name: "Fighter", description: "", source: "class-feature" as const,
+      levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+    }
+    const bonusFeature = {
+      id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
+      levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+    }
+
+    it("does not apply the bonus (or any calculation) to the displayed max HP when not calculated", () => {
       render(
         <CombatStatsModule
-          character={makeCharacter({ level: 5, hitPoints: { current: 10, maximum: 20, temporary: 0 }, speciesTraits: [feature] })}
+          character={makeCharacter({ level: 5, hitPoints: { current: 10, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature] })}
           onUpdate={vi.fn()}
         />
       )
-      // 20 base + 1/level * level 5 = 25
-      expect(screen.getByText(/\/25/)).toBeInTheDocument()
+      // useCalculatedMaximumHp defaults to false: the manual maximum (20) is used as-is, no bonus applied
+      expect(screen.getByText(/\/20/)).toBeInTheDocument()
     })
 
-    it("allows increasing HP up to the feature-boosted effective max", () => {
-      const feature = {
-        id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
-        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
-      }
+    it("adds the level-scaled bonus to the displayed max HP when calculated", () => {
       render(
         <CombatStatsModule
-          character={makeCharacter({ level: 5, hitPoints: { current: 25, maximum: 20, temporary: 0 }, speciesTraits: [feature] })}
+          character={makeCharacter({ level: 5, useCalculatedMaximumHp: true, hitPoints: { current: 10, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature] })}
           onUpdate={vi.fn()}
         />
       )
-      // currentHP (25) equals effective max (20 + 5), so the increase button is disabled
+      // d8 Hit Die: level 1 = 8, +4 more levels * avg 5 = 20 -> base 28; + 1/level bonus * level 5 = 5 -> 33
+      expect(screen.getByText(/\/33/)).toBeInTheDocument()
+    })
+
+    it("allows increasing HP up to the feature-boosted effective max when calculated", () => {
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, useCalculatedMaximumHp: true, hitPoints: { current: 33, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // currentHP (33) equals the calculated effective max (33), so the increase button is disabled
       const increaseBtn = screen.getByRole("button", { name: /increase hp/i })
       expect(increaseBtn).toBeDisabled()
     })
 
-    it("clamps current HP to the feature-boosted effective max on save", () => {
+    it("clamps current HP to the feature-boosted effective max on save when calculated", () => {
       const onUpdate = vi.fn()
-      const feature = {
-        id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
-        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
-      }
       render(
         <CombatStatsModule
-          character={makeCharacter({ level: 5, hitPoints: { current: 20, maximum: 30, temporary: 0 }, speciesTraits: [feature] })}
+          character={makeCharacter({ level: 5, useCalculatedMaximumHp: true, hitPoints: { current: 20, maximum: 30, temporary: 0 }, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature] })}
           onUpdate={onUpdate}
         />
       )
@@ -747,9 +755,78 @@ describe("CombatStatsModule", () => {
       fireEvent.input(spinbuttons[0], { target: { value: "40" } })
       fireEvent.blur(spinbuttons[0])
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      // effective max = 30 + 1/level * level 5 = 35
+      // calculated effective max = 28 (d8 base) + 5 (1/level bonus * level 5) = 33
       const updated = onUpdate.mock.calls[0][0]
-      expect(updated.hitPoints.current).toBe(35)
+      expect(updated.hitPoints.current).toBe(33)
+    })
+  })
+
+  describe("calculated maximum HP", () => {
+    it("shows a custom-value toggle button for Maximum in edit mode", () => {
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByRole("button", { name: /(custom|calculated) maximum/i })).toBeInTheDocument()
+    })
+
+    it("shows the bare manual maximum with no bonus applied when not calculated, even with a bonus feature present", () => {
+      const bonusFeature = {
+        id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+      }
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, hitPoints: { current: 10, maximum: 20, temporary: 0 }, speciesTraits: [bonusFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      // Not calculated -> custom mode renders an editable input holding the raw manual value, no bonus folded in
+      expect(screen.getByDisplayValue("20")).toBeInTheDocument()
+    })
+
+    it("shows the Hit-Die-derived value when calculated", () => {
+      const hitDieFeature = {
+        id: "feature-hd", name: "Fighter", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+      }
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 1, useCalculatedMaximumHp: true, hitPoints: { current: 8, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      // d8 Hit Die + CON mod 0 at level 1 = 8, rendered as read-only text (not an input) since calculated
+      const maximumField = screen.getByText("Maximum").closest('[data-sem="calculated-value"]') as HTMLElement
+      expect(within(maximumField).getByText("8")).toBeInTheDocument()
+    })
+
+    it("shows 0 when calculated with no Hit Die feature granted", () => {
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ useCalculatedMaximumHp: true, hitPoints: { current: 5, maximum: 20, temporary: 0 } })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      const maximumField = screen.getByText("Maximum").closest('[data-sem="calculated-value"]') as HTMLElement
+      expect(within(maximumField).getByText("0")).toBeInTheDocument()
+    })
+
+    it("shows the flat Hit Points value when the granting feature uses 'flat' mode", () => {
+      const flatFeature = {
+        id: "feature-hp", name: "Tough", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { hitPointsMode: "flat" as const, hitPointsFlatValue: 40 } }],
+      }
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 1, useCalculatedMaximumHp: true, hitPoints: { current: 10, maximum: 20, temporary: 0 }, classFeatures: [flatFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      const maximumField = screen.getByText("Maximum").closest('[data-sem="calculated-value"]') as HTMLElement
+      expect(within(maximumField).getByText("40")).toBeInTheDocument()
     })
   })
 
@@ -884,10 +961,10 @@ describe("CombatStatsModule", () => {
   })
 
   describe("calculated armor class", () => {
-    it("shows a custom-value toggle button for every calculated field in edit mode (AC, initiative, speed x5, proficiency bonus, passive perception, size)", () => {
+    it("shows a custom-value toggle button for every calculated field in edit mode (AC, initiative, speed x5, proficiency bonus, passive perception, size, maximum HP)", () => {
       render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(10)
+      expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(11)
     })
 
     it("shows a tooltip on the AC value in edit mode when not custom", async () => {

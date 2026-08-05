@@ -14,6 +14,7 @@ import {
   getEquippedWeaponAttacks,
   calculateEquippedAC,
   calculateInitiative,
+  calculateMaxHitPoints,
   getEffectiveMaxHp,
   isItemModifierActive,
   getEquipmentModifierTotals,
@@ -1250,32 +1251,152 @@ describe("getEffectiveMaxHp", () => {
     expect(getEffectiveMaxHp(undefined)).toBe(1)
   })
 
-  it("adds a feature-granted hpBonusPerLevel scaled by character level", () => {
-    const feature = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
-    const character = { hitPoints: { maximum: 24 }, classFeatures: [], speciesTraits: [feature], feats: [], level: 5 }
-    expect(getEffectiveMaxHp(character)).toBe(24 + 1 * 5)
+  it("does not apply a feature-granted hpBonusPerLevel when useCalculatedMaximumHp is false or unset", () => {
+    // Regression test: a custom/overridden Maximum must never have calculations silently applied
+    // on top of it, exactly like a custom Armor Class ignores equipment bonuses.
+    const bonusFeature = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
+    const hitDieFeature = makeFeature({ name: "Fighter", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+    const character = { hitPoints: { maximum: 24 }, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature], feats: [], level: 5 }
+    expect(getEffectiveMaxHp(character)).toBe(24)
+    expect(getEffectiveMaxHp({ ...character, useCalculatedMaximumHp: false })).toBe(24)
   })
 
-  it("sums hpBonusPerLevel across multiple granting features before scaling by level", () => {
-    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
-    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 2 } }] })
-    const character = { hitPoints: { maximum: 10 }, classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 3 }
-    expect(getEffectiveMaxHp(character)).toBe(10 + (1 + 2) * 3)
+  it("applies the calculated total (Hit Die + CON + named bonuses) when useCalculatedMaximumHp is true", () => {
+    const bonusFeature = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
+    const hitDieFeature = makeFeature({ name: "Fighter", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
+    const character = { hitPoints: { maximum: 24 }, useCalculatedMaximumHp: true, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature], feats: [], level: 5 }
+    // d8 Hit Die, CON mod 0 (no abilityScores given): level 1 = 8, +4 more levels * avg(5) = 20, base = 28; + 1/level bonus * 5 = 5
+    expect(getEffectiveMaxHp(character)).toBe(33)
   })
 
-  it("defaults level to 1 when the character has no level set", () => {
-    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 4 } }] })
-    const character = { hitPoints: { maximum: 8 }, classFeatures: [feature], speciesTraits: [], feats: [] }
-    expect(getEffectiveMaxHp(character)).toBe(8 + 4)
+  it("still adds temporaryMaximum on top when calculated", () => {
+    const hitDieFeature = makeFeature({ name: "Fighter", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
+    const character = { hitPoints: { maximum: 24, temporaryMaximum: 10 }, useCalculatedMaximumHp: true, classFeatures: [hitDieFeature], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveMaxHp(character)).toBe(8 + 10)
   })
 
-  it("respects level-gating on the granting feature", () => {
-    const feature = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 5, effects: { hpBonusPerLevel: 1 } }] })
-    const below = { hitPoints: { maximum: 20 }, classFeatures: [], speciesTraits: [feature], feats: [], level: 4 }
-    expect(getEffectiveMaxHp(below)).toBe(20)
+  it("defaults level to 1 when calculating with no level set", () => {
+    const hitDieFeature = makeFeature({ levelEffects: [{ level: 1, effects: { hitDiceSize: 4 } }] })
+    const bonusFeature = makeFeature({ levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 4 } }] })
+    const character = { hitPoints: { maximum: 8 }, useCalculatedMaximumHp: true, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature], feats: [] }
+    expect(getEffectiveMaxHp(character)).toBe(4 + 4)
+  })
 
-    const at = { hitPoints: { maximum: 20 }, classFeatures: [], speciesTraits: [feature], feats: [], level: 5 }
-    expect(getEffectiveMaxHp(at)).toBe(20 + 5)
+  it("respects level-gating on the bonus-granting feature when calculated", () => {
+    const hitDieFeature = makeFeature({ name: "Fighter", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+    const bonusFeature = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 5, effects: { hpBonusPerLevel: 1 } }] })
+    const below = { hitPoints: { maximum: 20 }, useCalculatedMaximumHp: true, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature], feats: [], level: 4 }
+    // d10 Hit Die, CON mod 0: level 1 = 10, +3 more levels * avg(6) = 18, base = 28; bonus not active yet
+    expect(getEffectiveMaxHp(below)).toBe(28)
+
+    const at = { hitPoints: { maximum: 20 }, useCalculatedMaximumHp: true, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature], feats: [], level: 5 }
+    // base at level 5 = 10 + 4*6 = 34; bonus = 1 * 5 = 5
+    expect(getEffectiveMaxHp(at)).toBe(39)
+  })
+
+  it("ignores hitPointsMode 'flat' entirely when useCalculatedMaximumHp is false (custom means custom)", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitPointsMode: "flat", hitPointsFlatValue: 999 } }] })
+    const character = { hitPoints: { maximum: 24 }, useCalculatedMaximumHp: false, classFeatures: [feature], speciesTraits: [], feats: [], level: 5 }
+    expect(getEffectiveMaxHp(character)).toBe(24)
+  })
+})
+
+describe("calculateMaxHitPoints", () => {
+  it("returns hp: 0 and an explanatory breakdown when no feature grants a Hit Die", () => {
+    const result = calculateMaxHitPoints({ classFeatures: [], speciesTraits: [], feats: [] })
+    expect(result.hp).toBe(0)
+    expect(result.breakdown).toMatch(/no class feature grants a hit die/i)
+  })
+
+  it("computes level-1 HP as Hit Die size + CON modifier", () => {
+    const hitDieFeature = makeFeature({ levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
+    const character = { classFeatures: [hitDieFeature], speciesTraits: [], feats: [], level: 1, abilityScores: { strength: 10, dexterity: 10, constitution: 14, intelligence: 10, wisdom: 10, charisma: 10 } }
+    // d8 + CON mod (14 -> +2)
+    expect(calculateMaxHitPoints(character).hp).toBe(10)
+  })
+
+  it("adds average Hit Die + CON modifier for each level after the first", () => {
+    const hitDieFeature = makeFeature({ levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+    const character = { classFeatures: [hitDieFeature], speciesTraits: [], feats: [], level: 3, abilityScores: { strength: 10, dexterity: 10, constitution: 14, intelligence: 10, wisdom: 10, charisma: 10 } }
+    // level 1: 10 + 2 = 12; levels 2-3: 2 * (avg(6) + 2) = 16; total 28
+    expect(calculateMaxHitPoints(character).hp).toBe(28)
+  })
+
+  it("handles a negative Constitution modifier", () => {
+    const hitDieFeature = makeFeature({ levelEffects: [{ level: 1, effects: { hitDiceSize: 6 } }] })
+    const character = { classFeatures: [hitDieFeature], speciesTraits: [], feats: [], level: 1, abilityScores: { strength: 10, dexterity: 10, constitution: 6, intelligence: 10, wisdom: 10, charisma: 10 } }
+    // d6 + CON mod (6 -> -2)
+    expect(calculateMaxHitPoints(character).hp).toBe(4)
+  })
+
+  it("names each hpBonusPerLevel-granting feature individually in the breakdown", () => {
+    const hitDieFeature = makeFeature({ name: "Fighter", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
+    const featureA = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
+    const featureB = makeFeature({ name: "Tough", source: "feat", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 2 } }] })
+    const character = { classFeatures: [hitDieFeature], speciesTraits: [featureA], feats: [featureB], level: 3 }
+    const result = calculateMaxHitPoints(character)
+    // base (d8, CON 0): 8 + 2*5 = 18; bonuses: (1+2) * 3 levels = 9; total 27
+    expect(result.hp).toBe(27)
+    expect(result.breakdown).toContain("Dwarven Toughness")
+    expect(result.breakdown).toContain("Tough")
+  })
+
+  it("'per-level' mode uses an explicit hitPointsPerLevelAmount override instead of the average", () => {
+    const hitDieFeature = makeFeature({ levelEffects: [{ level: 1, effects: { hitDiceSize: 10, hitPointsMode: "per-level", hitPointsPerLevelAmount: 8 } }] })
+    const character = { classFeatures: [hitDieFeature], speciesTraits: [], feats: [], level: 3, abilityScores: { strength: 10, dexterity: 10, constitution: 14, intelligence: 10, wisdom: 10, charisma: 10 } }
+    // level 1: 10 + 2 = 12; levels 2-3: 2 * (8 + 2) = 20; total 32 (vs. the default average of 6/level, which would give 28)
+    expect(calculateMaxHitPoints(character).hp).toBe(32)
+  })
+
+  it("'flat' mode uses the fixed value exactly once, regardless of level or CON", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitPointsMode: "flat", hitPointsFlatValue: 30 } }] })
+    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 5, abilityScores: { strength: 10, dexterity: 10, constitution: 18, intelligence: 10, wisdom: 10, charisma: 10 } }
+    expect(calculateMaxHitPoints(character).hp).toBe(30)
+  })
+
+  it("'flat' mode still stacks hpBonusPerLevel bonuses on top", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitPointsMode: "flat", hitPointsFlatValue: 30 } }] })
+    const bonusFeature = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
+    const character = { classFeatures: [feature], speciesTraits: [bonusFeature], feats: [], level: 5 }
+    expect(calculateMaxHitPoints(character).hp).toBe(35)
+  })
+
+  it("'rolled' mode sums recorded entries, with CON added per entry, up to the current level", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitPointsMode: "rolled", hitPointsRolledLevels: [8, 5] } }] })
+    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 2, abilityScores: { strength: 10, dexterity: 10, constitution: 14, intelligence: 10, wisdom: 10, charisma: 10 } }
+    // (8+2) + (5+2) = 17
+    expect(calculateMaxHitPoints(character).hp).toBe(17)
+  })
+
+  it("'rolled' mode ignores entries beyond the character's current level", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitPointsMode: "rolled", hitPointsRolledLevels: [8, 5, 99] } }] })
+    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 2 }
+    expect(calculateMaxHitPoints(character).hp).toBe(13)
+  })
+
+  it("'rolled' mode treats a missing middle level as 0 and flags it in the breakdown", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitPointsMode: "rolled", hitPointsRolledLevels: [8, 0, 7] } }] })
+    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 3 }
+    const result = calculateMaxHitPoints(character)
+    expect(result.hp).toBe(15)
+    expect(result.breakdown).toMatch(/missing/i)
+    expect(result.breakdown).toContain("2")
+  })
+
+  it("'rolled' mode requires an explicit level-1 entry — no automatic Hit-Die-max assumption", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitPointsMode: "rolled", hitPointsRolledLevels: [] } }] })
+    const character = { classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
+    const result = calculateMaxHitPoints(character)
+    expect(result.hp).toBe(0)
+    expect(result.breakdown).toMatch(/missing/i)
+  })
+
+  it("'rolled' mode still stacks hpBonusPerLevel bonuses on top", () => {
+    const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitPointsMode: "rolled", hitPointsRolledLevels: [8] } }] })
+    const bonusFeature = makeFeature({ name: "Dwarven Toughness", source: "species-trait", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }] })
+    const character = { classFeatures: [feature], speciesTraits: [bonusFeature], feats: [], level: 1 }
+    // 8 (roll) + 0 (con) + 1 (bonus * level 1) = 9
+    expect(calculateMaxHitPoints(character).hp).toBe(9)
   })
 })
 
@@ -1384,6 +1505,14 @@ describe("getActiveFeatureEffects", () => {
 
     const at = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 4 })
     expect(at.hpBonusPerLevel).toBe(1)
+  })
+
+  it("last-source-wins for Hit Points mode fields, mirroring hitDiceSize", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { hitDiceSize: 8, hitPointsMode: "per-level" } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { hitPointsMode: "flat", hitPointsFlatValue: 40 } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.hitPointsMode).toBe("flat")
+    expect(totals.hitPointsFlatValue).toBe(40)
   })
 
   it("last-source-wins for movement speeds (an absolute characteristic, not a stacking bonus), recording provenance", () => {

@@ -125,9 +125,22 @@ export interface Spell extends CharacterEntry {
 export type FeatureKind = 'class-feature' | 'species-trait' | 'feat' | 'background'
 export type ActionKind = 'action' | 'bonus-action' | 'reaction' | 'other'
 
+/** How a "Hit Points" feature's Max HP contribution is computed — see FeatureEffects.hitPointsMode. */
+export type HitPointsMode = 'flat' | 'per-level' | 'rolled'
+
 export interface FeatureEffects {
   spellcastingAbility?: keyof AbilityScores
   hitDiceSize?: number
+  hitPointsMode?: HitPointsMode
+  hitPointsFlatValue?: number
+  hitPointsPerLevelAmount?: number
+  /**
+   * hitPointsMode 'rolled': one recorded value per level, indexed positionally (index 0 = level 1,
+   * index 1 = level 2, ...) — there's exactly one roll per level, so level is never a separate
+   * editable field. CON mod is added separately by calculateMaxHitPoints, not baked into the value.
+   * 0 (or a missing index) means "not yet recorded" — a real die roll is always >= 1.
+   */
+  hitPointsRolledLevels?: number[]
   savingThrowProficiencies?: (keyof AbilityScores)[]
   skillProficiencies?: { skill: keyof Skills; expertise?: boolean }[]
   otherProficiencies?: string[]
@@ -206,6 +219,7 @@ export interface Character {
     temporary: number
     temporaryMaximum?: number
   }
+  useCalculatedMaximumHp?: boolean
   deathSaves: {
     successes: number
     failures: number
