@@ -1621,6 +1621,46 @@ describe("getActiveFeatureEffects", () => {
     expect(at.languages).toEqual({ Draconic: "Test Feature Class Feature" })
   })
 
+  it("accumulates a single feature's own tiers instead of only applying the highest one", () => {
+    const feature = makeFeature({
+      name: "Growing Resilience",
+      levelEffects: [
+        { level: 1, effects: { abilityScores: { constitution: 1 } } },
+        { level: 4, effects: { abilityScores: { constitution: 1 } } },
+      ],
+    })
+    const below = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 3 })
+    expect(below.abilityScores.constitution).toBe(1)
+
+    const at = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 4 })
+    expect(at.abilityScores.constitution).toBe(2)
+  })
+
+  it("unions a single feature's proficiency/resistance-style grants across tiers instead of losing earlier ones", () => {
+    const feature = makeFeature({
+      name: "Attuned Senses",
+      levelEffects: [
+        { level: 1, effects: { skillProficiencies: [{ skill: "survival" }] } },
+        { level: 6, effects: { skillProficiencies: [{ skill: "nature" }] } },
+      ],
+    })
+    const totals = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 6 })
+    expect(totals.skillProficiencies.survival?.source).toBe("Attuned Senses Class Feature")
+    expect(totals.skillProficiencies.nature?.source).toBe("Attuned Senses Class Feature")
+  })
+
+  it("resolves a single feature's own floor/cap tiers to the strongest constraint, not a sum", () => {
+    const feature = makeFeature({
+      name: "Rising Fortitude",
+      levelEffects: [
+        { level: 1, effects: { abilityScoreFloors: { constitution: 13 } } },
+        { level: 8, effects: { abilityScoreFloors: { constitution: 15 } } },
+      ],
+    })
+    const totals = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 8 })
+    expect(totals.abilityScoreFloors.constitution).toBe(15)
+  })
+
   it("sums ability score bonuses across features and records each as a separate named grant", () => {
     const featureA = makeFeature({ name: "Hill Dwarf Toughness", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] })
     const featureB = makeFeature({ name: "Ability Score Improvement", levelEffects: [{ level: 4, effects: { abilityScores: { strength: 1 } } }] })

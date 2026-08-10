@@ -93,11 +93,18 @@ type FeatureTypeValue =
 // at different levels, so they keep the repeatable level-tier list. Hit Points bundles a Hit Die
 // selector (used independently by Rest Modal's hit-dice-spending flow) with a choice of three Max
 // HP calculation modes (flat / per-level / rolled) — see the 'Hit Points' block in FeatureForm.
-const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size']
+// Max HP Bonus is single-tier too, but for a different reason than the other three: its value is
+// a single always-scaling rate (× total character level, computed in calculateMaxHitPoints), not a
+// flat amount that can stack across tiers — a second tier wouldn't have a sensible combined value
+// (see the comment on the hpBonusPerLevel block in getActiveFeatureEffects). Even though its
+// granting trait/feat can be picked up at any level, it needs no editable level either: a feature is
+// only ever added once actually gained, and amount × current-level is already algebraically
+// equivalent to 5e RAW (e.g. Tough) for any level at or after that, regardless of which level it was.
+const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size', 'Max HP Bonus']
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
-  'Ability Scores', 'Max HP Bonus',
+  'Ability Scores',
 ]
 const FEATURE_TYPES: FeatureTypeValue[] = ['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES]
 
@@ -288,7 +295,7 @@ function LevelEffectRow(props: {
   featureType:
     | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
     | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-    | 'Ability Scores' | 'Max HP Bonus'
+    | 'Ability Scores'
   tier: FeatureLevelEffect
   effectGroupsOpen: () => Record<EffectGroupKey, boolean>
   onEffectGroupOpenChange: (key: EffectGroupKey, open: boolean) => void
@@ -620,18 +627,6 @@ function LevelEffectRow(props: {
           </EffectGroup>
         </div>
       </Show>
-
-      <Show when={props.featureType === 'Max HP Bonus'}>
-        <div class="space-y-1">
-          <Label for="fx-hp-bonus-per-level" class="text-xs">Max HP Bonus (per level)</Label>
-          <NumericInput
-            id="fx-hp-bonus-per-level"
-            aria-label="Max HP Bonus (per level)"
-            value={effects().hpBonusPerLevel ?? 0}
-            onChange={(v) => update({ hpBonusPerLevel: v || undefined })}
-          />
-        </div>
-      </Show>
     </div>
   )
 }
@@ -641,8 +636,17 @@ function FeatureForm(props: FeatureFormProps) {
     props.initialData ?? { name: '', description: '', featureType: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '', level: 1, levelEffects: [] }
   )
 
-  // Spellcasting Ability / Hit Points aren't level-dependent, so they're always in force as soon
-  // as the feature exists — modeled as a single tier fixed at level 1 rather than a user-editable level.
+  // Spellcasting Ability / Hit Points / Size / Max HP Bonus aren't level-dependent — they're always
+  // in force as soon as the feature exists, modeled as a single tier fixed at level 1 rather than a
+  // user-editable level. This holds for Max HP Bonus too even though its granting trait/feat can be
+  // picked up at any level: the feature object itself is only ever added to the character once
+  // actually gained (there's no "pre-enter it, activate later" flow), and hpBonusPerLevel's amount
+  // is always multiplied by the character's *current* level in calculateMaxHitPoints — which for the
+  // 5e RAW math (e.g. Tough: "+2× your level when gained, +2 more per level thereafter") is
+  // algebraically identical to amount × current level for any level at or after it was gained,
+  // regardless of what level that was. So the tier's own level threshold never needs to be anything
+  // but 1; it would only matter if a feature were added before it was actually gained, which the app
+  // doesn't do.
   const singleTierEffects = () => formData().levelEffects[0]?.effects ?? {}
   const setSingleTierEffects = (effects: FeatureEffects) => setFormData((d) => ({
     ...d,
@@ -952,6 +956,18 @@ function FeatureForm(props: FeatureFormProps) {
         </div>
       </Show>
 
+      <Show when={formData().featureType === 'Max HP Bonus'}>
+        <div class="space-y-1">
+          <Label for="feature-hp-bonus-per-level" class="text-xs">Max HP Bonus (per level)</Label>
+          <NumericInput
+            id="feature-hp-bonus-per-level"
+            aria-label="Max HP Bonus (per level)"
+            value={singleTierEffects().hpBonusPerLevel ?? 0}
+            onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hpBonusPerLevel: v || undefined })}
+          />
+        </div>
+      </Show>
+
       <Show when={isTieredEffectType(formData().featureType)}>
         <div class="space-y-3">
           <For each={formData().levelEffects}>
@@ -960,7 +976,7 @@ function FeatureForm(props: FeatureFormProps) {
                 featureType={formData().featureType as
                   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
                   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-                  | 'Ability Scores' | 'Max HP Bonus'}
+                  | 'Ability Scores'}
                 tier={tier}
                 effectGroupsOpen={() => getEffectGroupsOpen(i())}
                 onEffectGroupOpenChange={(key, open) => setEffectGroupOpen(i(), key, open)}

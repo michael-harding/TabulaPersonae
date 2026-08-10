@@ -261,10 +261,21 @@ export interface FeatureEffectTotals {
   hpBonusPerLevelGrants: SourcedBonus[]
 }
 
+// Every tier whose level threshold has been reached, oldest first — not just the highest one.
+// getActiveFeatureEffects folds over all of them so a feature's tiers accumulate (an ability score
+// bonus at level 1 plus another at level 4 sum to both, a proficiency granted at level 1 survives a
+// different one granted at level 6), while getActiveLevelEffect below still exposes just the final
+// entry for callers that only care about the feature's current single-fact state (e.g. hit die size).
+function getQualifyingLevelEffects(feature: Feature, level: number): FeatureEffects[] {
+  return (feature.levelEffects ?? [])
+    .filter((tier) => tier.level <= level)
+    .sort((a, b) => a.level - b.level)
+    .map((tier) => tier.effects)
+}
+
 export function getActiveLevelEffect(feature: Feature, level: number): FeatureEffects | undefined {
-  const tiers = (feature.levelEffects ?? []).filter((tier) => tier.level <= level)
-  if (tiers.length === 0) return undefined
-  return tiers.reduce((best, tier) => (tier.level > best.level ? tier : best)).effects
+  const tiers = getQualifyingLevelEffects(feature, level)
+  return tiers.length > 0 ? tiers[tiers.length - 1] : undefined
 }
 
 type FeatureEffectCharacter = Pick<Character, "classFeatures" | "speciesTraits" | "feats" | "backgroundFeatures"> & Partial<Pick<Character, "level">>
@@ -298,105 +309,112 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
 
   for (const features of [safeFeatures(character.classFeatures), safeFeatures(character.speciesTraits), safeFeatures(character.feats), safeFeatures(character.backgroundFeatures)]) {
     for (const feature of features) {
-      const effects = getActiveLevelEffect(feature, level)
-      if (!effects) continue
+      const tiers = getQualifyingLevelEffects(feature, level)
+      if (tiers.length === 0) continue
 
       const sourceLabel = featureSourceLabel(feature)
 
-      if (effects.spellcastingAbility) {
-        totals.spellcastingAbility = effects.spellcastingAbility
-        totals.spellcastingAbilitySource = sourceLabel
-      }
-      if (effects.hitDiceSize) {
-        totals.hitDiceSize = effects.hitDiceSize
-        totals.hitDiceSizeSource = sourceLabel
-      }
-      if (
-        effects.hitPointsMode !== undefined ||
-        effects.hitPointsFlatValue !== undefined ||
-        effects.hitPointsPerLevelAmount !== undefined ||
-        (effects.hitPointsRolledLevels?.length ?? 0) > 0
-      ) {
-        totals.hitPointsMode = effects.hitPointsMode
-        totals.hitPointsFlatValue = effects.hitPointsFlatValue
-        totals.hitPointsPerLevelAmount = effects.hitPointsPerLevelAmount
-        totals.hitPointsRolledLevels = effects.hitPointsRolledLevels
-      }
-      if (effects.size) {
-        totals.size = effects.size
-        totals.sizeSource = sourceLabel
-      }
-      for (const ability of effects.savingThrowProficiencies ?? []) {
-        if (!totals.savingThrowProficiencies[ability]) {
-          totals.savingThrowProficiencies[ability] = sourceLabel
+      for (const effects of tiers) {
+        if (effects.spellcastingAbility) {
+          totals.spellcastingAbility = effects.spellcastingAbility
+          totals.spellcastingAbilitySource = sourceLabel
         }
-      }
-      for (const grant of effects.skillProficiencies ?? []) {
-        const existing = totals.skillProficiencies[grant.skill]
-        totals.skillProficiencies[grant.skill] = {
-          expertise: (existing?.expertise ?? false) || !!grant.expertise,
-          source: existing?.source ?? sourceLabel,
+        if (effects.hitDiceSize) {
+          totals.hitDiceSize = effects.hitDiceSize
+          totals.hitDiceSizeSource = sourceLabel
         }
-      }
-      for (const prof of effects.otherProficiencies ?? []) {
-        if (!totals.otherProficiencies[prof]) {
-          totals.otherProficiencies[prof] = sourceLabel
+        if (
+          effects.hitPointsMode !== undefined ||
+          effects.hitPointsFlatValue !== undefined ||
+          effects.hitPointsPerLevelAmount !== undefined ||
+          (effects.hitPointsRolledLevels?.length ?? 0) > 0
+        ) {
+          totals.hitPointsMode = effects.hitPointsMode
+          totals.hitPointsFlatValue = effects.hitPointsFlatValue
+          totals.hitPointsPerLevelAmount = effects.hitPointsPerLevelAmount
+          totals.hitPointsRolledLevels = effects.hitPointsRolledLevels
         }
-      }
-      for (const r of effects.resistances ?? []) {
-        if (!totals.resistances[r]) totals.resistances[r] = sourceLabel
-      }
-      for (const i of effects.immunities ?? []) {
-        if (!totals.immunities[i]) totals.immunities[i] = sourceLabel
-      }
-      for (const v of effects.vulnerabilities ?? []) {
-        if (!totals.vulnerabilities[v]) totals.vulnerabilities[v] = sourceLabel
-      }
-      for (const c of effects.conditionImmunities ?? []) {
-        if (!totals.conditionImmunities[c]) totals.conditionImmunities[c] = sourceLabel
-      }
-      for (const l of effects.languages ?? []) {
-        if (!totals.languages[l]) totals.languages[l] = sourceLabel
-      }
-      for (const sense of SENSE_TYPES) {
-        const senseAmount = Number(effects.senses?.[sense] ?? 0)
-        if (senseAmount) {
-          totals.senses[sense] += senseAmount
-          totals.senseGrants[sense].push({ source: sourceLabel, amount: senseAmount })
+        if (effects.size) {
+          totals.size = effects.size
+          totals.sizeSource = sourceLabel
         }
-      }
-      for (const ability of ABILITY_KEYS) {
-        const abilityAmount = Number(effects.abilityScores?.[ability] ?? 0)
-        if (abilityAmount) {
-          totals.abilityScores[ability] += abilityAmount
-          totals.abilityScoreGrants[ability].push({ source: sourceLabel, amount: abilityAmount })
+        for (const ability of effects.savingThrowProficiencies ?? []) {
+          if (!totals.savingThrowProficiencies[ability]) {
+            totals.savingThrowProficiencies[ability] = sourceLabel
+          }
         }
-        if (effects.abilityScoreFloors?.[ability] !== undefined && effects.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
-          totals.abilityScoreFloors[ability] = effects.abilityScoreFloors[ability]
-          totals.abilityScoreFloorSources[ability] = sourceLabel
+        for (const grant of effects.skillProficiencies ?? []) {
+          const existing = totals.skillProficiencies[grant.skill]
+          totals.skillProficiencies[grant.skill] = {
+            expertise: (existing?.expertise ?? false) || !!grant.expertise,
+            source: existing?.source ?? sourceLabel,
+          }
         }
-        if (effects.abilityScoreMaxCaps?.[ability] !== undefined && effects.abilityScoreMaxCaps[ability]! < (totals.abilityScoreMaxCaps[ability] ?? Infinity)) {
-          totals.abilityScoreMaxCaps[ability] = effects.abilityScoreMaxCaps[ability]
-          totals.abilityScoreMaxCapSources[ability] = sourceLabel
+        for (const prof of effects.otherProficiencies ?? []) {
+          if (!totals.otherProficiencies[prof]) {
+            totals.otherProficiencies[prof] = sourceLabel
+          }
         }
-        if (effects.abilityScoreBaseMax?.[ability] !== undefined && effects.abilityScoreBaseMax[ability]! > (totals.abilityScoreBaseMax[ability] ?? -Infinity)) {
-          totals.abilityScoreBaseMax[ability] = effects.abilityScoreBaseMax[ability]
-          totals.abilityScoreBaseMaxSources[ability] = sourceLabel
+        for (const r of effects.resistances ?? []) {
+          if (!totals.resistances[r]) totals.resistances[r] = sourceLabel
         }
-      }
-      if (effects.speed !== undefined) { totals.speed = effects.speed; totals.speedSource = sourceLabel }
-      if (effects.flySpeed !== undefined) { totals.flySpeed = effects.flySpeed; totals.flySpeedSource = sourceLabel }
-      if (effects.swimSpeed !== undefined) { totals.swimSpeed = effects.swimSpeed; totals.swimSpeedSource = sourceLabel }
-      if (effects.climbSpeed !== undefined) { totals.climbSpeed = effects.climbSpeed; totals.climbSpeedSource = sourceLabel }
-      if (effects.burrowSpeed !== undefined) { totals.burrowSpeed = effects.burrowSpeed; totals.burrowSpeedSource = sourceLabel }
-      totals.carryingCapacityBonus += Number(effects.carryingCapacityBonus ?? 0)
-      if (effects.carryingCapacityMultiplier !== undefined) {
-        totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, effects.carryingCapacityMultiplier)
-      }
-      const hpBonusPerLevelAmount = Number(effects.hpBonusPerLevel ?? 0)
-      if (hpBonusPerLevelAmount) {
-        totals.hpBonusPerLevel += hpBonusPerLevelAmount
-        totals.hpBonusPerLevelGrants.push({ source: sourceLabel, amount: hpBonusPerLevelAmount })
+        for (const i of effects.immunities ?? []) {
+          if (!totals.immunities[i]) totals.immunities[i] = sourceLabel
+        }
+        for (const v of effects.vulnerabilities ?? []) {
+          if (!totals.vulnerabilities[v]) totals.vulnerabilities[v] = sourceLabel
+        }
+        for (const c of effects.conditionImmunities ?? []) {
+          if (!totals.conditionImmunities[c]) totals.conditionImmunities[c] = sourceLabel
+        }
+        for (const l of effects.languages ?? []) {
+          if (!totals.languages[l]) totals.languages[l] = sourceLabel
+        }
+        for (const sense of SENSE_TYPES) {
+          const senseAmount = Number(effects.senses?.[sense] ?? 0)
+          if (senseAmount) {
+            totals.senses[sense] += senseAmount
+            totals.senseGrants[sense].push({ source: sourceLabel, amount: senseAmount })
+          }
+        }
+        for (const ability of ABILITY_KEYS) {
+          const abilityAmount = Number(effects.abilityScores?.[ability] ?? 0)
+          if (abilityAmount) {
+            totals.abilityScores[ability] += abilityAmount
+            totals.abilityScoreGrants[ability].push({ source: sourceLabel, amount: abilityAmount })
+          }
+          if (effects.abilityScoreFloors?.[ability] !== undefined && effects.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
+            totals.abilityScoreFloors[ability] = effects.abilityScoreFloors[ability]
+            totals.abilityScoreFloorSources[ability] = sourceLabel
+          }
+          if (effects.abilityScoreMaxCaps?.[ability] !== undefined && effects.abilityScoreMaxCaps[ability]! < (totals.abilityScoreMaxCaps[ability] ?? Infinity)) {
+            totals.abilityScoreMaxCaps[ability] = effects.abilityScoreMaxCaps[ability]
+            totals.abilityScoreMaxCapSources[ability] = sourceLabel
+          }
+          if (effects.abilityScoreBaseMax?.[ability] !== undefined && effects.abilityScoreBaseMax[ability]! > (totals.abilityScoreBaseMax[ability] ?? -Infinity)) {
+            totals.abilityScoreBaseMax[ability] = effects.abilityScoreBaseMax[ability]
+            totals.abilityScoreBaseMaxSources[ability] = sourceLabel
+          }
+        }
+        if (effects.speed !== undefined) { totals.speed = effects.speed; totals.speedSource = sourceLabel }
+        if (effects.flySpeed !== undefined) { totals.flySpeed = effects.flySpeed; totals.flySpeedSource = sourceLabel }
+        if (effects.swimSpeed !== undefined) { totals.swimSpeed = effects.swimSpeed; totals.swimSpeedSource = sourceLabel }
+        if (effects.climbSpeed !== undefined) { totals.climbSpeed = effects.climbSpeed; totals.climbSpeedSource = sourceLabel }
+        if (effects.burrowSpeed !== undefined) { totals.burrowSpeed = effects.burrowSpeed; totals.burrowSpeedSource = sourceLabel }
+        totals.carryingCapacityBonus += Number(effects.carryingCapacityBonus ?? 0)
+        if (effects.carryingCapacityMultiplier !== undefined) {
+          totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, effects.carryingCapacityMultiplier)
+        }
+        // Safe to fold over every qualifying tier like every other field here only because the
+        // Features UI (features-module.tsx) restricts "Max HP Bonus" to a single tier — its value
+        // is scaled again later in calculateMaxHitPoints (× total character level), so a feature
+        // with more than one qualifying hpBonusPerLevel tier would push multiple grants and get
+        // double/triple-multiplied instead of contributing one flat-then-scaled rate.
+        const hpBonusPerLevelAmount = Number(effects.hpBonusPerLevel ?? 0)
+        if (hpBonusPerLevelAmount) {
+          totals.hpBonusPerLevel += hpBonusPerLevelAmount
+          totals.hpBonusPerLevelGrants.push({ source: sourceLabel, amount: hpBonusPerLevelAmount })
+        }
       }
     }
   }

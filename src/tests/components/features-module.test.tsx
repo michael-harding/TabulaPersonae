@@ -1151,7 +1151,7 @@ describe("FeaturesModule", () => {
       })
     })
 
-    describe("Ability Score Bonus (level-tiered)", () => {
+    describe("Ability Scores (level-tiered)", () => {
       it("shows the Add Level button and persists a bonus to a Species Trait", () => {
         const onUpdate = vi.fn()
         render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
@@ -1159,9 +1159,9 @@ describe("FeaturesModule", () => {
         const modal = screen.getByRole("dialog")
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Hill Dwarf Toughness" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Scores" }))
         expect(within(modal).getByRole("button", { name: /add level/i })).toBeInTheDocument()
-        fireEvent.click(within(modal).getByRole("button", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("button", { name: "Ability Score" }))
         const conBonus = within(modal).getByLabelText(/^con bonus$/i)
         fireEvent.input(conBonus, { target: { value: "2" } })
         fireEvent.keyDown(conBonus, { key: "Enter" })
@@ -1185,7 +1185,7 @@ describe("FeaturesModule", () => {
         const modal = screen.getByRole("dialog")
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Boon of Combat Prowess" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Scores" }))
         fireEvent.click(within(modal).getByRole("button", { name: /Ability Score Floor/i }))
         const strFloor = within(modal).getByLabelText(/^str floor$/i)
         fireEvent.input(strFloor, { target: { value: "19" } })
@@ -1210,7 +1210,7 @@ describe("FeaturesModule", () => {
         const modal = screen.getByRole("dialog")
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Curse of the Withering Grip" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Scores" }))
         fireEvent.click(within(modal).getByRole("button", { name: /Ability Score Max Cap/i }))
         const strCap = within(modal).getByLabelText(/^str max cap$/i)
         fireEvent.input(strCap, { target: { value: "15" } })
@@ -1235,7 +1235,7 @@ describe("FeaturesModule", () => {
         const modal = screen.getByRole("dialog")
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Epic Boon of Fortitude" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Scores" }))
         fireEvent.click(within(modal).getByRole("button", { name: /Ability Score Base Max/i }))
         const strBaseMax = within(modal).getByLabelText(/^str base max$/i)
         fireEvent.input(strBaseMax, { target: { value: "25" } })
@@ -1260,8 +1260,8 @@ describe("FeaturesModule", () => {
         const modal = screen.getByRole("dialog")
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Acolyte" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
-        fireEvent.click(within(modal).getByRole("button", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Scores" }))
+        fireEvent.click(within(modal).getByRole("button", { name: "Ability Score" }))
         const wisBonus = within(modal).getByLabelText(/^wis bonus$/i)
         fireEvent.input(wisBonus, { target: { value: "2" } })
         fireEvent.keyDown(wisBonus, { key: "Enter" })
@@ -1296,7 +1296,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
         const modal = screen.getByRole("dialog")
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Scores" }))
         expect(within(modal).queryByLabelText(/^str bonus$/i)).not.toBeInTheDocument()
         expect(within(modal).queryByLabelText(/^str floor$/i)).not.toBeInTheDocument()
         expect(within(modal).queryByLabelText(/^str max cap$/i)).not.toBeInTheDocument()
@@ -1322,7 +1322,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
         const modal = screen.getByRole("dialog")
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Scores" }))
         fireEvent.click(within(modal).getByRole("button", { name: /Ability Score Max Cap/i }))
         expect(within(modal).getByLabelText(/^str max cap$/i)).toBeInTheDocument()
 
@@ -1379,8 +1379,8 @@ describe("FeaturesModule", () => {
       })
     })
 
-    describe("Max HP Bonus (level-tiered)", () => {
-      it("shows the Add Level button and persists a per-level HP bonus to a Species Trait", () => {
+    describe("Max HP Bonus (single tier, fixed at level 1)", () => {
+      it("has no Add Level button or At Level field, and persists an HP-per-level bonus to a Species Trait", () => {
         const onUpdate = vi.fn()
         render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
@@ -1388,7 +1388,8 @@ describe("FeaturesModule", () => {
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Dwarven Toughness" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Max HP Bonus" }))
-        expect(within(modal).getByRole("button", { name: /add level/i })).toBeInTheDocument()
+        expect(within(modal).queryByRole("button", { name: /add level/i })).not.toBeInTheDocument()
+        expect(within(modal).queryByLabelText(/^at level$/i)).not.toBeInTheDocument()
         const bonusInput = within(modal).getByLabelText(/max hp bonus/i)
         fireEvent.input(bonusInput, { target: { value: "1" } })
         fireEvent.keyDown(bonusInput, { key: "Enter" })
@@ -1405,6 +1406,30 @@ describe("FeaturesModule", () => {
         )
       })
 
+      it("persists a bonus to a Feat added at a later level with no level field to set", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Tough" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Max HP Bonus" }))
+        const bonusInput = within(modal).getByLabelText(/max hp bonus/i)
+        fireEvent.input(bonusInput, { target: { value: "2" } })
+        fireEvent.keyDown(bonusInput, { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            feats: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Tough",
+                levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 2 } }],
+              }),
+            ]),
+          })
+        )
+      })
+
       it("pre-fills the Feature Type and shows the existing bonus when editing", () => {
         const feature = makeFeature({
           name: "Dwarven Toughness",
@@ -1413,7 +1438,8 @@ describe("FeaturesModule", () => {
         })
         render(<FeaturesModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
         fireEvent.click(screen.getByRole("button", { name: /edit dwarven toughness/i }))
-        expect(screen.getByRole("button", { name: /add level/i })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /add level/i })).not.toBeInTheDocument()
+        expect(screen.queryByLabelText(/^at level$/i)).not.toBeInTheDocument()
         expect(screen.getByLabelText(/max hp bonus/i)).toHaveValue(1)
       })
 

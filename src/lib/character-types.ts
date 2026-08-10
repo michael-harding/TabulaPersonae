@@ -176,6 +176,9 @@ export interface Feature extends UseableEntry {
   type?: ActionType
   range?: string
   level?: number
+  // Every tier whose level threshold the character has reached contributes to the totals in
+  // getActiveFeatureEffects — not just the highest one. A tier at level 1 and another at level 4
+  // both apply once the character is level 4 or higher (see getQualifyingLevelEffects).
   levelEffects?: FeatureLevelEffect[]
 }
 
