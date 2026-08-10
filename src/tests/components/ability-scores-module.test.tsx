@@ -328,6 +328,28 @@ describe("AbilityScoresModule", () => {
       expect(strInput).toHaveValue(16)
     })
 
+    it("clamps the base score input to 20 by default (the normal advancement ceiling)", () => {
+      const character = makeCharacter()
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const strInput = screen.getAllByRole("spinbutton")[0]
+      fireEvent.input(strInput, { target: { value: "25" } })
+      fireEvent.blur(strInput)
+      expect(strInput).toHaveValue(20)
+    })
+
+    it("allows the base score input past 20 when a feature grants a base-max exception (Epic Boon / capstone)", () => {
+      const character = makeCharacter({
+        feats: [{ id: "f1", name: "Epic Boon of Fortitude", description: "", source: "feat", levelEffects: [{ level: 1, effects: { abilityScoreBaseMax: { strength: 25 } } }] }],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const strInput = screen.getAllByRole("spinbutton")[0]
+      fireEvent.input(strInput, { target: { value: "25" } })
+      fireEvent.blur(strInput)
+      expect(strInput).toHaveValue(25)
+    })
+
     it("reflects a per-ability saving throw item bonus", () => {
       const character = makeCharacter({
         equipment: [makeMagicItem({ modifiers: { savingThrows: { strength: 1 } } })],
@@ -359,6 +381,38 @@ describe("AbilityScoresModule", () => {
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent(/floor 18/i)
       expect(screen.getByRole("tooltip")).toHaveTextContent("(18 − 10) / 2 = +4")
+    })
+
+    it("applies an item's ability-score cap even when base+item bonus is higher", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 7 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      // base STR 16, no item bonus, cap 7 -> displayed 7, modifier -2
+      expect(screen.getByText("7")).toBeInTheDocument()
+      expect(screen.getByText("-2")).toBeInTheDocument()
+    })
+
+    it("mentions the cap in the effective-score tooltip when it lowers the value", async () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 7 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent(/cap 7/i)
+      expect(screen.getByRole("tooltip")).toHaveTextContent("(7 − 10) / 2 = -2")
+    })
+
+    it("never applies the cap to a custom effective-score override", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 7 } } })],
+        abilityScoreOverrides: { strength: 22 },
+        useCalculatedAbilityScores: { strength: false },
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("22")).toBeInTheDocument()
     })
 
     it("persists a manual effective-score override on save", () => {

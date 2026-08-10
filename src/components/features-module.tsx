@@ -1,4 +1,4 @@
-import { createSignal, For, Index, Show } from "solid-js"
+import { createSignal, For, Index, Show, type ParentProps } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
 import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveLevelEffect, getActiveFeatureEffects, featureSourceLabel, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
@@ -85,7 +85,7 @@ type FeatureTypeValue =
   | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-  | 'Ability Score Bonus' | 'Max HP Bonus'
+  | 'Ability Scores' | 'Max HP Bonus'
 
 // Spellcasting Ability, Hit Points, and Size are fixed facts of a class/species, not something
 // that changes at higher levels, so they get a single always-on control. The proficiency-grant
@@ -97,7 +97,7 @@ const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Po
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
-  'Ability Score Bonus', 'Max HP Bonus',
+  'Ability Scores', 'Max HP Bonus',
 ]
 const FEATURE_TYPES: FeatureTypeValue[] = ['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES]
 
@@ -126,8 +126,10 @@ function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: Feat
   if (effects?.conditionImmunities?.length) return 'Condition Immunity'
   if (effects?.languages?.length) return 'Language'
   if (effects?.carryingCapacityBonus || effects?.carryingCapacityMultiplier) return 'Carrying Capacity'
-  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v)) return 'Ability Score Bonus'
-  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v)) return 'Ability Score Bonus'
+  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v)) return 'Ability Scores'
+  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v)) return 'Ability Scores'
+  if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v)) return 'Ability Scores'
+  if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v)) return 'Ability Scores'
   if (effects?.hpBonusPerLevel) return 'Max HP Bonus'
   return ''
 }
@@ -253,12 +255,43 @@ function FreeTextListEditor(props: {
   )
 }
 
+type EffectGroupKey = 'bonus' | 'floor' | 'cap' | 'baseMax'
+
+function anyAbilitySet(record: Partial<Record<keyof AbilityScores, number>> | undefined): boolean {
+  return Object.values(record ?? {}).some((v) => v)
+}
+
+// Whether each Ability Scores subsection should start expanded — true if it already carries
+// a value, so editing an existing feature never hides data the user needs to see.
+function computeInitialEffectGroups(effects: FeatureEffects): Record<EffectGroupKey, boolean> {
+  return {
+    bonus: anyAbilitySet(effects.abilityScores),
+    floor: anyAbilitySet(effects.abilityScoreFloors),
+    cap: anyAbilitySet(effects.abilityScoreMaxCaps),
+    baseMax: anyAbilitySet(effects.abilityScoreBaseMax),
+  }
+}
+
+function EffectGroup(props: ParentProps<{ label: string; open: boolean; onOpenChange: (open: boolean) => void }>) {
+  return (
+    <Collapsible open={props.open} onOpenChange={props.onOpenChange}>
+      <CollapsibleTrigger class="flex w-full items-center justify-between text-xs font-medium text-muted-foreground">
+        <span>{props.label}</span>
+        <ChevronDown class="h-3.5 w-3.5 transition-transform ui-expanded:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent class="pt-2">{props.children}</CollapsibleContent>
+    </Collapsible>
+  )
+}
+
 function LevelEffectRow(props: {
   featureType:
     | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
     | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-    | 'Ability Score Bonus' | 'Max HP Bonus'
+    | 'Ability Scores' | 'Max HP Bonus'
   tier: FeatureLevelEffect
+  effectGroupsOpen: () => Record<EffectGroupKey, boolean>
+  onEffectGroupOpenChange: (key: EffectGroupKey, open: boolean) => void
   onLevelChange: (level: number) => void
   onEffectsChange: (effects: FeatureEffects) => void
   onRemove: () => void
@@ -496,10 +529,13 @@ function LevelEffectRow(props: {
         </div>
       </Show>
 
-      <Show when={props.featureType === 'Ability Score Bonus'}>
+      <Show when={props.featureType === 'Ability Scores'}>
         <div class="space-y-3">
-          <div class="space-y-1">
-            <Label class="text-xs">Ability Score Bonus</Label>
+          <EffectGroup
+            label="Ability Score"
+            open={props.effectGroupsOpen().bonus}
+            onOpenChange={(open) => props.onEffectGroupOpenChange('bonus', open)}
+          >
             <div class="grid grid-cols-2 gap-2">
               <For each={SAVE_ABILITIES}>
                 {(ability) => (
@@ -515,9 +551,12 @@ function LevelEffectRow(props: {
                 )}
               </For>
             </div>
-          </div>
-          <div class="space-y-1">
-            <Label class="text-xs">Ability Score Floor (minimum score, 0 = none)</Label>
+          </EffectGroup>
+          <EffectGroup
+            label="Ability Score Floor (minimum score, 0 = none)"
+            open={props.effectGroupsOpen().floor}
+            onOpenChange={(open) => props.onEffectGroupOpenChange('floor', open)}
+          >
             <div class="grid grid-cols-2 gap-2">
               <For each={SAVE_ABILITIES}>
                 {(ability) => (
@@ -534,7 +573,51 @@ function LevelEffectRow(props: {
                 )}
               </For>
             </div>
-          </div>
+          </EffectGroup>
+          <EffectGroup
+            label="Ability Score Max Cap (maximum score, 0 = none)"
+            open={props.effectGroupsOpen().cap}
+            onOpenChange={(open) => props.onEffectGroupOpenChange('cap', open)}
+          >
+            <div class="grid grid-cols-2 gap-2">
+              <For each={SAVE_ABILITIES}>
+                {(ability) => (
+                  <div>
+                    <Label for={`fx-asi-cap-${ability}`} class="text-xs text-muted-foreground">{ABILITY_ABBREVIATIONS[ability]}</Label>
+                    <NumericInput
+                      id={`fx-asi-cap-${ability}`}
+                      aria-label={`${ABILITY_ABBREVIATIONS[ability]} Max Cap`}
+                      min={0}
+                      value={effects().abilityScoreMaxCaps?.[ability] ?? 0}
+                      onChange={(v) => update({ abilityScoreMaxCaps: { ...effects().abilityScoreMaxCaps, [ability]: v || undefined } })}
+                    />
+                  </div>
+                )}
+              </For>
+            </div>
+          </EffectGroup>
+          <EffectGroup
+            label="Ability Score Base Max (raises the normal maximum, default 20)"
+            open={props.effectGroupsOpen().baseMax}
+            onOpenChange={(open) => props.onEffectGroupOpenChange('baseMax', open)}
+          >
+            <div class="grid grid-cols-2 gap-2">
+              <For each={SAVE_ABILITIES}>
+                {(ability) => (
+                  <div>
+                    <Label for={`fx-asi-basemax-${ability}`} class="text-xs text-muted-foreground">{ABILITY_ABBREVIATIONS[ability]}</Label>
+                    <NumericInput
+                      id={`fx-asi-basemax-${ability}`}
+                      aria-label={`${ABILITY_ABBREVIATIONS[ability]} Base Max`}
+                      min={0}
+                      value={effects().abilityScoreBaseMax?.[ability] ?? 0}
+                      onChange={(v) => update({ abilityScoreBaseMax: { ...effects().abilityScoreBaseMax, [ability]: v || undefined } })}
+                    />
+                  </div>
+                )}
+              </For>
+            </div>
+          </EffectGroup>
         </div>
       </Show>
 
@@ -593,8 +676,36 @@ function FeatureForm(props: FeatureFormProps) {
   const updateLevelEffect = (index: number, patch: Partial<FeatureLevelEffect>) => {
     setFormData((d) => ({ ...d, levelEffects: d.levelEffects.map((t, i) => (i === index ? { ...t, ...patch } : t)) }))
   }
-  const addLevelEffect = () => setFormData((d) => ({ ...d, levelEffects: [...d.levelEffects, { level: 1, effects: {} }] }))
-  const removeLevelEffect = (index: number) => setFormData((d) => ({ ...d, levelEffects: d.levelEffects.filter((_, i) => i !== index) }))
+
+  // Ability Score subsections (Bonus/Floor/Max Cap/Base Max) are individually collapsible.
+  // Their open/closed state is tracked here, in the stable parent, rather than as local state
+  // inside LevelEffectRow — that row is recreated on every keystroke (each edit replaces the tier
+  // object, and Solid's <For> remounts children whose item reference changes), which would silently
+  // discard any state kept inside it, snapping a manually-collapsed section back open on the next edit.
+  const [effectGroupsOpen, setEffectGroupsOpen] = createSignal<Record<number, Record<EffectGroupKey, boolean>>>(
+    Object.fromEntries((formData().levelEffects).map((t, i) => [i, computeInitialEffectGroups(t.effects)]))
+  )
+  const getEffectGroupsOpen = (index: number) => effectGroupsOpen()[index] ?? computeInitialEffectGroups({})
+  const setEffectGroupOpen = (index: number, key: EffectGroupKey, open: boolean) =>
+    setEffectGroupsOpen((g) => ({ ...g, [index]: { ...getEffectGroupsOpen(index), [key]: open } }))
+
+  const addLevelEffect = () => {
+    const newIndex = formData().levelEffects.length
+    setFormData((d) => ({ ...d, levelEffects: [...d.levelEffects, { level: 1, effects: {} }] }))
+    setEffectGroupsOpen((g) => ({ ...g, [newIndex]: computeInitialEffectGroups({}) }))
+  }
+  const removeLevelEffect = (index: number) => {
+    setFormData((d) => ({ ...d, levelEffects: d.levelEffects.filter((_, i) => i !== index) }))
+    setEffectGroupsOpen((g) => {
+      const next: Record<number, Record<EffectGroupKey, boolean>> = {}
+      for (const [kStr, v] of Object.entries(g)) {
+        const k = Number(kStr)
+        if (k < index) next[k] = v
+        else if (k > index) next[k - 1] = v
+      }
+      return next
+    })
+  }
 
   const changeFeatureType = (value: string) => {
     const next = value as FeatureTypeValue | ''
@@ -849,8 +960,10 @@ function FeatureForm(props: FeatureFormProps) {
                 featureType={formData().featureType as
                   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
                   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-                  | 'Ability Score Bonus' | 'Max HP Bonus'}
+                  | 'Ability Scores' | 'Max HP Bonus'}
                 tier={tier}
+                effectGroupsOpen={() => getEffectGroupsOpen(i())}
+                onEffectGroupOpenChange={(key, open) => setEffectGroupOpen(i(), key, open)}
                 onLevelChange={(level) => updateLevelEffect(i(), { level })}
                 onEffectsChange={(effects) => updateLevelEffect(i(), { effects })}
                 onRemove={() => removeLevelEffect(i())}

@@ -631,7 +631,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                 </div>
               </div>
               <div>
-                <Label class="text-xs">Max Caps (informational)</Label>
+                <Label class="text-xs">Max Caps (sets score to at most this value)</Label>
                 <div class="grid grid-cols-3 gap-2 mt-1">
                   <For each={ABILITY_KEYS}>
                     {(ability) => (

@@ -1161,6 +1161,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
         expect(within(modal).getByRole("button", { name: /add level/i })).toBeInTheDocument()
+        fireEvent.click(within(modal).getByRole("button", { name: "Ability Score Bonus" }))
         const conBonus = within(modal).getByLabelText(/^con bonus$/i)
         fireEvent.input(conBonus, { target: { value: "2" } })
         fireEvent.keyDown(conBonus, { key: "Enter" })
@@ -1185,6 +1186,7 @@ describe("FeaturesModule", () => {
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Boon of Combat Prowess" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /Ability Score Floor/i }))
         const strFloor = within(modal).getByLabelText(/^str floor$/i)
         fireEvent.input(strFloor, { target: { value: "19" } })
         fireEvent.keyDown(strFloor, { key: "Enter" })
@@ -1201,6 +1203,56 @@ describe("FeaturesModule", () => {
         )
       })
 
+      it("persists an ability score max cap to a Feat", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Curse of the Withering Grip" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /Ability Score Max Cap/i }))
+        const strCap = within(modal).getByLabelText(/^str max cap$/i)
+        fireEvent.input(strCap, { target: { value: "15" } })
+        fireEvent.keyDown(strCap, { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            feats: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Curse of the Withering Grip",
+                levelEffects: [{ level: 1, effects: { abilityScoreMaxCaps: { strength: 15 } } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("persists an ability score base max to a Feat", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Epic Boon of Fortitude" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /Ability Score Base Max/i }))
+        const strBaseMax = within(modal).getByLabelText(/^str base max$/i)
+        fireEvent.input(strBaseMax, { target: { value: "25" } })
+        fireEvent.keyDown(strBaseMax, { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            feats: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Epic Boon of Fortitude",
+                levelEffects: [{ level: 1, effects: { abilityScoreBaseMax: { strength: 25 } } }],
+              }),
+            ]),
+          })
+        )
+      })
+
       it("persists a Background-granted ability score bonus (2024 Background ASI)", () => {
         const onUpdate = vi.fn()
         render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
@@ -1209,6 +1261,7 @@ describe("FeaturesModule", () => {
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Acolyte" } })
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("button", { name: "Ability Score Bonus" }))
         const wisBonus = within(modal).getByLabelText(/^wis bonus$/i)
         fireEvent.input(wisBonus, { target: { value: "2" } })
         fireEvent.keyDown(wisBonus, { key: "Enter" })
@@ -1236,6 +1289,71 @@ describe("FeaturesModule", () => {
         fireEvent.click(screen.getByRole("button", { name: /edit hill dwarf toughness/i }))
         expect(screen.getByRole("button", { name: /add level/i })).toBeInTheDocument()
         expect(screen.getByLabelText(/^con bonus$/i)).toHaveValue(2)
+      })
+
+      it("collapses all four ability score subsections by default on a brand-new feature", () => {
+        render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        expect(within(modal).queryByLabelText(/^str bonus$/i)).not.toBeInTheDocument()
+        expect(within(modal).queryByLabelText(/^str floor$/i)).not.toBeInTheDocument()
+        expect(within(modal).queryByLabelText(/^str max cap$/i)).not.toBeInTheDocument()
+        expect(within(modal).queryByLabelText(/^str base max$/i)).not.toBeInTheDocument()
+      })
+
+      it("expands only the subsection with existing data when editing, leaving empty ones collapsed", () => {
+        const feature = makeFeature({
+          name: "Curse of the Withering Grip",
+          source: "feat",
+          levelEffects: [{ level: 1, effects: { abilityScoreMaxCaps: { strength: 15 } } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ feats: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit curse of the withering grip/i }))
+        expect(screen.getByLabelText(/^str max cap$/i)).toHaveValue(15)
+        expect(screen.queryByLabelText(/^str bonus$/i)).not.toBeInTheDocument()
+        expect(screen.queryByLabelText(/^str floor$/i)).not.toBeInTheDocument()
+        expect(screen.queryByLabelText(/^str base max$/i)).not.toBeInTheDocument()
+      })
+
+      it("keeps a manually expanded (empty) subsection open after editing an unrelated field in the same row", () => {
+        render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Score Bonus" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /Ability Score Max Cap/i }))
+        expect(within(modal).getByLabelText(/^str max cap$/i)).toBeInTheDocument()
+
+        // Editing the (unrelated) "At Level" field in the same row replaces the tier object,
+        // remounting the row — the Max Cap section's open state must survive that remount.
+        const atLevel = within(modal).getByLabelText(/^at level$/i)
+        fireEvent.input(atLevel, { target: { value: "4" } })
+        fireEvent.keyDown(atLevel, { key: "Enter" })
+        expect(within(modal).getByLabelText(/^str max cap$/i)).toBeInTheDocument()
+      })
+
+      it("keeps a manually collapsed (populated) subsection closed after editing an unrelated field in the same row", () => {
+        const feature = makeFeature({
+          name: "Curse of the Withering Grip",
+          source: "feat",
+          levelEffects: [{ level: 1, effects: { abilityScoreMaxCaps: { strength: 15 } } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ feats: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit curse of the withering grip/i }))
+        const capTrigger = screen.getByRole("button", { name: /Ability Score Max Cap/i })
+        expect(capTrigger).toHaveAttribute("aria-expanded", "true")
+        fireEvent.click(capTrigger)
+        // jsdom never fires the transitionend Kobalte's Collapsible waits for before unmounting
+        // closed content, so the DOM node can briefly linger here — aria-expanded is the reliable,
+        // environment-independent signal that the open state itself actually flipped.
+        expect(capTrigger).toHaveAttribute("aria-expanded", "false")
+
+        const atLevel = screen.getByLabelText(/^at level$/i)
+        fireEvent.input(atLevel, { target: { value: "4" } })
+        fireEvent.keyDown(atLevel, { key: "Enter" })
+        expect(screen.getByRole("button", { name: /Ability Score Max Cap/i })).toHaveAttribute("aria-expanded", "false")
       })
 
       it("round-trips levelEffects through edit and save unchanged", () => {

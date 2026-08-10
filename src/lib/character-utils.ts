@@ -74,6 +74,8 @@ export interface EquipmentModifierTotals {
   carryingCapacityMultiplier: number
   abilityScoreFloors: Partial<Record<keyof AbilityScores, number>>
   abilityScoreFloorSources: Partial<Record<keyof AbilityScores, string>>
+  abilityScoreMaxCaps: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreMaxCapSources: Partial<Record<keyof AbilityScores, string>>
   languages: string[]
   proficiencies: string[]
 }
@@ -109,6 +111,9 @@ export const ZERO_ABILITY_SCORES: Record<keyof AbilityScores, number> = {
   strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0,
 }
 
+/** The normal maximum an ability score can be raised to through ordinary advancement (ASIs, most feats). Epic Boons, capstone features, and homebrew content raise this per-ability via FeatureEffects.abilityScoreBaseMax. */
+export const DEFAULT_ABILITY_SCORE_MAX = 20
+
 export const ZERO_SENSES: Record<SenseType, number> = {
   darkvision: 0, blindsight: 0, tremorsense: 0, truesight: 0,
 }
@@ -135,6 +140,8 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
     carryingCapacityMultiplier: 1,
     abilityScoreFloors: {},
     abilityScoreFloorSources: {},
+    abilityScoreMaxCaps: {},
+    abilityScoreMaxCapSources: {},
     languages: [],
     proficiencies: [],
   }
@@ -160,6 +167,10 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
       if (mods.abilityScoreFloors?.[ability] !== undefined && mods.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
         totals.abilityScoreFloors[ability] = mods.abilityScoreFloors[ability]
         totals.abilityScoreFloorSources[ability] = item.name
+      }
+      if (mods.abilityScoreMaxCaps?.[ability] !== undefined && mods.abilityScoreMaxCaps[ability]! < (totals.abilityScoreMaxCaps[ability] ?? Infinity)) {
+        totals.abilityScoreMaxCaps[ability] = mods.abilityScoreMaxCaps[ability]
+        totals.abilityScoreMaxCapSources[ability] = item.name
       }
     }
     for (const sense of SENSE_TYPES) {
@@ -222,6 +233,10 @@ export interface FeatureEffectTotals {
   abilityScoreGrants: Record<keyof AbilityScores, SourcedBonus[]>
   abilityScoreFloors: Partial<Record<keyof AbilityScores, number>>
   abilityScoreFloorSources: Partial<Record<keyof AbilityScores, string>>
+  abilityScoreMaxCaps: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreMaxCapSources: Partial<Record<keyof AbilityScores, string>>
+  abilityScoreBaseMax: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreBaseMaxSources: Partial<Record<keyof AbilityScores, string>>
   /**
    * Movement fields are last-source-wins overrides, not additive bonuses, unlike every other
    * numeric field here — a species's walking/fly/swim/climb/burrow speed is an absolute
@@ -270,6 +285,10 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     abilityScoreGrants: { strength: [], dexterity: [], constitution: [], intelligence: [], wisdom: [], charisma: [] },
     abilityScoreFloors: {},
     abilityScoreFloorSources: {},
+    abilityScoreMaxCaps: {},
+    abilityScoreMaxCapSources: {},
+    abilityScoreBaseMax: {},
+    abilityScoreBaseMaxSources: {},
     carryingCapacityBonus: 0,
     carryingCapacityMultiplier: 1,
     hpBonusPerLevel: 0,
@@ -356,6 +375,14 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
           totals.abilityScoreFloors[ability] = effects.abilityScoreFloors[ability]
           totals.abilityScoreFloorSources[ability] = sourceLabel
         }
+        if (effects.abilityScoreMaxCaps?.[ability] !== undefined && effects.abilityScoreMaxCaps[ability]! < (totals.abilityScoreMaxCaps[ability] ?? Infinity)) {
+          totals.abilityScoreMaxCaps[ability] = effects.abilityScoreMaxCaps[ability]
+          totals.abilityScoreMaxCapSources[ability] = sourceLabel
+        }
+        if (effects.abilityScoreBaseMax?.[ability] !== undefined && effects.abilityScoreBaseMax[ability]! > (totals.abilityScoreBaseMax[ability] ?? -Infinity)) {
+          totals.abilityScoreBaseMax[ability] = effects.abilityScoreBaseMax[ability]
+          totals.abilityScoreBaseMaxSources[ability] = sourceLabel
+        }
       }
       if (effects.speed !== undefined) { totals.speed = effects.speed; totals.speedSource = sourceLabel }
       if (effects.flySpeed !== undefined) { totals.flySpeed = effects.flySpeed; totals.flySpeedSource = sourceLabel }
@@ -434,7 +461,8 @@ function getCalculatedAbilityScoreFromTotals(
   const itemBonus = itemTotals.abilityScores[ability]
   const featureBonus = featureTotals.abilityScores[ability]
   const floor = Math.max(itemTotals.abilityScoreFloors[ability] ?? -Infinity, featureTotals.abilityScoreFloors[ability] ?? -Infinity)
-  return Math.max(base + itemBonus + featureBonus, floor)
+  const cap = Math.min(itemTotals.abilityScoreMaxCaps[ability] ?? Infinity, featureTotals.abilityScoreMaxCaps[ability] ?? Infinity)
+  return Math.min(Math.max(base + itemBonus + featureBonus, floor), cap)
 }
 
 function getEffectiveAbilityScoreFromTotals(
@@ -454,6 +482,13 @@ export function getCalculatedAbilityScore(character: AbilityScoreCharacter, abil
 
 export function getEffectiveAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
   return getEffectiveAbilityScoreFromTotals(character, ability, getEquipmentModifierTotals(character.equipment), getActiveFeatureEffects(character))
+}
+
+// Governs only the editable base ability score (the normal advancement ceiling of 20, raised by
+// Epic Boons/capstones/homebrew feature grants) — it must never be applied to the effective score,
+// which item bonuses and floors/caps can legitimately push past 20 without any exception.
+export function getAbilityScoreBaseMax(character: FeatureEffectCharacter, ability: keyof AbilityScores): number {
+  return Math.max(DEFAULT_ABILITY_SCORE_MAX, getActiveFeatureEffects(character).abilityScoreBaseMax[ability] ?? -Infinity)
 }
 
 export function getEffectiveAbilityScores(character: AbilityScoreCharacter): AbilityScores {

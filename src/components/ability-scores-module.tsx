@@ -1,6 +1,6 @@
 import { createSignal, createEffect, createMemo, on, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, ABILITY_ABBREVIATIONS, ABILITY_TITLE_CASE } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, getAbilityScoreBaseMax, ABILITY_ABBREVIATIONS, ABILITY_TITLE_CASE } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -92,6 +92,13 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                 if (itemFloor === undefined && featureFloor === undefined) return undefined
                 return Math.max(itemFloor ?? -Infinity, featureFloor ?? -Infinity)
               }
+              const cap = () => {
+                const itemCap = modifierTotals().abilityScoreMaxCaps[ability]
+                const featureCap = featureTotals().abilityScoreMaxCaps[ability]
+                if (itemCap === undefined && featureCap === undefined) return undefined
+                return Math.min(itemCap ?? Infinity, featureCap ?? Infinity)
+              }
+              const baseMax = () => getAbilityScoreBaseMax(props.character, ability)
               const saveItemBonus = () => modifierTotals().savingThrows[ability]
               const abilityCalculated = () =>
                 getCalculatedAbilityScore({ ...props.character, abilityScores: { ...safeScores(), [ability]: score() } }, ability)
@@ -111,8 +118,9 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                   const effective = abilityCalculated()
                   const mod = getAbilityModifier(effective)
                   const flooredNote = floor() !== undefined && effective > withBonus ? `, floor ${floor()}` : ""
+                  const cappedNote = cap() !== undefined && effective < withBonus ? `, cap ${cap()}` : ""
                   const terms = grants.map((g) => (g.amount > 0 ? ` + ${g.amount} (${g.source})` : ` - ${Math.abs(g.amount)} (${g.source})`)).join("")
-                  const base = (grants.length > 0 || flooredNote) ? `${score()} base${terms}${flooredNote} = ${effective}; ` : ""
+                  const base = (grants.length > 0 || flooredNote || cappedNote) ? `${score()} base${terms}${flooredNote}${cappedNote} = ${effective}; ` : ""
                   return `${base}(${effective} − 10) / 2 = ${formatModifier(mod)}`
                 },
               })
@@ -134,7 +142,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                   {isEditing() ? (
                     <div class="space-y-2">
                       <NumericInput
-                        min={1} max={30}
+                        min={1} max={baseMax()}
                         aria-label={ABILITY_NAMES[ability]}
                         value={editedScores()[ability]}
                         onChange={(v) => setEditedScores((prev) => ({ ...prev, [ability]: v }))}

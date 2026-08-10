@@ -36,6 +36,7 @@ import {
   getEffectiveHitDiceSize,
   getEffectiveSavingThrowProficiency,
   getEffectiveSkillProficiency,
+  getAbilityScoreBaseMax,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type AbilityScores, type Equipment, type Feature } from "@/lib/character-types"
 
@@ -534,6 +535,8 @@ describe("getEquipmentModifierTotals", () => {
       carryingCapacityMultiplier: 1,
       abilityScoreFloors: {},
       abilityScoreFloorSources: {},
+      abilityScoreMaxCaps: {},
+      abilityScoreMaxCapSources: {},
       languages: [],
       proficiencies: [],
     }
@@ -633,12 +636,14 @@ describe("getEquipmentModifierTotals", () => {
     expect(totals.abilityScoreFloors.strength).toBe(21)
   })
 
-  // Regression: abilityScoreMaxCaps is informational per-item data (shown directly from
-  // item.modifiers), not an aggregate — getEquipmentModifierTotals must not compute one.
-  it("does not expose an abilityScoreMaxCaps aggregate", () => {
-    const equipment = [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 22 } } })]
+  it("takes the min ability score max cap per ability across items (most restrictive wins)", () => {
+    const equipment = [
+      makeMagicItem({ id: "a", name: "Ring of Might", modifiers: { abilityScoreMaxCaps: { strength: 22 } } }),
+      makeMagicItem({ id: "b", name: "Manacles of Restraint", modifiers: { abilityScoreMaxCaps: { strength: 17 } } }),
+    ]
     const totals = getEquipmentModifierTotals(equipment)
-    expect(totals).not.toHaveProperty("abilityScoreMaxCaps")
+    expect(totals.abilityScoreMaxCaps.strength).toBe(17)
+    expect(totals.abilityScoreMaxCapSources.strength).toBe("Manacles of Restraint")
   })
 })
 
@@ -709,6 +714,34 @@ describe("getEffectiveAbilityScore / getEffectiveAbilityScores", () => {
     expect(getEffectiveAbilityScore(character, "strength")).toBe(16)
   })
 
+  it("lowers the score to an active item's cap when base + bonus exceeds it", () => {
+    const character = { abilityScores: baseScores, equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 15 } } })] }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(15)
+  })
+
+  it("does not raise the score when it already is under the cap", () => {
+    const character = { abilityScores: baseScores, equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 20 } } })] }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(16)
+  })
+
+  it("a cap lower than an active floor wins (most restrictive constraint applies)", () => {
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { abilityScoreFloors: { strength: 19 }, abilityScoreMaxCaps: { strength: 17 } } })],
+    }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(17)
+  })
+
+  it("never applies the cap to a custom override value", () => {
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 15 } } })],
+      abilityScoreOverrides: { strength: 25 },
+      useCalculatedAbilityScores: { strength: false },
+    }
+    expect(getEffectiveAbilityScore(character, "strength")).toBe(25)
+  })
+
   it("adds a feature-granted ability score bonus to the base score", () => {
     const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] })
     const character = { abilityScores: baseScores, equipment: [], classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
@@ -731,6 +764,12 @@ describe("getEffectiveAbilityScore / getEffectiveAbilityScores", () => {
     expect(getEffectiveAbilityScore(character, "wisdom")).toBe(18)
   })
 
+  it("lowers the score to a feature-granted cap when base + bonuses exceeds it", () => {
+    const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScoreMaxCaps: { wisdom: 8 } } }] })
+    const character = { abilityScores: baseScores, equipment: [], classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
+    expect(getEffectiveAbilityScore(character, "wisdom")).toBe(8)
+  })
+
   it("getEffectiveAbilityScores folds a feature-granted bonus into the resolved set", () => {
     const feature = makeFeature({ source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2, wisdom: 1 } } }] })
     const character = { abilityScores: baseScores, equipment: [], classFeatures: [], speciesTraits: [feature], feats: [], level: 1 }
@@ -738,6 +777,26 @@ describe("getEffectiveAbilityScore / getEffectiveAbilityScores", () => {
     expect(scores.strength).toBe(18)
     expect(scores.wisdom).toBe(11)
     expect(scores.dexterity).toBe(14)
+  })
+})
+
+describe("getAbilityScoreBaseMax", () => {
+  it("defaults to 20 with no exception grants", () => {
+    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getAbilityScoreBaseMax(character, "strength")).toBe(20)
+  })
+
+  it("is raised by a feature-granted exception (e.g. an Epic Boon or capstone)", () => {
+    const feature = makeFeature({ source: "feat", name: "Epic Boon of Fortitude", levelEffects: [{ level: 1, effects: { abilityScoreBaseMax: { constitution: 25 } } }] })
+    const character = { classFeatures: [], speciesTraits: [], feats: [feature], level: 1 }
+    expect(getAbilityScoreBaseMax(character, "constitution")).toBe(25)
+    expect(getAbilityScoreBaseMax(character, "strength")).toBe(20)
+  })
+
+  it("never lowers the ceiling below 20, even if a grant specifies a smaller value", () => {
+    const feature = makeFeature({ source: "feat", levelEffects: [{ level: 1, effects: { abilityScoreBaseMax: { strength: 15 } } }] })
+    const character = { classFeatures: [], speciesTraits: [], feats: [feature], level: 1 }
+    expect(getAbilityScoreBaseMax(character, "strength")).toBe(20)
   })
 })
 
@@ -1579,6 +1638,22 @@ describe("getActiveFeatureEffects", () => {
     const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
     expect(totals.abilityScoreFloors.wisdom).toBe(21)
     expect(totals.abilityScoreFloorSources.wisdom).toBe("B Class Feature")
+  })
+
+  it("takes the min ability score max cap across features and records the winning source (most restrictive wins)", () => {
+    const featureA = makeFeature({ name: "A", levelEffects: [{ level: 1, effects: { abilityScoreMaxCaps: { wisdom: 18 } } }] })
+    const featureB = makeFeature({ name: "B", levelEffects: [{ level: 1, effects: { abilityScoreMaxCaps: { wisdom: 12 } } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.abilityScoreMaxCaps.wisdom).toBe(12)
+    expect(totals.abilityScoreMaxCapSources.wisdom).toBe("B Class Feature")
+  })
+
+  it("takes the max ability score base max across features and records the winning source (most generous exception wins)", () => {
+    const featureA = makeFeature({ name: "Epic Boon of Fortitude", levelEffects: [{ level: 1, effects: { abilityScoreBaseMax: { constitution: 25 } } }] })
+    const featureB = makeFeature({ name: "Primal Champion", levelEffects: [{ level: 1, effects: { abilityScoreBaseMax: { constitution: 23 } } }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [featureA, featureB], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.abilityScoreBaseMax.constitution).toBe(25)
+    expect(totals.abilityScoreBaseMaxSources.constitution).toBe("Epic Boon of Fortitude Class Feature")
   })
 
   it("aggregates a backgroundFeatures-sourced ability score bonus (2024 Background ASI path)", () => {
