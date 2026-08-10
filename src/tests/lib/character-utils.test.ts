@@ -22,6 +22,7 @@ import {
   getEffectiveAbilityScores,
   getEffectiveSenses,
   getEffectiveMovementSpeeds,
+  getMovementSpeedGrants,
   getEffectiveDamageResistances,
   getEffectiveDamageImmunities,
   getEffectiveDamageVulnerabilities,
@@ -29,6 +30,7 @@ import {
   getEffectiveLanguages,
   getEffectiveProficiencies,
   getEffectiveCarryingCapacity,
+  getCarryingCapacityBreakdown,
   getEffectiveSize,
   getActiveLevelEffect,
   getActiveFeatureEffects,
@@ -876,6 +878,27 @@ describe("getEffectiveMovementSpeeds", () => {
   })
 })
 
+describe("getMovementSpeedGrants", () => {
+  it("is all undefined with no granting feature", () => {
+    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getMovementSpeedGrants(character)).toEqual({
+      walk: undefined, fly: undefined, swim: undefined, climb: undefined, burrow: undefined,
+    })
+  })
+
+  it("names the granting feature for each movement speed independently", () => {
+    const walkFeature = makeFeature({ name: "Dwarf Speed", source: "species-trait", levelEffects: [{ level: 1, effects: { speed: 25 } }] })
+    const flyFeature = makeFeature({ name: "Fly", source: "feat", levelEffects: [{ level: 1, effects: { flySpeed: 30 } }] })
+    const character = {
+      classFeatures: [], speciesTraits: [walkFeature], feats: [flyFeature], level: 1,
+    }
+    const grants = getMovementSpeedGrants(character)
+    expect(grants.walk).toBe("Dwarf Speed Species Trait")
+    expect(grants.fly).toBe("Fly Feat")
+    expect(grants.swim).toBeUndefined()
+  })
+})
+
 describe("getEffectiveDamageResistances / Immunities / Vulnerabilities", () => {
   it("splits into own vs item-granted, excluding overlaps from granted", () => {
     const character = {
@@ -1025,6 +1048,39 @@ describe("getEffectiveCarryingCapacity", () => {
       classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
     }
     expect(getEffectiveCarryingCapacity(character)).toBe(16 * 15 * 2)
+  })
+})
+
+describe("getCarryingCapacityBreakdown", () => {
+  it("shows the unwrapped Str x 15 formula with no bonus or multiplier", () => {
+    const character = { abilityScores: baseScores, equipment: [] }
+    expect(getCarryingCapacityBreakdown(character).breakdown).toBe("16 (Str) × 15")
+  })
+
+  it("appends a bonus term when an item or feature grants one", () => {
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { carryingCapacityBonus: 20 } })],
+    }
+    expect(getCarryingCapacityBreakdown(character).breakdown).toBe("16 (Str) × 15 + 20 (item/feature bonus)")
+  })
+
+  it("wraps the formula in parens and appends the multiplier when it is not 1", () => {
+    const feature = makeFeature({ name: "Powerful Build", source: "species-trait", levelEffects: [{ level: 1, effects: { carryingCapacityMultiplier: 2 } }] })
+    const character = {
+      abilityScores: baseScores,
+      equipment: [],
+      classFeatures: [], speciesTraits: [feature], feats: [], level: 1,
+    }
+    expect(getCarryingCapacityBreakdown(character).breakdown).toBe("(16 (Str) × 15) × 2 (multiplier)")
+  })
+
+  it("wraps both the base formula and bonus term together when a bonus and a non-1 multiplier combine", () => {
+    const character = {
+      abilityScores: baseScores,
+      equipment: [makeMagicItem({ modifiers: { carryingCapacityBonus: 20, carryingCapacityMultiplier: 2 } })],
+    }
+    expect(getCarryingCapacityBreakdown(character).breakdown).toBe("(16 (Str) × 15 + 20 (item/feature bonus)) × 2 (multiplier)")
   })
 })
 

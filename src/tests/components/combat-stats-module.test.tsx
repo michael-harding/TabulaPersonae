@@ -293,6 +293,29 @@ describe("CombatStatsModule", () => {
     })
   })
 
+  describe("movement speed tooltip", () => {
+    it("shows a fallback message when no species trait grants Speed", async () => {
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      // AC (0), Initiative (1), Speed (2), Proficiency Bonus (3), Passive Perception (4)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[2])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent(/no species trait grants this/i)
+    })
+
+    it("names the granting feature when a species trait grants Speed", async () => {
+      const feature = {
+        id: "feature-1", name: "Dwarf Speed", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { speed: 25 } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[2])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("(Dwarf Speed Species Trait)")
+    })
+  })
+
   describe("size (2024 only)", () => {
     it("shows a placeholder when nothing has defined a size yet — no hardcoded 'Medium' default", () => {
       render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)

@@ -928,6 +928,55 @@ describe("FeaturesModule", () => {
         expect(screen.getByRole("dialog")).toBeInTheDocument()
         expect(onUpdate).not.toHaveBeenCalled()
       })
+
+      it("clicking Add Level a second time adds an independent tier at level 1", () => {
+        render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Saving Throw Proficiency" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /add level/i }))
+        const atLevelInputs = within(modal).getAllByLabelText(/at level/i)
+        expect(atLevelInputs).toHaveLength(2)
+        expect(atLevelInputs[0]).toHaveValue(1)
+        expect(atLevelInputs[1]).toHaveValue(1)
+        fireEvent.input(atLevelInputs[1], { target: { value: "3" } })
+        fireEvent.keyDown(atLevelInputs[1], { key: "Enter" })
+        // the first tier's remove button is unaffected by the second tier's level change
+        expect(within(modal).getByRole("button", { name: /remove level 1 entry/i })).toBeInTheDocument()
+        expect(within(modal).getByRole("button", { name: /remove level 3 entry/i })).toBeInTheDocument()
+      })
+
+      it("removing the first of two tiers keeps the second tier's data intact", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Test" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Saving Throw Proficiency" }))
+        // tier 1 (level 1): grant WIS
+        fireEvent.click(within(modal).getAllByRole("checkbox", { name: "WIS" })[0])
+        // add a second tier, move it to level 3, and grant CON on it
+        fireEvent.click(within(modal).getByRole("button", { name: /add level/i }))
+        const atLevelInputs = within(modal).getAllByLabelText(/at level/i)
+        fireEvent.input(atLevelInputs[1], { target: { value: "3" } })
+        fireEvent.keyDown(atLevelInputs[1], { key: "Enter" })
+        fireEvent.click(within(modal).getAllByRole("checkbox", { name: "CON" })[1])
+        // remove the first tier — only the level-3 tier should survive
+        fireEvent.click(within(modal).getByRole("button", { name: /remove level 1 entry/i }))
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Test",
+                levelEffects: [{ level: 3, effects: { savingThrowProficiencies: ["constitution"] } }],
+              }),
+            ]),
+          })
+        )
+      })
     })
 
     describe("Size (not level-dependent)", () => {
@@ -1354,6 +1403,25 @@ describe("FeaturesModule", () => {
         fireEvent.input(atLevel, { target: { value: "4" } })
         fireEvent.keyDown(atLevel, { key: "Enter" })
         expect(screen.getByRole("button", { name: /Ability Score Max Cap/i })).toHaveAttribute("aria-expanded", "false")
+      })
+
+      it("re-indexes a manually expanded subsection's open state when an earlier tier is removed", () => {
+        render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Ability Scores" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /add level/i }))
+        // both tiers start with all subsections collapsed — manually expand the SECOND
+        // tier's Max Cap subsection only
+        const capTriggers = within(modal).getAllByRole("button", { name: /Ability Score Max Cap/i })
+        expect(capTriggers).toHaveLength(2)
+        fireEvent.click(capTriggers[1])
+        expect(capTriggers[1]).toHaveAttribute("aria-expanded", "true")
+        // remove the FIRST tier — without re-indexing, the surviving row (now array index 0)
+        // would incorrectly pick up the first tier's (collapsed) open state
+        fireEvent.click(within(modal).getAllByRole("button", { name: /remove level 1 entry/i })[0])
+        expect(within(modal).getByRole("button", { name: /Ability Score Max Cap/i })).toHaveAttribute("aria-expanded", "true")
       })
 
       it("round-trips levelEffects through edit and save unchanged", () => {
