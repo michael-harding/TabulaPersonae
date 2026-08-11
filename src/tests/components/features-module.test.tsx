@@ -94,7 +94,7 @@ describe("FeaturesModule", () => {
 
   describe("empty state", () => {
     it("shows empty state for class features", () => {
-      render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("No class features added yet.")).toBeInTheDocument()
     })
 
@@ -1772,6 +1772,15 @@ describe("FeaturesModule", () => {
     it("shows the tracker only once when multiple features could grant hitDiceSize", () => {
       const featureA = makeFeature({ id: "f-a", name: "A", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
       const featureB = makeFeature({ id: "f-b", name: "B", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [featureA, featureB], level: 1 })} onUpdate={vi.fn()} />)
+      expect(screen.getAllByTitle("Hit die available")).toHaveLength(1)
+    })
+
+    it("shows the tracker only once even when two features share the same name and kind", () => {
+      // Both compare equal under a name+kind label ("Hit Points Class Feature"); only comparing by
+      // the feature's own id can tell them apart and pick the one that's actually currently active.
+      const featureA = makeFeature({ id: "f-a", name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
+      const featureB = makeFeature({ id: "f-b", name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [featureA, featureB], level: 1 })} onUpdate={vi.fn()} />)
       expect(screen.getAllByTitle("Hit die available")).toHaveLength(1)
     })

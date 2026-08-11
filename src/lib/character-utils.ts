@@ -95,7 +95,7 @@ export const ABILITY_TITLE_CASE: Record<keyof AbilityScores, string> = {
   strength: "Str", dexterity: "Dex", constitution: "Con", intelligence: "Int", wisdom: "Wis", charisma: "Cha",
 }
 
-const FEATURE_KIND_LABELS: Record<FeatureKind, string> = {
+export const FEATURE_KIND_LABELS: Record<FeatureKind, string> = {
   "class-feature": "Class Feature",
   "species-trait": "Species Trait",
   "feat": "Feat",
@@ -212,6 +212,7 @@ export interface FeatureEffectTotals {
   spellcastingAbilitySource?: string
   hitDiceSize?: number
   hitDiceSizeSource?: string
+  hitDiceSizeSourceFeatureId?: string
   hitPointsMode?: HitPointsMode
   hitPointsFlatValue?: number
   hitPointsPerLevelAmount?: number
@@ -322,6 +323,7 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
         if (effects.hitDiceSize) {
           totals.hitDiceSize = effects.hitDiceSize
           totals.hitDiceSizeSource = sourceLabel
+          totals.hitDiceSizeSourceFeatureId = feature.id
         }
         if (
           effects.hitPointsMode !== undefined ||
@@ -406,10 +408,12 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
           totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, effects.carryingCapacityMultiplier)
         }
         // Safe to fold over every qualifying tier like every other field here only because the
-        // Features UI (features-module.tsx) restricts "Max HP Bonus" to a single tier — its value
-        // is scaled again later in calculateMaxHitPoints (× total character level), so a feature
-        // with more than one qualifying hpBonusPerLevel tier would push multiple grants and get
-        // double/triple-multiplied instead of contributing one flat-then-scaled rate.
+        // Features UI (features-module.tsx's SINGLE_EFFECT_TYPES) restricts "Max HP Bonus" to a
+        // single tier — its value is scaled again later in calculateMaxHitPoints (× total character
+        // level), so a feature with more than one qualifying hpBonusPerLevel tier would push
+        // multiple grants and get double/triple-multiplied instead of contributing one
+        // flat-then-scaled rate. Not enforced at this layer — a hand-edited/imported Feature with
+        // two such tiers would hit this, since raw character JSON is never schema-validated.
         const hpBonusPerLevelAmount = Number(effects.hpBonusPerLevel ?? 0)
         if (hpBonusPerLevelAmount) {
           totals.hpBonusPerLevel += hpBonusPerLevelAmount
@@ -453,13 +457,14 @@ export function getEffectiveSavingThrowProficiency(
 export function getEffectiveSkillProficiency(
   character: Pick<Character, "skills" | "classFeatures" | "speciesTraits" | "feats" | "level">,
   skill: keyof Skills,
-): { proficient: boolean; expertise: boolean; granted: boolean; grantedBy?: string } {
+): { proficient: boolean; expertise: boolean; granted: boolean; expertiseGranted: boolean; grantedBy?: string } {
   const own = character.skills?.[skill]
   const grant = getActiveFeatureEffects(character).skillProficiencies[skill]
   return {
     proficient: (own?.proficient ?? false) || !!grant,
     expertise: (own?.expertise ?? false) || (grant?.expertise ?? false),
     granted: !!grant,
+    expertiseGranted: !!grant?.expertise,
     grantedBy: grant?.source,
   }
 }
@@ -610,7 +615,10 @@ function mergeGrantList(
   const granted = dedupUnion(itemGranted, Object.keys(featureGranted)).filter((v) => !ownList.includes(v))
   const grantedBy: Record<string, string> = {}
   for (const v of granted) {
-    grantedBy[v] = itemGranted.includes(v) ? "equipment" : featureGranted[v]
+    // Prefer the feature as the attributed source when a value is granted by both — it's more
+    // specific/actionable in a tooltip than the generic "equipment" label, and doesn't disappear
+    // from the tooltip if the item granting it is later unequipped while the feature still applies.
+    grantedBy[v] = featureGranted[v] ?? "equipment"
   }
   return { own: ownList, granted, grantedBy }
 }

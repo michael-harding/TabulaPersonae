@@ -93,32 +93,41 @@ describe("migrateCharacter", () => {
   })
 
   describe("legacy spellcasting/hit-die Feature import", () => {
+    // These fixtures explicitly clear classFeatures to simulate a genuinely pre-existing (legacy)
+    // character — one saved before createDefaultCharacter started granting a starter "Hit Points"
+    // Feature, so it never got one. A real legacy character can't carry a Feature that didn't exist
+    // yet; only brand-new characters created under the current code do.
     it("synthesizes a Feature granting the legacy spellcasting ability when nothing else grants one", () => {
-      const raw: any = { ...createDefaultCharacter(), spellcastingAbility: "intelligence", hitDice: "" }
+      const raw: any = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
       delete raw.useCalculatedSize
       const migrated = migrateCharacter(raw)
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("intelligence")
       expect(migrated.classFeatures).toHaveLength(1)
+      // Named plainly, not "Legacy Spellcasting" — it's meant to be a normal, permanent Feature,
+      // not a disposable placeholder a player might delete and lose spellcasting functionality.
+      expect(migrated.classFeatures![0].name).toBe("Spellcasting")
     })
 
     it("synthesizes a Feature granting the legacy hit die size when nothing else grants one", () => {
-      const raw: any = { ...createDefaultCharacter(), hitDice: "1d10" }
+      const raw: any = { ...createDefaultCharacter(), classFeatures: [], hitDice: "1d10" }
       delete raw.useCalculatedSize
       const migrated = migrateCharacter(raw)
       expect(getEffectiveHitDiceSize(migrated)).toBe(10)
       // spellcastingAbility defaults to "" on a fresh character, so no spellcasting Feature is added
       expect(migrated.classFeatures).toHaveLength(1)
+      // Named plainly, not "Legacy Hit Points" — see note on the spellcasting case above.
+      expect(migrated.classFeatures![0].name).toBe("Hit Points")
     })
 
     it("prefers an explicit legacy hitDiceSize over parsing hitDice", () => {
-      const raw: any = { ...createDefaultCharacter(), hitDice: "1d8", hitDiceSize: 12 }
+      const raw: any = { ...createDefaultCharacter(), classFeatures: [], hitDice: "1d8", hitDiceSize: 12 }
       delete raw.useCalculatedSize
       const migrated = migrateCharacter(raw)
       expect(getEffectiveHitDiceSize(migrated)).toBe(12)
     })
 
     it("synthesizes separate Features for spellcasting and hit die, so editing one in the Features tab can't drop the other", () => {
-      const raw: any = { ...createDefaultCharacter(), spellcastingAbility: "wisdom", hitDice: "1d8" }
+      const raw: any = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "wisdom", hitDice: "1d8" }
       delete raw.useCalculatedSize
       const migrated = migrateCharacter(raw)
       expect(migrated.classFeatures).toHaveLength(2)
@@ -152,6 +161,50 @@ describe("migrateCharacter", () => {
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("charisma")
       expect(getEffectiveHitDiceSize(migrated)).toBe(8)
       expect(migrated.classFeatures).toHaveLength(3)
+    })
+
+    it("normalizes a legacy string-shaped classFeatures instead of spreading it character-by-character", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        classFeatures: "Rage, Reckless Attack, Danger Sense",
+        spellcastingAbility: "wisdom",
+        hitDice: "",
+      }
+      delete raw.useCalculatedSize
+      expect(() => migrateCharacter(raw)).not.toThrow()
+      const migrated = migrateCharacter(raw)
+      // Only the synthesized "Spellcasting" Feature — the legacy string was discarded via
+      // safeFeatures(), not spread into ~35 one-character entries.
+      expect(migrated.classFeatures).toHaveLength(1)
+      expect(migrated.classFeatures![0].name).toBe("Spellcasting")
+    })
+  })
+
+  describe("useCalculatedSenses backfill", () => {
+    it("backfills to true when the stored sense already matches the calculated total", () => {
+      const raw: any = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: 0 } }
+      delete raw.useCalculatedSenses
+      const migrated = migrateCharacter(raw)
+      expect(migrated.useCalculatedSenses).toEqual({ darkvision: true, blindsight: true, tremorsense: true, truesight: true })
+    })
+
+    it("backfills to false and preserves the stored value when it differs from the calculated total", () => {
+      const raw: any = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: 60 } }
+      delete raw.useCalculatedSenses
+      const migrated = migrateCharacter(raw)
+      expect(migrated.useCalculatedSenses?.darkvision).toBe(false)
+      expect(migrated.senses?.darkvision).toBe(60)
+    })
+
+    it("leaves an already-present useCalculatedSenses untouched", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        classFeatures: [],
+        senses: { darkvision: 60 },
+        useCalculatedSenses: { darkvision: true, blindsight: true, tremorsense: true, truesight: true },
+      }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.useCalculatedSenses).toEqual({ darkvision: true, blindsight: true, tremorsense: true, truesight: true })
     })
   })
 })

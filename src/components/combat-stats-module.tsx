@@ -87,6 +87,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       ...data,
       hitPoints: {
         ...data.hitPoints,
+        maximum: maximumHpField.resolvedValue(),
         current: Math.max(0, Math.min(data.hitPoints?.current ?? 0, effMax)),
       },
       initiative: initiativeField.resolvedValue(),

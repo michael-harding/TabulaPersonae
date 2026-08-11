@@ -120,7 +120,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                   const mod = getAbilityModifier(effective)
                   const flooredNote = floor() !== undefined && effective > withBonus ? `, floor ${floor()}` : ""
                   const cappedNote = cap() !== undefined && effective < withBonus ? `, cap ${cap()}` : ""
-                  const terms = grants.map((g) => (g.amount > 0 ? ` + ${g.amount} (${g.source})` : ` - ${Math.abs(g.amount)} (${g.source})`)).join("")
+                  const terms = grants.map((g) => formatTerm(g.amount, g.source)).join("")
                   const base = (grants.length > 0 || flooredNote || cappedNote) ? `${score()} base${terms}${flooredNote}${cappedNote} = ${effective}; ` : ""
                   return `${base}(${effective} − 10) / 2 = ${formatModifier(mod)}`
                 },

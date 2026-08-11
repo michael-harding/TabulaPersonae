@@ -1,7 +1,7 @@
 import { createSignal, For, Index, Show, type ParentProps } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveLevelEffect, getActiveFeatureEffects, featureSourceLabel, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -62,6 +62,12 @@ const ACTION_KIND_LABELS: Record<ActionKind, string> = {
 }
 
 const ACTION_TYPE_LABELS = ['Attack', 'Ability', 'Other']
+
+const RECHARGE_ON_LABELS: Record<'' | 'short-rest' | 'long-rest', string> = {
+  '': 'None',
+  'short-rest': 'Short Rest',
+  'long-rest': 'Long Rest',
+}
 
 const SAVE_ABILITIES: (keyof AbilityScores)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
 
@@ -271,7 +277,7 @@ function FreeTextListEditor(props: {
 type EffectGroupKey = 'bonus' | 'floor' | 'cap' | 'baseMax'
 
 function anyAbilitySet(record: Partial<Record<keyof AbilityScores, number>> | undefined): boolean {
-  return Object.values(record ?? {}).some((v) => v)
+  return Object.values(record ?? {}).some((v) => v !== undefined)
 }
 
 // Whether each Ability Scores subsection should start expanded — true if it already carries
@@ -526,7 +532,7 @@ function LevelEffectRow(props: {
         <div class="grid grid-cols-2 gap-2">
           <div>
             <Label for="fx-capacity-bonus" class="text-xs text-muted-foreground">Bonus (lbs)</Label>
-            <NumericInput id="fx-capacity-bonus" value={effects().carryingCapacityBonus ?? 0} onChange={(v) => update({ carryingCapacityBonus: v || undefined })} />
+            <NumericInput id="fx-capacity-bonus" value={effects().carryingCapacityBonus ?? 0} onChange={(v) => update({ carryingCapacityBonus: v ?? undefined })} />
           </div>
           <div>
             <Label for="fx-capacity-multiplier" class="text-xs text-muted-foreground">Multiplier (0 = none)</Label>
@@ -536,7 +542,7 @@ function LevelEffectRow(props: {
               step="0.5"
               parser={parseFloat}
               value={effects().carryingCapacityMultiplier ?? 0}
-              onChange={(v) => update({ carryingCapacityMultiplier: v || undefined })}
+              onChange={(v) => update({ carryingCapacityMultiplier: v ?? undefined })}
             />
           </div>
         </div>
@@ -558,7 +564,7 @@ function LevelEffectRow(props: {
                       id={`fx-asi-bonus-${ability}`}
                       aria-label={`${ABILITY_ABBREVIATIONS[ability]} Bonus`}
                       value={effects().abilityScores?.[ability] ?? 0}
-                      onChange={(v) => update({ abilityScores: { ...effects().abilityScores, [ability]: v || undefined } })}
+                      onChange={(v) => update({ abilityScores: { ...effects().abilityScores, [ability]: v ?? undefined } })}
                     />
                   </div>
                 )}
@@ -580,7 +586,7 @@ function LevelEffectRow(props: {
                       aria-label={`${ABILITY_ABBREVIATIONS[ability]} Floor`}
                       min={0}
                       value={effects().abilityScoreFloors?.[ability] ?? 0}
-                      onChange={(v) => update({ abilityScoreFloors: { ...effects().abilityScoreFloors, [ability]: v || undefined } })}
+                      onChange={(v) => update({ abilityScoreFloors: { ...effects().abilityScoreFloors, [ability]: v ?? undefined } })}
                     />
                   </div>
                 )}
@@ -602,7 +608,7 @@ function LevelEffectRow(props: {
                       aria-label={`${ABILITY_ABBREVIATIONS[ability]} Max Cap`}
                       min={0}
                       value={effects().abilityScoreMaxCaps?.[ability] ?? 0}
-                      onChange={(v) => update({ abilityScoreMaxCaps: { ...effects().abilityScoreMaxCaps, [ability]: v || undefined } })}
+                      onChange={(v) => update({ abilityScoreMaxCaps: { ...effects().abilityScoreMaxCaps, [ability]: v ?? undefined } })}
                     />
                   </div>
                 )}
@@ -624,7 +630,7 @@ function LevelEffectRow(props: {
                       aria-label={`${ABILITY_ABBREVIATIONS[ability]} Base Max`}
                       min={0}
                       value={effects().abilityScoreBaseMax?.[ability] ?? 0}
-                      onChange={(v) => update({ abilityScoreBaseMax: { ...effects().abilityScoreBaseMax, [ability]: v || undefined } })}
+                      onChange={(v) => update({ abilityScoreBaseMax: { ...effects().abilityScoreBaseMax, [ability]: v ?? undefined } })}
                     />
                   </div>
                 )}
@@ -680,8 +686,14 @@ function FeatureForm(props: FeatureFormProps) {
     while (next.length < rolledRowCount() + 1) next.push(0)
     setSingleTierEffects({ ...singleTierEffects(), hitPointsRolledLevels: next })
   }
-  const removeRolledLevel = (index: number) =>
-    setSingleTierEffects({ ...singleTierEffects(), hitPointsRolledLevels: rolledLevels().filter((_, i) => i !== index) })
+  const removeRolledLevel = (index: number) => {
+    const next = [...rolledLevels()]
+    next[index] = 0
+    // Trim trailing zeros back down, but never below the always-shown baseline of one row per
+    // level already reached — those rows aren't removable, so the array shouldn't shrink past them.
+    while (next.length > props.characterLevel && next[next.length - 1] === 0) next.pop()
+    setSingleTierEffects({ ...singleTierEffects(), hitPointsRolledLevels: next })
+  }
 
   const updateLevelEffect = (index: number, patch: Partial<FeatureLevelEffect>) => {
     setFormData((d) => ({ ...d, levelEffects: d.levelEffects.map((t, i) => (i === index ? { ...t, ...patch } : t)) }))
@@ -786,7 +798,7 @@ function FeatureForm(props: FeatureFormProps) {
             <Label for="feature-action-kind">Action Kind</Label>
             <Select value={formData().actionKind || 'action'} onValueChange={(v) => setFormData((d) => ({ ...d, actionKind: v as ActionKind | '' }))}>
               <SelectTrigger id="feature-action-kind" aria-label="Action Kind">
-                <SelectValue />
+                <span class="flex-1 text-left">{ACTION_KIND_LABELS[(formData().actionKind || 'action') as ActionKind]}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="action">Action</SelectItem>
@@ -829,7 +841,9 @@ function FeatureForm(props: FeatureFormProps) {
           <div class="space-y-1">
             <Label for="feature-recharge">Recharge On</Label>
             <Select value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
-              <SelectTrigger id="feature-recharge"><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectTrigger id="feature-recharge">
+                <span class="flex-1 text-left">{RECHARGE_ON_LABELS[formData().rechargeOn]}</span>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
                 <SelectItem value="short-rest">Short Rest</SelectItem>
@@ -845,9 +859,11 @@ function FeatureForm(props: FeatureFormProps) {
           <Label for="feature-spellcasting-ability">Spellcasting Ability</Label>
           <Select
             value={singleTierEffects().spellcastingAbility ?? ''}
-            onValueChange={(v) => setSingleTierEffects({ spellcastingAbility: (v || undefined) as keyof AbilityScores | undefined })}
+            onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), spellcastingAbility: (v || undefined) as keyof AbilityScores | undefined })}
           >
-            <SelectTrigger id="feature-spellcasting-ability" aria-label="Spellcasting Ability"><SelectValue placeholder="None" /></SelectTrigger>
+            <SelectTrigger id="feature-spellcasting-ability" aria-label="Spellcasting Ability">
+              <span class="flex-1 text-left">{SPELLCASTING_ABILITY_OPTIONS.find((o) => o.value === (singleTierEffects().spellcastingAbility ?? ''))?.label}</span>
+            </SelectTrigger>
             <SelectContent>
               <For each={SPELLCASTING_ABILITY_OPTIONS}>
                 {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
@@ -865,7 +881,9 @@ function FeatureForm(props: FeatureFormProps) {
               value={singleTierEffects().hitDiceSize ? String(singleTierEffects().hitDiceSize) : ''}
               onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitDiceSize: v ? Number(v) : undefined })}
             >
-              <SelectTrigger id="feature-hit-die" aria-label="Hit Die"><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectTrigger id="feature-hit-die" aria-label="Hit Die">
+                <span class="flex-1 text-left">{singleTierEffects().hitDiceSize ? `d${singleTierEffects().hitDiceSize}` : 'None'}</span>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
                 <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
@@ -898,7 +916,7 @@ function FeatureForm(props: FeatureFormProps) {
               <NumericInput
                 id="feature-hp-flat" aria-label="Flat Max HP Value" min={0}
                 value={singleTierEffects().hitPointsFlatValue ?? 0}
-                onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsFlatValue: v || undefined })}
+                onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsFlatValue: v ?? undefined })}
               />
             </div>
           </Show>
@@ -951,7 +969,7 @@ function FeatureForm(props: FeatureFormProps) {
           <Label for="feature-size">Size</Label>
           <Select
             value={singleTierEffects().size ?? ''}
-            onValueChange={(v) => setSingleTierEffects({ size: v || undefined })}
+            onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), size: v || undefined })}
           >
             <SelectTrigger id="feature-size" aria-label="Size"><SelectValue placeholder="None" /></SelectTrigger>
             <SelectContent>
@@ -969,29 +987,29 @@ function FeatureForm(props: FeatureFormProps) {
             id="feature-hp-bonus-per-level"
             aria-label="Max HP Bonus (per level)"
             value={singleTierEffects().hpBonusPerLevel ?? 0}
-            onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hpBonusPerLevel: v || undefined })}
+            onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hpBonusPerLevel: v ?? undefined })}
           />
         </div>
       </Show>
 
       <Show when={isTieredEffectType(formData().featureType)}>
         <div class="space-y-3">
-          <For each={formData().levelEffects}>
+          <Index each={formData().levelEffects}>
             {(tier, i) => (
               <LevelEffectRow
                 featureType={formData().featureType as
                   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
                   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
                   | 'Ability Scores'}
-                tier={tier}
-                effectGroupsOpen={() => getEffectGroupsOpen(i())}
-                onEffectGroupOpenChange={(key, open) => setEffectGroupOpen(i(), key, open)}
-                onLevelChange={(level) => updateLevelEffect(i(), { level })}
-                onEffectsChange={(effects) => updateLevelEffect(i(), { effects })}
-                onRemove={() => removeLevelEffect(i())}
+                tier={tier()}
+                effectGroupsOpen={() => getEffectGroupsOpen(i)}
+                onEffectGroupOpenChange={(key, open) => setEffectGroupOpen(i, key, open)}
+                onLevelChange={(level) => updateLevelEffect(i, { level })}
+                onEffectsChange={(effects) => updateLevelEffect(i, { effects })}
+                onRemove={() => removeLevelEffect(i)}
               />
             )}
-          </For>
+          </Index>
           <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addLevelEffect}>
             <Plus class="h-3 w-3" />
             Add Level
@@ -1082,8 +1100,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
   // Hit die size is only ever set via a Feature grant — this identifies the single feature that
   // is *currently* the active source, so the spent-hit-dice tracker renders on that one card only.
   const isActiveHitDieSource = (feature: Feature) =>
-    getActiveLevelEffect(feature, props.character.level ?? 1)?.hitDiceSize !== undefined &&
-    getActiveFeatureEffects(props.character).hitDiceSizeSource === featureSourceLabel(feature)
+    getActiveFeatureEffects(props.character).hitDiceSizeSourceFeatureId === feature.id
 
   const handleSpentHitDiceChange = (v: number) => {
     props.onUpdate({ ...props.character, spentHitDice: v })

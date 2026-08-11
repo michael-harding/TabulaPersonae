@@ -341,8 +341,13 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                               class="border-secondary data-[checked]:bg-secondary"
                             />
                           </Tooltip>
-                          <Tooltip content="Expertise (doubles proficiency bonus)">
-                            <Checkbox aria-label="Expertise" checked={skill().expertise} onChange={() => toggleSkillExp(skillKey)} />
+                          <Tooltip content={effectiveSkill().expertiseGranted ? `Granted by ${effectiveSkill().grantedBy}` : "Expertise (doubles proficiency bonus)"}>
+                            <Checkbox
+                              aria-label="Expertise"
+                              checked={effectiveSkill().expertise}
+                              disabled={effectiveSkill().expertiseGranted}
+                              onChange={() => toggleSkillExp(skillKey)}
+                            />
                           </Tooltip>
                         </div>
                       </Show>
@@ -410,8 +415,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                   calculatedTooltip: () => {
                     const grants = [...modifierTotals().senseGrants[sense], ...featureTotals().senseGrants[sense]]
                     if (grants.length === 0) return `${effectiveSenses()[sense]} ft`
-                    const terms = grants.map((g) => (g.amount > 0 ? `+${g.amount} (${g.source})` : `-${Math.abs(g.amount)} (${g.source})`))
-                    return terms.join(" ")
+                    const terms = grants.map((g) => formatTerm(g.amount, g.source))
+                    return terms.join("").trimStart()
                   },
                 })
                 return (

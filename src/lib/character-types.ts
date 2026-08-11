@@ -460,7 +460,18 @@ export function createDefaultCharacter(): Character {
     subclass: "",
     size: "Medium",
     useCalculatedSize: true,
-    classFeatures: [],
+    useCalculatedSenses: { darkvision: true, blindsight: true, tremorsense: true, truesight: true },
+    // Every character has a hit die, unlike spellcasting — so a starter grant is created up front
+    // rather than left for the player to add, matching what every class already provides at level 1.
+    classFeatures: [
+      {
+        id: crypto.randomUUID(),
+        name: "Hit Points",
+        description: "Grants this character's hit die, used to calculate Max HP and spend Hit Dice on a short rest. Update the die size to match your class.",
+        source: "class-feature",
+        levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+      },
+    ],
     speciesTraits: [],
     feats: [],
     backgroundFeatures: [],

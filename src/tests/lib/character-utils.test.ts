@@ -1822,7 +1822,7 @@ describe("getEffectiveSavingThrowProficiency / getEffectiveSkillProficiency", ()
       skills: { perception: { proficient: false, expertise: false } } as any,
       classFeatures: [feature], speciesTraits: [], feats: [], level: 1,
     }
-    expect(getEffectiveSkillProficiency(character, "perception")).toEqual({ proficient: true, expertise: true, granted: true, grantedBy: "Skilled Class Feature" })
+    expect(getEffectiveSkillProficiency(character, "perception")).toEqual({ proficient: true, expertise: true, granted: true, expertiseGranted: true, grantedBy: "Skilled Class Feature" })
   })
 })
 

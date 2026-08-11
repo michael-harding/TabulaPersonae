@@ -1,5 +1,5 @@
-import type { Character, Feature } from "./character-types"
-import { calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSize, parseHitDiceSize } from "./character-utils"
+import type { Character, Feature, SenseType } from "./character-types"
+import { calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
 const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass",
@@ -9,6 +9,10 @@ const CALCULATED_VALUE_FLAGS = [
   "useCalculatedClimbSpeed",
   "useCalculatedBurrowSpeed",
   "useCalculatedSize",
+  // useCalculatedSenses is object-valued (per-sense), not boolean like its siblings above, so it's
+  // listed here purely as an early-return presence sentinel — its actual backfill logic lives in
+  // the dedicated block below, not in the generic backfill() helper.
+  "useCalculatedSenses",
 ] as const
 
 /**
@@ -29,8 +33,8 @@ function importLegacyFeatureGrants(raw: any): Feature[] | undefined {
   if (raw.spellcastingAbility && !activeEffects.spellcastingAbility) {
     additions.push({
       id: crypto.randomUUID(),
-      name: "Legacy Spellcasting",
-      description: "Automatically created when this character was upgraded, to preserve its previously-set spellcasting ability. Feel free to edit or replace with a proper Class Feature.",
+      name: "Spellcasting",
+      description: "Grants this character's spellcasting ability, carried over from before Class Features tracked it directly.",
       source: "class-feature",
       levelEffects: [{ level: 1, effects: { spellcastingAbility: raw.spellcastingAbility } }],
     })
@@ -40,14 +44,14 @@ function importLegacyFeatureGrants(raw: any): Feature[] | undefined {
   if (legacyHitDiceSize && !activeEffects.hitDiceSize) {
     additions.push({
       id: crypto.randomUUID(),
-      name: "Legacy Hit Points",
-      description: "Automatically created when this character was upgraded, to preserve its previously-set hit die size. Feel free to edit or replace with a proper Class Feature.",
+      name: "Hit Points",
+      description: "Grants this character's hit die, used to calculate Max HP and spend Hit Dice on a short rest. Carried over from before Class Features tracked it directly.",
       source: "class-feature",
       levelEffects: [{ level: 1, effects: { hitDiceSize: legacyHitDiceSize } }],
     })
   }
 
-  return additions.length > 0 ? [...(raw.classFeatures ?? []), ...additions] : undefined
+  return additions.length > 0 ? [...safeFeatures(raw.classFeatures), ...additions] : undefined
 }
 
 /**
@@ -80,6 +84,16 @@ export function migrateCharacter(raw: any): Character {
   backfill("useCalculatedClimbSpeed", raw.climbSpeed, movement.climb)
   backfill("useCalculatedBurrowSpeed", raw.burrowSpeed, movement.burrow)
   backfill("useCalculatedSize", raw.size, getEffectiveSize(raw).size)
+
+  if (!("useCalculatedSenses" in raw)) {
+    const senseTotals = getEffectiveSenses(raw)
+    const useCalculatedSenses: Partial<Record<SenseType, boolean>> = {}
+    for (const sense of SENSE_TYPES) {
+      const stored = raw.senses?.[sense]
+      useCalculatedSenses[sense] = stored === undefined || stored === senseTotals[sense]
+    }
+    patch.useCalculatedSenses = useCalculatedSenses
+  }
 
   const importedFeatures = importLegacyFeatureGrants(raw)
   if (importedFeatures) patch.classFeatures = importedFeatures

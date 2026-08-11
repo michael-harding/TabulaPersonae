@@ -23,7 +23,12 @@ export function useCalculatedValue<T = number>(args: UseCalculatedValueArgs<T>) 
 
   const binding = createMemo<CalculatedValueBinding<T>>(() => ({
     custom: !args.useCalculated(),
-    onCustomChange: (custom) => args.setUseCalculated(!custom),
+    onCustomChange: (custom) => {
+      // Seed the manual value from what was just showing as calculated, so switching to custom
+      // doesn't jump to a stale, unrelated value the field never actually displayed.
+      if (custom) args.setManualValue(args.calculatedValue())
+      args.setUseCalculated(!custom)
+    },
     value: args.manualValue(),
     onValueChange: args.setManualValue,
     calculatedValue: args.calculatedValue(),

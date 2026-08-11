@@ -827,7 +827,7 @@ describe("CombatStatsModule", () => {
     it("shows 0 when calculated with no Hit Die feature granted", () => {
       render(
         <CombatStatsModule
-          character={makeCharacter({ useCalculatedMaximumHp: true, hitPoints: { current: 5, maximum: 20, temporary: 0 } })}
+          character={makeCharacter({ classFeatures: [], useCalculatedMaximumHp: true, hitPoints: { current: 5, maximum: 20, temporary: 0 } })}
           onUpdate={vi.fn()}
         />
       )
@@ -850,6 +850,26 @@ describe("CombatStatsModule", () => {
       clickEditButton()
       const maximumField = screen.getByText("Maximum").closest('[data-sem="calculated-value"]') as HTMLElement
       expect(within(maximumField).getByText("40")).toBeInTheDocument()
+    })
+
+    it("saves the calculated maximum, not a stale stored value, when saving without touching Max HP", () => {
+      const hitDieFeature = {
+        id: "feature-hd", name: "Fighter", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+      }
+      const onUpdate = vi.fn()
+      render(
+        <CombatStatsModule
+          // Stale stored maximum (20) predates the current Hit Die feature/level, whose calculated
+          // max is 8 (d8 + CON mod 0 at level 1) — handleSave must re-stamp this on save, not carry
+          // the stale 20 forward, even though the user never touched the Max HP field this edit.
+          character={makeCharacter({ level: 1, useCalculatedMaximumHp: true, hitPoints: { current: 5, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature] })}
+          onUpdate={onUpdate}
+        />
+      )
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ hitPoints: expect.objectContaining({ maximum: 8 }) }))
     })
   })
 
