@@ -1,5 +1,6 @@
 import { migrateCharacter, migrateCharacters } from "@/lib/character-migrations"
 import { createDefaultCharacter } from "@/lib/character-types"
+import { getEffectiveHitDiceSize, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
 
 describe("migrateCharacter", () => {
   it("is a no-op for an already-current character", () => {
@@ -89,6 +90,69 @@ describe("migrateCharacter", () => {
   it("passes through non-object input unchanged", () => {
     expect(migrateCharacter(null)).toBeNull()
     expect(migrateCharacter(undefined)).toBeUndefined()
+  })
+
+  describe("legacy spellcasting/hit-die Feature import", () => {
+    it("synthesizes a Feature granting the legacy spellcasting ability when nothing else grants one", () => {
+      const raw: any = { ...createDefaultCharacter(), spellcastingAbility: "intelligence", hitDice: "" }
+      delete raw.useCalculatedSize
+      const migrated = migrateCharacter(raw)
+      expect(getEffectiveSpellcastingAbility(migrated)).toBe("intelligence")
+      expect(migrated.classFeatures).toHaveLength(1)
+    })
+
+    it("synthesizes a Feature granting the legacy hit die size when nothing else grants one", () => {
+      const raw: any = { ...createDefaultCharacter(), hitDice: "1d10" }
+      delete raw.useCalculatedSize
+      const migrated = migrateCharacter(raw)
+      expect(getEffectiveHitDiceSize(migrated)).toBe(10)
+      // spellcastingAbility defaults to "" on a fresh character, so no spellcasting Feature is added
+      expect(migrated.classFeatures).toHaveLength(1)
+    })
+
+    it("prefers an explicit legacy hitDiceSize over parsing hitDice", () => {
+      const raw: any = { ...createDefaultCharacter(), hitDice: "1d8", hitDiceSize: 12 }
+      delete raw.useCalculatedSize
+      const migrated = migrateCharacter(raw)
+      expect(getEffectiveHitDiceSize(migrated)).toBe(12)
+    })
+
+    it("synthesizes separate Features for spellcasting and hit die, so editing one in the Features tab can't drop the other", () => {
+      const raw: any = { ...createDefaultCharacter(), spellcastingAbility: "wisdom", hitDice: "1d8" }
+      delete raw.useCalculatedSize
+      const migrated = migrateCharacter(raw)
+      expect(migrated.classFeatures).toHaveLength(2)
+      expect(getEffectiveSpellcastingAbility(migrated)).toBe("wisdom")
+      expect(getEffectiveHitDiceSize(migrated)).toBe(8)
+    })
+
+    it("does not synthesize a duplicate Feature when one already grants the legacy value", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        spellcastingAbility: "wisdom",
+        hitDice: "",
+        classFeatures: [
+          { id: "f1", name: "Spellcasting", description: "", source: "class-feature", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] },
+        ],
+      }
+      delete raw.useCalculatedSize
+      const migrated = migrateCharacter(raw)
+      expect(migrated.classFeatures).toHaveLength(1)
+    })
+
+    it("also covers PDF-imported characters, whose plain Features have no levelEffects", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        spellcastingAbility: "charisma",
+        hitDice: "1d8",
+        classFeatures: [{ id: "f1", name: "Bardic Inspiration", description: "Imported from PDF", source: "class-feature" }],
+      }
+      delete raw.useCalculatedSize
+      const migrated = migrateCharacter(raw)
+      expect(getEffectiveSpellcastingAbility(migrated)).toBe("charisma")
+      expect(getEffectiveHitDiceSize(migrated)).toBe(8)
+      expect(migrated.classFeatures).toHaveLength(3)
+    })
   })
 })
 

@@ -1,6 +1,6 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
+import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
@@ -26,8 +26,10 @@ interface CombatStatsModuleProps {
   onUpdate: (character: Character) => void
 }
 
-function movementTooltip(source: string | undefined): string {
-  return source ? `(${source})` : "No species trait grants this — add one in Features, or switch to custom entry"
+function movementTooltip(value: number | string, source: string | undefined): string {
+  if (!source) return "No species trait grants this — add one in Features, or switch to custom entry"
+  const formatted = typeof value === "number" ? `${value} ft` : value
+  return `${formatted} (${source})`
 }
 
 const toEdit = (c: Character) => {
@@ -174,19 +176,19 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const passivePerceptionCalc = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
     const prof = current().proficiencyBonus ?? 2
-    const percSkill = current().skills?.perception
-    return getPassiveScore(wis, prof, percSkill?.proficient ?? false, percSkill?.expertise ?? false)
+    const percSkill = getEffectiveSkillProficiency(current(), "perception")
+    return getPassiveScore(wis, prof, percSkill.proficient, percSkill.expertise)
   })
 
   const passivePerceptionTooltip = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
     const prof = current().proficiencyBonus ?? 2
-    const percSkill = current().skills?.perception
+    const percSkill = getEffectiveSkillProficiency(current(), "perception")
     const wisMod = getAbilityModifier(wis)
     let formula = formatTerm(wisMod, ABILITY_TITLE_CASE.wisdom)
-    if (percSkill?.expertise) {
+    if (percSkill.expertise) {
       formula += formatTerm(prof, "Prof") + formatTerm(prof, "Exp")
-    } else if (percSkill?.proficient) {
+    } else if (percSkill.proficient) {
       formula += formatTerm(prof, "Prof")
     }
     return `10${formula}`
@@ -229,7 +231,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().speed ?? 30,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, speed: v })),
     calculatedValue: () => effectiveMovement().walk,
-    calculatedTooltip: () => movementTooltip(movementGrants().walk),
+    calculatedTooltip: () => movementTooltip(effectiveMovement().walk, movementGrants().walk),
   })
 
   const flySpeedField = useCalculatedValue({
@@ -238,7 +240,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().flySpeed ?? 0,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, flySpeed: v })),
     calculatedValue: () => effectiveMovement().fly,
-    calculatedTooltip: () => movementTooltip(movementGrants().fly),
+    calculatedTooltip: () => movementTooltip(effectiveMovement().fly, movementGrants().fly),
   })
 
   const swimSpeedField = useCalculatedValue({
@@ -247,7 +249,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().swimSpeed ?? 0,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, swimSpeed: v })),
     calculatedValue: () => effectiveMovement().swim,
-    calculatedTooltip: () => movementTooltip(movementGrants().swim),
+    calculatedTooltip: () => movementTooltip(effectiveMovement().swim, movementGrants().swim),
   })
 
   const climbSpeedField = useCalculatedValue({
@@ -256,7 +258,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().climbSpeed ?? 0,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, climbSpeed: v })),
     calculatedValue: () => effectiveMovement().climb,
-    calculatedTooltip: () => movementTooltip(movementGrants().climb),
+    calculatedTooltip: () => movementTooltip(effectiveMovement().climb, movementGrants().climb),
   })
 
   const burrowSpeedField = useCalculatedValue({
@@ -265,7 +267,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().burrowSpeed ?? 0,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, burrowSpeed: v })),
     calculatedValue: () => effectiveMovement().burrow,
-    calculatedTooltip: () => movementTooltip(movementGrants().burrow),
+    calculatedTooltip: () => movementTooltip(effectiveMovement().burrow, movementGrants().burrow),
   })
 
   const sizeField = useCalculatedValue<string>({
@@ -274,7 +276,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().size ?? "Medium",
     setManualValue: (v) => setEdited((prev) => ({ ...prev, size: v })),
     calculatedValue: () => effectiveSize().size,
-    calculatedTooltip: () => movementTooltip(effectiveSize().source),
+    calculatedTooltip: () => movementTooltip(effectiveSize().size, effectiveSize().source),
   })
 
   const initiativeField = useCalculatedValue({

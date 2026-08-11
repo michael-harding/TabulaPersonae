@@ -1063,6 +1063,29 @@ describe("FeaturesModule", () => {
           })
         )
       })
+
+      it("persists an explicit Walk speed of 0 instead of clearing it", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Petrified" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Speed" }))
+        fireEvent.input(within(modal).getByLabelText(/^walk$/i), { target: { value: "0" } })
+        fireEvent.keyDown(within(modal).getByLabelText(/^walk$/i), { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Petrified",
+                levelEffects: [{ level: 1, effects: { speed: 0 } }],
+              }),
+            ]),
+          })
+        )
+      })
     })
 
     describe("Senses (level-tiered)", () => {
@@ -1083,6 +1106,29 @@ describe("FeaturesModule", () => {
               expect.objectContaining({
                 name: "Darkvision",
                 levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("persists an explicit sense value of 0 instead of clearing it", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "No Darkvision" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Senses" }))
+        fireEvent.input(within(modal).getByLabelText(/^darkvision$/i), { target: { value: "0" } })
+        fireEvent.keyDown(within(modal).getByLabelText(/^darkvision$/i), { key: "Enter" })
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            speciesTraits: expect.arrayContaining([
+              expect.objectContaining({
+                name: "No Darkvision",
+                levelEffects: [{ level: 1, effects: { senses: { darkvision: 0 } } }],
               }),
             ]),
           })

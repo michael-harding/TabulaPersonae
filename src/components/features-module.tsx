@@ -427,23 +427,23 @@ function LevelEffectRow(props: {
           <div class="grid grid-cols-2 gap-2">
             <div>
               <Label for="fx-speed-walk" class="text-xs text-muted-foreground">Walk</Label>
-              <NumericInput id="fx-speed-walk" value={effects().speed ?? 0} onChange={(v) => update({ speed: v || undefined })} />
+              <NumericInput id="fx-speed-walk" value={effects().speed ?? 0} onChange={(v) => update({ speed: v })} />
             </div>
             <div>
               <Label for="fx-speed-fly" class="text-xs text-muted-foreground">Fly</Label>
-              <NumericInput id="fx-speed-fly" min={0} value={effects().flySpeed ?? 0} onChange={(v) => update({ flySpeed: v || undefined })} />
+              <NumericInput id="fx-speed-fly" min={0} value={effects().flySpeed ?? 0} onChange={(v) => update({ flySpeed: v })} />
             </div>
             <div>
               <Label for="fx-speed-swim" class="text-xs text-muted-foreground">Swim</Label>
-              <NumericInput id="fx-speed-swim" min={0} value={effects().swimSpeed ?? 0} onChange={(v) => update({ swimSpeed: v || undefined })} />
+              <NumericInput id="fx-speed-swim" min={0} value={effects().swimSpeed ?? 0} onChange={(v) => update({ swimSpeed: v })} />
             </div>
             <div>
               <Label for="fx-speed-climb" class="text-xs text-muted-foreground">Climb</Label>
-              <NumericInput id="fx-speed-climb" min={0} value={effects().climbSpeed ?? 0} onChange={(v) => update({ climbSpeed: v || undefined })} />
+              <NumericInput id="fx-speed-climb" min={0} value={effects().climbSpeed ?? 0} onChange={(v) => update({ climbSpeed: v })} />
             </div>
             <div>
               <Label for="fx-speed-burrow" class="text-xs text-muted-foreground">Burrow</Label>
-              <NumericInput id="fx-speed-burrow" min={0} value={effects().burrowSpeed ?? 0} onChange={(v) => update({ burrowSpeed: v || undefined })} />
+              <NumericInput id="fx-speed-burrow" min={0} value={effects().burrowSpeed ?? 0} onChange={(v) => update({ burrowSpeed: v })} />
             </div>
           </div>
         </div>
@@ -461,7 +461,7 @@ function LevelEffectRow(props: {
                     id={`fx-sense-${sense}`}
                     min={0}
                     value={effects().senses?.[sense] ?? 0}
-                    onChange={(v) => update({ senses: { ...effects().senses, [sense]: v || undefined } })}
+                    onChange={(v) => update({ senses: { ...effects().senses, [sense]: v } })}
                   />
                 </div>
               )}

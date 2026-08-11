@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, on, For } from "solid-js"
+import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, getAbilityScoreBaseMax, ABILITY_ABBREVIATIONS, ABILITY_TITLE_CASE } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -7,6 +7,7 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip } from "@/components/ui/tooltip"
+import { Checkbox } from "@/components/ui/checkbox"
 import Zap from "lucide-solid/icons/zap"
 
 interface AbilityScoresModuleProps {
@@ -130,7 +131,9 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                 const binding = abilityField.binding()
                 return binding.custom ? "Custom" : binding.calculatedTooltip
               }
-              const isProfSave = () => isEditing() ? editedSaves()[ability] : (safeSaves()[ability] || false)
+              const grantedBySave = () => featureTotals().savingThrowProficiencies[ability]
+              const ownProfSave = () => isEditing() ? editedSaves()[ability] : (safeSaves()[ability] || false)
+              const isProfSave = () => ownProfSave() || !!grantedBySave()
               const savingThrowMod = () => getSavingThrowModifier(abilityField.resolvedValue(), props.character.proficiencyBonus, true, saveItemBonus())
               const saveTooltip = () => `${formatModifier(modifier())} (${ABILITY_TITLE_CASE[ability]})`
                 + formatTerm(props.character.proficiencyBonus ?? 0, "Prof")
@@ -156,15 +159,30 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                         class="justify-center"
                         {...abilityField.binding()}
                       />
-                      <label class="flex items-center gap-1 justify-center text-xs cursor-pointer">
-                        <input
-                          type="checkbox"
-                          aria-label={`${ABILITY_NAMES[ability]} saving throw`}
-                          checked={isProfSave()}
-                          onChange={(e) => setEditedSaves((prev) => ({ ...prev, [ability]: e.currentTarget.checked }))}
-                        />
-                        Save Prof
-                      </label>
+                      <Show
+                        when={grantedBySave()}
+                        fallback={
+                          <Checkbox
+                            aria-label={`${ABILITY_NAMES[ability]} saving throw`}
+                            checked={ownProfSave()}
+                            onChange={(checked) => setEditedSaves((prev) => ({ ...prev, [ability]: checked }))}
+                            label="Save Prof"
+                            labelClass="text-xs cursor-pointer"
+                            containerClass="justify-center gap-1"
+                          />
+                        }
+                      >
+                        <Tooltip content={`Granted by ${grantedBySave()}`} triggerFocusable>
+                          <Checkbox
+                            aria-label={`${ABILITY_NAMES[ability]} saving throw`}
+                            checked
+                            disabled
+                            label="Save Prof"
+                            labelClass="text-xs cursor-pointer"
+                            containerClass="justify-center gap-1"
+                          />
+                        </Tooltip>
+                      </Show>
                     </div>
                   ) : (
                     <Tooltip

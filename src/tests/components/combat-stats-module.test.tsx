@@ -312,7 +312,7 @@ describe("CombatStatsModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[2])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("(Dwarf Speed Species Trait)")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("25 ft (Dwarf Speed Species Trait)")
     })
   })
 
@@ -1110,6 +1110,22 @@ describe("CombatStatsModule", () => {
       // WIS 14 + item +2 = 16 -> mod +3, prof +2 -> PP = 10 + 3 + 2 = 15
       const ppContainer = screen.getByText("Passive Perception").closest("div")!
       expect(within(ppContainer).getByText("15")).toBeInTheDocument()
+    })
+
+    it("reflects a Feature-granted Perception proficiency even when the raw skill isn't checked", () => {
+      const feature = {
+        id: "feature-1", name: "Keen Senses", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception" as const }] } }],
+      }
+      const char = makeCharacter({
+        abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14 },
+        proficiencyBonus: 2,
+        speciesTraits: [feature],
+      })
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
+      // WIS 14 -> mod +2, granted (not raw-checked) proficiency +2 -> PP = 10 + 2 + 2 = 14
+      const ppContainer = screen.getByText("Passive Perception").closest("div")!
+      expect(within(ppContainer).getByText("14")).toBeInTheDocument()
     })
 
     it("shows PP NumericInput when useCalculatedPassivePerception is false", () => {

@@ -85,6 +85,24 @@ describe("AbilityScoresModule", () => {
       render(<AbilityScoresModule character={makeCharacter({ savingThrows: { strength: false, dexterity: false, constitution: false, intelligence: false, wisdom: false, charisma: false } })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Prof")).not.toBeInTheDocument()
     })
+
+    it("shows the saving throw section when only a Feature grants proficiency, not the raw checkbox", () => {
+      const feature = {
+        id: "feature-1", name: "Divine Sense", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom" as const] } }],
+      }
+      render(
+        <AbilityScoresModule
+          character={makeCharacter({
+            savingThrows: { strength: false, dexterity: false, constitution: false, intelligence: false, wisdom: false, charisma: false },
+            classFeatures: [feature],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Saving Throw")).toBeInTheDocument()
+      expect(screen.getByText("Prof")).toBeInTheDocument()
+    })
   })
 
   describe("edit mode", () => {
@@ -148,6 +166,30 @@ describe("AbilityScoresModule", () => {
           savingThrows: expect.objectContaining({ strength: false }),
         })
       )
+    })
+
+    it("shows a disabled, checked save-prof checkbox with a Granted-by tooltip when a Feature grants the save", async () => {
+      cleanupPortals()
+      const feature = {
+        id: "feature-1", name: "Divine Sense", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom" as const] } }],
+      }
+      render(
+        <AbilityScoresModule
+          character={makeCharacter({
+            savingThrows: { strength: false, dexterity: false, constitution: false, intelligence: false, wisdom: false, charisma: false },
+            classFeatures: [feature],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      const wisCheckbox = screen.getByRole("checkbox", { name: /wisdom saving throw/i })
+      expect(wisCheckbox).toBeDisabled()
+      expect(wisCheckbox).toBeChecked()
+      fireEvent.focus(wisCheckbox.closest('[data-sem="tooltip-trigger"]') ?? wisCheckbox)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Granted by Divine Sense Class Feature")
     })
 
     it("does not call onUpdate when cancel is clicked", () => {
