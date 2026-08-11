@@ -143,6 +143,32 @@ describe("HeaderMenu import reconciliation", () => {
     expect(imported.armorClass).toBe(15)
   })
 
+  it("migrates before reconciling, so a legacy spellcasting ability is synthesized as a Feature in time for spell-DC reconciliation to see it", async () => {
+    const user = await openImportModal()
+    // With migration applied first, the synthesized "Spellcasting" Feature makes intelligence the
+    // effective ability (mod 0), so a stored spellSaveDC of 10 (8 + prof 2 + mod 0) matches the
+    // calculated value and correctly infers useCalculatedSpellSaveDC: true. Reconciling first (the
+    // bug) would compute spellSaveDC against no ability at all (the "no spellcasting" default of 8),
+    // never matching the stored 10, and wrongly leave it flagged custom.
+    const raw: any = {
+      ...createDefaultCharacter(),
+      id: "c1",
+      classFeatures: [],
+      spellcastingAbility: "intelligence",
+      spellSaveDC: 10,
+      spellAttackBonus: 2,
+      spellModifier: 0,
+    }
+    delete raw.useCalculatedSize
+    const file = new File([JSON.stringify(raw)], "char.json", { type: "application/json" })
+    const input = screen.getByLabelText(/Choose JSON File/i)
+    await user.upload(input, file)
+    await waitFor(() => expect(defaultProps.onImportCharacter).toHaveBeenCalled())
+    const imported = defaultProps.onImportCharacter.mock.calls[0][0]
+    expect(imported.classFeatures.some((f: any) => f.name === "Spellcasting")).toBe(true)
+    expect(imported.useCalculatedSpellSaveDC).toBe(true)
+  })
+
   it("reconciles each character in a multi-character JSON import before calling onImportMultiple", async () => {
     const user = await openImportModal()
     const raw = [

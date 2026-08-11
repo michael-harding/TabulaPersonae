@@ -1,6 +1,6 @@
 import { Show, For, createMemo } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import ShieldIcon from "lucide-solid/icons/shield"
@@ -21,7 +21,7 @@ export function StatsBar(props: StatsBarProps) {
   const initiative = createMemo(() =>
     (props.character.useCalculatedInitiative ?? false) ? calculateInitiative(props.character).initiative : (props.character.initiative ?? 0)
   )
-  const hasSpellcasting = createMemo(() => !!props.character.spellcastingAbility)
+  const hasSpellcasting = createMemo(() => !!getEffectiveSpellcastingAbility(props.character))
   const spellSaveDC = createMemo(() =>
     (props.character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(props.character) : props.character.spellSaveDC
   )
@@ -29,7 +29,7 @@ export function StatsBar(props: StatsBarProps) {
     (props.character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBonus(props.character) : props.character.spellAttackBonus
   )
   const spellTooltip = createMemo(() => {
-    const ability = props.character.spellcastingAbility
+    const ability = getEffectiveSpellcastingAbility(props.character)
     if (!ability) return ""
     const score = getEffectiveAbilityScore(props.character, ability)
     const abilityMod = getAbilityModifier(score)

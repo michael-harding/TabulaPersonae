@@ -63,6 +63,36 @@ describe("NumericInput", () => {
     expect(input).toHaveValue(5)
   })
 
+  it("does not call onChange or clamp on a bare blur with no preceding input (e.g. legacy data outside a since-lowered max)", () => {
+    const onChange = vi.fn()
+    render(<NumericInput value={24} max={20} onChange={onChange} />)
+    const input = screen.getByRole("spinbutton")
+    fireEvent.focus(input)
+    fireEvent.blur(input)
+    expect(onChange).not.toHaveBeenCalled()
+    expect(input).toHaveValue(24)
+  })
+
+  it("does not call onChange or clamp on a bare Enter with no preceding input", () => {
+    const onChange = vi.fn()
+    render(<NumericInput value={24} max={20} onChange={onChange} />)
+    const input = screen.getByRole("spinbutton")
+    fireEvent.keyDown(input, { key: "Enter" })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(input).toHaveValue(24)
+  })
+
+  it("commits on blur when the typed value equals the currently displayed value", () => {
+    // A field showing a synthetic default (e.g. `value ?? 0`) needs typing that same number to
+    // still count as a real, explicit edit — not be swallowed as if nothing was touched.
+    const onChange = vi.fn()
+    render(<NumericInput value={0} onChange={onChange} />)
+    const input = screen.getByRole("spinbutton")
+    fireEvent.input(input, { target: { value: "0" } })
+    fireEvent.blur(input)
+    expect(onChange).toHaveBeenCalledWith(0)
+  })
+
   it("uses a custom parser function when provided", () => {
     const onChange = vi.fn()
     render(<NumericInput value={1} parser={parseFloat} onChange={onChange} />)

@@ -377,7 +377,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Str +3 + Prof +3 = +6")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 3 (Prof)")
     })
 
     it("shows only ability modifier for a non-proficient saving throw", async () => {
@@ -386,7 +386,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[1])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +2")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Dex)")
       expect(screen.getByRole("tooltip").textContent).not.toContain("Prof")
     })
 
@@ -396,7 +396,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[22])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +2 + Prof +3 + Exp +3 = +8")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Dex) + 3 (Prof) + 3 (Exp)")
     })
 
     it("shows only ability modifier for a skill with no proficiency", async () => {
@@ -405,7 +405,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[6])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +2")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Dex)")
       expect(screen.getByRole("tooltip").textContent).not.toContain("Prof")
     })
 
@@ -415,7 +415,7 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[24])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Perception -1 = 9")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 - 1 (Wis)")
     })
   })
 
@@ -597,30 +597,124 @@ describe("SkillsProficienciesModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[24])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Perception +0 = 10")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 (Wis)")
     })
   })
 
   describe("senses", () => {
-    it("shows the character's base darkvision plus an active item's bonus", () => {
+    beforeEach(() => cleanupPortals())
+
+    it("shows an active item's darkvision bonus", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 60 } } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("60 ft")).toBeInTheDocument()
+    })
+
+    it("ignores character.senses entirely, even when set", () => {
       const character = makeCharacter({
         senses: { darkvision: 30 },
         equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 60 } } })],
       })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("90 ft")).toBeInTheDocument()
+      expect(screen.getByText("60 ft")).toBeInTheDocument()
     })
 
-    it("edits the base darkvision value", () => {
+    it("adds a feature-granted darkvision bonus alongside the item bonus", () => {
+      const feature = {
+        id: "feature-1", name: "Darkvision", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+      }
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 10 } } })],
+        speciesTraits: [feature],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("70 ft")).toBeInTheDocument()
+    })
+
+    it("does not show always-visible item/feature bonus text next to a sense value", () => {
+      const feature = {
+        id: "feature-1", name: "Darkvision", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+      }
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 10 } } })],
+        speciesTraits: [feature],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.queryByText(/^\+?\d+ item$/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/^\+?\d+ feature$/i)).not.toBeInTheDocument()
+    })
+
+    it("names the granting item and feature in the sense's tooltip", async () => {
+      const feature = {
+        id: "feature-1", name: "Superior Darkvision", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+      }
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ name: "Eyes of the Eagle", modifiers: { senses: { darkvision: 10 } } })],
+        speciesTraits: [feature],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      const card = screen.getByText("Darkvision").closest('[data-sem="calculated-value"]')!
+      const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+ 10 (Eyes of the Eagle) + 60 (Superior Darkvision Species Trait)")
+    })
+
+    it("names both features when two different features each grant the same sense", async () => {
+      const featureA = {
+        id: "feature-1", name: "Keen Senses", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 30 } } }],
+      }
+      const featureB = {
+        id: "feature-2", name: "Devil's Sight", description: "", source: "feat" as const,
+        levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }],
+      }
+      const character = makeCharacter({ speciesTraits: [featureA], feats: [featureB] })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      const card = screen.getByText("Darkvision").closest('[data-sem="calculated-value"]')!
+      const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+ 30 (Keen Senses Species Trait) + 60 (Devil's Sight Feat)")
+    })
+
+    it("names both items when two different items each grant the same sense", async () => {
+      const character = makeCharacter({
+        equipment: [
+          makeMagicItem({ id: "item-1", name: "Eyes of the Eagle", modifiers: { senses: { darkvision: 30 } } }),
+          makeMagicItem({ id: "item-2", name: "Goggles of Night", modifiers: { senses: { darkvision: 60 } } }),
+        ],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      const card = screen.getByText("Darkvision").closest('[data-sem="calculated-value"]')!
+      const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+ 30 (Eyes of the Eagle) + 60 (Goggles of Night)")
+    })
+
+    it("persists a manual sense override on save", () => {
       const onUpdate = vi.fn()
-      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { senses: { darkvision: 30 } } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={onUpdate} />)
       clickEditButton()
-      const input = screen.getByLabelText("Darkvision")
-      fireEvent.input(input, { target: { value: "60" } })
-      fireEvent.blur(input)
+      fireEvent.click(screen.getByRole("button", { name: /use custom darkvision/i }))
+      const overrideInput = screen.getByRole("spinbutton", { name: /^darkvision$/i })
+      fireEvent.input(overrideInput, { target: { value: "120" } })
+      fireEvent.blur(overrideInput)
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ senses: expect.objectContaining({ darkvision: 60 }) })
+        expect.objectContaining({
+          senses: expect.objectContaining({ darkvision: 120 }),
+          useCalculatedSenses: expect.objectContaining({ darkvision: false }),
+        })
       )
     })
   })
@@ -648,6 +742,16 @@ describe("SkillsProficienciesModule", () => {
         expect.objectContaining({ damageResistances: expect.arrayContaining(["Necrotic"]) })
       )
     })
+
+    it("shows a feature-granted resistance, tooltipped with the granting feature", () => {
+      const feature = {
+        id: "feature-1", name: "Dwarven Resilience", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { resistances: ["Poison"] } }],
+      }
+      const character = makeCharacter({ damageResistances: [], speciesTraits: [feature] })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Poison")).toHaveAttribute("title", "Granted by Dwarven Resilience Species Trait — edit in Features")
+    })
   })
 
   describe("granted languages and proficiencies", () => {
@@ -667,6 +771,97 @@ describe("SkillsProficienciesModule", () => {
       })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       expect(screen.getAllByText("Elvish").length).toBe(1)
+    })
+
+    it("tooltips an equipment-granted proficiency as granted by equipment", () => {
+      const character = makeCharacter({
+        otherProficiencies: [],
+        equipment: [makeMagicItem({ modifiers: { proficiencies: ["Herbalism Kit"] } })],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Herbalism Kit")).toHaveAttribute("title", "Granted by equipment")
+    })
+
+    it("tooltips a Class-Feature-granted proficiency, naming the feature and pointing to Features", () => {
+      const feature = {
+        id: "feature-1", name: "Martial Training", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { otherProficiencies: ["Light Armor"] } }],
+      }
+      const character = makeCharacter({ otherProficiencies: [], classFeatures: [feature] })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Light Armor")).toHaveAttribute("title", "Granted by Martial Training Class Feature — edit in Features")
+    })
+
+    it("shows a feature-granted language, tooltipped with the granting feature", () => {
+      const feature = {
+        id: "feature-1", name: "Draconic Ancestry", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { languages: ["Draconic"] } }],
+      }
+      const character = makeCharacter({ speciesTraits: [feature] })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Draconic")).toHaveAttribute("title", "Granted by Draconic Ancestry Species Trait — edit in Features")
+    })
+  })
+
+  describe("feature-granted saving throw and skill proficiencies", () => {
+    function makeFeature(overrides: Record<string, any> = {}) {
+      return {
+        id: "feature-1",
+        name: "Divine Sense",
+        description: "",
+        source: "class-feature" as const,
+        ...overrides,
+      }
+    }
+
+    it("shows a locked, checked saving throw checkbox when a feature grants it", () => {
+      const feature = makeFeature({ levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["dexterity"] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+
+      // First 6 checkboxes are saving throws: strength(0), dexterity(1), ...
+      const allCheckboxes = screen.getAllByRole("checkbox")
+      expect(allCheckboxes[1]).toBeChecked()
+      expect(allCheckboxes[1]).toBeDisabled()
+    })
+
+    it("does not lock a saving throw when the granting feature's level requirement is unmet", () => {
+      const feature = makeFeature({ levelEffects: [{ level: 10, effects: { savingThrowProficiencies: ["dexterity"] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+
+      const allCheckboxes = screen.getAllByRole("checkbox")
+      expect(allCheckboxes[1]).not.toBeChecked()
+      expect(allCheckboxes[1]).not.toBeDisabled()
+    })
+
+    it("shows a locked, checked Proficient checkbox for a feature-granted skill", () => {
+      const feature = makeFeature({ levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception" }] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+
+      const profCheckboxes = screen.getAllByRole("checkbox", { name: "Proficient" })
+      expect(profCheckboxes[11]).toBeChecked() // perception is index 11
+      expect(profCheckboxes[11]).toBeDisabled()
+    })
+
+    it("does not show a Granted badge in the view for a feature-granted skill (still shows Prof)", () => {
+      const feature = makeFeature({ name: "Keen Senses", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception" }] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Granted")).not.toBeInTheDocument()
+      expect(screen.getAllByText("Prof").length).toBeGreaterThan(0)
+    })
+
+    it("does not show a Granted badge in the view for a feature-granted saving throw (still shows Prof)", () => {
+      const feature = makeFeature({ name: "Divine Sense", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["dexterity"] } }] })
+      const character = makeCharacter({ classFeatures: [feature], level: 1 })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Granted")).not.toBeInTheDocument()
+      expect(screen.getAllByText("Prof").length).toBeGreaterThan(0)
     })
   })
 })

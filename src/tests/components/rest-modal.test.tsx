@@ -12,6 +12,12 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
     hitPoints: { current: 15, maximum: 24, temporary: 0 },
     spentHitDice: 0,
     hitDice: "1d8",
+    // Hit die size is only ever consulted via a Feature grant — most of this file's tests exercise
+    // the hit-dice-spending flow, so the default fixture carries a granting feature matching hitDice.
+    classFeatures: [{
+      id: "hit-die-feature", name: "Hit Points", description: "", source: "class-feature",
+      levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+    }],
     abilityScores: { ...createDefaultCharacter().abilityScores, constitution: 14 }, // +2 mod
     ...overrides,
   }
@@ -175,6 +181,30 @@ describe("RestModal", () => {
       expect(updated.hitPoints.current).toBeLessThanOrEqual(90)
     })
 
+    it("caps hit-dice healing at a feature-boosted effective max (Dwarven Toughness: +1/level)", () => {
+      const onRest = vi.fn()
+      const feature: Feature = {
+        id: "toughness", name: "Dwarven Toughness", description: "", source: "species-trait",
+        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+      }
+      const char = makeCharacter({
+        level: 10,
+        useCalculatedMaximumHp: true,
+        spentHitDice: 0,
+        hitPoints: { current: 88, maximum: 80, temporary: 0 },
+        speciesTraits: [feature],
+        abilityScores: { ...createDefaultCharacter().abilityScores, constitution: 20 }, // +5 mod, guarantees healing past the cap
+      })
+      openModal(char, onRest)
+      const increaseBtn = within(getDialog()).getByRole("button", { name: /increase/i })
+      fireEvent.click(increaseBtn) // spend 1 die
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      // makeCharacter's default d8 Hit Die + CON 20 (+5 mod): level 1 = 13, +9 more levels * avg(5+5) = 90 -> base 103
+      // + 1/level bonus * level 10 = 10 -> effective max 113
+      expect(updated.hitPoints.current).toBeLessThanOrEqual(113)
+    })
+
     // Regression: hit-dice healing computed CON modifier from the raw base ability score,
     // ignoring equipment-granted CON bonuses that every other stat in this branch respects
     // via getEffectiveAbilityScore.
@@ -188,6 +218,30 @@ describe("RestModal", () => {
       const increaseBtn = within(getDialog()).getByRole("button", { name: /increase/i })
       fireEvent.click(increaseBtn) // spend 1 die
       expect(within(getDialog()).getByText(/\+2 per die/i)).toBeInTheDocument()
+    })
+  })
+
+  describe("hit dice require a granting feature", () => {
+    it("does not show the Hit Dice section when no feature grants a hit die size", () => {
+      const char = makeCharacter({ classFeatures: [] })
+      openModal(char)
+      expect(within(getDialog()).queryByText(/hit dice to spend/i)).not.toBeInTheDocument()
+      expect(within(getDialog()).queryByText(/spend hit dice to regain hp/i)).not.toBeInTheDocument()
+    })
+
+    it("does not fall back to the base hitDice string once the granting feature is gone (no stale die size shown)", () => {
+      // Simulates a Paladin (base hit die d10) whose Hit Die feature (e.g. a d12 override) was
+      // removed — hit die size must never fall back to the raw hitDice field once Class-Feature-only.
+      const char = makeCharacter({ classFeatures: [], hitDice: "1d10" })
+      openModal(char)
+      expect(within(getDialog()).queryByText(/d10 available/i)).not.toBeInTheDocument()
+      expect(within(getDialog()).queryByText(/hit dice to spend/i)).not.toBeInTheDocument()
+    })
+
+    it("shows the Hit Dice section again once a feature grants a hit die size", () => {
+      const char = makeCharacter() // default fixture carries a hit-die-granting feature
+      openModal(char)
+      expect(within(getDialog()).getByText(/hit dice to spend/i)).toBeInTheDocument()
     })
   })
 
@@ -234,6 +288,29 @@ describe("RestModal", () => {
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.hitPoints.current).toBe(34)
+    })
+
+    it("calls onRest with HP restored to a feature-boosted effective max (Dwarven Toughness: +1/level)", () => {
+      const onRest = vi.fn()
+      const feature: Feature = {
+        id: "toughness", name: "Dwarven Toughness", description: "", source: "species-trait",
+        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+      }
+      openModal(
+        makeCharacter({
+          level: 5,
+          useCalculatedMaximumHp: true,
+          hitPoints: { current: 5, maximum: 24, temporary: 0 },
+          speciesTraits: [feature],
+        }),
+        onRest,
+      )
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      // makeCharacter's default d8 Hit Die + CON 14 (+2 mod): level 1 = 10, +4 more levels * avg(5+2) = 28 -> base 38
+      // + 1/level bonus * level 5 = 5 -> 43
+      expect(updated.hitPoints.current).toBe(43)
     })
 
     it("calls onRest with temporary HP cleared", () => {
@@ -341,6 +418,18 @@ describe("RestModal", () => {
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.speciesTraits![0].uses).toBe(0)
+    })
+
+    it("calls onRest with background feature uses reset on long rest", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        backgroundFeatures: [makeFeature({ id: "b1", source: "background", rechargeOn: "long-rest", uses: 1, maxUses: 2, actionKind: "action" })],
+      })
+      openModal(char, onRest)
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.backgroundFeatures![0].uses).toBe(0)
     })
 
     it("does not reset class feature uses when rechargeOn is long-rest and only short rest is taken", () => {

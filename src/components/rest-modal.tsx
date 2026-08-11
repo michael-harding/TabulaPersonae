@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getEffectiveAbilityScore, parseHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp } from "@/lib/character-utils"
+import { getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -20,8 +20,12 @@ export function RestModal(props: RestModalProps) {
   const [dicesToSpend, setDicesToSpend] = createSignal(0)
   const [rollResult, setRollResult] = createSignal<{ rolls: number[]; total: number } | null>(null)
 
-  const dieSize = () =>
-    (props.character.hitDiceSize ?? parseHitDiceSize(props.character.hitDice ?? "1d8")) as DieSize
+  // Hit die size is only ever set via a Feature grant — with no such feature there's no valid
+  // hit die to speak of, so the whole "spend hit dice" section stays hidden rather than falling
+  // back to a base/legacy value the user has no way to see or control.
+  const activeHitDiceSize = () => getEffectiveHitDiceSize(props.character)
+  const hasHitDieFeature = () => activeHitDiceSize() !== undefined
+  const dieSize = () => activeHitDiceSize() as DieSize
   const totalHitDice = () => props.character.level ?? 1
   const spentHitDice = () => props.character.spentHitDice ?? 0
   const availableHitDice = () => totalHitDice() - spentHitDice()
@@ -38,6 +42,7 @@ export function RestModal(props: RestModalProps) {
       ...safeFeatures(props.character.classFeatures),
       ...safeFeatures(props.character.speciesTraits),
       ...safeFeatures(props.character.feats),
+      ...safeFeatures(props.character.backgroundFeatures),
       ...(props.character.equipment ?? []),
     ]
     if (restType() === "short") return all.filter((a) => a.rechargeOn === "short-rest")
@@ -65,7 +70,7 @@ export function RestModal(props: RestModalProps) {
         hpGained = result.total
         setRollResult(result)
       }
-      const newHP = Math.min(getEffectiveMaxHp(char.hitPoints), char.hitPoints.current + hpGained)
+      const newHP = Math.min(getEffectiveMaxHp(char), char.hitPoints.current + hpGained)
       props.onRest({
         ...char,
         hitPoints: { ...char.hitPoints, current: newHP },
@@ -76,6 +81,7 @@ export function RestModal(props: RestModalProps) {
         classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest"),
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest"),
+        backgroundFeatures: resetMatching(safeFeatures(char.backgroundFeatures), "short-rest"),
         equipment: resetMatching(char.equipment ?? [], "short-rest"),
       })
       if (spent === 0) handleClose()
@@ -85,7 +91,7 @@ export function RestModal(props: RestModalProps) {
       ) as typeof char.spellSlots
       props.onRest({
         ...char,
-        hitPoints: { ...char.hitPoints, current: getEffectiveMaxHp(char.hitPoints), temporary: 0 },
+        hitPoints: { ...char.hitPoints, current: getEffectiveMaxHp(char), temporary: 0 },
         spentHitDice: 0,
         spellSlots: resetSpellSlots,
         conditions: (char.conditions ?? []).filter((c) => c !== "Exhaustion"),
@@ -95,6 +101,7 @@ export function RestModal(props: RestModalProps) {
         classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest", "long-rest"),
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest", "long-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest", "long-rest"),
+        backgroundFeatures: resetMatching(safeFeatures(char.backgroundFeatures), "short-rest", "long-rest"),
         equipment: resetMatching(char.equipment ?? [], "short-rest", "long-rest"),
       })
       handleClose()
@@ -149,14 +156,16 @@ export function RestModal(props: RestModalProps) {
               }
             >
               <ul class="text-sm text-muted-foreground space-y-0.5 list-disc list-inside">
-                <li>Spend Hit Dice to regain HP</li>
+                <Show when={hasHitDieFeature()}>
+                  <li>Spend Hit Dice to regain HP</li>
+                </Show>
                 <li>Short-rest features recharge</li>
               </ul>
             </Show>
           </div>
 
-          {/* Hit Dice section — short rest only */}
-          <Show when={restType() === "short"}>
+          {/* Hit Dice section — short rest only, and only when a feature grants a hit die size */}
+          <Show when={restType() === "short" && hasHitDieFeature()}>
             <div class="space-y-2">
               <div class="flex items-center justify-between">
                 <div class="text-sm font-medium">Hit Dice to Spend</div>

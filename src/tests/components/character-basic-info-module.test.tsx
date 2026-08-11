@@ -209,7 +209,7 @@ describe("CharacterBasicInfoModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ race: "Warforged" }))
     })
 
-    it("saves a custom class value and clears spellcastingAbility for unknown classes", () => {
+    it("saves a custom class value typed into the class combobox", () => {
       const onUpdate = vi.fn()
       render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
@@ -219,9 +219,7 @@ describe("CharacterBasicInfoModule", () => {
       fireEvent.input(classInput, { target: { value: "Mystic" } })
       fireEvent.blur(classInput)
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ class: "Mystic", spellcastingAbility: "" })
-      )
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ class: "Mystic" }))
     })
 
     it("saves a predefined race option selected from the dropdown", () => {
@@ -234,36 +232,6 @@ describe("CharacterBasicInfoModule", () => {
       fireEvent.click(screen.getByRole("option", { name: "Elf" }))
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ race: "Elf" }))
-    })
-  })
-
-  describe("class → spellcasting ability auto-map", () => {
-    it("selecting Wizard from the class dropdown sets spellcastingAbility to intelligence", () => {
-      const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
-      clickEditButton()
-      const inputs = screen.getAllByRole("combobox")
-      const classInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/class/i))!
-      fireEvent.focus(classInput)
-      fireEvent.click(screen.getByRole("option", { name: "Wizard" }))
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ class: "Wizard", spellcastingAbility: "intelligence" })
-      )
-    })
-
-    it("selecting Bard sets spellcastingAbility to charisma", () => {
-      const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
-      clickEditButton()
-      const inputs = screen.getAllByRole("combobox")
-      const classInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/class/i))!
-      fireEvent.focus(classInput)
-      fireEvent.click(screen.getByRole("option", { name: "Bard" }))
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ class: "Bard", spellcastingAbility: "charisma" })
-      )
     })
   })
 

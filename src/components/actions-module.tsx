@@ -1,7 +1,7 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, safeFeatures, getEquippedWeaponAttacks } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -200,12 +200,6 @@ function ActionForm(props: ActionFormProps) {
   )
 }
 
-const FEATURE_SOURCE_LABELS: Record<string, string> = {
-  'class-feature': 'Class Feature',
-  'species-trait': 'Species Trait',
-  'feat': 'Feat',
-}
-
 function spellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
   const slotKey = spell.level as keyof Character['spellSlots']
   const slots = () => getSpellSlots()[slotKey]
@@ -293,18 +287,22 @@ export function ActionsModule(props: ActionsModuleProps) {
   const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
   const spellModifier = createMemo(() => computeSpellModifier(props.character))
 
-  const spellAbilityAbbr = createMemo(() => (props.character.spellcastingAbility || "").slice(0, 3).toUpperCase())
+  const effectiveSpellcastingAbility = createMemo(() => getEffectiveSpellcastingAbility(props.character))
+  const spellAbilityLabel = createMemo(() => {
+    const ability = effectiveSpellcastingAbility()
+    return ability ? ABILITY_TITLE_CASE[ability] : ""
+  })
   const spellModifierTooltip = createMemo(() =>
-    props.character.spellcastingAbility ? `${spellAbilityAbbr()} ${formatModifier(spellModifier())}` : "No spellcasting ability set"
+    effectiveSpellcastingAbility() ? `${formatModifier(spellModifier())} (${spellAbilityLabel()})` : "No spellcasting ability set"
   )
   const spellAttackTooltip = createMemo(() =>
-    props.character.spellcastingAbility
-      ? `Prof +${props.character.proficiencyBonus || 2} + ${spellAbilityAbbr()} ${formatModifier(spellModifier())}`
+    effectiveSpellcastingAbility()
+      ? `${formatModifier(spellModifier())} (${spellAbilityLabel()})${formatTerm(props.character.proficiencyBonus || 2, "Prof")}`
       : "No spellcasting ability set"
   )
   const spellSaveDCTooltip = createMemo(() =>
-    props.character.spellcastingAbility
-      ? `8 + Prof +${props.character.proficiencyBonus || 2} + ${spellAbilityAbbr()} ${formatModifier(spellModifier())}`
+    effectiveSpellcastingAbility()
+      ? `8${formatTerm(props.character.proficiencyBonus || 2, "Prof")}${formatTerm(spellModifier(), spellAbilityLabel())}`
       : "No spellcasting ability set"
   )
 
@@ -357,10 +355,13 @@ export function ActionsModule(props: ActionsModuleProps) {
     ...safeFeatures(props.character.classFeatures),
     ...safeFeatures(props.character.speciesTraits),
     ...safeFeatures(props.character.feats),
+    ...safeFeatures(props.character.backgroundFeatures),
   ])
   const featuresByKind = createMemo(() => {
+    const level = props.character.level ?? 1
     const actions: Feature[] = [], bonuses: Feature[] = [], reactions: Feature[] = [], others: Feature[] = []
     for (const f of allFeatures()) {
+      if ((f.level ?? 1) > level) continue
       if (f.actionKind === 'action')              actions.push(f)
       else if (f.actionKind === 'bonus-action')   bonuses.push(f)
       else if (f.actionKind === 'reaction')       reactions.push(f)
@@ -475,10 +476,11 @@ export function ActionsModule(props: ActionsModuleProps) {
   }
   const handleFeatureUsesChange = (feature: Feature, v: number) => {
     const field = feature.source === 'class-feature' ? 'classFeatures'
-      : feature.source === 'species-trait' ? 'speciesTraits' : 'feats'
+      : feature.source === 'species-trait' ? 'speciesTraits'
+      : feature.source === 'background' ? 'backgroundFeatures' : 'feats'
     props.onUpdate({
       ...props.character,
-      [field]: safeFeatures(props.character[field as 'classFeatures' | 'speciesTraits' | 'feats']).map(f => f.id === feature.id ? { ...f, uses: v } : f),
+      [field]: safeFeatures(props.character[field as 'classFeatures' | 'speciesTraits' | 'feats' | 'backgroundFeatures']).map(f => f.id === feature.id ? { ...f, uses: v } : f),
     })
   }
 
@@ -515,7 +517,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   const renderFeature = (feature: Feature) => (
     <ActionCard
       name={feature.name}
-      badgeLabel={FEATURE_SOURCE_LABELS[feature.source] ?? feature.source}
+      badgeLabel={FEATURE_KIND_LABELS[feature.source] ?? feature.source}
       range={feature.range}
       description={feature.description}
       uses={feature.uses ?? 0}
@@ -538,39 +540,30 @@ export function ActionsModule(props: ActionsModuleProps) {
     >
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
           <div class="text-center">
-            <div class="flex items-center justify-center gap-1 mb-1">
-              <Zap class="h-4 w-4 text-primary" />
-              <span class="text-sm font-medium">Spell Attack</span>
-            </div>
             <CalculatedValue
-              class="mt-1"
-              label="spell attack"
+              label="Spell Attack"
+              labelClass="text-sm font-medium"
+              icon={<Zap class="h-4 w-4 text-primary" />}
               editable={isEditing()}
               {...spellAttackField.binding()}
               format={formatModifier}
             />
           </div>
           <div class="text-center">
-            <div class="flex items-center justify-center gap-1 mb-1">
-              <Zap class="h-4 w-4 text-primary" />
-              <span class="text-sm font-medium">Spell Modifier</span>
-            </div>
             <CalculatedValue
-              class="mt-1"
-              label="spell modifier"
+              label="Spell Modifier"
+              labelClass="text-sm font-medium"
+              icon={<Zap class="h-4 w-4 text-primary" />}
               editable={isEditing()}
               {...spellModifierField.binding()}
               format={formatModifier}
             />
           </div>
           <div class="text-center">
-            <div class="flex items-center justify-center gap-1 mb-1">
-              <Shield class="h-4 w-4 text-primary" />
-              <span class="text-sm font-medium">Spell Save DC</span>
-            </div>
             <CalculatedValue
-              class="mt-1"
-              label="spell save DC"
+              label="Spell Save DC"
+              labelClass="text-sm font-medium"
+              icon={<Shield class="h-4 w-4 text-primary" />}
               editable={isEditing()}
               {...spellSaveDCField.binding()}
             />

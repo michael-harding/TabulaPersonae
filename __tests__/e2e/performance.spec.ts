@@ -28,7 +28,7 @@ test.describe("Interaction performance", () => {
 
   test("tab switch to Features shows content", async ({ page }) => {
     await page.getByRole("tab", { name: "Features" }).click()
-    await expect(page.getByText("Class Features, Species Traits & Feats")).toBeVisible()
+    await expect(page.getByText("Class Features, Species Traits, Background & Feats")).toBeVisible()
   })
 
   test("tab switch to Inventory shows content", async ({ page }) => {

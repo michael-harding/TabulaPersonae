@@ -950,7 +950,7 @@ describe("EquipmentInventoryModule", () => {
   describe("Carrying Capacity", () => {
     it("shows carrying capacity computed from STR score x 15", () => {
       render(<EquipmentInventoryModule character={makeCharacter({ abilityScores: { ...createDefaultCharacter().abilityScores, strength: 16 } })} onUpdate={vi.fn()} />)
-      expect(screen.getByText(/carrying capacity/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/carrying capacity/i).length).toBeGreaterThan(0)
       const value = document.querySelector('[data-sem="calculated-value"]')
       expect(value).toHaveTextContent("240")
     })

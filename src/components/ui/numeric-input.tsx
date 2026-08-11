@@ -22,7 +22,26 @@ export function NumericInput(props: NumericInputProps) {
   }
 
   const [raw, setRaw] = createSignal(String(local.value))
-  createEffect(() => setRaw(String(local.value)))
+  // Tracks whether the user has actually typed since the field was last synced from props — not
+  // just whether the parsed value happens to equal local.value, since a field showing a synthetic
+  // default (e.g. `value ?? 0` for "not yet set") needs typing that same number to still count as a
+  // real, explicit edit. Only gates whether blur/Enter commit at all; a no-op blur on legacy data
+  // that predates a since-lowered max is then left untouched instead of being silently clamped.
+  let dirty = false
+  createEffect(() => { setRaw(String(local.value)); dirty = false })
+
+  const commit = (text: string) => {
+    if (!dirty) return
+    dirty = false
+    const n = parse(text)
+    if (!isNaN(n)) {
+      const v = clamp(n)
+      local.onChange(v)
+      setRaw(String(v))
+    } else {
+      setRaw(String(local.value))
+    }
+  }
 
   return (
     <Input
@@ -31,30 +50,14 @@ export function NumericInput(props: NumericInputProps) {
       min={local.min}
       max={local.max}
       value={raw()}
-      onInput={(e) => setRaw(e.currentTarget.value)}
+      onInput={(e) => { dirty = true; setRaw(e.currentTarget.value) }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault()
-          const n = parse(e.currentTarget.value)
-          if (!isNaN(n)) {
-            const v = clamp(n)
-            local.onChange(v)
-            setRaw(String(v))
-          } else {
-            setRaw(String(local.value))
-          }
+          commit(e.currentTarget.value)
         }
       }}
-      onBlur={(e) => {
-        const n = parse(e.currentTarget.value)
-        if (!isNaN(n)) {
-          const v = clamp(n)
-          local.onChange(v)
-          setRaw(String(v))
-        } else {
-          setRaw(String(local.value))
-        }
-      }}
+      onBlur={(e) => commit(e.currentTarget.value)}
     />
   )
 }

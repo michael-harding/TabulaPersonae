@@ -122,14 +122,64 @@ export interface Spell extends CharacterEntry {
   freeCast?: boolean;
 }
 
-export type FeatureKind = 'class-feature' | 'species-trait' | 'feat'
+export type FeatureKind = 'class-feature' | 'species-trait' | 'feat' | 'background'
 export type ActionKind = 'action' | 'bonus-action' | 'reaction' | 'other'
+
+/** How a "Hit Points" feature's Max HP contribution is computed — see FeatureEffects.hitPointsMode. */
+export type HitPointsMode = 'flat' | 'per-level' | 'rolled'
+
+export interface FeatureEffects {
+  spellcastingAbility?: keyof AbilityScores
+  hitDiceSize?: number
+  hitPointsMode?: HitPointsMode
+  hitPointsFlatValue?: number
+  hitPointsPerLevelAmount?: number
+  /**
+   * hitPointsMode 'rolled': one recorded value per level, indexed positionally (index 0 = level 1,
+   * index 1 = level 2, ...) — there's exactly one roll per level, so level is never a separate
+   * editable field. CON mod is added separately by calculateMaxHitPoints, not baked into the value.
+   * 0 (or a missing index) means "not yet recorded" — a real die roll is always >= 1.
+   */
+  hitPointsRolledLevels?: number[]
+  savingThrowProficiencies?: (keyof AbilityScores)[]
+  skillProficiencies?: { skill: keyof Skills; expertise?: boolean }[]
+  otherProficiencies?: string[]
+  size?: string
+  speed?: number
+  flySpeed?: number
+  swimSpeed?: number
+  climbSpeed?: number
+  burrowSpeed?: number
+  senses?: Partial<Record<SenseType, number>>
+  resistances?: string[]
+  immunities?: string[]
+  vulnerabilities?: string[]
+  conditionImmunities?: string[]
+  languages?: string[]
+  carryingCapacityBonus?: number
+  carryingCapacityMultiplier?: number
+  abilityScores?: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreFloors?: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreMaxCaps?: Partial<Record<keyof AbilityScores, number>>
+  abilityScoreBaseMax?: Partial<Record<keyof AbilityScores, number>>
+  hpBonusPerLevel?: number
+}
+
+export interface FeatureLevelEffect {
+  level: number
+  effects: FeatureEffects
+}
 
 export interface Feature extends UseableEntry {
   source: FeatureKind
   actionKind?: ActionKind
   type?: ActionType
   range?: string
+  level?: number
+  // Every tier whose level threshold the character has reached contributes to the totals in
+  // getActiveFeatureEffects — not just the highest one. A tier at level 1 and another at level 4
+  // both apply once the character is level 4 or higher (see getQualifyingLevelEffects).
+  levelEffects?: FeatureLevelEffect[]
 }
 
 interface ActionBase extends UseableEntry {
@@ -174,6 +224,7 @@ export interface Character {
     temporary: number
     temporaryMaximum?: number
   }
+  useCalculatedMaximumHp?: boolean
   deathSaves: {
     successes: number
     failures: number
@@ -184,7 +235,13 @@ export interface Character {
   swimSpeed?: number
   climbSpeed?: number
   burrowSpeed?: number
+  useCalculatedSpeed?: boolean
+  useCalculatedFlySpeed?: boolean
+  useCalculatedSwimSpeed?: boolean
+  useCalculatedClimbSpeed?: boolean
+  useCalculatedBurrowSpeed?: boolean
   senses?: Partial<Record<SenseType, number>>
+  useCalculatedSenses?: Partial<Record<SenseType, boolean>>
   initiative: number
   proficiencyBonus: number
   useCalculatedInitiative?: boolean
@@ -264,9 +321,11 @@ export interface Character {
   // 2024-only
   subclass?: string
   size?: string
+  useCalculatedSize?: boolean
   classFeatures?: Feature[]
   speciesTraits?: Feature[]
   feats?: Feature[]
+  backgroundFeatures?: Feature[]
 
   // 2014-only
   spellcastingClass?: string
@@ -339,6 +398,11 @@ export function createDefaultCharacter(): Character {
     },
     hitDice: "1d8",
     speed: 30,
+    useCalculatedSpeed: true,
+    useCalculatedFlySpeed: true,
+    useCalculatedSwimSpeed: true,
+    useCalculatedClimbSpeed: true,
+    useCalculatedBurrowSpeed: true,
     initiative: 0,
     proficiencyBonus: 2,
 
@@ -395,9 +459,22 @@ export function createDefaultCharacter(): Character {
 
     subclass: "",
     size: "Medium",
-    classFeatures: [],
+    useCalculatedSize: true,
+    useCalculatedSenses: { darkvision: true, blindsight: true, tremorsense: true, truesight: true },
+    // Every character has a hit die, unlike spellcasting — so a starter grant is created up front
+    // rather than left for the player to add, matching what every class already provides at level 1.
+    classFeatures: [
+      {
+        id: crypto.randomUUID(),
+        name: "Hit Points",
+        description: "Grants this character's hit die, used to calculate Max HP and spend Hit Dice on a short rest. Update the die size to match your class.",
+        source: "class-feature",
+        levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+      },
+    ],
     speciesTraits: [],
     feats: [],
+    backgroundFeatures: [],
 
     spellcastingClass: "",
     alliesAndOrganizations: "",

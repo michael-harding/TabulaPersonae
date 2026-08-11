@@ -149,14 +149,14 @@ describe('getPublicCharacterFromFirebase', () => {
     })
   })
 
-  it('defaults useCalculatedArmorClass to false for a legacy document missing the key', async () => {
+  it('backfills useCalculatedArmorClass to true for a legacy document missing both the key and an armorClass value', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     const publicCharData = { ...charData, isPublic: true }
     mockGetDoc.mockResolvedValue(makeDocSnap(true, publicCharData))
 
     const result = await getPublicCharacterFromFirebase('char-1')
 
-    expect((result as any).useCalculatedArmorClass).toBe(false)
+    expect((result as any).useCalculatedArmorClass).toBe(true)
   })
 })
 
@@ -197,13 +197,13 @@ describe('getCharactersFromFirebase', () => {
     expect(result).toEqual([])
   })
 
-  it('defaults useCalculatedArmorClass to false for a legacy document missing the key', async () => {
+  it('backfills useCalculatedArmorClass to true for a legacy document missing both the key and an armorClass value', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     mockGetDocs.mockResolvedValue(makeQuerySnapshot([{ id: 'char-1', data: () => charData }]))
 
     const result = await getCharactersFromFirebase(userId)
 
-    expect(result[0].useCalculatedArmorClass).toBe(false)
+    expect(result[0].useCalculatedArmorClass).toBe(true)
   })
 })
 
@@ -243,13 +243,13 @@ describe('getCharacterFromFirebase', () => {
     expect(result).toBeNull()
   })
 
-  it('defaults useCalculatedArmorClass to false for a legacy document missing the key', async () => {
+  it('backfills useCalculatedArmorClass to true for a legacy document missing both the key and an armorClass value', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     mockGetDoc.mockResolvedValue(makeDocSnap(true, charData))
 
     const result = await getCharacterFromFirebase('char-1', userId)
 
-    expect((result as any).useCalculatedArmorClass).toBe(false)
+    expect((result as any).useCalculatedArmorClass).toBe(true)
   })
 })
 

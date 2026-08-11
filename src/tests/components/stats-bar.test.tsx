@@ -14,7 +14,10 @@ function makeSpellcaster() {
   return {
     ...createDefaultCharacter(),
     hitPoints: { current: 8, maximum: 10, temporary: 0 },
-    spellcastingAbility: "wisdom" as const,
+    classFeatures: [{
+      id: "spellcasting-1", name: "Spellcasting", description: "", source: "class-feature" as const,
+      levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" as const } }],
+    }],
     abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 18 },
     proficiencyBonus: 3,
   }

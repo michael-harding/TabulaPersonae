@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { parsePdfCharacterSheet, mergeWithDefault } from "@/lib/pdf-parser"
 import { reconcileImportedCharacter, reconcileImportedCharacters } from "@/lib/character-import-reconciliation"
+import { migrateCharacter, migrateCharacters } from "@/lib/character-migrations"
 import type { Character } from "@/lib/character-types"
 
 interface HeaderMenuProps {
@@ -86,11 +87,11 @@ export function HeaderMenu(props: HeaderMenuProps) {
             toast({ title: "Import Failed", description: "No valid characters found in file", variant: "destructive" })
             return
           }
-          const reconciled = reconcileImportedCharacters(valid)
+          const reconciled = reconcileImportedCharacters(migrateCharacters(valid))
           props.onImportMultiple(reconciled)
           toast({ title: "Import Successful", description: `Imported ${reconciled.length} characters successfully!` })
         } else if (data && typeof data === "object" && data.id) {
-          const reconciled = reconcileImportedCharacter(data)
+          const reconciled = reconcileImportedCharacter(migrateCharacter(data))
           props.onImportCharacter(reconciled)
           toast({ title: "Import Successful", description: `Imported ${reconciled.name || "character"} successfully!` })
         } else {
@@ -112,7 +113,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
     try {
       const parsed = await parsePdfCharacterSheet(file)
       const merged = mergeWithDefault(parsed)
-      const character = reconcileImportedCharacter(merged)
+      const character = reconcileImportedCharacter(migrateCharacter(merged))
       await props.onImportCharacter(character)
       toast({ title: "PDF Import Successful", description: `Imported ${character.name || "character"} from PDF!` })
       setIsImportOpen(false)

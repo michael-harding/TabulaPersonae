@@ -85,6 +85,24 @@ describe("AbilityScoresModule", () => {
       render(<AbilityScoresModule character={makeCharacter({ savingThrows: { strength: false, dexterity: false, constitution: false, intelligence: false, wisdom: false, charisma: false } })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Prof")).not.toBeInTheDocument()
     })
+
+    it("shows the saving throw section when only a Feature grants proficiency, not the raw checkbox", () => {
+      const feature = {
+        id: "feature-1", name: "Divine Sense", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom" as const] } }],
+      }
+      render(
+        <AbilityScoresModule
+          character={makeCharacter({
+            savingThrows: { strength: false, dexterity: false, constitution: false, intelligence: false, wisdom: false, charisma: false },
+            classFeatures: [feature],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Saving Throw")).toBeInTheDocument()
+      expect(screen.getByText("Prof")).toBeInTheDocument()
+    })
   })
 
   describe("edit mode", () => {
@@ -148,6 +166,30 @@ describe("AbilityScoresModule", () => {
           savingThrows: expect.objectContaining({ strength: false }),
         })
       )
+    })
+
+    it("shows a disabled, checked save-prof checkbox with a Granted-by tooltip when a Feature grants the save", async () => {
+      cleanupPortals()
+      const feature = {
+        id: "feature-1", name: "Divine Sense", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom" as const] } }],
+      }
+      render(
+        <AbilityScoresModule
+          character={makeCharacter({
+            savingThrows: { strength: false, dexterity: false, constitution: false, intelligence: false, wisdom: false, charisma: false },
+            classFeatures: [feature],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      const wisCheckbox = screen.getByRole("checkbox", { name: /wisdom saving throw/i })
+      expect(wisCheckbox).toBeDisabled()
+      expect(wisCheckbox).toBeChecked()
+      fireEvent.focus(wisCheckbox.closest('[data-sem="tooltip-trigger"]') ?? wisCheckbox)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Granted by Divine Sense Class Feature")
     })
 
     it("does not call onUpdate when cancel is clicked", () => {
@@ -216,7 +258,7 @@ describe("AbilityScoresModule", () => {
       fireEvent.focus(triggers[1])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // STR 16 → +3, Prof +3 → total +6
-      expect(screen.getByRole("tooltip")).toHaveTextContent("STR +3 + Prof +3 = +6")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 3 (Prof)")
     })
 
     it("renders one focusable effective-score tooltip trigger per ability in edit mode", () => {
@@ -229,6 +271,8 @@ describe("AbilityScoresModule", () => {
   })
 
   describe("item modifiers", () => {
+    beforeEach(() => cleanupPortals())
+
     it("raises the displayed effective score and modifier when an active item boosts an ability", () => {
       const character = makeCharacter({
         equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
@@ -239,12 +283,72 @@ describe("AbilityScoresModule", () => {
       expect(screen.getByText("+4")).toBeInTheDocument()
     })
 
-    it("shows an item bonus badge next to the boosted score", () => {
+    it("names the granting item in the effective-score tooltip instead of a generic 'item' label", async () => {
       const character = makeCharacter({
-        equipment: [makeMagicItem({ modifiers: { abilityScores: { strength: 2 } } })],
+        equipment: [makeMagicItem({ name: "Belt of Giant Strength", modifiers: { abilityScores: { strength: 2 } } })],
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("item +2")).toBeInTheDocument()
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) = 18")
+    })
+
+    it("does not show always-visible item/feature bonus text next to the score", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ name: "Belt of Giant Strength", modifiers: { abilityScores: { strength: 2 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.queryByText(/item|feature/i)).not.toBeInTheDocument()
+    })
+
+    it("names each item separately when two items each contribute to the same ability", async () => {
+      const character = makeCharacter({
+        equipment: [
+          makeMagicItem({ id: "item-1", name: "Belt of Giant Strength", modifiers: { abilityScores: { strength: 2 } } }),
+          makeMagicItem({ id: "item-2", name: "Gauntlets of Ogre Power", modifiers: { abilityScores: { strength: 1 } } }),
+        ],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) + 1 (Gauntlets of Ogre Power) = 19")
+    })
+
+    it("names the granting feature in the effective-score tooltip", async () => {
+      const character = makeCharacter({
+        speciesTraits: [{ id: "f1", name: "Hill Dwarf Toughness", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] }],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Hill Dwarf Toughness Species Trait) = 18")
+    })
+
+    it("names both features when two different features each contribute to the same ability", async () => {
+      const character = makeCharacter({
+        speciesTraits: [{ id: "f1", name: "Hill Dwarf Toughness", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] }],
+        classFeatures: [{ id: "f2", name: "Ability Score Improvement", description: "", source: "class-feature", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 1 } } }] }],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 1 (Ability Score Improvement Class Feature) + 2 (Hill Dwarf Toughness Species Trait) = 19")
+    })
+
+    it("combines a named item bonus and a named feature bonus in the same tooltip", async () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ name: "Belt of Giant Strength", modifiers: { abilityScores: { strength: 2 } } })],
+        speciesTraits: [{ id: "f1", name: "Hill Dwarf Toughness", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 1 } } }] }],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) + 1 (Hill Dwarf Toughness Species Trait) = 19")
     })
 
     it("ignores an item's ability bonus when it requires attunement and is not attuned", () => {
@@ -253,7 +357,7 @@ describe("AbilityScoresModule", () => {
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
       expect(screen.getByText("16")).toBeInTheDocument()
-      expect(screen.queryByText("item +2")).not.toBeInTheDocument()
+      expect(screen.queryByText(/item|feature/i)).not.toBeInTheDocument()
     })
 
     it("keeps the base-score input in edit mode unaffected by the item bonus", () => {
@@ -264,6 +368,28 @@ describe("AbilityScoresModule", () => {
       clickEditButton()
       const strInput = screen.getAllByRole("spinbutton")[0]
       expect(strInput).toHaveValue(16)
+    })
+
+    it("clamps the base score input to 20 by default (the normal advancement ceiling)", () => {
+      const character = makeCharacter()
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const strInput = screen.getAllByRole("spinbutton")[0]
+      fireEvent.input(strInput, { target: { value: "25" } })
+      fireEvent.blur(strInput)
+      expect(strInput).toHaveValue(20)
+    })
+
+    it("allows the base score input past 20 when a feature grants a base-max exception (Epic Boon / capstone)", () => {
+      const character = makeCharacter({
+        feats: [{ id: "f1", name: "Epic Boon of Fortitude", description: "", source: "feat", levelEffects: [{ level: 1, effects: { abilityScoreBaseMax: { strength: 25 } } }] }],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const strInput = screen.getAllByRole("spinbutton")[0]
+      fireEvent.input(strInput, { target: { value: "25" } })
+      fireEvent.blur(strInput)
+      expect(strInput).toHaveValue(25)
     })
 
     it("reflects a per-ability saving throw item bonus", () => {
@@ -299,13 +425,45 @@ describe("AbilityScoresModule", () => {
       expect(screen.getByRole("tooltip")).toHaveTextContent("(18 − 10) / 2 = +4")
     })
 
+    it("applies an item's ability-score cap even when base+item bonus is higher", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 7 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      // base STR 16, no item bonus, cap 7 -> displayed 7, modifier -2
+      expect(screen.getByText("7")).toBeInTheDocument()
+      expect(screen.getByText("-2")).toBeInTheDocument()
+    })
+
+    it("mentions the cap in the effective-score tooltip when it lowers the value", async () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 7 } } })],
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[0])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent(/cap 7/i)
+      expect(screen.getByRole("tooltip")).toHaveTextContent("(7 − 10) / 2 = -2")
+    })
+
+    it("never applies the cap to a custom effective-score override", () => {
+      const character = makeCharacter({
+        equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 7 } } })],
+        abilityScoreOverrides: { strength: 22 },
+        useCalculatedAbilityScores: { strength: false },
+      })
+      render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("22")).toBeInTheDocument()
+    })
+
     it("persists a manual effective-score override on save", () => {
       const onUpdate = vi.fn()
       const character = makeCharacter()
       render(<AbilityScoresModule character={character} onUpdate={onUpdate} />)
       clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom strength effective score/i }))
-      const overrideInput = screen.getByRole("spinbutton", { name: /strength effective score/i })
+      fireEvent.click(screen.getByRole("button", { name: /use custom strength effective/i }))
+      const overrideInput = screen.getByRole("spinbutton", { name: /strength effective/i })
       fireEvent.input(overrideInput, { target: { value: "20" } })
       fireEvent.blur(overrideInput)
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))

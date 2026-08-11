@@ -15,6 +15,7 @@ import {
   isItemModifierActive,
   formatModifier,
   getEffectiveCarryingCapacity,
+  getCarryingCapacityBreakdown,
 } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -630,7 +631,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                 </div>
               </div>
               <div>
-                <Label class="text-xs">Max Caps (informational)</Label>
+                <Label class="text-xs">Max Caps (sets score to at most this value)</Label>
                 <div class="grid grid-cols-3 gap-2 mt-1">
                   <For each={ABILITY_KEYS}>
                     {(ability) => (
@@ -836,7 +837,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       props.onUpdate(updated)
     },
     calculatedValue: () => BASE_ATTUNEMENT_LIMIT,
-    calculatedTooltip: () => "Base attunement limit",
+    calculatedTooltip: () => `${BASE_ATTUNEMENT_LIMIT} (base attunement limit)`,
   })
   const overAttunementLimit = () => attunedCount() > attunementLimitField.resolvedValue()
 
@@ -852,7 +853,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       props.onUpdate(updated)
     },
     calculatedValue: () => getEffectiveCarryingCapacity(props.character),
-    calculatedTooltip: () => "STR score x 15, plus item bonuses/multipliers",
+    calculatedTooltip: () => getCarryingCapacityBreakdown(props.character).breakdown,
   })
   const overCarryingCapacity = () => totalWeight() > carryingCapacityField.resolvedValue()
 
@@ -1079,7 +1080,8 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span>Carrying Capacity: {totalWeight()} /</span>
           <CalculatedValue
-            label="carrying capacity"
+            label="Carrying Capacity"
+            labelClass="sr-only"
             editable={!isReadOnly}
             class="text-xs"
             {...carryingCapacityField.binding()}
@@ -1144,7 +1146,8 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
           <div class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
             <span>{attunedCount()}/</span>
             <CalculatedValue
-              label="attunement limit"
+              label="Attunement Limit"
+              labelClass="sr-only"
               editable={!isReadOnly}
               class="text-xs"
               {...attunementLimitField.binding()}

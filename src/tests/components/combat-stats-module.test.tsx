@@ -47,7 +47,10 @@ describe("CombatStatsModule", () => {
 
   describe("view mode", () => {
     it("renders HP, AC, initiative, speed, and proficiency bonus", () => {
-      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      // useCalculatedSpeed: false so the manually-entered speed (30, from makeCharacter's
+      // defaults) is what's displayed here — the calculated (Species-Trait-derived) path is
+      // covered separately in the "Movement modes" describe block.
+      render(<CombatStatsModule character={makeCharacter({ useCalculatedSpeed: false })} onUpdate={vi.fn()} />)
       // HP: "10" and "/20" appear in the display
       expect(screen.getByText(/\/20/)).toBeInTheDocument()
       // AC: unarmored, DEX 10 -> +0 -> AC 10
@@ -263,12 +266,12 @@ describe("CombatStatsModule", () => {
         proficiencyBonus: 2,
       })
       render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
-      // In view mode, focusable triggers are: AC (0), Initiative (1), Proficiency Bonus (2), Passive Perception (3)
+      // In view mode, focusable triggers are: AC (0), Initiative (1), Speed (2), Proficiency Bonus (3), Passive Perception (4)
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[3])
+      fireEvent.focus(triggers[4])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // Wis 14 → +2, proficient with prof +2 → 10 + 2 + 2 = 14
-      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + Wis +2 + Prof +2 = 14")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 2 (Wis) + 2 (Prof)")
     })
   })
 
@@ -280,7 +283,7 @@ describe("CombatStatsModule", () => {
       fireEvent.focus(triggers[0])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // No armor equipped, DEX 10 -> +0: unarmored AC = 10 + 0 DEX
-      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 DEX")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 (Dex)")
     })
 
     it("does not show always-visible AC breakdown text below the value", () => {
@@ -290,15 +293,52 @@ describe("CombatStatsModule", () => {
     })
   })
 
+  describe("movement speed tooltip", () => {
+    it("shows a fallback message when no species trait grants Speed", async () => {
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      // AC (0), Initiative (1), Speed (2), Proficiency Bonus (3), Passive Perception (4)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[2])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent(/no species trait grants this/i)
+    })
+
+    it("names the granting feature when a species trait grants Speed", async () => {
+      const feature = {
+        id: "feature-1", name: "Dwarf Speed", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { speed: 25 } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
+      fireEvent.focus(triggers[2])
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("25 ft (Dwarf Speed Species Trait)")
+    })
+  })
+
   describe("size (2024 only)", () => {
-    it("renders size in 2024 view mode", () => {
-      render(<CombatStatsModule character={makeCharacter({ edition: "2024", size: "Large" })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Large")).toBeInTheDocument()
+    it("shows a placeholder when nothing has defined a size yet — no hardcoded 'Medium' default", () => {
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("—")).toBeInTheDocument()
     })
 
     it("does not render size in 2014 mode", () => {
       render(<CombatStatsModule character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Size")).not.toBeInTheDocument()
+    })
+
+    it("shows the feature-granted size", () => {
+      const feature = {
+        id: "feature-1", name: "Powerful Build", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { size: "Large" } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024", speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Large")).toBeInTheDocument()
+    })
+
+    it("shows a manually-entered custom size when useCalculatedSize is false", () => {
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024", size: "Small", useCalculatedSize: false })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Small")).toBeInTheDocument()
     })
   })
 
@@ -340,75 +380,63 @@ describe("CombatStatsModule", () => {
     })
   })
 
-  describe("hit dice section", () => {
-    it("does not show hit dice section in view mode", () => {
-      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", level: 4, spentHitDice: 1 })} onUpdate={vi.fn()} />)
-      expect(screen.queryByText(/die type/i)).not.toBeInTheDocument()
-      expect(screen.queryByText(/spent hit dice/i)).not.toBeInTheDocument()
-      expect(screen.queryByText(/available/i)).not.toBeInTheDocument()
-    })
-
-    it("shows hit dice section in edit mode", () => {
-      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      expect(screen.getByText(/die type/i)).toBeInTheDocument()
-      expect(screen.getByRole("button", { name: "8" })).toBeInTheDocument()
-    })
-  })
-
-  describe("hit dice section — edit mode", () => {
-    it("renders a 'Die Type' label and select trigger button in edit mode", () => {
-      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      expect(screen.getByText(/die type/i)).toBeInTheDocument()
-      // Kobalte Select trigger renders as a button showing the current value
-      expect(screen.getByRole("button", { name: "8" })).toBeInTheDocument()
-    })
-
-    it("renders 'Spent Hit Dice' label and stepper buttons when level > 5", () => {
-      render(<CombatStatsModule character={makeCharacter({ level: 8, spentHitDice: 2, hitDice: "1d10" })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      expect(screen.getByText(/spent hit dice/i)).toBeInTheDocument()
-      expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
-    })
-
-    it("saves the updated hitDiceSize on save", () => {
-      const onUpdate = vi.fn()
-      render(<CombatStatsModule character={makeCharacter({ hitDice: "1d8", hitDiceSize: 8 })} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ hitDiceSize: 8 })
-      )
-    })
-  })
-
   describe("size combobox (2024)", () => {
+    it("shows the Size combobox only after switching to custom entry", () => {
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.queryByRole("combobox", { name: /size/i })).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
+      expect(screen.getByRole("combobox", { name: /size/i })).toBeInTheDocument()
+    })
+
     it("saves a custom size value typed into the Size combobox", () => {
       const onUpdate = vi.fn()
       render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
       clickEditButton()
-      const sizeInput = screen.getAllByRole("combobox").find(
-        (el) => (el as HTMLInputElement).value === "Medium"
-      )!
+      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
+      const sizeInput = screen.getByRole("combobox", { name: /size/i })
       fireEvent.focus(sizeInput)
       fireEvent.input(sizeInput, { target: { value: "Colossal" } })
       fireEvent.blur(sizeInput)
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Colossal" }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Colossal", useCalculatedSize: false }))
     })
 
     it("saves a predefined size option selected from the dropdown", () => {
       const onUpdate = vi.fn()
       render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
       clickEditButton()
-      const sizeInput = screen.getAllByRole("combobox").find(
-        (el) => (el as HTMLInputElement).value === "Medium"
-      )!
+      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
+      const sizeInput = screen.getByRole("combobox", { name: /size/i })
       fireEvent.focus(sizeInput)
       fireEvent.click(screen.getByRole("option", { name: "Huge" }))
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Huge" }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Huge", useCalculatedSize: false }))
+    })
+
+    it("shows the feature-granted size read-only, with no combobox, when a feature grants size", () => {
+      const feature = {
+        id: "feature-1", name: "Powerful Build", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { size: "Large" } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024", speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.queryByRole("combobox", { name: /size/i })).not.toBeInTheDocument()
+      expect(screen.getByText("Large")).toBeInTheDocument()
+    })
+
+    it("switching to custom size and back to calculated restores the feature-granted value", () => {
+      const feature = {
+        id: "feature-1", name: "Powerful Build", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { size: "Large" } }],
+      }
+      const onUpdate = vi.fn()
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024", speciesTraits: [feature] })} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
+      fireEvent.click(screen.getByRole("button", { name: /use calculated size/i }))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Large", useCalculatedSize: true }))
     })
   })
 
@@ -541,30 +569,102 @@ describe("CombatStatsModule", () => {
         expect.objectContaining({ conditionImmunities: [] })
       )
     })
+
+    it("shows a feature-granted condition immunity as non-removable, tooltipped with the granting feature", () => {
+      const feature = {
+        id: "feature-1", name: "Fey Ancestry", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { conditionImmunities: ["Charmed"] } }],
+      }
+      const { container } = render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Charmed")).toHaveAttribute("title", "Granted by Fey Ancestry Species Trait — edit in Features")
+      expect(container.querySelector('[data-test="remove-condition-immunity-Charmed"]')).not.toBeInTheDocument()
+    })
   })
 
   describe("Movement modes", () => {
-    it("shows fly/swim/climb/burrow speeds only when nonzero", () => {
-      render(<CombatStatsModule character={makeCharacter({ flySpeed: 30, swimSpeed: 0 })} onUpdate={vi.fn()} />)
+    it("shows fly speed only when nonzero", () => {
+      const feature = {
+        id: "feature-1", name: "Aarakocra Ancestry", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { flySpeed: 30 } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
       expect(screen.queryByText(/Swim/)).not.toBeInTheDocument()
     })
 
-    it("adds an equipped item's fly speed bonus to the displayed fly speed", () => {
+    it("adds an equipped item's fly speed bonus to the calculated fly speed", () => {
       const item = makeMagicItem({ modifiers: { flySpeed: 30 } })
       render(<CombatStatsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
     })
 
-    it("edits fly/swim/climb/burrow speeds in edit mode", () => {
+    it("adds a feature-granted fly speed to the displayed fly speed", () => {
+      const feature = {
+        id: "feature-1", name: "Aarakocra Ancestry", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { flySpeed: 30 } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
+    })
+
+    it("shows 0 ft walk speed with no hardcoded '30 ft' default when nothing grants one", () => {
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("0 ft")).toBeInTheDocument()
+    })
+
+    it("uses the feature-granted walk speed instead of adding to the stale custom value (no double-counting)", () => {
+      // Regression test: a species's speed (e.g. Dwarf 25 ft) is an absolute characteristic, not
+      // a "+X ft" bonus. character.speed is only ever the custom-override storage field now, so a
+      // leftover value there (e.g. 30 from a prior custom entry) can no longer leak into the total.
+      const feature = {
+        id: "feature-1", name: "Dwarf Speed", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { speed: 25 } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ speed: 30, speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("25 ft")).toBeInTheDocument()
+      expect(screen.queryByText("55 ft")).not.toBeInTheDocument()
+    })
+
+    it("shows the calculated value read-only (no editable input) in edit mode by default", () => {
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.queryByLabelText("Speed")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText("Fly")).not.toBeInTheDocument()
+    })
+
+    it("switches walk speed to a custom editable value via the toggle, and persists it", () => {
       const onUpdate = vi.fn()
       render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom speed/i }))
+      const input = screen.getByLabelText("Speed")
+      fireEvent.input(input, { target: { value: "35" } })
+      fireEvent.blur(input)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ speed: 35, useCalculatedSpeed: false }))
+    })
+
+    it("switches Fly to a custom editable value via the toggle, and persists it", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom fly/i }))
       const flyInput = screen.getByLabelText("Fly")
       fireEvent.input(flyInput, { target: { value: "30" } })
       fireEvent.blur(flyInput)
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ flySpeed: 30 }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ flySpeed: 30, useCalculatedFlySpeed: false }))
+    })
+
+    it("shows a feature-granted fly speed read-only, with no editable input, until switched to custom", () => {
+      const feature = {
+        id: "feature-1", name: "Aarakocra Ancestry", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { flySpeed: 50 } }],
+      }
+      render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.queryByLabelText("Fly")).not.toBeInTheDocument()
+      expect(screen.getByText("50 ft")).toBeInTheDocument()
     })
   })
 
@@ -618,6 +718,158 @@ describe("CombatStatsModule", () => {
       )
       const increaseBtn = screen.getByRole("button", { name: /increase hp/i })
       expect(increaseBtn).toBeDisabled()
+    })
+  })
+
+  describe("feature-granted hpBonusPerLevel", () => {
+    const hitDieFeature = {
+      id: "feature-hd", name: "Fighter", description: "", source: "class-feature" as const,
+      levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+    }
+    const bonusFeature = {
+      id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
+      levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+    }
+
+    it("does not apply the bonus (or any calculation) to the displayed max HP when not calculated", () => {
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, hitPoints: { current: 10, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // useCalculatedMaximumHp defaults to false: the manual maximum (20) is used as-is, no bonus applied
+      expect(screen.getByText(/\/20/)).toBeInTheDocument()
+    })
+
+    it("adds the level-scaled bonus to the displayed max HP when calculated", () => {
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, useCalculatedMaximumHp: true, hitPoints: { current: 10, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // d8 Hit Die: level 1 = 8, +4 more levels * avg 5 = 20 -> base 28; + 1/level bonus * level 5 = 5 -> 33
+      expect(screen.getByText(/\/33/)).toBeInTheDocument()
+    })
+
+    it("allows increasing HP up to the feature-boosted effective max when calculated", () => {
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, useCalculatedMaximumHp: true, hitPoints: { current: 33, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      // currentHP (33) equals the calculated effective max (33), so the increase button is disabled
+      const increaseBtn = screen.getByRole("button", { name: /increase hp/i })
+      expect(increaseBtn).toBeDisabled()
+    })
+
+    it("clamps current HP to the feature-boosted effective max on save when calculated", () => {
+      const onUpdate = vi.fn()
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, useCalculatedMaximumHp: true, hitPoints: { current: 20, maximum: 30, temporary: 0 }, classFeatures: [hitDieFeature], speciesTraits: [bonusFeature] })}
+          onUpdate={onUpdate}
+        />
+      )
+      clickEditButton()
+      const spinbuttons = screen.getAllByRole("spinbutton")
+      fireEvent.input(spinbuttons[0], { target: { value: "40" } })
+      fireEvent.blur(spinbuttons[0])
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      // calculated effective max = 28 (d8 base) + 5 (1/level bonus * level 5) = 33
+      const updated = onUpdate.mock.calls[0][0]
+      expect(updated.hitPoints.current).toBe(33)
+    })
+  })
+
+  describe("calculated maximum HP", () => {
+    it("shows a custom-value toggle button for Maximum in edit mode", () => {
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByRole("button", { name: /(custom|calculated) maximum/i })).toBeInTheDocument()
+    })
+
+    it("shows the bare manual maximum with no bonus applied when not calculated, even with a bonus feature present", () => {
+      const bonusFeature = {
+        id: "feature-1", name: "Dwarven Toughness", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 1 } }],
+      }
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 5, hitPoints: { current: 10, maximum: 20, temporary: 0 }, speciesTraits: [bonusFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      // Not calculated -> custom mode renders an editable input holding the raw manual value, no bonus folded in
+      expect(screen.getByDisplayValue("20")).toBeInTheDocument()
+    })
+
+    it("shows the Hit-Die-derived value when calculated", () => {
+      const hitDieFeature = {
+        id: "feature-hd", name: "Fighter", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+      }
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 1, useCalculatedMaximumHp: true, hitPoints: { current: 8, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      // d8 Hit Die + CON mod 0 at level 1 = 8, rendered as read-only text (not an input) since calculated
+      const maximumField = screen.getByText("Maximum").closest('[data-sem="calculated-value"]') as HTMLElement
+      expect(within(maximumField).getByText("8")).toBeInTheDocument()
+    })
+
+    it("shows 0 when calculated with no Hit Die feature granted", () => {
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ classFeatures: [], useCalculatedMaximumHp: true, hitPoints: { current: 5, maximum: 20, temporary: 0 } })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      const maximumField = screen.getByText("Maximum").closest('[data-sem="calculated-value"]') as HTMLElement
+      expect(within(maximumField).getByText("0")).toBeInTheDocument()
+    })
+
+    it("shows the flat Hit Points value when the granting feature uses 'flat' mode", () => {
+      const flatFeature = {
+        id: "feature-hp", name: "Tough", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { hitPointsMode: "flat" as const, hitPointsFlatValue: 40 } }],
+      }
+      render(
+        <CombatStatsModule
+          character={makeCharacter({ level: 1, useCalculatedMaximumHp: true, hitPoints: { current: 10, maximum: 20, temporary: 0 }, classFeatures: [flatFeature] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      clickEditButton()
+      const maximumField = screen.getByText("Maximum").closest('[data-sem="calculated-value"]') as HTMLElement
+      expect(within(maximumField).getByText("40")).toBeInTheDocument()
+    })
+
+    it("saves the calculated maximum, not a stale stored value, when saving without touching Max HP", () => {
+      const hitDieFeature = {
+        id: "feature-hd", name: "Fighter", description: "", source: "class-feature" as const,
+        levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
+      }
+      const onUpdate = vi.fn()
+      render(
+        <CombatStatsModule
+          // Stale stored maximum (20) predates the current Hit Die feature/level, whose calculated
+          // max is 8 (d8 + CON mod 0 at level 1) — handleSave must re-stamp this on save, not carry
+          // the stale 20 forward, even though the user never touched the Max HP field this edit.
+          character={makeCharacter({ level: 1, useCalculatedMaximumHp: true, hitPoints: { current: 5, maximum: 20, temporary: 0 }, classFeatures: [hitDieFeature] })}
+          onUpdate={onUpdate}
+        />
+      )
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ hitPoints: expect.objectContaining({ maximum: 8 }) }))
     })
   })
 
@@ -752,10 +1004,10 @@ describe("CombatStatsModule", () => {
   })
 
   describe("calculated armor class", () => {
-    it("shows a custom-value toggle button for AC, initiative, proficiency bonus, and passive perception in edit mode", () => {
-      render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+    it("shows a custom-value toggle button for every calculated field in edit mode (AC, initiative, speed x5, proficiency bonus, passive perception, size, maximum HP)", () => {
+      render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(4)
+      expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(11)
     })
 
     it("shows a tooltip on the AC value in edit mode when not custom", async () => {
@@ -880,6 +1132,22 @@ describe("CombatStatsModule", () => {
       expect(within(ppContainer).getByText("15")).toBeInTheDocument()
     })
 
+    it("reflects a Feature-granted Perception proficiency even when the raw skill isn't checked", () => {
+      const feature = {
+        id: "feature-1", name: "Keen Senses", description: "", source: "species-trait" as const,
+        levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception" as const }] } }],
+      }
+      const char = makeCharacter({
+        abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14 },
+        proficiencyBonus: 2,
+        speciesTraits: [feature],
+      })
+      render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
+      // WIS 14 -> mod +2, granted (not raw-checked) proficiency +2 -> PP = 10 + 2 + 2 = 14
+      const ppContainer = screen.getByText("Passive Perception").closest("div")!
+      expect(within(ppContainer).getByText("14")).toBeInTheDocument()
+    })
+
     it("shows PP NumericInput when useCalculatedPassivePerception is false", () => {
       render(
         <CombatStatsModule
@@ -928,7 +1196,7 @@ describe("CombatStatsModule", () => {
         />
       )
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[3])
+      fireEvent.focus(triggers[4])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
@@ -978,7 +1246,7 @@ describe("CombatStatsModule", () => {
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       fireEvent.focus(triggers[1])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Dex +0")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+0 (Dex)")
     })
 
     it("shows 'Custom' tooltip when flag is false", async () => {
@@ -1005,9 +1273,9 @@ describe("CombatStatsModule", () => {
       )
       // Default level 1 → getProficiencyBonus(1) = +2
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[2])
+      fireEvent.focus(triggers[3])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Level 1 = +2")
+      expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Level 1)")
     })
 
     it("shows 'Custom' tooltip when flag is false", async () => {
@@ -1018,7 +1286,7 @@ describe("CombatStatsModule", () => {
         />
       )
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[2])
+      fireEvent.focus(triggers[3])
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })

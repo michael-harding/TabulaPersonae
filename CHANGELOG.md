@@ -5,6 +5,26 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.0] - 2026-08-11
+
+### Added
+- **Features can now grant almost anything** — a Class Feature, Species Trait, Feat, or the new Background Feature can grant spellcasting ability, hit dice/hit points (flat, per-level, or rolled), saving throw and skill proficiencies (including expertise), other proficiencies, size, walking/fly/swim/climb/burrow speed, senses (darkvision/blindsight/tremorsense/truesight), damage resistances/immunities/vulnerabilities, condition immunities, languages, carrying capacity (bonus or multiplier), ability score bonuses/floors/caps/base max, and a per-level Max HP bonus — all editable from the Features tab, with each grant showing which feature(s) it came from as a tooltip everywhere it's used
+- **Background Features** — a new "Background" feature kind alongside Class Features, Species Traits, and Feats, with its own tab section and recharge-on-rest support
+- **Level-tiered feature effects** — a feature can define effects at multiple character levels (e.g. a trait that improves at level 5 and again at level 11); every tier at or below the character's current level applies, so nothing needs to be re-entered as the character levels up
+- **Calculated size and movement speeds** — size and walking/fly/swim/climb/burrow speed each get their own calculated-vs-custom toggle and tooltip, matching the existing pattern for AC/initiative/passive scores, with values now sourced from granting features and equipment instead of being freeform fields
+- **Calculated Max HP** — Max HP is now derived from the character's Hit Points feature (flat, per-level, or rolled value per level) plus Constitution modifier per level and any Max HP Bonus features, with a manual-override toggle and a full breakdown tooltip
+- Every new character starts with a default "Hit Points" Class Feature (d8 hit die) so Max HP and hit-dice spending work out of the box; the Rest modal's "spend Hit Dice" option now only appears once a character actually has a Hit Points feature
+- **Legacy character migration** — characters saved before this system existed have their old `spellcastingAbility`/`hitDice` fields, and their stored speed/size/senses/AC values, converted into equivalent Features and calculated/custom flags, so nothing changes on screen for existing characters after upgrading
+
+### Changed
+- Ability scores module: saving throw proficiency and ability score max are now influenced by granting features, not just manually toggled per character; effective ability score max reflects any feature-granted base max
+- Skills & Proficiencies module: saving throw and skill proficiency (including expertise) now factor in feature grants, not just the character's own checkboxes; granted-tag tooltips now name the specific granting feature or item instead of a generic "Granted by an equipped item" label
+- Calculated-value tooltips across ability scores, saving throws, skills, spellcasting, and carrying capacity now consistently show each contributing term (base, proficiency, expertise, item, feature) instead of an ad hoc mix of formats
+- Character class selection on the Basic Info tab no longer auto-fills a spellcasting ability — spellcasting ability is now granted exclusively through a Feature, matching how every other feature-granted stat works
+- `NumericInput` only commits a value on blur/Enter if the user actually typed in the field, so legacy data that predates a since-lowered max no longer gets silently clamped by an incidental blur
+- `Select` supports a `disabled` state; its dropdown now scrolls instead of clipping when it has more options than fit on screen
+- New `CalculatedValueSelect` component extends the calculated/custom pattern to dropdown-style fields (used for Size and Spellcasting Ability)
+
 ## [v1.5.0] - 2026-07-28
 
 ### Added
