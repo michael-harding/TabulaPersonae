@@ -763,6 +763,57 @@ describe("FeaturesModule", () => {
         expect(screen.getByLabelText(/hp per level after 1st/i)).toHaveValue(6)
       })
 
+      it("infers 'Speed' when the only effect is an explicit Walk speed of 0", () => {
+        const feature = makeFeature({
+          name: "Petrified",
+          levelEffects: [{ level: 1, effects: { speed: 0 } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit petrified/i }))
+        expect(screen.getByRole("button", { name: /feature type/i })).toHaveTextContent("Speed")
+      })
+
+      it("infers 'Senses' when the only effect is an explicit Darkvision of 0", () => {
+        const feature = makeFeature({
+          name: "No Darkvision",
+          source: "species-trait",
+          levelEffects: [{ level: 1, effects: { senses: { darkvision: 0 } } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit no darkvision/i }))
+        expect(screen.getByRole("button", { name: /feature type/i })).toHaveTextContent("Senses")
+      })
+
+      it("infers 'Carrying Capacity' when the only effect is an explicit multiplier of 0", () => {
+        const feature = makeFeature({
+          name: "Encumbered",
+          levelEffects: [{ level: 1, effects: { carryingCapacityMultiplier: 0 } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit encumbered/i }))
+        expect(screen.getByRole("button", { name: /feature type/i })).toHaveTextContent("Carrying Capacity")
+      })
+
+      it("infers 'Ability Scores' when the only effect is an explicit floor of 0", () => {
+        const feature = makeFeature({
+          name: "No Floor",
+          levelEffects: [{ level: 1, effects: { abilityScoreFloors: { strength: 0 } } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit no floor/i }))
+        expect(screen.getByRole("button", { name: /feature type/i })).toHaveTextContent("Ability Scores")
+      })
+
+      it("infers 'Max HP Bonus' when the value is explicitly 0", () => {
+        const feature = makeFeature({
+          name: "Zero Bonus",
+          levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 0 } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit zero bonus/i }))
+        expect(screen.getByRole("button", { name: /feature type/i })).toHaveTextContent("Max HP Bonus")
+      })
+
       it("infers 'Hit Points' and repopulates rolled entries when editing new-shape rolled data", () => {
         const onUpdate = vi.fn()
         const feature = makeFeature({

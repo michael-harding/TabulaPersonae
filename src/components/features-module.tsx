@@ -127,17 +127,23 @@ function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: Feat
   if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
   if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
   if (effects?.otherProficiencies?.length) return 'Other Proficiency'
-  if (effects?.speed || effects?.flySpeed || effects?.swimSpeed || effects?.climbSpeed || effects?.burrowSpeed) return 'Speed'
-  if (effects?.senses && Object.values(effects.senses).some((v) => v)) return 'Senses'
+  if (
+    effects?.speed !== undefined ||
+    effects?.flySpeed !== undefined ||
+    effects?.swimSpeed !== undefined ||
+    effects?.climbSpeed !== undefined ||
+    effects?.burrowSpeed !== undefined
+  ) return 'Speed'
+  if (effects?.senses && Object.values(effects.senses).some((v) => v !== undefined)) return 'Senses'
   if (effects?.resistances?.length || effects?.immunities?.length || effects?.vulnerabilities?.length) return 'Damage Resistance/Immunity/Vulnerability'
   if (effects?.conditionImmunities?.length) return 'Condition Immunity'
   if (effects?.languages?.length) return 'Language'
-  if (effects?.carryingCapacityBonus || effects?.carryingCapacityMultiplier) return 'Carrying Capacity'
-  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v)) return 'Ability Scores'
-  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v)) return 'Ability Scores'
-  if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v)) return 'Ability Scores'
-  if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v)) return 'Ability Scores'
-  if (effects?.hpBonusPerLevel) return 'Max HP Bonus'
+  if (effects?.carryingCapacityBonus !== undefined || effects?.carryingCapacityMultiplier !== undefined) return 'Carrying Capacity'
+  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.hpBonusPerLevel !== undefined) return 'Max HP Bonus'
   return ''
 }
 
