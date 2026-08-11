@@ -6,8 +6,9 @@ A D&D 5e/5.5e character sheet web app built with SolidJS and Firebase.
 
 - **Character management** — create, edit, and switch between multiple characters
 - **Full 5e sheet** — ability scores, combat stats, skills, spells, equipment/inventory (including magic items with rarity, attunement, and modifiers), actions, features, and notes
+- **Feature-driven grants** — class features, species traits, backgrounds, and feats can grant spellcasting ability, hit dice/hit points, saving throw/skill/other proficiencies, size, movement speeds, senses, resistances/immunities, languages, carrying capacity, ability score bonuses, and Max HP bonuses, with level-tiered effects and tooltips naming each contributing feature
 - **Customizable tabs** — arrange sheet content into user-defined tabs, each with its own set of drag-and-drop-ordered modules
-- **Calculated stats with manual override** — initiative, proficiency bonus, armor class, passive perception/insight/investigation, spell save DC, and spell attack/modifier are auto-derived from character data, each with a per-field toggle for a manual value
+- **Calculated stats with manual override** — initiative, proficiency bonus, armor class, size, movement speed, Max HP, passive perception/insight/investigation, spell save DC, and spell attack/modifier are auto-derived from character data, each with a per-field toggle for a manual value
 - **Short & long rest** — track HP, hit dice, spell slot recovery, and equipment recharge (e.g. wands, charged items)
 - **Markdown notes** — character notes, description fields, and action/spell descriptions render as sanitized Markdown
 - **Public character sharing** — generate a read-only `/share/:id` link and QR code that works without an account
