@@ -1,6 +1,6 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/character-types"
+import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -370,6 +370,17 @@ export function ActionsModule(props: ActionsModuleProps) {
     return { actions, bonuses, reactions, others }
   })
 
+  const equipmentByKind = createMemo(() => {
+    const actions: Equipment[] = [], bonuses: Equipment[] = [], reactions: Equipment[] = [], others: Equipment[] = []
+    for (const item of props.character.equipment || []) {
+      if (item.actionKind === 'action')            actions.push(item)
+      else if (item.actionKind === 'bonus-action') bonuses.push(item)
+      else if (item.actionKind === 'reaction')     reactions.push(item)
+      else if (item.actionKind === 'other')        others.push(item)
+    }
+    return { actions, bonuses, reactions, others }
+  })
+
   const attackSpells = createMemo(() => safeSpells().filter((spell) =>
     (spell.level === 0 ? (spell.known ?? true) : spell.prepared) &&
     spell.castingTime.toLowerCase().includes("1 action") &&
@@ -483,6 +494,9 @@ export function ActionsModule(props: ActionsModuleProps) {
       [field]: safeFeatures(props.character[field as 'classFeatures' | 'speciesTraits' | 'feats' | 'backgroundFeatures']).map(f => f.id === feature.id ? { ...f, uses: v } : f),
     })
   }
+  const handleEquipmentUsesChange = (id: string, v: number) => {
+    props.onUpdate({ ...props.character, equipment: (props.character.equipment || []).map(item => item.id === id ? { ...item, uses: v } : item) })
+  }
 
   const renderSpell = (spell: Spell) => {
     const { canCast, upcastLevels, hasHigherSlots } = spellAccessors(spell, () => props.character.spellSlots)
@@ -524,6 +538,18 @@ export function ActionsModule(props: ActionsModuleProps) {
       maxUses={effectiveMaxUses(feature, props.character.level ?? 1)}
       rechargeOn={feature.rechargeOn}
       onUsesChange={(v) => handleFeatureUsesChange(feature, v)}
+    />
+  )
+
+  const renderEquipmentAction = (item: Equipment) => (
+    <ActionCard
+      name={item.name}
+      badgeLabel={item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+      description={item.description}
+      uses={item.uses ?? 0}
+      maxUses={item.maxUses ?? 0}
+      rechargeOn={item.rechargeOn}
+      onUsesChange={(v) => handleEquipmentUsesChange(item.id, v)}
     />
   )
 
@@ -580,7 +606,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
               <Target class="h-5 w-5 text-primary" />
               <span class="text-lg font-semibold">Actions</span>
-              <Badge variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featuresByKind().actions.length}</Badge>
+              <Badge variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featuresByKind().actions.length + equipmentByKind().actions.length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
@@ -592,7 +618,7 @@ export function ActionsModule(props: ActionsModuleProps) {
           </div>
           <CollapsibleContent class="mt-2">
             <Show
-              when={equippedWeaponAttacks().length > 0 || attackSpells().length > 0 || (props.character.attacks?.length ?? 0) > 0 || featuresByKind().actions.length > 0}
+              when={equippedWeaponAttacks().length > 0 || attackSpells().length > 0 || (props.character.attacks?.length ?? 0) > 0 || featuresByKind().actions.length > 0 || equipmentByKind().actions.length > 0}
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No actions added yet.</div>}
             >
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -611,6 +637,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                 </For>
                 <For each={attackSpells()}>{(spell) => renderSpell(spell)}</For>
                 <For each={featuresByKind().actions}>{(feature) => renderFeature(feature)}</For>
+                <For each={equipmentByKind().actions}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.attacks || []}>
                   {(attack) => (
                     <ActionCard
@@ -640,7 +667,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
               <Clock class="h-5 w-5 text-primary" />
               <span class="text-lg font-semibold">Bonus Actions</span>
-              <Badge variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featuresByKind().bonuses.length}</Badge>
+              <Badge variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featuresByKind().bonuses.length + equipmentByKind().bonuses.length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
@@ -652,12 +679,13 @@ export function ActionsModule(props: ActionsModuleProps) {
           </div>
           <CollapsibleContent class="mt-2">
             <Show
-              when={bonusActionSpells().length > 0 || (props.character.bonusActions?.length ?? 0) > 0 || featuresByKind().bonuses.length > 0}
+              when={bonusActionSpells().length > 0 || (props.character.bonusActions?.length ?? 0) > 0 || featuresByKind().bonuses.length > 0 || equipmentByKind().bonuses.length > 0}
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No bonus actions added yet.</div>}
             >
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <For each={bonusActionSpells()}>{(spell) => renderSpell(spell)}</For>
                 <For each={featuresByKind().bonuses}>{(feature) => renderFeature(feature)}</For>
+                <For each={equipmentByKind().bonuses}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.bonusActions || []}>
                   {(bonus) => (
                     <ActionCard
@@ -687,7 +715,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
               <Shield class="h-5 w-5 text-primary" />
               <span class="text-lg font-semibold">Reactions</span>
-              <Badge variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featuresByKind().reactions.length}</Badge>
+              <Badge variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featuresByKind().reactions.length + equipmentByKind().reactions.length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
@@ -699,12 +727,13 @@ export function ActionsModule(props: ActionsModuleProps) {
           </div>
           <CollapsibleContent class="mt-2">
             <Show
-              when={reactionSpells().length > 0 || (props.character.reactions?.length ?? 0) > 0 || featuresByKind().reactions.length > 0}
+              when={reactionSpells().length > 0 || (props.character.reactions?.length ?? 0) > 0 || featuresByKind().reactions.length > 0 || equipmentByKind().reactions.length > 0}
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No reactions added yet.</div>}
             >
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <For each={reactionSpells()}>{(spell) => renderSpell(spell)}</For>
                 <For each={featuresByKind().reactions}>{(feature) => renderFeature(feature)}</For>
+                <For each={equipmentByKind().reactions}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.reactions || []}>
                   {(reaction) => (
                     <ActionCard
@@ -735,7 +764,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
               <Sparkles class="h-5 w-5 text-primary" />
               <span class="text-lg font-semibold">Other</span>
-              <Badge variant="secondary">{featuresByKind().others.length + (props.character.otherActions?.length ?? 0)}</Badge>
+              <Badge variant="secondary">{featuresByKind().others.length + (props.character.otherActions?.length ?? 0) + equipmentByKind().others.length}</Badge>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
@@ -747,11 +776,12 @@ export function ActionsModule(props: ActionsModuleProps) {
           </div>
           <CollapsibleContent class="mt-2">
             <Show
-              when={featuresByKind().others.length > 0 || (props.character.otherActions?.length ?? 0) > 0}
+              when={featuresByKind().others.length > 0 || (props.character.otherActions?.length ?? 0) > 0 || equipmentByKind().others.length > 0}
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No other abilities added yet.</div>}
             >
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <For each={featuresByKind().others}>{(feature) => renderFeature(feature)}</For>
+                <For each={equipmentByKind().others}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.otherActions || []}>
                   {(other) => (
                     <ActionCard

@@ -1096,6 +1096,100 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     })
   })
 
+  describe("Equipment-derived actions", () => {
+    function makeConsumable(overrides: Partial<Equipment> = {}): Equipment {
+      return {
+        id: "item-1",
+        name: "Potion of Healing",
+        quantity: 1,
+        weight: 0.5,
+        description: "Restores hit points.",
+        equipped: false,
+        type: "consumable",
+        ...overrides,
+      }
+    }
+
+    it("item with actionKind='action' appears in the Actions subsection", () => {
+      render(
+        <ActionsModule
+          character={makeCharacter({ equipment: [makeConsumable({ name: "Scroll of Fireball", actionKind: "action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Scroll of Fireball")).toBeInTheDocument()
+    })
+
+    it("item with actionKind='bonus-action' appears in the Bonus Actions subsection", () => {
+      render(
+        <ActionsModule
+          character={makeCharacter({ equipment: [makeConsumable({ actionKind: "bonus-action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Potion of Healing")).toBeInTheDocument()
+    })
+
+    it("item with actionKind='reaction' appears in the Reactions subsection", () => {
+      render(
+        <ActionsModule
+          character={makeCharacter({ equipment: [makeConsumable({ name: "Ring of Parrying", actionKind: "reaction" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Ring of Parrying")).toBeInTheDocument()
+    })
+
+    it("item with actionKind='other' appears in the Other subsection", () => {
+      render(
+        <ActionsModule
+          character={makeCharacter({ equipment: [makeConsumable({ name: "Bag of Tricks", actionKind: "other" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Bag of Tricks")).toBeInTheDocument()
+    })
+
+    it("item without actionKind does not appear in the actions grid", () => {
+      render(
+        <ActionsModule
+          character={makeCharacter({ equipment: [makeConsumable({ name: "Rope", actionKind: undefined })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.queryByText("Rope")).not.toBeInTheDocument()
+    })
+
+    it("shows the item type badge on the derived equipment action card", () => {
+      render(
+        <ActionsModule
+          character={makeCharacter({ equipment: [makeConsumable({ actionKind: "bonus-action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Consumable")).toBeInTheDocument()
+    })
+
+    it("clicking the uses tracker on an equipment action card updates the item's uses", () => {
+      const onUpdate = vi.fn()
+      render(
+        <ActionsModule
+          character={makeCharacter({
+            equipment: [makeConsumable({ id: "item-2", actionKind: "bonus-action", maxUses: 3, uses: 0 })],
+          })}
+          onUpdate={onUpdate}
+        />
+      )
+      const pips = screen.getAllByTitle("Charge available (click to use)")
+      fireEvent.click(pips[0])
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([expect.objectContaining({ id: "item-2", uses: 1 })]),
+        })
+      )
+    })
+  })
+
   describe("detail popover in section context", () => {
     it("spell detail popover opens and shows castingTime", () => {
       const spell = makeSpell({ name: "Fire Bolt", level: 0, castingTime: "1 action", known: true })

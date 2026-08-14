@@ -433,6 +433,86 @@ describe("EquipmentInventoryModule", () => {
     })
   })
 
+  describe("Action Kind (Used As)", () => {
+    it("saves actionKind on the created item when a 'Used As' option is selected", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
+      const usedAsSection = within(modal).getByText("Used As").closest("div")!
+      fireEvent.click(within(usedAsSection).getByRole("button"))
+      fireEvent.click(screen.getByRole("option", { name: "Bonus Action" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Potion of Healing", actionKind: "bonus-action" }),
+          ]),
+        })
+      )
+    })
+
+    it("omits actionKind when 'Used As' is left at None", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Rope" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Rope", actionKind: undefined }),
+          ]),
+        })
+      )
+    })
+
+    it("shows the action kind badge on a general item card", () => {
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeItem({ name: "Potion of Healing", actionKind: "bonus-action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Bonus Action")).toBeInTheDocument()
+    })
+
+    it("does not show an action kind badge when actionKind is not set", () => {
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeItem({ name: "Rope" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.queryByText("Bonus Action")).not.toBeInTheDocument()
+      expect(screen.queryByText("Action")).not.toBeInTheDocument()
+    })
+
+    it("pre-fills the Used As select and preserves actionKind when editing an existing item", () => {
+      const onUpdate = vi.fn()
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeItem({ name: "Scroll of Fireball", actionKind: "action" })] })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getByRole("button", { name: /edit scroll of fireball/i }))
+      const modal = screen.getByRole("dialog")
+      const usedAsSection = within(modal).getByText("Used As").closest("div")!
+      expect(within(usedAsSection).getByText("action")).toBeInTheDocument()
+      fireEvent.click(within(modal).getByRole("button", { name: /update item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Scroll of Fireball", actionKind: "action" }),
+          ]),
+        })
+      )
+    })
+  })
+
   describe("Coins", () => {
     it("renders CP, SP, EP, GP, PP labels", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
@@ -480,6 +560,13 @@ describe("EquipmentInventoryModule", () => {
       const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring of Protection" })] })} onUpdate={vi.fn()} />)
       const section = container.querySelector('[data-sem="magic-items-section"]')!
       expect(within(section as HTMLElement).getByText("Ring of Protection")).toBeInTheDocument()
+    })
+
+    it("shows the action kind badge on a magic item card", () => {
+      const item = makeMagicItem({ name: "Wand of Magic Missiles", actionKind: "action" })
+      const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      expect(within(section).getByText("Action")).toBeInTheDocument()
     })
 
     // Magic items are still equipment first — a magic weapon/armor keeps the same

@@ -1,5 +1,5 @@
 import { createSignal, createEffect, on, For, Show, type ParentProps } from "solid-js"
-import type { AbilityScores, Character, Equipment, ItemModifiers, ItemRarity, SenseType } from "@/lib/character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, ItemModifiers, ItemRarity, SenseType } from "@/lib/character-types"
 import {
   DAMAGE_TYPE_OPTIONS,
   CONDITIONS,
@@ -50,6 +50,7 @@ import Coins from "lucide-solid/icons/coins"
 import TriangleAlert from "lucide-solid/icons/triangle-alert"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import X from "lucide-solid/icons/x"
+import Zap from "lucide-solid/icons/zap"
 import { useReadOnly } from "@/lib/read-only-context"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 
@@ -68,6 +69,14 @@ const RECHARGE_OPTIONS: { value: "" | "short-rest" | "long-rest"; label: string 
   { value: "long-rest", label: "Long Rest" },
 ]
 
+const ACTION_KIND_OPTIONS: { value: ActionKind | ""; label: string }[] = [
+  { value: "", label: "None" },
+  { value: "action", label: "Action" },
+  { value: "bonus-action", label: "Bonus Action" },
+  { value: "reaction", label: "Reaction" },
+  { value: "other", label: "Other" },
+]
+
 const roundToOneDecimal = (n: number): number => Math.round(n * 10) / 10
 
 interface EquipmentInventoryModuleProps {
@@ -84,6 +93,7 @@ interface EquipmentFormData {
   description: string
   equipped: boolean
   type: EquipmentType
+  actionKind: ActionKind | ""
   weaponStats?: {
     damage: string
     damageType: string
@@ -131,6 +141,7 @@ const defaultEquipmentForm: EquipmentFormData = {
   description: "",
   equipped: false,
   type: "other",
+  actionKind: "",
   magic: false,
   requiresAttunement: true,
   attuned: false,
@@ -785,6 +796,23 @@ function EquipmentForm(props: EquipmentFormProps) {
       </div>
 
       <div>
+        <Label for="item-action-kind">Used As</Label>
+        <Select
+          value={formData().actionKind}
+          onValueChange={(v) => setFormData((prev) => ({ ...prev, actionKind: v as ActionKind | "" }))}
+        >
+          <SelectTrigger id="item-action-kind">
+            <SelectValue placeholder="None" />
+          </SelectTrigger>
+          <SelectContent>
+            <For each={ACTION_KIND_OPTIONS}>
+              {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
+            </For>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
         <Label for="description">Description</Label>
         <Textarea
           id="description"
@@ -860,8 +888,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const filteredEquipment = () =>
     safeEquipment().filter(
       (item) =>
-        item.name.toLowerCase().includes(searchTerm().toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchTerm().toLowerCase()),
+        !item.magic &&
+        (item.name.toLowerCase().includes(searchTerm().toLowerCase()) ||
+          item.description?.toLowerCase().includes(searchTerm().toLowerCase())),
     )
   const totalWeight = () => roundToOneDecimal(safeEquipment().reduce((total, item) => total + (item.weight || 0) * item.quantity, 0))
   const equippedItems = () => safeEquipment().filter((item) => item.equipped)
@@ -876,6 +905,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         description: item.description || "",
         equipped: item.equipped || false,
         type: item.type || "other",
+        actionKind: item.actionKind ?? "",
         weaponStats: item.weaponStats,
         armorStats: item.armorStats,
         magic: item.magic ?? false,
@@ -983,6 +1013,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       description: formData.description.trim(),
       equipped: formData.equipped,
       type: formData.type,
+      actionKind: formData.actionKind || undefined,
       weaponStats: formData.weaponStats,
       armorStats: formData.armorStats,
       ...magicFields(formData),
@@ -1003,6 +1034,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       description: formData.description.trim(),
       equipped: formData.equipped,
       type: formData.type,
+      actionKind: formData.actionKind || undefined,
       weaponStats: formData.weaponStats,
       armorStats: formData.armorStats,
       ...magicFields(formData),
@@ -1179,6 +1211,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         <Show when={item.type && item.type !== "other"}>
                           <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
                         </Show>
+                        <Show when={item.actionKind}>
+                          <Badge variant="outline" class="text-xs flex items-center gap-1">
+                            <Zap class="h-3 w-3" />
+                            {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
+                          </Badge>
+                        </Show>
                         <Show when={item.rarity}>
                           <Badge variant="outline" class="text-xs capitalize">{item.rarity?.replace("-", " ")}</Badge>
                         </Show>
@@ -1205,7 +1243,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </p>
                       </Show>
                       <Show when={item.description}>
-                        <p class="text-xs text-muted-foreground truncate">{item.description}</p>
+                        <MarkdownContent text={item.description!} class="text-xs text-muted-foreground" />
                       </Show>
                       <Show when={item.modifiers}>
                         <div class={`text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5 ${isItemModifierActive(item) ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground italic"}`}>
@@ -1382,6 +1420,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </div>
                         <Show when={item.type && item.type !== "other"}>
                           <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
+                        </Show>
+                        <Show when={item.actionKind}>
+                          <Badge variant="outline" class="text-xs flex items-center gap-1">
+                            <Zap class="h-3 w-3" />
+                            {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
+                          </Badge>
                         </Show>
                         <Show when={item.magic}>
                           <Badge variant="outline" class="text-xs gap-1">

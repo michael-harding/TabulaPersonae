@@ -101,6 +101,7 @@ export interface Equipment extends UseableEntry {
   attuned?: boolean
   rarity?: ItemRarity
   modifiers?: ItemModifiers
+  actionKind?: ActionKind
 }
 
 export interface Spell extends CharacterEntry {
