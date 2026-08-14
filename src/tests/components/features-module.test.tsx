@@ -1824,6 +1824,155 @@ describe("FeaturesModule", () => {
     })
   })
 
+  describe("feature card detail display", () => {
+    describe("Action scalar fields", () => {
+      it("shows an 'At Level' badge when level is set", () => {
+        const feature = makeFeature({ actionKind: "action", level: 5 })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("At Level 5")).toBeInTheDocument()
+      })
+
+      it("does not show an 'At Level' badge when level is not set", () => {
+        const feature = makeFeature({ actionKind: "action" })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.queryByText(/^At Level/)).not.toBeInTheDocument()
+      })
+
+      it("shows the type badge when set", () => {
+        const feature = makeFeature({ actionKind: "action", type: "Attack" })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("Attack")).toBeInTheDocument()
+      })
+
+      it("shows the range badge when set", () => {
+        const feature = makeFeature({ actionKind: "action", range: "30 ft" })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("Range: 30 ft")).toBeInTheDocument()
+      })
+
+      it("shows the recharge label when rechargeOn is set", () => {
+        const feature = makeFeature({ actionKind: "action", rechargeOn: "short-rest" })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("Short Rest")).toBeInTheDocument()
+      })
+
+      it("does not show a recharge label when rechargeOn is not set", () => {
+        const feature = makeFeature({ actionKind: "action" })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.queryByText("Short Rest")).not.toBeInTheDocument()
+        expect(screen.queryByText("Long Rest")).not.toBeInTheDocument()
+      })
+    })
+
+    describe("featureType badge", () => {
+      it("shows the featureType label for a non-Action type", () => {
+        const feature = makeFeature({
+          featureType: "Skill Proficiency",
+          levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "persuasion", expertise: false }] } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("Skill Proficiency")).toBeInTheDocument()
+      })
+
+      it("does not duplicate an 'Action' badge for featureType 'Action' (only the actionKind badge shows)", () => {
+        const feature = makeFeature({ featureType: "Action", actionKind: "action" })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        // ACTION_KIND_LABELS['action'] is also the string "Action" — if the featureType badge were
+        // (incorrectly) rendered too, this would find two separate "Action" badges instead of one.
+        expect(screen.getAllByText("Action")).toHaveLength(1)
+      })
+
+      it("does not show a featureType badge when featureType is unset", () => {
+        const feature = makeFeature()
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.queryByText("Skill Proficiency")).not.toBeInTheDocument()
+      })
+    })
+
+    describe("levelEffects summary", () => {
+      it("shows the spellcasting ability granted", () => {
+        const feature = makeFeature({
+          featureType: "Spellcasting Ability",
+          levelEffects: [{ level: 1, effects: { spellcastingAbility: "charisma" } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText(/Spellcasting Ability: CHA/)).toBeInTheDocument()
+      })
+
+      it("marks a skill granted with expertise", () => {
+        const feature = makeFeature({
+          featureType: "Skill Proficiency",
+          levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "persuasion", expertise: true }] } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText(/Persuasion \(Expertise\)/)).toBeInTheDocument()
+      })
+
+      it("only lists the speed types that are populated", () => {
+        const feature = makeFeature({
+          featureType: "Speed",
+          levelEffects: [{ level: 1, effects: { flySpeed: 60 } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText(/Fly 60 ft/)).toBeInTheDocument()
+        expect(screen.queryByText(/Swim/)).not.toBeInTheDocument()
+        expect(screen.queryByText(/^Speed: 30 ft$/)).not.toBeInTheDocument()
+      })
+
+      it("only lists the populated damage resistance/immunity/vulnerability groups", () => {
+        const feature = makeFeature({
+          featureType: "Damage Resistance/Immunity/Vulnerability",
+          levelEffects: [{ level: 1, effects: { resistances: ["Fire", "Cold"] } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText(/Resistances: Fire, Cold/)).toBeInTheDocument()
+        expect(screen.queryByText(/Immunities:/)).not.toBeInTheDocument()
+        expect(screen.queryByText(/Vulnerabilities:/)).not.toBeInTheDocument()
+      })
+
+      it("prefixes each line with its level when there are multiple tiers", () => {
+        const feature = makeFeature({
+          featureType: "Saving Throw Proficiency",
+          levelEffects: [
+            { level: 1, effects: { savingThrowProficiencies: ["strength"] } },
+            { level: 5, effects: { savingThrowProficiencies: ["constitution"] } },
+          ],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("Level 1:")).toBeInTheDocument()
+        expect(screen.getByText("Level 5:")).toBeInTheDocument()
+      })
+
+      it("omits the level prefix when there is only one tier", () => {
+        const feature = makeFeature({
+          featureType: "Saving Throw Proficiency",
+          levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["strength"] } }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.queryByText("Level 1:")).not.toBeInTheDocument()
+        expect(screen.getByText(/Saving Throws: STR/)).toBeInTheDocument()
+      })
+
+      it("renders nothing for a tier with no populated effects", () => {
+        const feature = makeFeature({
+          featureType: "Skill Proficiency",
+          levelEffects: [{ level: 1, effects: {} }],
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.queryByText(/Skills:/)).not.toBeInTheDocument()
+      })
+    })
+
+    it("renders a plain name+description feature exactly as compactly as before (no featureType badge, no summary block)", () => {
+      const feature = makeFeature()
+      render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Action Surge")).toBeInTheDocument()
+      expect(screen.getByText(feature.description)).toBeInTheDocument()
+      expect(screen.queryByText(/^At Level/)).not.toBeInTheDocument()
+      expect(screen.queryByText("Range:", { exact: false })).not.toBeInTheDocument()
+    })
+  })
+
   describe("Delete feature", () => {
     it("calls onUpdate with the feature removed", () => {
       const onUpdate = vi.fn()

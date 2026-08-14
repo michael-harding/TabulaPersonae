@@ -1,7 +1,7 @@
 import { createSignal, For, Index, Show, type ParentProps } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, formatModifier } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -81,6 +81,113 @@ const HIT_POINTS_MODE_OPTIONS: { value: HitPointsMode; label: string }[] = [
   { value: 'flat', label: 'Single value' },
   { value: 'rolled', label: 'Rolled Values' },
 ]
+
+// Formats one tier's effects into a single human-readable summary line for card display, keyed off
+// the same featureType switch LevelEffectRow uses to decide which fields are relevant. Returns ''
+// when nothing in this tier is populated (e.g. a freshly added, still-empty tier) so callers can
+// filter it out rather than rendering a blank line — mirrors the "only show populated fields" idiom
+// used by the Spell/Equipment cards' <Show when={field}> rows.
+function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: FeatureEffects): string {
+  const parts: string[] = []
+  switch (featureType) {
+    case 'Spellcasting Ability': {
+      if (effects.spellcastingAbility) {
+        parts.push(`Spellcasting Ability: ${ABILITY_ABBREVIATIONS[effects.spellcastingAbility]}`)
+      }
+      break
+    }
+    case 'Hit Points': {
+      if (effects.hitDiceSize) parts.push(`Hit Die: d${effects.hitDiceSize}`)
+      if (effects.hitPointsMode === 'flat' && effects.hitPointsFlatValue) {
+        parts.push(`Fixed Max HP: ${effects.hitPointsFlatValue}`)
+      } else if (effects.hitPointsMode === 'per-level' && effects.hitPointsPerLevelAmount) {
+        parts.push(`+${effects.hitPointsPerLevelAmount} HP per level after 1st`)
+      } else if (effects.hitPointsMode === 'rolled' && (effects.hitPointsRolledLevels?.length ?? 0) > 0) {
+        parts.push(`Rolled HP: ${effects.hitPointsRolledLevels!.filter((v) => v > 0).join(', ')}`)
+      }
+      break
+    }
+    case 'Size':
+      if (effects.size) parts.push(`Size: ${effects.size}`)
+      break
+    case 'Max HP Bonus':
+      if (effects.hpBonusPerLevel) parts.push(`+${effects.hpBonusPerLevel} Max HP per level`)
+      break
+    case 'Saving Throw Proficiency':
+      if ((effects.savingThrowProficiencies?.length ?? 0) > 0) {
+        parts.push(`Saving Throws: ${effects.savingThrowProficiencies!.map((a) => ABILITY_ABBREVIATIONS[a]).join(', ')}`)
+      }
+      break
+    case 'Skill Proficiency':
+      if ((effects.skillProficiencies?.length ?? 0) > 0) {
+        parts.push(`Skills: ${effects.skillProficiencies!
+          .map((g) => SKILL_DISPLAY_NAMES[g.skill] + (g.expertise ? ' (Expertise)' : ''))
+          .join(', ')}`)
+      }
+      break
+    case 'Other Proficiency':
+      if ((effects.otherProficiencies?.length ?? 0) > 0) parts.push(`Proficiencies: ${effects.otherProficiencies!.join(', ')}`)
+      break
+    case 'Speed': {
+      const speeds: string[] = []
+      if (effects.speed) speeds.push(`${effects.speed} ft`)
+      if (effects.flySpeed) speeds.push(`Fly ${effects.flySpeed} ft`)
+      if (effects.swimSpeed) speeds.push(`Swim ${effects.swimSpeed} ft`)
+      if (effects.climbSpeed) speeds.push(`Climb ${effects.climbSpeed} ft`)
+      if (effects.burrowSpeed) speeds.push(`Burrow ${effects.burrowSpeed} ft`)
+      if (speeds.length > 0) parts.push(`Speed: ${speeds.join(', ')}`)
+      break
+    }
+    case 'Senses': {
+      const senses = SENSE_TYPES
+        .filter((s) => effects.senses?.[s])
+        .map((s) => `${SENSE_LABELS[s]} ${effects.senses![s]} ft`)
+      if (senses.length > 0) parts.push(senses.join(', '))
+      break
+    }
+    case 'Damage Resistance/Immunity/Vulnerability':
+      if ((effects.resistances?.length ?? 0) > 0) parts.push(`Resistances: ${effects.resistances!.join(', ')}`)
+      if ((effects.immunities?.length ?? 0) > 0) parts.push(`Immunities: ${effects.immunities!.join(', ')}`)
+      if ((effects.vulnerabilities?.length ?? 0) > 0) parts.push(`Vulnerabilities: ${effects.vulnerabilities!.join(', ')}`)
+      break
+    case 'Condition Immunity':
+      if ((effects.conditionImmunities?.length ?? 0) > 0) parts.push(`Condition Immunities: ${effects.conditionImmunities!.join(', ')}`)
+      break
+    case 'Language':
+      if ((effects.languages?.length ?? 0) > 0) parts.push(`Languages: ${effects.languages!.join(', ')}`)
+      break
+    case 'Carrying Capacity': {
+      const cap: string[] = []
+      if (effects.carryingCapacityBonus) cap.push(`${formatModifier(effects.carryingCapacityBonus)} lbs`)
+      if (effects.carryingCapacityMultiplier) cap.push(`×${effects.carryingCapacityMultiplier}`)
+      if (cap.length > 0) parts.push(`Carrying Capacity: ${cap.join(', ')}`)
+      break
+    }
+    case 'Ability Scores': {
+      const fmtGroup = (label: string, record: Partial<Record<keyof AbilityScores, number>> | undefined, fmt: (v: number) => string) => {
+        const entries = SAVE_ABILITIES.filter((a) => record?.[a] !== undefined)
+        if (entries.length === 0) return
+        parts.push(`${label}: ${entries.map((a) => `${ABILITY_ABBREVIATIONS[a]} ${fmt(record![a]!)}`).join(', ')}`)
+      }
+      fmtGroup('Ability Scores', effects.abilityScores, formatModifier)
+      fmtGroup('Floor', effects.abilityScoreFloors, (v) => `${v}`)
+      fmtGroup('Max Cap', effects.abilityScoreMaxCaps, (v) => `${v}`)
+      fmtGroup('Base Max', effects.abilityScoreBaseMax, (v) => `${v}`)
+      break
+    }
+  }
+  return parts.join(' · ')
+}
+
+// Builds the display lines for a feature's levelEffects — one line per tier that has anything
+// populated (a tier added and never filled in is dropped silently rather than rendering blank).
+// 'Action' and '' never reach here (see card JSX, which only calls this for other featureTypes).
+function featureEffectLines(feature: Feature): { level: number; text: string }[] {
+  const type = feature.featureType as FeatureTypeValue
+  return (feature.levelEffects ?? [])
+    .map((tier) => ({ level: tier.level, text: formatFeatureEffectsLine(type, tier.effects) }))
+    .filter((line) => line.text !== '')
+}
 
 const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 
@@ -1140,11 +1247,26 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                           <div class="flex items-start justify-between gap-2">
                             <div class="flex items-center gap-2 flex-wrap">
                               <span class="font-medium">{feature.name}</span>
+                              <Show when={feature.featureType && feature.featureType !== 'Action'}>
+                                <Badge variant="outline" class="text-xs">{feature.featureType}</Badge>
+                              </Show>
                               <Show when={feature.actionKind}>
                                 <Badge variant="outline" class="text-xs flex items-center gap-1">
                                   <Zap class="h-3 w-3" />
                                   {ACTION_KIND_LABELS[feature.actionKind!]}
                                 </Badge>
+                              </Show>
+                              <Show when={feature.level}>
+                                <Badge variant="outline" class="text-xs">At Level {feature.level}</Badge>
+                              </Show>
+                              <Show when={feature.type}>
+                                <Badge variant="outline" class="text-xs">{feature.type}</Badge>
+                              </Show>
+                              <Show when={feature.range}>
+                                <Badge variant="outline" class="text-xs">Range: {feature.range}</Badge>
+                              </Show>
+                              <Show when={feature.rechargeOn}>
+                                <Badge variant="outline" class="text-xs">{RECHARGE_ON_LABELS[feature.rechargeOn!]}</Badge>
                               </Show>
                             </div>
                             <Show when={!isReadOnly}>
@@ -1172,6 +1294,27 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                               </div>
                             </Show>
                           </div>
+                          <Show when={feature.featureType && feature.featureType !== 'Action'}>
+                            {(() => {
+                              const lines = featureEffectLines(feature)
+                              return (
+                                <Show when={lines.length > 0}>
+                                  <div class="text-xs text-muted-foreground space-y-0.5">
+                                    <For each={lines}>
+                                      {(line) => (
+                                        <div>
+                                          <Show when={lines.length > 1}>
+                                            <span class="font-medium">Level {line.level}: </span>
+                                          </Show>
+                                          {line.text}
+                                        </div>
+                                      )}
+                                    </For>
+                                  </div>
+                                </Show>
+                              )
+                            })()}
+                          </Show>
                           <Show when={feature.description}>
                             <MarkdownContent text={feature.description!} class="text-muted-foreground" />
                           </Show>
