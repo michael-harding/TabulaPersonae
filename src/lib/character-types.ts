@@ -170,12 +170,27 @@ export interface FeatureLevelEffect {
   effects: FeatureEffects
 }
 
+// Values double as their own display labels — the shared Select component's trigger renders
+// the raw controlled value verbatim (it doesn't look up a SelectItem's rendered children), so
+// using human-readable strings here avoids showing raw codes like "skill-proficiency" in the UI.
+export type FeatureTypeValue =
+  | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
+  | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
+  | 'Ability Scores' | 'Max HP Bonus'
+
 export interface Feature extends UseableEntry {
   source: FeatureKind
   actionKind?: ActionKind
   type?: ActionType
   range?: string
   level?: number
+  // '' means "migrated; determined to have no mechanical type" — distinct from the key being
+  // absent ("not yet migrated"). JSON.stringify drops undefined-valued keys (characters persist
+  // via localStorage.setItem(key, JSON.stringify(...))), so `featureType: undefined` would be
+  // indistinguishable from "never set" after a save/reload, breaking the migration's
+  // `'featureType' in feature` idempotency check.
+  featureType?: FeatureTypeValue | ''
   // Every tier whose level threshold the character has reached contributes to the totals in
   // getActiveFeatureEffects — not just the highest one. A tier at level 1 and another at level 4
   // both apply once the character is level 4 or higher (see getQualifyingLevelEffects).
@@ -469,6 +484,7 @@ export function createDefaultCharacter(): Character {
         name: "Hit Points",
         description: "Grants this character's hit die, used to calculate Max HP and spend Hit Dice on a short rest. Update the die size to match your class.",
         source: "class-feature",
+        featureType: "Hit Points",
         levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
       },
     ],

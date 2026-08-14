@@ -49,12 +49,17 @@ interface ScalarFieldSpec {
   valueKey: keyof Character
   toggleKey: keyof Character
   compute: (character: Character) => number
+  // Mirrors this field's own `useCalculatedX ?? <default>` fallback in the module that owns its
+  // editing UI (combat-stats-module.tsx / actions-module.tsx / skills-proficiencies-module.tsx /
+  // equipment-inventory-module.tsx) — needed by freshenCalculatedFields below to know whether an
+  // *absent* toggle should be treated as calculated or custom, matching what the UI already shows.
+  defaultCalculated: boolean
 }
 
 const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
-  { valueKey: "armorClass", toggleKey: "useCalculatedArmorClass", compute: (c) => calculateEquippedAC(c).ac },
-  { valueKey: "initiative", toggleKey: "useCalculatedInitiative", compute: (c) => calculateInitiative(c).initiative },
-  { valueKey: "proficiencyBonus", toggleKey: "useCalculatedProficiencyBonus", compute: (c) => getProficiencyBonus(c.level ?? 1) },
+  { valueKey: "armorClass", toggleKey: "useCalculatedArmorClass", compute: (c) => calculateEquippedAC(c).ac, defaultCalculated: true },
+  { valueKey: "initiative", toggleKey: "useCalculatedInitiative", compute: (c) => calculateInitiative(c).initiative, defaultCalculated: false },
+  { valueKey: "proficiencyBonus", toggleKey: "useCalculatedProficiencyBonus", compute: (c) => getProficiencyBonus(c.level ?? 1), defaultCalculated: false },
   {
     valueKey: "passivePerception",
     toggleKey: "useCalculatedPassivePerception",
@@ -65,6 +70,7 @@ const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
         c.skills?.perception?.proficient ?? false,
         c.skills?.perception?.expertise ?? false,
       ),
+    defaultCalculated: true,
   },
   {
     valueKey: "passiveInsight",
@@ -76,6 +82,7 @@ const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
         c.skills?.insight?.proficient ?? false,
         c.skills?.insight?.expertise ?? false,
       ),
+    defaultCalculated: true,
   },
   {
     valueKey: "passiveInvestigation",
@@ -87,12 +94,13 @@ const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
         c.skills?.investigation?.proficient ?? false,
         c.skills?.investigation?.expertise ?? false,
       ),
+    defaultCalculated: true,
   },
-  { valueKey: "attunementLimit", toggleKey: "useCalculatedAttunementLimit", compute: () => BASE_ATTUNEMENT_LIMIT },
-  { valueKey: "carryingCapacity", toggleKey: "useCalculatedCarryingCapacity", compute: (c) => getEffectiveCarryingCapacity(c) },
-  { valueKey: "spellSaveDC", toggleKey: "useCalculatedSpellSaveDC", compute: (c) => getSpellSaveDC(withSpellcastingAbilityKey(c)) },
-  { valueKey: "spellAttackBonus", toggleKey: "useCalculatedSpellAttackBonus", compute: (c) => getSpellAttackBonus(withSpellcastingAbilityKey(c)) },
-  { valueKey: "spellModifier", toggleKey: "useCalculatedSpellModifier", compute: (c) => computeSpellModifier(c) },
+  { valueKey: "attunementLimit", toggleKey: "useCalculatedAttunementLimit", compute: () => BASE_ATTUNEMENT_LIMIT, defaultCalculated: true },
+  { valueKey: "carryingCapacity", toggleKey: "useCalculatedCarryingCapacity", compute: (c) => getEffectiveCarryingCapacity(c), defaultCalculated: true },
+  { valueKey: "spellSaveDC", toggleKey: "useCalculatedSpellSaveDC", compute: (c) => getSpellSaveDC(withSpellcastingAbilityKey(c)), defaultCalculated: true },
+  { valueKey: "spellAttackBonus", toggleKey: "useCalculatedSpellAttackBonus", compute: (c) => getSpellAttackBonus(withSpellcastingAbilityKey(c)), defaultCalculated: true },
+  { valueKey: "spellModifier", toggleKey: "useCalculatedSpellModifier", compute: (c) => computeSpellModifier(c), defaultCalculated: true },
 ]
 
 function reconcileScalarField(character: any, spec: ScalarFieldSpec): any {
@@ -100,6 +108,31 @@ function reconcileScalarField(character: any, spec: ScalarFieldSpec): any {
   if (!isFiniteNumber(value)) return character
   const calculated = spec.compute(character as Character)
   return { ...character, [spec.toggleKey]: value === calculated }
+}
+
+/**
+ * Refreshes every field the character currently has marked calculated (explicitly, or by the same
+ * default its own editing module falls back to when the toggle is absent) to match a live
+ * recompute — meant to run right before a character leaves the app (export). The backing store for
+ * a calculated field like spellSaveDC is normally only synced when its owning module is explicitly
+ * saved (see e.g. actions-module.tsx's handleSave), so it can silently drift from a fresh
+ * recompute — a level-up, an ability score change — while the toggle itself stays correctly
+ * "calculated" and the live UI keeps displaying the right number regardless (display always
+ * recomputes live, never reads the stale stored value directly). That drift is invisible until the
+ * character is exported and re-imported: reconcileScalarField above has no way to know the toggle
+ * was right and the stored number was just stale, so it infers "custom" from the mismatch alone.
+ * Freshening at export time means the exported snapshot never contains that contradiction.
+ */
+export function freshenCalculatedFields(character: Character): Character {
+  let next = character
+  for (const spec of SCALAR_FIELD_SPECS) {
+    const useCalculated = (next[spec.toggleKey] as boolean | undefined) ?? spec.defaultCalculated
+    if (!useCalculated) continue
+    const calculated = spec.compute(next)
+    if (next[spec.valueKey] === calculated) continue
+    next = { ...next, [spec.valueKey]: calculated }
+  }
+  return next
 }
 
 /**

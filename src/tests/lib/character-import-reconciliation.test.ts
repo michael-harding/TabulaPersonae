@@ -1,4 +1,4 @@
-import { reconcileImportedCharacter, reconcileImportedCharacters } from "@/lib/character-import-reconciliation"
+import { reconcileImportedCharacter, reconcileImportedCharacters, freshenCalculatedFields } from "@/lib/character-import-reconciliation"
 import { createDefaultCharacter } from "@/lib/character-types"
 
 describe("reconcileImportedCharacter", () => {
@@ -263,5 +263,74 @@ describe("reconcileImportedCharacters", () => {
     expect(reconcileImportedCharacters(null)).toEqual([])
     expect(reconcileImportedCharacters(undefined)).toEqual([])
     expect(reconcileImportedCharacters("not an array")).toEqual([])
+  })
+})
+
+describe("freshenCalculatedFields", () => {
+  // A spellcaster whose Class Feature grants intelligence (16, +3 mod) as the spellcasting
+  // ability. Default proficiencyBonus (2) -> spellSaveDC 13, spellAttackBonus 5, spellModifier 3.
+  function makeCaster() {
+    const character: any = {
+      ...createDefaultCharacter(),
+      classFeatures: [{
+        id: "f-1", name: "Spellcasting", description: "", source: "class-feature",
+        levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }],
+      }],
+    }
+    character.abilityScores = { ...character.abilityScores, intelligence: 16 }
+    return character
+  }
+
+  it("refreshes a stale spellSaveDC when explicitly marked calculated", () => {
+    const character = { ...makeCaster(), useCalculatedSpellSaveDC: true, spellSaveDC: 8 }
+    expect(freshenCalculatedFields(character).spellSaveDC).toBe(13)
+  })
+
+  it("refreshes spellSaveDC/spellAttackBonus/spellModifier when the toggle is entirely absent, matching the UI's own default-to-calculated fallback", () => {
+    // The exact bug scenario: a caster who never explicitly touched the Actions module toggle
+    // still displays calculated values live (useCalculatedSpellSaveDC ?? true), but the backing
+    // field was left at whatever it was last written — stale here.
+    const character = makeCaster()
+    delete character.useCalculatedSpellSaveDC
+    delete character.useCalculatedSpellAttackBonus
+    delete character.useCalculatedSpellModifier
+    character.spellSaveDC = 8
+    character.spellAttackBonus = 0
+    character.spellModifier = 0
+    const fresh = freshenCalculatedFields(character)
+    expect(fresh.spellSaveDC).toBe(13)
+    expect(fresh.spellAttackBonus).toBe(5)
+    expect(fresh.spellModifier).toBe(3)
+  })
+
+  it("does not touch a field explicitly marked custom, even if it differs from the calculated value", () => {
+    const character = { ...makeCaster(), useCalculatedSpellSaveDC: false, spellSaveDC: 99 }
+    expect(freshenCalculatedFields(character).spellSaveDC).toBe(99)
+  })
+
+  it("does not touch initiative/proficiencyBonus when their toggle is absent — those default to custom, not calculated", () => {
+    const character: any = { ...createDefaultCharacter(), initiative: 7, proficiencyBonus: 99 }
+    delete character.useCalculatedInitiative
+    delete character.useCalculatedProficiencyBonus
+    const fresh = freshenCalculatedFields(character)
+    expect(fresh.initiative).toBe(7)
+    expect(fresh.proficiencyBonus).toBe(99)
+  })
+
+  it("round-trips through export and re-import as calculated, fixing the reported bug end-to-end", () => {
+    const character = { ...makeCaster(), useCalculatedSpellSaveDC: true, spellSaveDC: 8 } // stale
+    const exported = freshenCalculatedFields(character)
+    const reimported = reconcileImportedCharacter(exported)
+    expect(reimported.useCalculatedSpellSaveDC).toBe(true)
+    expect(reimported.spellSaveDC).toBe(13)
+  })
+
+  it("is idempotent once every calculated field has already been freshened", () => {
+    // createDefaultCharacter() itself leaves several calculated fields (attunementLimit,
+    // carryingCapacity, the passive scores, spellModifier) entirely unset, so a single freshen
+    // pass legitimately fills them in — a second pass on that already-freshened result is the
+    // real no-op case.
+    const once = freshenCalculatedFields(createDefaultCharacter())
+    expect(freshenCalculatedFields(once)).toEqual(once)
   })
 })

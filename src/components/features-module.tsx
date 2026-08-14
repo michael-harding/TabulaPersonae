@@ -1,6 +1,6 @@
 import { createSignal, For, Index, Show, type ParentProps } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
+import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
 import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -84,15 +84,6 @@ const HIT_POINTS_MODE_OPTIONS: { value: HitPointsMode; label: string }[] = [
 
 const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 
-// Values double as their own display labels — the shared Select component's trigger renders
-// the raw controlled value verbatim (it doesn't look up a SelectItem's rendered children), so
-// using human-readable strings here avoids showing raw codes like "skill-proficiency" in the UI.
-type FeatureTypeValue =
-  | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
-  | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
-  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-  | 'Ability Scores' | 'Max HP Bonus'
-
 // Spellcasting Ability, Hit Points, and Size are fixed facts of a class/species, not something
 // that changes at higher levels, so they get a single always-on control. The proficiency-grant
 // types (and the other species-trait-shaped effects below) genuinely can be granted or expanded
@@ -107,6 +98,12 @@ type FeatureTypeValue =
 // only ever added once actually gained, and amount × current-level is already algebraically
 // equivalent to 5e RAW (e.g. Tough) for any level at or after that, regardless of which level it was.
 const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size', 'Max HP Bonus']
+// The Name field is hidden entirely for these three — the feature type itself is already the name
+// (see changeFeatureType, which fills formData.name with the type string so the hidden field still
+// has a value to submit/display). Max HP Bonus is deliberately excluded even though it's also a
+// SINGLE_EFFECT_TYPE: a character can gain HP-bonus-per-level from more than one source, so its Name
+// stays visible and user-editable to tell those sources apart.
+const NAMELESS_FEATURE_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size']
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
@@ -116,41 +113,6 @@ const FEATURE_TYPES: FeatureTypeValue[] = ['Action', ...SINGLE_EFFECT_TYPES, ...
 
 function isTieredEffectType(t: FeatureTypeValue | ''): boolean {
   return (TIERED_EFFECT_TYPES as string[]).includes(t)
-}
-
-function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue | '' {
-  if (actionKind) return 'Action'
-  const effects = levelEffects?.[0]?.effects
-  if (effects?.spellcastingAbility) return 'Spellcasting Ability'
-  if (
-    effects?.hitDiceSize ||
-    effects?.hitPointsMode !== undefined ||
-    effects?.hitPointsFlatValue !== undefined ||
-    effects?.hitPointsPerLevelAmount !== undefined ||
-    (effects?.hitPointsRolledLevels?.length ?? 0) > 0
-  ) return 'Hit Points'
-  if (effects?.size) return 'Size'
-  if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
-  if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
-  if (effects?.otherProficiencies?.length) return 'Other Proficiency'
-  if (
-    effects?.speed !== undefined ||
-    effects?.flySpeed !== undefined ||
-    effects?.swimSpeed !== undefined ||
-    effects?.climbSpeed !== undefined ||
-    effects?.burrowSpeed !== undefined
-  ) return 'Speed'
-  if (effects?.senses && Object.values(effects.senses).some((v) => v !== undefined)) return 'Senses'
-  if (effects?.resistances?.length || effects?.immunities?.length || effects?.vulnerabilities?.length) return 'Damage Resistance/Immunity/Vulnerability'
-  if (effects?.conditionImmunities?.length) return 'Condition Immunity'
-  if (effects?.languages?.length) return 'Language'
-  if (effects?.carryingCapacityBonus !== undefined || effects?.carryingCapacityMultiplier !== undefined) return 'Carrying Capacity'
-  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.hpBonusPerLevel !== undefined) return 'Max HP Bonus'
-  return ''
 }
 
 interface FeatureFormData {
@@ -736,6 +698,10 @@ function FeatureForm(props: FeatureFormProps) {
       return {
         ...d,
         featureType: next,
+        // A blank Name defaults to the newly picked type string — the only way NAMELESS_FEATURE_TYPES
+        // ever get a name (their Name field is hidden), and a visible starting point for every other
+        // type that the user can overwrite. Never overwrites a name the user already typed.
+        name: d.name.trim() === '' && next !== '' ? next : d.name,
         actionKind: next === 'Action' ? 'action' : '',
         type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '',
         level: 1,
@@ -754,26 +720,6 @@ function FeatureForm(props: FeatureFormProps) {
   return (
     <form onSubmit={handleSubmit} class="space-y-4 p-4">
       <div class="space-y-1">
-        <Label for="feature-name">Name</Label>
-        <Input
-          id="feature-name"
-          value={formData().name}
-          onInput={(e) => setFormData((d) => ({ ...d, name: e.currentTarget.value }))}
-          placeholder="Feature name"
-          required
-        />
-      </div>
-      <div class="space-y-1">
-        <Label for="feature-description">Description</Label>
-        <Textarea
-          id="feature-description"
-          value={formData().description}
-          onInput={(e) => setFormData((d) => ({ ...d, description: e.currentTarget.value }))}
-          placeholder="Describe the feature..."
-          rows={4}
-        />
-      </div>
-      <div class="space-y-1">
         <Label for="feature-type-select">Feature Type</Label>
         <Select value={formData().featureType} onValueChange={changeFeatureType}>
           <SelectTrigger id="feature-type-select" aria-label="Feature Type">
@@ -787,6 +733,34 @@ function FeatureForm(props: FeatureFormProps) {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Also shows once a name exists even with no type picked — otherwise editing a pre-existing
+          untyped feature (name/description only, no mechanical effect) would hide the very fields
+          needed to see or change it, with no way back in since Name only appears once type is set. */}
+      <Show when={formData().featureType !== '' || formData().name.trim() !== ''}>
+        <Show when={!NAMELESS_FEATURE_TYPES.includes(formData().featureType as FeatureTypeValue)}>
+          <div class="space-y-1">
+            <Label for="feature-name">Name</Label>
+            <Input
+              id="feature-name"
+              value={formData().name}
+              onInput={(e) => setFormData((d) => ({ ...d, name: e.currentTarget.value }))}
+              placeholder="Feature name"
+              required
+            />
+          </div>
+        </Show>
+        <div class="space-y-1">
+          <Label for="feature-description">Description</Label>
+          <Textarea
+            id="feature-description"
+            value={formData().description}
+            onInput={(e) => setFormData((d) => ({ ...d, description: e.currentTarget.value }))}
+            placeholder="Describe the feature..."
+            rows={4}
+          />
+        </div>
+      </Show>
 
       <Show when={formData().featureType === 'Action'}>
         <div class="space-y-4 border rounded-md p-3">
@@ -1048,6 +1022,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
       name: data.name.trim(),
       description: data.description,
       source: kind,
+      featureType: data.featureType,
       actionKind: data.actionKind || undefined,
       type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
       range: (data.actionKind && data.range) ? data.range : undefined,
@@ -1075,6 +1050,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
               ...f,
               name: data.name.trim(),
               description: data.description,
+              featureType: data.featureType,
               actionKind: data.actionKind || undefined,
               type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
               range: (data.actionKind && data.range) ? data.range : undefined,
@@ -1301,7 +1277,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                     initialData={{
                       name: feature().name,
                       description: feature().description,
-                      featureType: inferFeatureType(feature().actionKind, feature().levelEffects),
+                      featureType: feature().featureType ?? '',
                       actionKind: feature().actionKind ?? '',
                       type: feature().type ?? '',
                       range: feature().range ?? '',

@@ -39,6 +39,7 @@ import {
   getEffectiveSavingThrowProficiency,
   getEffectiveSkillProficiency,
   getAbilityScoreBaseMax,
+  inferFeatureType,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type AbilityScores, type Equipment, type Feature } from "@/lib/character-types"
 
@@ -1795,6 +1796,38 @@ describe("getEffectiveHitDiceSize", () => {
   it("ignores stale raw hitDiceSize/hitDice fields once no feature grants one, even if they're still present", () => {
     const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, hitDiceSize: 10, hitDice: "1d8" } as any
     expect(getEffectiveHitDiceSize(character)).toBeUndefined()
+  })
+})
+
+describe("inferFeatureType", () => {
+  it("returns 'Action' whenever actionKind is set, regardless of levelEffects", () => {
+    expect(inferFeatureType("action", undefined)).toBe("Action")
+  })
+
+  it("returns '' when there is no actionKind and no levelEffects", () => {
+    expect(inferFeatureType(undefined, undefined)).toBe("")
+  })
+
+  it("infers 'Hit Points' from an explicit hitDiceSize of 0", () => {
+    // 0 is falsy, so the check for hitDiceSize can't be a bare truthiness test on its own —
+    // hitPointsMode being present at all is what actually catches this case.
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { hitDiceSize: 0, hitPointsMode: "flat" } }])).toBe("Hit Points")
+  })
+
+  it("infers 'Senses' from an explicit sense value of 0", () => {
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { senses: { darkvision: 0 } } }])).toBe("Senses")
+  })
+
+  it("infers 'Max HP Bonus' from an explicit hpBonusPerLevel of 0", () => {
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { hpBonusPerLevel: 0 } }])).toBe("Max HP Bonus")
+  })
+
+  it("infers 'Ability Scores' from an explicit floor of 0", () => {
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { abilityScoreFloors: { strength: 0 } } }])).toBe("Ability Scores")
+  })
+
+  it("checks spellcastingAbility before hitDiceSize when both are somehow present", () => {
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { spellcastingAbility: "wisdom", hitDiceSize: 8 } }])).toBe("Spellcasting Ability")
   })
 })
 

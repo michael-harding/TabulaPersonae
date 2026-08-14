@@ -1,5 +1,5 @@
 import type { Character, Feature, SenseType } from "./character-types"
-import { calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import { calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, inferFeatureType, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
 const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass",
@@ -14,6 +14,8 @@ const CALCULATED_VALUE_FLAGS = [
   // the dedicated block below, not in the generic backfill() helper.
   "useCalculatedSenses",
 ] as const
+
+const FEATURE_LIST_FIELDS = ["classFeatures", "speciesTraits", "feats", "backgroundFeatures"] as const
 
 /**
  * Spellcasting ability and hit die size used to be plain `character.spellcastingAbility`/
@@ -55,6 +57,23 @@ function importLegacyFeatureGrants(raw: any): Feature[] | undefined {
 }
 
 /**
+ * Backfills the persisted featureType onto any Feature that predates the field, using the same
+ * inference the live edit-modal used to run on every open (see inferFeatureType in
+ * character-utils.ts) — but exactly once, here, rather than as permanent runtime machinery. Runs
+ * unconditionally, not gated behind CALCULATED_VALUE_FLAGS: see the note on migrateCharacter below
+ * for why nesting it inside that gate would silently skip PDF-imported characters.
+ */
+function backfillFeatureTypes(features: Feature[]): Feature[] | undefined {
+  let changed = false
+  const next = features.map((f) => {
+    if ('featureType' in f) return f
+    changed = true
+    return { ...f, featureType: inferFeatureType(f.actionKind, f.levelEffects) }
+  })
+  return changed ? next : undefined
+}
+
+/**
  * Flags introduced after launch default to "calculated" for brand-new characters (see
  * createDefaultCharacter), but characters saved before a given flag existed have no such key in
  * their persisted JSON. Back-fill those based on whether the character's existing value already
@@ -64,41 +83,55 @@ function importLegacyFeatureGrants(raw: any): Feature[] | undefined {
  *
  * "Some CALCULATED_VALUE_FLAGS key is missing" also doubles as the signal for "this save predates
  * the whole branch that introduced Feature-based spellcasting/hit-dice" (they shipped together),
- * so the legacy-Feature-grant import below is gated on the same check.
+ * so the legacy-Feature-grant import below is gated on the same check. The featureType backfill
+ * further below is deliberately NOT part of this gate: a PDF-imported character is merged as
+ * `{ ...createDefaultCharacter(), ...parsed }` (see pdf-parser.ts's mergeWithDefault), which
+ * already carries every CALCULATED_VALUE_FLAGS key from the default — so a featureType backfill
+ * nested inside this gate would never run for PDF-imported Features (pdf-parser.ts constructs
+ * Features without featureType too). Genuinely legacy JSON-imported/stored characters still hit
+ * this gate correctly, since they lack the flags.
  */
 export function migrateCharacter(raw: any): Character {
   if (!raw || typeof raw !== "object") return raw as Character
-  if (CALCULATED_VALUE_FLAGS.every((flag) => flag in raw)) return raw as Character
 
   const patch: Record<string, unknown> = {}
-  const backfill = (flag: (typeof CALCULATED_VALUE_FLAGS)[number], storedValue: unknown, calculatedValue: unknown) => {
-    if (flag in raw) return
-    patch[flag] = storedValue === undefined || storedValue === calculatedValue
-  }
 
-  backfill("useCalculatedArmorClass", raw.armorClass, calculateEquippedAC(raw).ac)
-  const movement = getEffectiveMovementSpeeds(raw)
-  backfill("useCalculatedSpeed", raw.speed, movement.walk)
-  backfill("useCalculatedFlySpeed", raw.flySpeed, movement.fly)
-  backfill("useCalculatedSwimSpeed", raw.swimSpeed, movement.swim)
-  backfill("useCalculatedClimbSpeed", raw.climbSpeed, movement.climb)
-  backfill("useCalculatedBurrowSpeed", raw.burrowSpeed, movement.burrow)
-  backfill("useCalculatedSize", raw.size, getEffectiveSize(raw).size)
-
-  if (!("useCalculatedSenses" in raw)) {
-    const senseTotals = getEffectiveSenses(raw)
-    const useCalculatedSenses: Partial<Record<SenseType, boolean>> = {}
-    for (const sense of SENSE_TYPES) {
-      const stored = raw.senses?.[sense]
-      useCalculatedSenses[sense] = stored === undefined || stored === senseTotals[sense]
+  if (!CALCULATED_VALUE_FLAGS.every((flag) => flag in raw)) {
+    const backfill = (flag: (typeof CALCULATED_VALUE_FLAGS)[number], storedValue: unknown, calculatedValue: unknown) => {
+      if (flag in raw) return
+      patch[flag] = storedValue === undefined || storedValue === calculatedValue
     }
-    patch.useCalculatedSenses = useCalculatedSenses
+
+    backfill("useCalculatedArmorClass", raw.armorClass, calculateEquippedAC(raw).ac)
+    const movement = getEffectiveMovementSpeeds(raw)
+    backfill("useCalculatedSpeed", raw.speed, movement.walk)
+    backfill("useCalculatedFlySpeed", raw.flySpeed, movement.fly)
+    backfill("useCalculatedSwimSpeed", raw.swimSpeed, movement.swim)
+    backfill("useCalculatedClimbSpeed", raw.climbSpeed, movement.climb)
+    backfill("useCalculatedBurrowSpeed", raw.burrowSpeed, movement.burrow)
+    backfill("useCalculatedSize", raw.size, getEffectiveSize(raw).size)
+
+    if (!("useCalculatedSenses" in raw)) {
+      const senseTotals = getEffectiveSenses(raw)
+      const useCalculatedSenses: Partial<Record<SenseType, boolean>> = {}
+      for (const sense of SENSE_TYPES) {
+        const stored = raw.senses?.[sense]
+        useCalculatedSenses[sense] = stored === undefined || stored === senseTotals[sense]
+      }
+      patch.useCalculatedSenses = useCalculatedSenses
+    }
+
+    const importedFeatures = importLegacyFeatureGrants(raw)
+    if (importedFeatures) patch.classFeatures = importedFeatures
   }
 
-  const importedFeatures = importLegacyFeatureGrants(raw)
-  if (importedFeatures) patch.classFeatures = importedFeatures
+  for (const field of FEATURE_LIST_FIELDS) {
+    const current = safeFeatures((patch[field] as Feature[] | undefined) ?? raw[field])
+    const backfilled = backfillFeatureTypes(current)
+    if (backfilled) patch[field] = backfilled
+  }
 
-  return { ...raw, ...patch }
+  return Object.keys(patch).length > 0 ? { ...raw, ...patch } : (raw as Character)
 }
 
 export function migrateCharacters(raw: unknown): Character[] {

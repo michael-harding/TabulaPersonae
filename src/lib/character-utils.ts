@@ -1,4 +1,4 @@
-import type { AbilityScores, Character, Equipment, Feature, FeatureEffects, FeatureKind, HitPointsMode, SenseType, Skills } from "./character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -105,6 +105,45 @@ export const FEATURE_KIND_LABELS: Record<FeatureKind, string> = {
 /** A feature's name plus its kind (e.g. "Speed Species Trait") — used everywhere a tooltip names the specific feature granting a value, so it never gets mislabeled as a generic "Class Feature". */
 export function featureSourceLabel(feature: Pick<Feature, "name" | "source">): string {
   return `${feature.name} ${FEATURE_KIND_LABELS[feature.source]}`
+}
+
+// Migration-only: derives the Feature Type a pre-existing Feature would have had, from its stored
+// effects shape, for backfilling the persisted featureType field onto records that predate it (see
+// character-migrations.ts). The live UI never calls this — once a Feature has a persisted
+// featureType, that's the source of truth, not a re-guess from its current effects.
+export function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue | '' {
+  if (actionKind) return 'Action'
+  const effects = levelEffects?.[0]?.effects
+  if (effects?.spellcastingAbility) return 'Spellcasting Ability'
+  if (
+    effects?.hitDiceSize ||
+    effects?.hitPointsMode !== undefined ||
+    effects?.hitPointsFlatValue !== undefined ||
+    effects?.hitPointsPerLevelAmount !== undefined ||
+    (effects?.hitPointsRolledLevels?.length ?? 0) > 0
+  ) return 'Hit Points'
+  if (effects?.size) return 'Size'
+  if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
+  if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
+  if (effects?.otherProficiencies?.length) return 'Other Proficiency'
+  if (
+    effects?.speed !== undefined ||
+    effects?.flySpeed !== undefined ||
+    effects?.swimSpeed !== undefined ||
+    effects?.climbSpeed !== undefined ||
+    effects?.burrowSpeed !== undefined
+  ) return 'Speed'
+  if (effects?.senses && Object.values(effects.senses).some((v) => v !== undefined)) return 'Senses'
+  if (effects?.resistances?.length || effects?.immunities?.length || effects?.vulnerabilities?.length) return 'Damage Resistance/Immunity/Vulnerability'
+  if (effects?.conditionImmunities?.length) return 'Condition Immunity'
+  if (effects?.languages?.length) return 'Language'
+  if (effects?.carryingCapacityBonus !== undefined || effects?.carryingCapacityMultiplier !== undefined) return 'Carrying Capacity'
+  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.hpBonusPerLevel !== undefined) return 'Max HP Bonus'
+  return ''
 }
 
 export const ZERO_ABILITY_SCORES: Record<keyof AbilityScores, number> = {

@@ -180,6 +180,67 @@ describe("migrateCharacter", () => {
     })
   })
 
+  describe("featureType backfill", () => {
+    it("backfills featureType onto a Feature that predates the field", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        classFeatures: [
+          { id: "f1", name: "Rage", description: "", source: "class-feature", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["strength"] } }] },
+        ],
+      }
+      delete raw.useCalculatedArmorClass // also exercises the CALCULATED_VALUE_FLAGS-gated path
+      const migrated = migrateCharacter(raw)
+      expect(migrated.classFeatures![0].featureType).toBe("Saving Throw Proficiency")
+    })
+
+    it("backfills featureType even when every CALCULATED_VALUE_FLAGS key is already present (the PDF-import merge path)", () => {
+      // createDefaultCharacter() already has every CALCULATED_VALUE_FLAGS key set, same as the
+      // { ...createDefaultCharacter(), ...parsed } merge PDF import produces (see mergeWithDefault
+      // in pdf-parser.ts) — deliberately NOT deleting any flag here, so migrateCharacter's
+      // CALCULATED_VALUE_FLAGS gate is skipped entirely. The featureType backfill must still run.
+      const raw: any = {
+        ...createDefaultCharacter(),
+        classFeatures: [
+          { id: "f1", name: "Bardic Inspiration", description: "", source: "class-feature", actionKind: "bonus-action" },
+        ],
+      }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.classFeatures!.find((f) => f.name === "Bardic Inspiration")?.featureType).toBe("Action")
+    })
+
+    it("does not touch a Feature that already has a featureType, including ''", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        classFeatures: [
+          { id: "f1", name: "Custom", description: "", source: "class-feature", featureType: "" },
+        ],
+      }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.classFeatures![0].featureType).toBe("")
+    })
+
+    it("gives a legacy-synthesized Spellcasting Feature the correct featureType", () => {
+      const raw: any = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
+      delete raw.useCalculatedSize
+      const migrated = migrateCharacter(raw)
+      expect(migrated.classFeatures![0].name).toBe("Spellcasting")
+      expect(migrated.classFeatures![0].featureType).toBe("Spellcasting Ability")
+    })
+
+    it("backfills featureType on every feature list, not just classFeatures", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        speciesTraits: [{ id: "f1", name: "Darkvision", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }] }],
+        feats: [{ id: "f2", name: "Tough", description: "", source: "feat", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 2 } }] }],
+        backgroundFeatures: [{ id: "f3", name: "Acolyte", description: "", source: "background" }],
+      }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.speciesTraits![0].featureType).toBe("Senses")
+      expect(migrated.feats![0].featureType).toBe("Max HP Bonus")
+      expect(migrated.backgroundFeatures![0].featureType).toBe("")
+    })
+  })
+
   describe("useCalculatedSenses backfill", () => {
     it("backfills to true when the stored sense already matches the calculated total", () => {
       const raw: any = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: 0 } }
