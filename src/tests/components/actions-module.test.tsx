@@ -953,6 +953,23 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       expect(screen.getAllByText("Class Feature").length).toBeGreaterThanOrEqual(1)
     })
 
+    it("renders the uses tracker for a repeatable (per-level) max uses feature using the computed total", () => {
+      render(
+        <ActionsModule
+          character={makeCharacter({
+            level: 3,
+            classFeatures: [makeFeature({
+              name: "Lay on Hands", actionKind: "action",
+              maxUsesMode: "per-level", maxUsesPerLevel: 5, uses: 0,
+            })],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
+      expect(screen.getByDisplayValue("15")).toBeInTheDocument()
+    })
+
     it("feature description is shown in the card", () => {
       render(
         <ActionsModule

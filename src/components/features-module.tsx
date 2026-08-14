@@ -1,7 +1,7 @@
 import { createSignal, For, Index, Show, type ParentProps } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, formatModifier } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, formatModifier } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -80,6 +80,11 @@ const HIT_POINTS_MODE_OPTIONS: { value: HitPointsMode; label: string }[] = [
   { value: 'per-level', label: 'Fixed value per level after 1st' },
   { value: 'flat', label: 'Single value' },
   { value: 'rolled', label: 'Rolled Values' },
+]
+
+const MAX_USES_MODE_OPTIONS: { value: 'flat' | 'per-level'; label: string }[] = [
+  { value: 'flat', label: 'Flat' },
+  { value: 'per-level', label: 'Per Level' },
 ]
 
 // Formats one tier's effects into a single human-readable summary line for card display, keyed off
@@ -231,6 +236,8 @@ interface FeatureFormData {
   range: string
   uses: number
   maxUses: number
+  maxUsesMode: 'flat' | 'per-level'
+  maxUsesPerLevel: number
   rechargeOn: '' | 'short-rest' | 'long-rest'
   level: number
   levelEffects: FeatureLevelEffect[]
@@ -714,7 +721,7 @@ function LevelEffectRow(props: {
 
 function FeatureForm(props: FeatureFormProps) {
   const [formData, setFormData] = createSignal<FeatureFormData>(
-    props.initialData ?? { name: '', description: '', featureType: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '', level: 1, levelEffects: [] }
+    props.initialData ?? { name: '', description: '', featureType: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, maxUsesMode: 'flat', maxUsesPerLevel: 0, rechargeOn: '', level: 1, levelEffects: [] }
   )
 
   // Spellcasting Ability / Hit Points / Size / Max HP Bonus aren't level-dependent — they're always
@@ -810,7 +817,7 @@ function FeatureForm(props: FeatureFormProps) {
         // type that the user can overwrite. Never overwrites a name the user already typed.
         name: d.name.trim() === '' && next !== '' ? next : d.name,
         actionKind: next === 'Action' ? 'action' : '',
-        type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '',
+        type: '', range: '', uses: 0, maxUses: 0, maxUsesMode: 'flat', maxUsesPerLevel: 0, rechargeOn: '',
         level: 1,
         levelEffects: (SINGLE_EFFECT_TYPES as string[]).includes(next) || isTieredEffectType(next) ? [{ level: 1, effects: {} }] : [],
       }
@@ -914,11 +921,39 @@ function FeatureForm(props: FeatureFormProps) {
                 onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
             </div>
             <div class="space-y-1">
-              <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
-              <NumericInput id="feature-max-uses" min={0} value={formData().maxUses}
-                onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
+              <Label for="feature-uses-scaling">Uses Scaling</Label>
+              <Select
+                value={formData().maxUsesMode}
+                onValueChange={(v) => setFormData((d) => ({ ...d, maxUsesMode: v as 'flat' | 'per-level' }))}
+              >
+                <SelectTrigger id="feature-uses-scaling" aria-label="Uses Scaling">
+                  <span class="flex-1 text-left">{MAX_USES_MODE_OPTIONS.find((o) => o.value === formData().maxUsesMode)?.label}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <For each={MAX_USES_MODE_OPTIONS}>{(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}</For>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+          <Show
+            when={formData().maxUsesMode === 'per-level'}
+            fallback={
+              <div class="space-y-1">
+                <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
+                <NumericInput id="feature-max-uses" min={0} value={formData().maxUses}
+                  onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
+              </div>
+            }
+          >
+            <div class="space-y-1">
+              <Label for="feature-max-uses-per-level">Max Uses per Level</Label>
+              <NumericInput id="feature-max-uses-per-level" min={0} value={formData().maxUsesPerLevel}
+                onChange={(v) => setFormData((d) => ({ ...d, maxUsesPerLevel: v, uses: 0 }))} />
+              <p class="text-xs text-muted-foreground">
+                = {formData().maxUsesPerLevel * props.characterLevel} at Level {props.characterLevel}
+              </p>
+            </div>
+          </Show>
           <div class="space-y-1">
             <Label for="feature-recharge">Recharge On</Label>
             <Select value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
@@ -1135,7 +1170,9 @@ export function FeaturesModule(props: FeaturesModuleProps) {
       range: (data.actionKind && data.range) ? data.range : undefined,
       level: data.actionKind ? (data.level || undefined) : undefined,
       uses: (data.actionKind && data.uses) ? data.uses : undefined,
-      maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
+      maxUses: (data.actionKind && data.maxUsesMode === 'flat' && data.maxUses) ? data.maxUses : undefined,
+      maxUsesMode: (data.actionKind && data.maxUsesMode === 'per-level') ? 'per-level' : undefined,
+      maxUsesPerLevel: (data.actionKind && data.maxUsesMode === 'per-level' && data.maxUsesPerLevel) ? data.maxUsesPerLevel : undefined,
       rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
       levelEffects: data.levelEffects.length > 0 ? data.levelEffects : undefined,
     }
@@ -1163,7 +1200,9 @@ export function FeaturesModule(props: FeaturesModuleProps) {
               range: (data.actionKind && data.range) ? data.range : undefined,
               level: data.actionKind ? (data.level || undefined) : undefined,
               uses: (data.actionKind && data.uses) ? data.uses : undefined,
-              maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
+              maxUses: (data.actionKind && data.maxUsesMode === 'flat' && data.maxUses) ? data.maxUses : undefined,
+              maxUsesMode: (data.actionKind && data.maxUsesMode === 'per-level') ? 'per-level' : undefined,
+              maxUsesPerLevel: (data.actionKind && data.maxUsesMode === 'per-level' && data.maxUsesPerLevel) ? data.maxUsesPerLevel : undefined,
               rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
               levelEffects: data.levelEffects.length > 0 ? data.levelEffects : undefined,
             }
@@ -1318,30 +1357,35 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                           <Show when={feature.description}>
                             <MarkdownContent text={feature.description!} class="text-muted-foreground" />
                           </Show>
-                          <Show when={(feature.maxUses ?? 0) > 0}>
-                            <Show
-                              when={(feature.maxUses ?? 0) <= 5}
-                              fallback={
-                                // value/onChange are inverted: display shows remaining uses, storage tracks used count
-                                <StepperInput
-                                  value={remainingUses(feature.uses, feature.maxUses)}
-                                  min={0}
-                                  max={feature.maxUses!}
-                                  onChange={(v) => handleFeatureUsesChange(section.field, feature.id, spentFromRemaining(v, feature.maxUses))}
-                                  readOnly={isReadOnly}
-                                />
-                              }
-                            >
-                              <PipTracker
-                                total={feature.maxUses!}
-                                used={feature.uses ?? 0}
-                                onToggle={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
-                                usedTitle="Charge spent (click to restore)"
-                                availableTitle="Charge available (click to use)"
-                                readOnly={isReadOnly}
-                              />
-                            </Show>
-                          </Show>
+                          {(() => {
+                            const maxUses = effectiveMaxUses(feature, props.character.level ?? 1)
+                            return (
+                              <Show when={maxUses > 0}>
+                                <Show
+                                  when={maxUses <= 5}
+                                  fallback={
+                                    // value/onChange are inverted: display shows remaining uses, storage tracks used count
+                                    <StepperInput
+                                      value={remainingUses(feature.uses, maxUses)}
+                                      min={0}
+                                      max={maxUses}
+                                      onChange={(v) => handleFeatureUsesChange(section.field, feature.id, spentFromRemaining(v, maxUses))}
+                                      readOnly={isReadOnly}
+                                    />
+                                  }
+                                >
+                                  <PipTracker
+                                    total={maxUses}
+                                    used={feature.uses ?? 0}
+                                    onToggle={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
+                                    usedTitle="Charge spent (click to restore)"
+                                    availableTitle="Charge available (click to use)"
+                                    readOnly={isReadOnly}
+                                  />
+                                </Show>
+                              </Show>
+                            )
+                          })()}
                           <Show when={isActiveHitDieSource(feature)}>
                             <div class="space-y-1">
                               <Label class="text-xs text-muted-foreground">Spent Hit Dice</Label>
@@ -1426,6 +1470,8 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                       range: feature().range ?? '',
                       uses: feature().uses ?? 0,
                       maxUses: feature().maxUses ?? 0,
+                      maxUsesMode: feature().maxUsesMode ?? 'flat',
+                      maxUsesPerLevel: feature().maxUsesPerLevel ?? 0,
                       rechargeOn: feature().rechargeOn ?? '',
                       level: feature().level ?? 1,
                       levelEffects: feature().levelEffects ?? [],

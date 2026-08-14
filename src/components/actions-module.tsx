@@ -1,7 +1,7 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -521,7 +521,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       range={feature.range}
       description={feature.description}
       uses={feature.uses ?? 0}
-      maxUses={feature.maxUses ?? 0}
+      maxUses={effectiveMaxUses(feature, props.character.level ?? 1)}
       rechargeOn={feature.rechargeOn}
       onUsesChange={(v) => handleFeatureUsesChange(feature, v)}
     />

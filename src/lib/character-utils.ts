@@ -1102,3 +1102,10 @@ export function remainingUses(used: number | undefined, max: number | undefined)
 export function spentFromRemaining(remaining: number, max: number | undefined): number {
   return (max ?? 0) - remaining
 }
+
+export function effectiveMaxUses(feature: Feature, characterLevel: number): number {
+  if (feature.maxUsesMode === 'per-level') {
+    return (feature.maxUsesPerLevel ?? 0) * characterLevel
+  }
+  return feature.maxUses ?? 0
+}

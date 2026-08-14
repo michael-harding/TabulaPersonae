@@ -185,6 +185,11 @@ export interface Feature extends UseableEntry {
   type?: ActionType
   range?: string
   level?: number
+  // 'per-level' means maxUses is ignored and the effective cap is maxUsesPerLevel * character.level
+  // — same "rate × current total level" math as FeatureEffects.hpBonusPerLevel, computed fresh at
+  // read time rather than baked in, so leveling up never requires manually editing the feature.
+  maxUsesMode?: 'flat' | 'per-level'
+  maxUsesPerLevel?: number
   // '' means "migrated; determined to have no mechanical type" — distinct from the key being
   // absent ("not yet migrated"). JSON.stringify drops undefined-valued keys (characters persist
   // via localStorage.setItem(key, JSON.stringify(...))), so `featureType: undefined` would be

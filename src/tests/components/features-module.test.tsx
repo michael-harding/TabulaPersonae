@@ -537,6 +537,63 @@ describe("FeaturesModule", () => {
       expect(screen.getByLabelText(/^range$/i)).toHaveValue("Touch")
       expect(screen.getByLabelText(/max uses/i)).toHaveValue(5)
     })
+
+    describe("repeatable max uses per level", () => {
+      it("shows Max Uses (flat) by default and Max Uses per Level after switching Uses Scaling", () => {
+        render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Action" }))
+        expect(within(modal).getByLabelText(/max uses/i)).toBeInTheDocument()
+        expect(within(modal).queryByLabelText(/max uses per level/i)).not.toBeInTheDocument()
+
+        fireEvent.click(within(modal).getByRole("button", { name: /uses scaling/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Per Level" }))
+
+        expect(within(modal).queryByLabelText(/^max uses \(0 = unlimited\)$/i)).not.toBeInTheDocument()
+        expect(within(modal).getByLabelText(/max uses per level/i)).toBeInTheDocument()
+      })
+
+      it("saves maxUsesMode and maxUsesPerLevel instead of a flat maxUses when Per Level is selected", () => {
+        const onUpdate = vi.fn()
+        render(<FeaturesModule character={makeCharacter({ level: 3 })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Action" }))
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Lay on Hands" } })
+        fireEvent.click(within(modal).getByRole("button", { name: /uses scaling/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Per Level" }))
+        const rateInput = within(modal).getByLabelText(/max uses per level/i)
+        fireEvent.input(rateInput, { target: { value: "5" } })
+        fireEvent.blur(rateInput)
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Lay on Hands",
+                maxUsesMode: "per-level",
+                maxUsesPerLevel: 5,
+                maxUses: undefined,
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("pre-fills Uses Scaling and the per-level rate when editing a per-level feature", () => {
+        const feature = makeFeature({
+          name: "Lay on Hands", actionKind: "action", featureType: "Action",
+          maxUsesMode: "per-level", maxUsesPerLevel: 5,
+        })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 3 })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit lay on hands/i }))
+        expect(screen.getByRole("button", { name: /uses scaling/i })).toHaveTextContent("Per Level")
+        expect(screen.getByLabelText(/max uses per level/i)).toHaveValue(5)
+      })
+    })
   })
 
   describe("mechanical effect fields (Feature Type)", () => {
@@ -1769,6 +1826,28 @@ describe("FeaturesModule", () => {
           ]),
         })
       )
+    })
+
+    describe("repeatable (per-level) max uses", () => {
+      it("computes the pip total as maxUsesPerLevel * character level", () => {
+        const feature = makeFeature({ actionKind: "action", maxUsesMode: "per-level", maxUsesPerLevel: 1, uses: 0 })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 3 })} onUpdate={vi.fn()} />)
+        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+      })
+
+      it("shows a stepper instead of pips once the per-level total exceeds 5", () => {
+        const feature = makeFeature({ actionKind: "action", maxUsesMode: "per-level", maxUsesPerLevel: 5, uses: 0 })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 3 })} onUpdate={vi.fn()} />)
+        expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
+        expect(screen.getByDisplayValue("15")).toBeInTheDocument()
+      })
+
+      it("recalculates the total when character level changes, with no edit to the feature itself", () => {
+        const feature = makeFeature({ actionKind: "action", maxUsesMode: "per-level", maxUsesPerLevel: 1, uses: 0 })
+        render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 4 })} onUpdate={vi.fn()} />)
+        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(4)
+      })
     })
   })
 
