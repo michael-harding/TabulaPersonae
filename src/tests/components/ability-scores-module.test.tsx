@@ -141,6 +141,23 @@ describe("AbilityScoresModule", () => {
       )
     })
 
+    it("persists edits on Ctrl+S without leaving edit mode", () => {
+      const onUpdate = vi.fn()
+      render(<AbilityScoresModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+      const strInput = screen.getAllByRole("spinbutton")[0]
+      fireEvent.input(strInput, { target: { value: "18" } })
+      fireEvent.blur(strInput)
+      fireEvent.keyDown(strInput, { key: "s", ctrlKey: true })
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          abilityScores: expect.objectContaining({ strength: 18 }),
+        })
+      )
+      expect(screen.getAllByRole("spinbutton")).toHaveLength(6)
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
+    })
+
     it("enables dexterity saving throw proficiency on save", () => {
       const onUpdate = vi.fn()
       render(<AbilityScoresModule character={makeCharacter()} onUpdate={onUpdate} />)

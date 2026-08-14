@@ -84,6 +84,19 @@ describe("CharacterNotesModule", () => {
       expect(onUpdate).toHaveBeenCalledTimes(1)
     })
 
+    it("persists edits on Ctrl+S without leaving edit mode", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterNotesModule character={emptyCharacter} onUpdate={onUpdate} />)
+      enterEditMode()
+      const traitsField = screen.getByLabelText(/personality traits/i)
+      fireEvent.input(traitsField, { target: { value: "Curious and bold" } })
+      fireEvent.keyDown(traitsField, { key: "s", ctrlKey: true })
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ personalityTraits: "Curious and bold" })
+      )
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
+    })
+
     it("does not call onUpdate when cancel is clicked", () => {
       const onUpdate = vi.fn()
       render(<CharacterNotesModule character={emptyCharacter} onUpdate={onUpdate} />)

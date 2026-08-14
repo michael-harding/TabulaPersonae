@@ -163,7 +163,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   const passiveInvestigationStat = makePassiveStat("investigation", "passiveInvestigation", "useCalculatedPassiveInvestigation")
   const passiveStats = [passivePerceptionStat, passiveInsightStat, passiveInvestigationStat]
 
-  const handleSave = () => {
+  const persist = () => {
     const data = edited()
     const normalized = {
       ...data,
@@ -172,8 +172,9 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
       passiveInvestigation: passiveInvestigationStat.resolvedValue(),
     }
     props.onUpdate(normalized)
-    setIsEditing(false)
   }
+  const handleSave = () => { persist(); setIsEditing(false) }
+  const handleSaveKeepEditing = () => { persist() }
   const handleCancel = () => {
     setEdited(props.character); setIsEditing(false)
   }
@@ -241,6 +242,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
       isEditing={isEditing()}
       onEdit={() => { setEdited(props.character); setIsEditing(true) }}
       onSave={handleSave}
+      onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}
       contentClass="space-y-6"
     >

@@ -333,7 +333,7 @@ export function ActionsModule(props: ActionsModuleProps) {
     calculatedTooltip: spellSaveDCTooltip,
   })
 
-  const handleSave = () => {
+  const persist = () => {
     const data = edited()
     const normalized = {
       ...props.character,
@@ -345,8 +345,9 @@ export function ActionsModule(props: ActionsModuleProps) {
       spellModifier: spellModifierField.resolvedValue(),
     }
     props.onUpdate(normalized)
-    setIsEditing(false)
   }
+  const handleSave = () => { persist(); setIsEditing(false) }
+  const handleSaveKeepEditing = () => { persist() }
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   const equippedWeaponAttacks = createMemo(() => getEquippedWeaponAttacks(props.character))
@@ -566,6 +567,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
       onSave={handleSave}
+      onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}
       contentClass="space-y-6"
     >

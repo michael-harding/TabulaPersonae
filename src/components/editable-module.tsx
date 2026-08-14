@@ -14,6 +14,7 @@ interface EditableModuleProps extends ParentProps {
   isEditing: boolean
   onEdit: () => void
   onSave: () => void
+  onSaveKeepEditing: () => void
   onCancel: () => void
   headerExtra?: JSX.Element
   contentClass?: string
@@ -24,8 +25,20 @@ interface EditableModuleProps extends ParentProps {
 export function EditableModule(props: EditableModuleProps) {
   const isReadOnly = useReadOnly()
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (!props.isEditing) return
+    if (!(e.ctrlKey || e.metaKey)) return
+    if (e.key === "s") {
+      e.preventDefault()
+      props.onSaveKeepEditing()
+    } else if (e.key === "Enter") {
+      e.preventDefault()
+      props.onSave()
+    }
+  }
+
   return (
-    <Card data-sem={props["data-sem"]} data-test={props["data-test"]}>
+    <Card data-sem={props["data-sem"]} data-test={props["data-test"]} onKeyDown={handleKeyDown}>
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">

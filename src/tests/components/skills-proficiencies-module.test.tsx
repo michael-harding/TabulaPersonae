@@ -346,6 +346,23 @@ describe("SkillsProficienciesModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledTimes(1)
     })
+
+    it("persists edits on Ctrl+S without leaving edit mode", () => {
+      const onUpdate = vi.fn()
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+      const profCheckboxes = screen.getAllByRole("checkbox", { name: "Proficient" })
+      fireEvent.click(profCheckboxes[11]) // perception
+      fireEvent.keyDown(profCheckboxes[11], { key: "s", ctrlKey: true })
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skills: expect.objectContaining({
+            perception: expect.objectContaining({ proficient: true }),
+          }),
+        })
+      )
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
+    })
   })
 
   it("has no accessibility violations", async () => {

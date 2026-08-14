@@ -63,7 +63,9 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
     setEdited((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSave = () => { props.onUpdate(edited()); setIsEditing(false) }
+  const persist = () => { props.onUpdate(edited()) }
+  const handleSave = () => { persist(); setIsEditing(false) }
+  const handleSaveKeepEditing = () => { persist() }
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   return (
@@ -75,6 +77,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
       onSave={handleSave}
+      onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}
       headerExtra={
         <Show when={!isReadOnly}>

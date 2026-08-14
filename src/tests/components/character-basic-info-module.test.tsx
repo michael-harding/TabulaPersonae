@@ -102,6 +102,19 @@ describe("CharacterBasicInfoModule", () => {
       )
     })
 
+    it("persists edits on Ctrl+S without leaving edit mode", () => {
+      const onUpdate = vi.fn()
+      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      clickEditButton()
+      const nameInput = screen.getByLabelText(/character name/i)
+      fireEvent.input(nameInput, { target: { value: "Legolas" } })
+      fireEvent.keyDown(nameInput, { key: "s", ctrlKey: true })
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Legolas" })
+      )
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
+    })
+
     it("does not call onUpdate when cancel is clicked", () => {
       const onUpdate = vi.fn()
       render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)

@@ -206,6 +206,21 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       )
     })
 
+    it("persists edits on Ctrl+S without leaving edit mode", () => {
+      const onUpdate = vi.fn()
+      render(<ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell save dc/i }))
+      const input = screen.getByRole("spinbutton", { name: /spell save dc/i })
+      fireEvent.input(input, { target: { value: "18" } })
+      fireEvent.blur(input)
+      fireEvent.keyDown(input, { key: "s", ctrlKey: true })
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ useCalculatedSpellSaveDC: false, spellSaveDC: 18 })
+      )
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
+    })
+
     it("discards an in-progress override when Cancel is clicked", () => {
       const onUpdate = vi.fn()
       render(<ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
