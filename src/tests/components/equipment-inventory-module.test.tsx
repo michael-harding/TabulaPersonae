@@ -1056,6 +1056,100 @@ describe("EquipmentInventoryModule", () => {
     })
   })
 
+  describe("consumable uses tracking", () => {
+    function setNumericValue(input: HTMLElement, value: string) {
+      fireEvent.input(input, { target: { value } })
+      fireEvent.blur(input)
+    }
+
+    const selectConsumableType = (modal: HTMLElement) => {
+      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(screen.getByRole("option", { name: "Consumable" }))
+    }
+
+    it("shows Uses Spent and Reconcile On, but hides Max Charges, when Consumable type is selected", () => {
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      selectConsumableType(modal)
+      expect(within(modal).getByLabelText(/uses spent/i)).toBeInTheDocument()
+      expect(within(modal).getByText("Reconcile On")).toBeInTheDocument()
+      expect(within(modal).queryByLabelText(/max charges/i)).not.toBeInTheDocument()
+      expect(within(modal).queryByText("Recharge On")).not.toBeInTheDocument()
+    })
+
+    it("shows uses tracking for a Consumable item without checking 'This is a Magic Item'", () => {
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      selectConsumableType(modal)
+      expect(within(modal).queryByText("Magic Item Details")).not.toBeInTheDocument()
+      expect(within(modal).getByLabelText(/uses spent/i)).toBeInTheDocument()
+    })
+
+    it("defaults Reconcile On to Short Rest when switching an item to Consumable", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
+      selectConsumableType(modal)
+      setNumericValue(document.querySelector("#item-uses")!, "1")
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Potion of Healing", type: "consumable", rechargeOn: "short-rest", uses: 1 }),
+          ]),
+        })
+      )
+    })
+
+    it("does not persist maxUses for a saved consumable item", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
+      selectConsumableType(modal)
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([expect.objectContaining({ name: "Potion of Healing", maxUses: undefined })]),
+        })
+      )
+    })
+
+    it("shows a pip tracker in the equipment list bound to quantity for a consumable item", () => {
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({
+            equipment: [makeItem({ name: "Potion of Healing", type: "consumable", quantity: 3, uses: 1, rechargeOn: "short-rest" })],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getAllByTitle("Available (click to use)")).toHaveLength(2)
+      expect(screen.getAllByTitle("Used (click to restore)")).toHaveLength(1)
+    })
+
+    it("clamps uses down when quantity is manually reduced below the current spent-uses count", () => {
+      const onUpdate = vi.fn()
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({
+            equipment: [makeItem({ id: "pot-1", name: "Potion of Healing", type: "consumable", quantity: 2, uses: 2, rechargeOn: "short-rest" })],
+          })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getByRole("button", { name: "-" }))
+      const updated = onUpdate.mock.calls[0][0]
+      expect(updated.equipment[0].quantity).toBe(1)
+      expect(updated.equipment[0].uses).toBe(1)
+    })
+  })
+
   describe("weapon sub-form", () => {
     it("selecting weapon type reveals weapon stats fields", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)

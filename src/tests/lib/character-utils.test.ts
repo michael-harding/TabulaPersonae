@@ -40,6 +40,8 @@ import {
   getEffectiveSkillProficiency,
   getAbilityScoreBaseMax,
   inferFeatureType,
+  effectiveEquipmentMaxUses,
+  reconcileEquipmentRest,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type AbilityScores, type Equipment, type Feature } from "@/lib/character-types"
 
@@ -1872,5 +1874,51 @@ describe("spell calculations with a feature-granted spellcasting ability", () =>
     expect(getSpellSaveDC(character)).toBe(14) // 8 + 3 prof + 3 WIS mod
     expect(getSpellAttackBonus(character)).toBe(6) // 3 prof + 3 WIS mod
     expect(computeSpellModifier(character)).toBe(3)
+  })
+})
+
+describe("effectiveEquipmentMaxUses", () => {
+  it("uses quantity as the effective max for a consumable item, ignoring any stored maxUses", () => {
+    const item = makeMagicItem({ type: "consumable", quantity: 5, maxUses: 99 })
+    expect(effectiveEquipmentMaxUses(item)).toBe(5)
+  })
+
+  it("falls back to the stored maxUses for a non-consumable item", () => {
+    const item = makeMagicItem({ type: "other", quantity: 1, maxUses: 3 })
+    expect(effectiveEquipmentMaxUses(item)).toBe(3)
+  })
+
+  it("returns 0 for a non-consumable item with no maxUses set", () => {
+    const item = makeMagicItem({ type: "other", quantity: 1, maxUses: undefined })
+    expect(effectiveEquipmentMaxUses(item)).toBe(0)
+  })
+})
+
+describe("reconcileEquipmentRest", () => {
+  it("decrements quantity by spent uses and zeroes uses for a matching consumable", () => {
+    const item = makeMagicItem({ type: "consumable", quantity: 5, uses: 2, rechargeOn: "short-rest" })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result.quantity).toBe(3)
+    expect(result.uses).toBe(0)
+  })
+
+  it("clamps quantity at 0 rather than going negative when spent uses exceed quantity", () => {
+    const item = makeMagicItem({ type: "consumable", quantity: 1, uses: 3, rechargeOn: "short-rest" })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result.quantity).toBe(0)
+    expect(result.uses).toBe(0)
+  })
+
+  it("leaves a consumable unchanged when its rechargeOn doesn't match the rest type", () => {
+    const item = makeMagicItem({ type: "consumable", quantity: 5, uses: 2, rechargeOn: "long-rest" })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result).toBe(item)
+  })
+
+  it("hard-resets uses to 0 without touching quantity for a matching non-consumable item", () => {
+    const item = makeMagicItem({ type: "other", quantity: 1, uses: 2, maxUses: 3, rechargeOn: "short-rest" })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result.uses).toBe(0)
+    expect(result.quantity).toBe(1)
   })
 })

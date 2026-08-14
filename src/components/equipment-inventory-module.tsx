@@ -12,6 +12,7 @@ import {
   ZERO_SENSES,
   remainingUses,
   spentFromRemaining,
+  effectiveEquipmentMaxUses,
   isItemModifierActive,
   formatModifier,
   getEffectiveCarryingCapacity,
@@ -372,6 +373,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       type: type as EquipmentType,
       weaponStats: type === "weapon" ? (prev.weaponStats ?? { damage: "", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true }) : undefined,
       armorStats: type === "armor" ? (prev.armorStats ?? { baseAC: 11, armorType: "light" }) : undefined,
+      rechargeOn: type === "consumable" && prev.rechargeOn === "" ? "short-rest" : prev.rechargeOn,
     }))
   }
 
@@ -554,21 +556,33 @@ function EquipmentForm(props: EquipmentFormProps) {
               <Label for="item-attuned">Attuned</Label>
             </div>
           </Show>
-          <div class="grid grid-cols-2 gap-3">
+        </div>
+      </Show>
+
+      <Show when={formData().magic || formData().type === "consumable"}>
+        <div class="space-y-3">
+          <div class={formData().type === "consumable" ? "" : "grid grid-cols-2 gap-3"}>
             <div>
               <Label for="item-uses">Uses Spent</Label>
-              <NumericInput id="item-uses" min={0} value={formData().uses}
+              <NumericInput id="item-uses" min={0}
+                max={formData().type === "consumable" ? formData().quantity : formData().maxUses}
+                value={formData().uses}
                 onChange={(v) => setFormData((prev) => ({ ...prev, uses: v }))} />
+              <Show when={formData().type === "consumable"}>
+                <p class="text-xs text-muted-foreground mt-1">Quantity will be reduced by this amount when reconciled on rest.</p>
+              </Show>
             </div>
-            <div>
-              <Label for="item-max-uses">Max Charges (0 = none)</Label>
-              <NumericInput id="item-max-uses" min={0} value={formData().maxUses}
-                onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: Math.min(prev.uses, v) }))} />
-            </div>
+            <Show when={formData().type !== "consumable"}>
+              <div>
+                <Label for="item-max-uses">Max Charges (0 = none)</Label>
+                <NumericInput id="item-max-uses" min={0} value={formData().maxUses}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: Math.min(prev.uses, v) }))} />
+              </div>
+            </Show>
           </div>
-          <Show when={formData().maxUses > 0}>
+          <Show when={formData().type === "consumable" || formData().maxUses > 0}>
             <div>
-              <Label>Recharge On</Label>
+              <Label>{formData().type === "consumable" ? "Reconcile On" : "Recharge On"}</Label>
               <Select
                 value={formData().rechargeOn}
                 onValueChange={(v) => setFormData((prev) => ({ ...prev, rechargeOn: v as "" | "short-rest" | "long-rest" }))}
@@ -584,7 +598,11 @@ function EquipmentForm(props: EquipmentFormProps) {
               </Select>
             </div>
           </Show>
+        </div>
+      </Show>
 
+      <Show when={formData().magic}>
+        <div class="space-y-3">
           <div class="space-y-2 pt-2 border-t">
             <p class="text-xs font-medium text-muted-foreground">Bonuses (optional)</p>
             <div class="grid grid-cols-2 gap-3">
@@ -992,14 +1010,28 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
     return Object.keys(modifiers).length > 0 ? modifiers : undefined
   }
 
+  const usesFields = (formData: EquipmentFormData) => {
+    if (formData.type === "consumable") {
+      return {
+        uses: (formData.uses ?? 0) > 0 ? formData.uses : undefined,
+        maxUses: undefined,
+        rechargeOn: formData.rechargeOn || undefined,
+      }
+    }
+    const tracksCharges = formData.magic && formData.maxUses > 0
+    return {
+      uses: tracksCharges ? formData.uses : undefined,
+      maxUses: tracksCharges ? formData.maxUses : undefined,
+      rechargeOn: tracksCharges && formData.rechargeOn ? formData.rechargeOn : undefined,
+    }
+  }
+
   const magicFields = (formData: EquipmentFormData) => ({
     magic: formData.magic || undefined,
     requiresAttunement: formData.magic ? formData.requiresAttunement : undefined,
     attuned: formData.magic && formData.requiresAttunement ? formData.attuned : undefined,
     rarity: formData.magic ? formData.rarity : undefined,
-    uses: formData.magic && formData.maxUses > 0 ? formData.uses : undefined,
-    maxUses: formData.magic && formData.maxUses > 0 ? formData.maxUses : undefined,
-    rechargeOn: formData.magic && formData.maxUses > 0 && formData.rechargeOn ? formData.rechargeOn : undefined,
+    ...usesFields(formData),
     modifiers: buildModifiers(formData),
   })
 
@@ -1064,7 +1096,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
     if (quantity < 1) return
     const updated = {
       ...props.character,
-      equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, quantity } : item)),
+      equipment: safeEquipment().map((item) => {
+        if (item.id !== itemId) return item
+        const next = { ...item, quantity }
+        if (item.type === "consumable" && (item.uses ?? 0) > quantity) next.uses = quantity
+        return next
+      }),
     }
     props.onUpdate(updated)
   }
@@ -1080,7 +1117,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const updateItemUses = (itemId: string, uses: number) => {
     const updated = {
       ...props.character,
-      equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, uses } : item)),
+      equipment: safeEquipment().map((item) =>
+        item.id === itemId ? { ...item, uses: Math.max(0, Math.min(uses, effectiveEquipmentMaxUses(item))) } : item
+      ),
     }
     props.onUpdate(updated)
   }
@@ -1312,26 +1351,26 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           </Show>
                         </div>
                       </Show>
-                      <Show when={(item.maxUses ?? 0) > 0}>
+                      <Show when={effectiveEquipmentMaxUses(item) > 0}>
                         <div class="mt-1">
                           <Show
-                            when={(item.maxUses ?? 0) <= 5}
+                            when={effectiveEquipmentMaxUses(item) <= 5}
                             fallback={
                               <StepperInput
-                                value={remainingUses(item.uses, item.maxUses)}
+                                value={remainingUses(item.uses, effectiveEquipmentMaxUses(item))}
                                 min={0}
-                                max={item.maxUses!}
-                                onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, item.maxUses))}
+                                max={effectiveEquipmentMaxUses(item)}
+                                onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
                                 readOnly={isReadOnly}
                               />
                             }
                           >
                             <PipTracker
-                              total={item.maxUses!}
+                              total={effectiveEquipmentMaxUses(item)}
                               used={item.uses ?? 0}
                               onToggle={(v) => updateItemUses(item.id, v)}
-                              usedTitle="Charge spent (click to restore)"
-                              availableTitle="Charge available (click to use)"
+                              usedTitle={item.type === "consumable" ? "Used (click to restore)" : "Charge spent (click to restore)"}
+                              availableTitle={item.type === "consumable" ? "Available (click to use)" : "Charge available (click to use)"}
                               readOnly={isReadOnly}
                             />
                           </Show>
@@ -1505,6 +1544,31 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       </Show>
                     </div>
                   </div>
+                  <Show when={item.type === "consumable" && effectiveEquipmentMaxUses(item) > 0}>
+                    <div>
+                      <Show
+                        when={effectiveEquipmentMaxUses(item) <= 5}
+                        fallback={
+                          <StepperInput
+                            value={remainingUses(item.uses, effectiveEquipmentMaxUses(item))}
+                            min={0}
+                            max={effectiveEquipmentMaxUses(item)}
+                            onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
+                            readOnly={isReadOnly}
+                          />
+                        }
+                      >
+                        <PipTracker
+                          total={effectiveEquipmentMaxUses(item)}
+                          used={item.uses ?? 0}
+                          onToggle={(v) => updateItemUses(item.id, v)}
+                          usedTitle="Used (click to restore)"
+                          availableTitle="Available (click to use)"
+                          readOnly={isReadOnly}
+                        />
+                      </Show>
+                    </div>
+                  </Show>
                 </div>
               )}
             </For>

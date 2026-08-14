@@ -529,6 +529,50 @@ describe("RestModal", () => {
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.equipment![0].uses).toBe(2)
     })
+
+    it("decrements quantity and zeroes uses for a consumable item on rest, instead of hard-resetting uses", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ type: "consumable", quantity: 5, rechargeOn: "short-rest", uses: 2 })],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.equipment![0].quantity).toBe(3)
+      expect(updated.equipment![0].uses).toBe(0)
+    })
+
+    it("shows the quantity delta instead of a rest-type label for a consumable with spent uses", () => {
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ type: "consumable", quantity: 5, rechargeOn: "short-rest", uses: 2 })],
+      })
+      openModal(char)
+      expect(within(getDialog()).getByText("-2 qty")).toBeInTheDocument()
+    })
+
+    it("does not reduce quantity below 0 when uses spent exceeds quantity", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ type: "consumable", quantity: 1, rechargeOn: "short-rest", uses: 3 })],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.equipment![0].quantity).toBe(0)
+      expect(updated.equipment![0].uses).toBe(0)
+    })
+
+    it("leaves quantity and uses unchanged on rest for a consumable with rechargeOn 'None'", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ type: "consumable", quantity: 5, rechargeOn: undefined, uses: 2 })],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.equipment![0].quantity).toBe(5)
+      expect(updated.equipment![0].uses).toBe(2)
+    })
   })
 
   it("has no accessibility violations when open", async () => {

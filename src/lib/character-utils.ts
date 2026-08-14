@@ -1109,3 +1109,16 @@ export function effectiveMaxUses(feature: Feature, characterLevel: number): numb
   }
   return feature.maxUses ?? 0
 }
+
+export function effectiveEquipmentMaxUses(item: Pick<Equipment, "type" | "quantity" | "maxUses">): number {
+  return item.type === "consumable" ? item.quantity : (item.maxUses ?? 0)
+}
+
+export function reconcileEquipmentRest(item: Equipment, restTypes: Array<"short-rest" | "long-rest">): Equipment {
+  if (!item.rechargeOn || !restTypes.includes(item.rechargeOn)) return item
+  if (item.type === "consumable") {
+    const spent = item.uses ?? 0
+    return spent > 0 ? { ...item, quantity: Math.max(0, item.quantity - spent), uses: 0 } : item
+  }
+  return { ...item, uses: 0 }
+}
