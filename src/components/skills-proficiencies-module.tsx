@@ -1,6 +1,7 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, SENSE_TYPES, SENSE_LABELS, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -108,6 +109,60 @@ function EditableTagList(props: {
   )
 }
 
+// The A/D pip pair for a skill's effective advantage/disadvantage state — used for both the
+// edit-mode toggle buttons and the read-mode badge, so the two never drift out of sync.
+function SkillAdvantagePips(props: {
+  state: SkillAdvantageState
+  isManualOverride: boolean
+  advantageSources: string[]
+  disadvantageSources: string[]
+  editable: boolean
+  onToggleAdvantage: () => void
+  onToggleDisadvantage: () => void
+}) {
+  const tooltip = (kind: "advantage" | "disadvantage") => {
+    if (props.state !== kind) return kind === "advantage" ? "Advantage" : "Disadvantage"
+    const sources = kind === "advantage" ? props.advantageSources : props.disadvantageSources
+    const label = kind === "advantage" ? "Advantage" : "Disadvantage"
+    if (props.isManualOverride) return `${label} (manual)`
+    return sources.length > 0 ? `${label} — granted by ${sources.join(", ")}` : label
+  }
+  return (
+    <>
+      <Show when={props.editable}>
+        <Tooltip content={tooltip("advantage")}>
+          <button
+            type="button"
+            title="Advantage"
+            aria-label="Advantage"
+            onClick={props.onToggleAdvantage}
+            class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-white text-white"}`}
+          >A</button>
+        </Tooltip>
+        <Tooltip content={tooltip("disadvantage")}>
+          <button
+            type="button"
+            title="Disadvantage"
+            aria-label="Disadvantage"
+            onClick={props.onToggleDisadvantage}
+            class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-white text-white"}`}
+          >D</button>
+        </Tooltip>
+      </Show>
+      <Show when={!props.editable && props.state === "advantage"}>
+        <Tooltip content={tooltip("advantage")}>
+          <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-xs font-bold leading-none">A</span>
+        </Tooltip>
+      </Show>
+      <Show when={!props.editable && props.state === "disadvantage"}>
+        <Tooltip content={tooltip("disadvantage")}>
+          <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs font-bold leading-none">D</span>
+        </Tooltip>
+      </Show>
+    </>
+  )
+}
+
 export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
   const [edited, setEdited] = createSignal(props.character)
@@ -207,12 +262,24 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
     }))
   }
 
+  // Advantage and disadvantage are mutually exclusive manual states — toggling one on clears the
+  // other, so the pair of booleans behaves like a tri-state control (none / advantage / disadvantage).
+  const toggleSkillAdvantage = (skill: SkillKey) => {
+    setEdited((prev) => ({
+      ...prev,
+      skills: {
+        ...prev.skills,
+        [skill]: { ...prev.skills?.[skill], advantage: !prev.skills?.[skill]?.advantage, disadvantage: false },
+      },
+    }))
+  }
+
   const toggleSkillDisadvantage = (skill: SkillKey) => {
     setEdited((prev) => ({
       ...prev,
       skills: {
         ...prev.skills,
-        [skill]: { ...prev.skills?.[skill], disadvantage: !prev.skills?.[skill]?.disadvantage },
+        [skill]: { ...prev.skills?.[skill], disadvantage: !prev.skills?.[skill]?.disadvantage, advantage: false },
       },
     }))
   }
@@ -319,8 +386,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             <For each={Object.keys(SKILL_DISPLAY_NAMES) as SkillKey[]}>
               {(skillKey) => {
                 const ability = SKILL_ABILITY_MAP[skillKey]
-                const skill = () => current().skills?.[skillKey] ?? { proficient: false, expertise: false, disadvantage: false }
                 const effectiveSkill = () => getEffectiveSkillProficiency(current(), skillKey)
+                const effectiveAdvantage = () => getEffectiveSkillAdvantage(current(), skillKey)
                 const modifier = () => getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, effectiveSkill().proficient, effectiveSkill().expertise)
                 const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
                 const skillTooltip = () => {
@@ -363,18 +430,15 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                       </div>
                     </div>
                     <div class="flex items-center gap-1 justify-end min-w-[3rem]">
-                      <Show when={isEditing()}>
-                        <button
-                          type="button"
-                          title="Disadvantage"
-                          aria-label="Disadvantage"
-                          onClick={() => toggleSkillDisadvantage(skillKey)}
-                          class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${(skill().disadvantage ?? false) ? "bg-destructive text-destructive-foreground" : "border border-white text-white"}`}
-                        >D</button>
-                      </Show>
-                      <Show when={!isEditing() && (skill().disadvantage ?? false)}>
-                        <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs font-bold leading-none">D</span>
-                      </Show>
+                      <SkillAdvantagePips
+                        state={effectiveAdvantage().state}
+                        isManualOverride={effectiveAdvantage().isManualOverride}
+                        advantageSources={effectiveAdvantage().advantageSources}
+                        disadvantageSources={effectiveAdvantage().disadvantageSources}
+                        editable={isEditing()}
+                        onToggleAdvantage={() => toggleSkillAdvantage(skillKey)}
+                        onToggleDisadvantage={() => toggleSkillDisadvantage(skillKey)}
+                      />
                       <Tooltip content={skillTooltip()} triggerFocusable>
                         <span class="font-semibold">{formatModifier(modifier())}</span>
                       </Tooltip>

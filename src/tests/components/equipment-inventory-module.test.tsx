@@ -1034,6 +1034,100 @@ describe("EquipmentInventoryModule", () => {
     })
   })
 
+  describe("Skill Effects (advantage/disadvantage)", () => {
+    // Regression: unlike every other ItemModifiers field, skill advantage/disadvantage must work
+    // on a mundane item — the "Skill Effects" section must not be gated behind "This is a Magic Item".
+    it("submits a skill disadvantage grant on a non-magic item", async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chainmail" } })
+
+      await user.click(within(modal).getByTitle("Add Grants Disadvantage On"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
+
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Chainmail",
+              modifiers: { skillDisadvantage: ["stealth"] },
+            }),
+          ]),
+        })
+      )
+    })
+
+    it("submits a skill advantage grant when the item is also marked as a magic item", async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Cloak of Elvenkind" } })
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
+
+      await user.click(within(modal).getByTitle("Add Grants Advantage On"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
+
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Cloak of Elvenkind",
+              modifiers: { skillAdvantage: ["stealth"] },
+            }),
+          ]),
+        })
+      )
+    })
+
+    it("excludes a skill already granted advantage from the Grants Disadvantage On options, and vice versa", async () => {
+      const user = userEvent.setup()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
+      const modal = screen.getByRole("dialog")
+
+      await user.click(within(modal).getByTitle("Add Grants Advantage On"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
+
+      await user.click(within(modal).getByTitle("Add Grants Disadvantage On"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Perception" })).toBeInTheDocument())
+      expect(screen.queryByRole("menuitem", { name: "Stealth" })).not.toBeInTheDocument()
+    })
+
+    it("pre-fills the Skill Effects pickers when editing an item with existing skill grants", () => {
+      const item = makeItem({ name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /edit chainmail/i })[0])
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByText("Stealth")).toBeInTheDocument()
+    })
+
+    it("shows a skill-effect summary line for an equipped, non-magic item (not tagged inactive)", () => {
+      const item = makeItem({ name: "Chainmail", equipped: true, modifiers: { skillDisadvantage: ["stealth"] } })
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Disadvantage: Stealth")).toBeInTheDocument()
+      expect(screen.queryByText("(inactive)")).not.toBeInTheDocument()
+    })
+
+    it("flags the skill-effect summary as inactive when the granting item is not equipped", () => {
+      const item = makeItem({ name: "Chainmail", equipped: false, modifiers: { skillDisadvantage: ["stealth"] } })
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Disadvantage: Stealth")).toBeInTheDocument()
+      expect(screen.getByText("(equip to activate)")).toBeInTheDocument()
+    })
+  })
+
   describe("Carrying Capacity", () => {
     it("shows carrying capacity computed from STR score x 15", () => {
       render(<EquipmentInventoryModule character={makeCharacter({ abilityScores: { ...createDefaultCharacter().abilityScores, strength: 16 } })} onUpdate={vi.fn()} />)

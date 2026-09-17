@@ -38,6 +38,8 @@ import {
   getEffectiveHitDiceSize,
   getEffectiveSavingThrowProficiency,
   getEffectiveSkillProficiency,
+  getEffectiveSkillAdvantage,
+  getEquipmentSkillEffectTotals,
   getAbilityScoreBaseMax,
   inferFeatureType,
   effectiveEquipmentMaxUses,
@@ -1858,6 +1860,64 @@ describe("getEffectiveSavingThrowProficiency / getEffectiveSkillProficiency", ()
       classFeatures: [feature], speciesTraits: [], feats: [], level: 1,
     }
     expect(getEffectiveSkillProficiency(character, "perception")).toEqual({ proficient: true, expertise: true, granted: true, expertiseGranted: true, grantedBy: "Skilled Class Feature" })
+  })
+})
+
+describe("getEquipmentSkillEffectTotals", () => {
+  it("applies to a mundane (non-magic) equipped item, unlike every other modifier field", () => {
+    const chainmail = makeMagicItem({ magic: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+    expect(getEquipmentSkillEffectTotals([chainmail])).toEqual({ advantage: {}, disadvantage: { stealth: ["Chainmail"] } })
+  })
+
+  it("does not apply when the item is not equipped", () => {
+    const chainmail = makeMagicItem({ magic: false, equipped: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+    expect(getEquipmentSkillEffectTotals([chainmail])).toEqual({ advantage: {}, disadvantage: {} })
+  })
+
+  it("collects multiple items granting the same skill", () => {
+    const a = makeMagicItem({ magic: false, id: "a", name: "Item A", modifiers: { skillAdvantage: ["perception"] } })
+    const b = makeMagicItem({ magic: false, id: "b", name: "Item B", modifiers: { skillAdvantage: ["perception"] } })
+    expect(getEquipmentSkillEffectTotals([a, b]).advantage).toEqual({ perception: ["Item A", "Item B"] })
+  })
+})
+
+describe("getEffectiveSkillAdvantage", () => {
+  it("is none when nothing grants advantage or disadvantage", () => {
+    const character = { skills: { stealth: { proficient: false, expertise: false } } as any, equipment: [], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "none", isManualOverride: false, advantageSources: [], disadvantageSources: [] })
+  })
+
+  it("reflects a manually-set disadvantage", () => {
+    const character = { skills: { stealth: { proficient: false, expertise: false, disadvantage: true } } as any, equipment: [], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "disadvantage", isManualOverride: true, advantageSources: [], disadvantageSources: [] })
+  })
+
+  it("grants disadvantage from a mundane equipped item", () => {
+    const chainmail = makeMagicItem({ magic: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+    const character = { skills: { stealth: { proficient: false, expertise: false } } as any, equipment: [chainmail], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "disadvantage", isManualOverride: false, advantageSources: [], disadvantageSources: ["Chainmail"] })
+  })
+
+  it("grants advantage from a feature", () => {
+    const feature = makeFeature({ name: "Keen Senses", levelEffects: [{ level: 1, effects: { skillAdvantage: ["perception"] } }] })
+    const character = { skills: { perception: { proficient: false, expertise: false } } as any, equipment: [], classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "perception")).toEqual({ state: "advantage", isManualOverride: false, advantageSources: ["Keen Senses Class Feature"], disadvantageSources: [] })
+  })
+
+  it("cancels an equipment-granted advantage and a feature-granted disadvantage on the same skill to none", () => {
+    const boots = makeMagicItem({ id: "boots", name: "Boots of Quiet", modifiers: { skillAdvantage: ["stealth"] } })
+    const feature = makeFeature({ name: "Clumsy Curse", levelEffects: [{ level: 1, effects: { skillDisadvantage: ["stealth"] } }] })
+    const character = { skills: { stealth: { proficient: false, expertise: false } } as any, equipment: [boots], classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({
+      state: "none", isManualOverride: false,
+      advantageSources: ["Boots of Quiet"], disadvantageSources: ["Clumsy Curse Class Feature"],
+    })
+  })
+
+  it("a manual advantage override wins even when an equipped item grants disadvantage on the same skill", () => {
+    const chainmail = makeMagicItem({ magic: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+    const character = { skills: { stealth: { proficient: false, expertise: false, advantage: true } } as any, equipment: [chainmail], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "advantage", isManualOverride: true, advantageSources: [], disadvantageSources: ["Chainmail"] })
   })
 })
 

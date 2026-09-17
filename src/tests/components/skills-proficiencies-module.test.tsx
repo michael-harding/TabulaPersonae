@@ -144,6 +144,82 @@ describe("SkillsProficienciesModule", () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.queryByText("D")).not.toBeInTheDocument()
     })
+
+    it("shows A pip for a skill with advantage", () => {
+      const character = makeCharacter({
+        skills: { ...makeCharacter().skills, stealth: { proficient: true, expertise: true, advantage: true } },
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("A")).toBeInTheDocument()
+    })
+
+    it("does not show A pip when no skills have advantage", () => {
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("A")).not.toBeInTheDocument()
+    })
+
+    it("shows a D pip granted by a mundane (non-magic), equipped item", () => {
+      const character = makeCharacter({
+        equipment: [
+          {
+            id: "chainmail", name: "Chainmail", description: "", quantity: 1, weight: 0,
+            equipped: true, type: "armor", magic: false,
+            modifiers: { skillDisadvantage: ["stealth"] },
+          },
+        ],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("D")).toBeInTheDocument()
+    })
+
+    it("does not grant disadvantage from an item that is not equipped", () => {
+      const character = makeCharacter({
+        equipment: [
+          {
+            id: "chainmail", name: "Chainmail", description: "", quantity: 1, weight: 0,
+            equipped: false, type: "armor", magic: false,
+            modifiers: { skillDisadvantage: ["stealth"] },
+          },
+        ],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("D")).not.toBeInTheDocument()
+    })
+
+    it("cancels an equipment-granted advantage and disadvantage on the same skill to no pip", () => {
+      const character = makeCharacter({
+        equipment: [
+          {
+            id: "boots", name: "Boots of Quiet", description: "", quantity: 1, weight: 0,
+            equipped: true, type: "other", modifiers: { skillAdvantage: ["stealth"] },
+          },
+          {
+            id: "chainmail", name: "Chainmail", description: "", quantity: 1, weight: 0,
+            equipped: true, type: "armor", magic: false,
+            modifiers: { skillDisadvantage: ["stealth"] },
+          },
+        ],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("A")).not.toBeInTheDocument()
+      expect(screen.queryByText("D")).not.toBeInTheDocument()
+    })
+
+    it("a manual advantage override displays even when an equipped item grants disadvantage on the same skill", () => {
+      const character = makeCharacter({
+        skills: { ...makeCharacter().skills, stealth: { proficient: true, expertise: true, advantage: true } },
+        equipment: [
+          {
+            id: "chainmail", name: "Chainmail", description: "", quantity: 1, weight: 0,
+            equipped: true, type: "armor", magic: false,
+            modifiers: { skillDisadvantage: ["stealth"] },
+          },
+        ],
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByText("A")).toBeInTheDocument()
+      expect(screen.queryByText("D")).not.toBeInTheDocument()
+    })
   })
 
   describe("edit mode — skill proficiency/expertise", () => {
@@ -225,6 +301,67 @@ describe("SkillsProficienciesModule", () => {
         expect.objectContaining({
           skills: expect.objectContaining({
             perception: expect.objectContaining({ disadvantage: true }),
+          }),
+        })
+      )
+    })
+
+    it("toggles skill advantage ON (perception)", () => {
+      const onUpdate = vi.fn()
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+
+      // perception is index 11 — A buttons are rendered as <button title="Advantage">
+      const advButtons = screen.getAllByRole("button", { name: "Advantage" })
+      fireEvent.click(advButtons[11])
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skills: expect.objectContaining({
+            perception: expect.objectContaining({ advantage: true }),
+          }),
+        })
+      )
+    })
+
+    it("toggling advantage ON clears an existing manual disadvantage (stealth)", () => {
+      const onUpdate = vi.fn()
+      const character = makeCharacter({
+        skills: { ...makeCharacter().skills, stealth: { proficient: true, expertise: true, disadvantage: true } },
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={onUpdate} />)
+      clickEditButton()
+
+      const advButtons = screen.getAllByRole("button", { name: "Advantage" })
+      fireEvent.click(advButtons[16]) // stealth
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skills: expect.objectContaining({
+            stealth: expect.objectContaining({ advantage: true, disadvantage: false }),
+          }),
+        })
+      )
+    })
+
+    it("toggling disadvantage ON clears an existing manual advantage (stealth)", () => {
+      const onUpdate = vi.fn()
+      const character = makeCharacter({
+        skills: { ...makeCharacter().skills, stealth: { proficient: true, expertise: true, advantage: true } },
+      })
+      render(<SkillsProficienciesModule character={character} onUpdate={onUpdate} />)
+      clickEditButton()
+
+      const disadvButtons = screen.getAllByRole("button", { name: "Disadvantage" })
+      fireEvent.click(disadvButtons[16]) // stealth
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skills: expect.objectContaining({
+            stealth: expect.objectContaining({ disadvantage: true, advantage: false }),
           }),
         })
       )
