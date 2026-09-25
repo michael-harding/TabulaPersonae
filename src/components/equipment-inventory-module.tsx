@@ -1,10 +1,11 @@
 import { createSignal, createEffect, on, For, Show, type ParentProps } from "solid-js"
-import type { AbilityScores, ActionKind, Character, Equipment, ItemModifiers, ItemRarity, SenseType } from "@/lib/character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, ItemModifiers, ItemRarity, SenseType, Skills } from "@/lib/character-types"
 import {
   DAMAGE_TYPE_OPTIONS,
   CONDITIONS,
   SENSE_TYPES,
   SENSE_LABELS,
+  SKILL_DISPLAY_NAMES,
   BASE_ATTUNEMENT_LIMIT,
   ABILITY_KEYS,
   ABILITY_ABBREVIATIONS,
@@ -80,6 +81,15 @@ const ACTION_KIND_OPTIONS: { value: ActionKind | ""; label: string }[] = [
 
 const roundToOneDecimal = (n: number): number => Math.round(n * 10) / 10
 
+// skillAdvantage/skillDisadvantage activate on equip alone (see getEquipmentSkillEffectTotals),
+// unlike every other ItemModifiers field, which requires magic + attunement — the item summary
+// line renders them in a separate block, so this excludes them from the "has any magic-gated
+// modifier" check that controls that shared block's visibility and active/inactive styling.
+function hasOtherModifierFields(mods: ItemModifiers | undefined): boolean {
+  if (!mods) return false
+  return Object.keys(mods).some((key) => key !== "skillAdvantage" && key !== "skillDisadvantage")
+}
+
 interface EquipmentInventoryModuleProps {
   character: Character
   onUpdate: (character: Character) => void
@@ -133,6 +143,8 @@ interface EquipmentFormData {
   modifierAbilityScoreMaxCaps: Record<keyof AbilityScores, number>
   modifierLanguages: string[]
   modifierProficiencies: string[]
+  modifierSkillAdvantage: (keyof Skills)[]
+  modifierSkillDisadvantage: (keyof Skills)[]
 }
 
 const defaultEquipmentForm: EquipmentFormData = {
@@ -170,6 +182,8 @@ const defaultEquipmentForm: EquipmentFormData = {
   modifierAbilityScoreMaxCaps: { ...ZERO_ABILITY_SCORES },
   modifierLanguages: [],
   modifierProficiencies: [],
+  modifierSkillAdvantage: [],
+  modifierSkillDisadvantage: [],
 }
 
 interface EquipmentFormProps {
@@ -321,6 +335,8 @@ function ModifierGroup(props: ParentProps<{ label: string; open: boolean; onOpen
     </Collapsible>
   )
 }
+
+const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 
 const EQUIPMENT_TYPES: { value: EquipmentType; label: string }[] = [
   { value: "weapon", label: "Weapon" },
@@ -506,6 +522,30 @@ function EquipmentForm(props: EquipmentFormProps) {
           </div>
         </div>
       </Show>
+
+      <div class="space-y-3 border rounded-md p-3 bg-muted/30">
+        <p class="text-sm font-medium">Skill Effects (applies while equipped)</p>
+        <div class="grid grid-cols-1 gap-3">
+          <TagPickerField
+            label="Grants Advantage On"
+            options={SKILL_KEYS.filter((k) => !formData().modifierSkillDisadvantage.includes(k)).map((k) => SKILL_DISPLAY_NAMES[k])}
+            selected={formData().modifierSkillAdvantage.map((k) => SKILL_DISPLAY_NAMES[k])}
+            onChange={(labels) => setFormData((prev) => ({
+              ...prev,
+              modifierSkillAdvantage: SKILL_KEYS.filter((k) => labels.includes(SKILL_DISPLAY_NAMES[k])),
+            }))}
+          />
+          <TagPickerField
+            label="Grants Disadvantage On"
+            options={SKILL_KEYS.filter((k) => !formData().modifierSkillAdvantage.includes(k)).map((k) => SKILL_DISPLAY_NAMES[k])}
+            selected={formData().modifierSkillDisadvantage.map((k) => SKILL_DISPLAY_NAMES[k])}
+            onChange={(labels) => setFormData((prev) => ({
+              ...prev,
+              modifierSkillDisadvantage: SKILL_KEYS.filter((k) => labels.includes(SKILL_DISPLAY_NAMES[k])),
+            }))}
+          />
+        </div>
+      </div>
 
       <div class="flex items-center space-x-2">
         <Checkbox
@@ -953,6 +993,8 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         modifierAbilityScoreMaxCaps: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScoreMaxCaps },
         modifierLanguages: item.modifiers?.languages ?? [],
         modifierProficiencies: item.modifiers?.proficiencies ?? [],
+        modifierSkillAdvantage: item.modifiers?.skillAdvantage ?? [],
+        modifierSkillDisadvantage: item.modifiers?.skillDisadvantage ?? [],
       }
     }
     return defaultEquipmentForm
@@ -963,49 +1005,56 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const closeModal = () => { setEditingItem(null); setModalOpen(false) }
 
   const buildModifiers = (formData: EquipmentFormData): ItemModifiers | undefined => {
-    if (!formData.magic) return undefined
     const modifiers: ItemModifiers = {}
-    if (formData.modifierArmorClass !== 0) modifiers.armorClass = formData.modifierArmorClass
-    if (formData.modifierInitiative !== 0) modifiers.initiative = formData.modifierInitiative
-    const savingThrows = Object.fromEntries(
-      ABILITY_KEYS.filter((a) => formData.modifierSavingThrows[a] !== 0).map((a) => [a, formData.modifierSavingThrows[a]])
-    ) as Partial<Record<keyof AbilityScores, number>>
-    if (Object.keys(savingThrows).length > 0) modifiers.savingThrows = savingThrows
-    const abilityScores = Object.fromEntries(
-      ABILITY_KEYS.filter((a) => formData.modifierAbilityScores[a] !== 0).map((a) => [a, formData.modifierAbilityScores[a]])
-    ) as Partial<Record<keyof AbilityScores, number>>
-    if (Object.keys(abilityScores).length > 0) modifiers.abilityScores = abilityScores
 
-    if (formData.modifierResistances.length > 0) modifiers.resistances = formData.modifierResistances
-    if (formData.modifierImmunities.length > 0) modifiers.immunities = formData.modifierImmunities
-    if (formData.modifierVulnerabilities.length > 0) modifiers.vulnerabilities = formData.modifierVulnerabilities
-    if (formData.modifierConditionImmunities.length > 0) modifiers.conditionImmunities = formData.modifierConditionImmunities
+    // Skill advantage/disadvantage applies whenever the item is equipped, regardless of magic
+    // status (see getEquipmentSkillEffectTotals), so these are built outside the magic gate below.
+    if (formData.modifierSkillAdvantage.length > 0) modifiers.skillAdvantage = formData.modifierSkillAdvantage
+    if (formData.modifierSkillDisadvantage.length > 0) modifiers.skillDisadvantage = formData.modifierSkillDisadvantage
 
-    const senses = Object.fromEntries(
-      SENSE_TYPES.filter((s) => formData.modifierSenses[s] !== 0).map((s) => [s, formData.modifierSenses[s]])
-    ) as Partial<Record<SenseType, number>>
-    if (Object.keys(senses).length > 0) modifiers.senses = senses
+    if (formData.magic) {
+      if (formData.modifierArmorClass !== 0) modifiers.armorClass = formData.modifierArmorClass
+      if (formData.modifierInitiative !== 0) modifiers.initiative = formData.modifierInitiative
+      const savingThrows = Object.fromEntries(
+        ABILITY_KEYS.filter((a) => formData.modifierSavingThrows[a] !== 0).map((a) => [a, formData.modifierSavingThrows[a]])
+      ) as Partial<Record<keyof AbilityScores, number>>
+      if (Object.keys(savingThrows).length > 0) modifiers.savingThrows = savingThrows
+      const abilityScores = Object.fromEntries(
+        ABILITY_KEYS.filter((a) => formData.modifierAbilityScores[a] !== 0).map((a) => [a, formData.modifierAbilityScores[a]])
+      ) as Partial<Record<keyof AbilityScores, number>>
+      if (Object.keys(abilityScores).length > 0) modifiers.abilityScores = abilityScores
 
-    if (formData.modifierSpeed !== 0) modifiers.speed = formData.modifierSpeed
-    if (formData.modifierFlySpeed !== 0) modifiers.flySpeed = formData.modifierFlySpeed
-    if (formData.modifierSwimSpeed !== 0) modifiers.swimSpeed = formData.modifierSwimSpeed
-    if (formData.modifierClimbSpeed !== 0) modifiers.climbSpeed = formData.modifierClimbSpeed
-    if (formData.modifierBurrowSpeed !== 0) modifiers.burrowSpeed = formData.modifierBurrowSpeed
+      if (formData.modifierResistances.length > 0) modifiers.resistances = formData.modifierResistances
+      if (formData.modifierImmunities.length > 0) modifiers.immunities = formData.modifierImmunities
+      if (formData.modifierVulnerabilities.length > 0) modifiers.vulnerabilities = formData.modifierVulnerabilities
+      if (formData.modifierConditionImmunities.length > 0) modifiers.conditionImmunities = formData.modifierConditionImmunities
 
-    if (formData.modifierCarryingCapacityBonus !== 0) modifiers.carryingCapacityBonus = formData.modifierCarryingCapacityBonus
-    if (formData.modifierCarryingCapacityMultiplier !== 0) modifiers.carryingCapacityMultiplier = formData.modifierCarryingCapacityMultiplier
+      const senses = Object.fromEntries(
+        SENSE_TYPES.filter((s) => formData.modifierSenses[s] !== 0).map((s) => [s, formData.modifierSenses[s]])
+      ) as Partial<Record<SenseType, number>>
+      if (Object.keys(senses).length > 0) modifiers.senses = senses
 
-    const abilityScoreFloors = Object.fromEntries(
-      ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreFloors[a] !== 0).map((a) => [a, formData.modifierAbilityScoreFloors[a]])
-    ) as Partial<Record<keyof AbilityScores, number>>
-    if (Object.keys(abilityScoreFloors).length > 0) modifiers.abilityScoreFloors = abilityScoreFloors
-    const abilityScoreMaxCaps = Object.fromEntries(
-      ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreMaxCaps[a] !== 0).map((a) => [a, formData.modifierAbilityScoreMaxCaps[a]])
-    ) as Partial<Record<keyof AbilityScores, number>>
-    if (Object.keys(abilityScoreMaxCaps).length > 0) modifiers.abilityScoreMaxCaps = abilityScoreMaxCaps
+      if (formData.modifierSpeed !== 0) modifiers.speed = formData.modifierSpeed
+      if (formData.modifierFlySpeed !== 0) modifiers.flySpeed = formData.modifierFlySpeed
+      if (formData.modifierSwimSpeed !== 0) modifiers.swimSpeed = formData.modifierSwimSpeed
+      if (formData.modifierClimbSpeed !== 0) modifiers.climbSpeed = formData.modifierClimbSpeed
+      if (formData.modifierBurrowSpeed !== 0) modifiers.burrowSpeed = formData.modifierBurrowSpeed
 
-    if (formData.modifierLanguages.length > 0) modifiers.languages = formData.modifierLanguages
-    if (formData.modifierProficiencies.length > 0) modifiers.proficiencies = formData.modifierProficiencies
+      if (formData.modifierCarryingCapacityBonus !== 0) modifiers.carryingCapacityBonus = formData.modifierCarryingCapacityBonus
+      if (formData.modifierCarryingCapacityMultiplier !== 0) modifiers.carryingCapacityMultiplier = formData.modifierCarryingCapacityMultiplier
+
+      const abilityScoreFloors = Object.fromEntries(
+        ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreFloors[a] !== 0).map((a) => [a, formData.modifierAbilityScoreFloors[a]])
+      ) as Partial<Record<keyof AbilityScores, number>>
+      if (Object.keys(abilityScoreFloors).length > 0) modifiers.abilityScoreFloors = abilityScoreFloors
+      const abilityScoreMaxCaps = Object.fromEntries(
+        ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreMaxCaps[a] !== 0).map((a) => [a, formData.modifierAbilityScoreMaxCaps[a]])
+      ) as Partial<Record<keyof AbilityScores, number>>
+      if (Object.keys(abilityScoreMaxCaps).length > 0) modifiers.abilityScoreMaxCaps = abilityScoreMaxCaps
+
+      if (formData.modifierLanguages.length > 0) modifiers.languages = formData.modifierLanguages
+      if (formData.modifierProficiencies.length > 0) modifiers.proficiencies = formData.modifierProficiencies
+    }
 
     return Object.keys(modifiers).length > 0 ? modifiers : undefined
   }
@@ -1284,7 +1333,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       <Show when={item.description}>
                         <MarkdownContent text={item.description!} class="text-xs text-muted-foreground" />
                       </Show>
-                      <Show when={item.modifiers}>
+                      <Show when={hasOtherModifierFields(item.modifiers)}>
                         <div class={`text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5 ${isItemModifierActive(item) ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground italic"}`}>
                           <Show when={item.modifiers?.armorClass}>
                             <span>AC {formatModifier(item.modifiers!.armorClass!)}</span>
@@ -1348,6 +1397,22 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           </Show>
                           <Show when={!isItemModifierActive(item)}>
                             <span>(inactive)</span>
+                          </Show>
+                        </div>
+                      </Show>
+                      {/* Skill advantage/disadvantage activates on equip alone, unlike every other
+                          modifier field above (which requires magic + attunement), so it's shown
+                          and colored independently of isItemModifierActive. */}
+                      <Show when={(item.modifiers?.skillAdvantage?.length ?? 0) > 0 || (item.modifiers?.skillDisadvantage?.length ?? 0) > 0}>
+                        <div class={`text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5 ${item.equipped ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground italic"}`}>
+                          <Show when={(item.modifiers?.skillAdvantage?.length ?? 0) > 0}>
+                            <span>Advantage: {item.modifiers!.skillAdvantage!.map((s) => SKILL_DISPLAY_NAMES[s]).join(", ")}</span>
+                          </Show>
+                          <Show when={(item.modifiers?.skillDisadvantage?.length ?? 0) > 0}>
+                            <span>Disadvantage: {item.modifiers!.skillDisadvantage!.map((s) => SKILL_DISPLAY_NAMES[s]).join(", ")}</span>
+                          </Show>
+                          <Show when={!item.equipped}>
+                            <span>(equip to activate)</span>
                           </Show>
                         </div>
                       </Show>
@@ -1488,6 +1553,22 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       </Show>
                       <Show when={item.description}>
                         <MarkdownContent text={item.description!} class="text-muted-foreground mt-1" />
+                      </Show>
+                      {/* Skill advantage/disadvantage activates on equip alone (see
+                          getEquipmentSkillEffectTotals), so non-magic items can grant it too —
+                          shown here since this general list excludes magic items (filteredEquipment). */}
+                      <Show when={(item.modifiers?.skillAdvantage?.length ?? 0) > 0 || (item.modifiers?.skillDisadvantage?.length ?? 0) > 0}>
+                        <div class={`text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5 ${item.equipped ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground italic"}`}>
+                          <Show when={(item.modifiers?.skillAdvantage?.length ?? 0) > 0}>
+                            <span>Advantage: {item.modifiers!.skillAdvantage!.map((s) => SKILL_DISPLAY_NAMES[s]).join(", ")}</span>
+                          </Show>
+                          <Show when={(item.modifiers?.skillDisadvantage?.length ?? 0) > 0}>
+                            <span>Disadvantage: {item.modifiers!.skillDisadvantage!.map((s) => SKILL_DISPLAY_NAMES[s]).join(", ")}</span>
+                          </Show>
+                          <Show when={!item.equipped}>
+                            <span>(equip to activate)</span>
+                          </Show>
+                        </div>
                       </Show>
                     </div>
                     <Show when={!isReadOnly}>
