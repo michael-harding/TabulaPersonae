@@ -658,40 +658,42 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="Charges" open={openUses()} onOpenChange={setOpenUses}>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <Label for="item-uses">Uses Spent</Label>
-                  <NumericInput id="item-uses" min={0}
-                    max={formData.maxUses}
-                    value={formData.uses}
-                    onChange={(v) => setFormData("uses", v)} />
+            <Show when={formData.type !== "consumable"}>
+              <ModifierGroup label="Charges" open={openUses()} onOpenChange={setOpenUses}>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label for="item-uses">Uses Spent</Label>
+                    <NumericInput id="item-uses" min={0}
+                      max={formData.maxUses}
+                      value={formData.uses}
+                      onChange={(v) => setFormData("uses", v)} />
+                  </div>
+                  <div>
+                    <Label for="item-max-uses">Max Charges (0 = none)</Label>
+                    <NumericInput id="item-max-uses" min={0} value={formData.maxUses}
+                      onChange={(v) => setFormData({ maxUses: v, uses: Math.min(formData.uses, v) })} />
+                  </div>
                 </div>
-                <div>
-                  <Label for="item-max-uses">Max Charges (0 = none)</Label>
-                  <NumericInput id="item-max-uses" min={0} value={formData.maxUses}
-                    onChange={(v) => setFormData({ maxUses: v, uses: Math.min(formData.uses, v) })} />
-                </div>
-              </div>
-              <Show when={formData.maxUses > 0}>
-                <div>
-                  <Label>Recharge On</Label>
-                  <Select
-                    value={formData.rechargeOn}
-                    onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="None" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <For each={RECHARGE_OPTIONS}>
-                        {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                      </For>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </Show>
-            </ModifierGroup>
+                <Show when={formData.maxUses > 0}>
+                  <div>
+                    <Label>Recharge On</Label>
+                    <Select
+                      value={formData.rechargeOn}
+                      onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <For each={RECHARGE_OPTIONS}>
+                          {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                        </For>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </Show>
+              </ModifierGroup>
+            </Show>
 
             <ModifierGroup label="Languages & Proficiencies" open={openLanguages()} onOpenChange={setOpenLanguages}>
               <StringListField
@@ -827,36 +829,7 @@ function EquipmentForm(props: EquipmentFormProps) {
         </div>
       </div>
 
-      <Show when={!formData.magic && formData.type !== "consumable" && formData.actionKind !== ""}>
-        <div class="space-y-3">
-          <p class="text-sm font-medium">Uses</p>
-          <div>
-            <Label for="item-uses">Uses Spent</Label>
-            <NumericInput id="item-uses" min={0}
-              max={formData.quantity}
-              value={formData.uses}
-              onChange={(v) => setFormData("uses", v)} />
-          </div>
-          <div>
-            <Label>Recharge On</Label>
-            <Select
-              value={formData.rechargeOn}
-              onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="None" />
-              </SelectTrigger>
-              <SelectContent>
-                <For each={RECHARGE_OPTIONS}>
-                  {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                </For>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </Show>
-
-      <Show when={formData.type === "consumable"}>
+      <Show when={formData.type === "consumable" && formData.actionKind !== ""}>
         <div class="space-y-3">
           <p class="text-sm font-medium">Consumption</p>
           <div>
@@ -1018,10 +991,11 @@ function buildModifiers(formData: EquipmentFormData): ItemModifiers | undefined 
 
 function usesFields(formData: EquipmentFormData) {
   if (formData.type === "consumable") {
+    const tracksConsumption = formData.actionKind !== ""
     return {
-      uses: (formData.uses ?? 0) > 0 ? formData.uses : undefined,
+      uses: (tracksConsumption && (formData.uses ?? 0) > 0) ? formData.uses : undefined,
       maxUses: undefined,
-      rechargeOn: formData.rechargeOn || undefined,
+      rechargeOn: tracksConsumption && formData.rechargeOn ? formData.rechargeOn : undefined,
     }
   }
   if (formData.magic) {
@@ -1032,12 +1006,7 @@ function usesFields(formData: EquipmentFormData) {
       rechargeOn: tracksCharges && formData.rechargeOn ? formData.rechargeOn : undefined,
     }
   }
-  const tracksUses = formData.actionKind !== ""
-  return {
-    uses: tracksUses && formData.uses > 0 ? formData.uses : undefined,
-    maxUses: undefined,
-    rechargeOn: tracksUses && formData.rechargeOn ? formData.rechargeOn : undefined,
-  }
+  return { uses: undefined, maxUses: undefined, rechargeOn: undefined }
 }
 
 function magicFields(formData: EquipmentFormData) {

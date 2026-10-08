@@ -1185,9 +1185,8 @@ export function effectiveMaxUses(feature: Feature, characterLevel: number): numb
   return feature.maxUses ?? 0
 }
 
-export function effectiveEquipmentMaxUses(item: Pick<Equipment, "type" | "quantity" | "maxUses" | "magic" | "actionKind">): number {
+export function effectiveEquipmentMaxUses(item: Pick<Equipment, "type" | "quantity" | "maxUses">): number {
   if (item.type === "consumable") return item.quantity
-  if (!item.magic && item.actionKind) return item.quantity
   return item.maxUses ?? 0
 }
 

@@ -1168,11 +1168,27 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("option", { name: "Consumable" }))
     }
 
-    it("shows Uses Spent and Reconcile On, but hides Max Charges, when Consumable type is selected", () => {
+    const selectUsedAsAction = (modal: HTMLElement) => {
+      const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
+      fireEvent.click(within(usedAsSection).getByRole("button"))
+      fireEvent.click(screen.getByRole("option", { name: "Action" }))
+    }
+
+    it("hides Uses Spent and Reconcile On for a Consumable item with no action kind selected", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
+      expect(within(modal).queryByLabelText(/uses spent/i)).not.toBeInTheDocument()
+      expect(within(modal).queryByText("Reconcile On")).not.toBeInTheDocument()
+    })
+
+    it("shows Uses Spent and Reconcile On, but hides Max Charges, when a Consumable item is also Used As an action", () => {
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      selectConsumableType(modal)
+      selectUsedAsAction(modal)
       expect(within(modal).getByLabelText(/uses spent/i)).toBeInTheDocument()
       expect(within(modal).getByText("Reconcile On")).toBeInTheDocument()
       expect(within(modal).queryByLabelText(/max charges/i)).not.toBeInTheDocument()
@@ -1184,6 +1200,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
+      selectUsedAsAction(modal)
       expect(within(modal).queryByText("Magic Item Details")).not.toBeInTheDocument()
       expect(within(modal).getByLabelText(/uses spent/i)).toBeInTheDocument()
     })
@@ -1195,6 +1212,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
       selectConsumableType(modal)
+      selectUsedAsAction(modal)
       setNumericValue(document.querySelector("#item-uses")!, "1")
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
