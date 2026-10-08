@@ -1048,7 +1048,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chainmail" } })
-      fireEvent.click(within(modal).getByText("Skill Effects"))
+      fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
 
       await user.click(within(modal).getByTitle("Add Grants Disadvantage On"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
@@ -1076,7 +1076,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Cloak of Elvenkind" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
-      fireEvent.click(within(modal).getByText("Skill Effects"))
+      fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
 
       await user.click(within(modal).getByTitle("Add Grants Advantage On"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
@@ -1101,7 +1101,7 @@ describe("EquipmentInventoryModule", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
-      fireEvent.click(within(modal).getByText("Skill Effects"))
+      fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
 
       await user.click(within(modal).getByTitle("Add Grants Advantage On"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
@@ -1174,21 +1174,21 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("option", { name: "Action" }))
     }
 
-    it("hides Uses Spent for a Consumable item with no action kind selected", () => {
+    it("hides Quantity Consumed for a Consumable item with no action kind selected", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
-      expect(within(modal).queryByLabelText(/uses spent/i)).not.toBeInTheDocument()
+      expect(within(modal).queryByLabelText(/quantity consumed/i)).not.toBeInTheDocument()
     })
 
-    it("shows Uses Spent, but hides Max Charges and Reconcile On, when a Consumable item is also Used As an action", () => {
+    it("shows Quantity Consumed, but hides Max Charges and Reconcile On, when a Consumable item is also Used As an action", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
       selectUsedAsAction(modal)
-      expect(within(modal).getByLabelText(/uses spent/i)).toBeInTheDocument()
+      expect(within(modal).getByLabelText(/quantity consumed/i)).toBeInTheDocument()
       expect(within(modal).queryByText("Reconcile On")).not.toBeInTheDocument()
       expect(within(modal).queryByLabelText(/max charges/i)).not.toBeInTheDocument()
       expect(within(modal).queryByText("Recharge On")).not.toBeInTheDocument()
@@ -1201,10 +1201,10 @@ describe("EquipmentInventoryModule", () => {
       selectConsumableType(modal)
       selectUsedAsAction(modal)
       expect(within(modal).queryByText("Magic Item Details")).not.toBeInTheDocument()
-      expect(within(modal).getByLabelText(/uses spent/i)).toBeInTheDocument()
+      expect(within(modal).getByLabelText(/quantity consumed/i)).toBeInTheDocument()
     })
 
-    it("saves uses spent for a Consumable item with no rechargeOn (reconciles on any rest)", () => {
+    it("saves uses spent for a Consumable item with no rechargeOn (reconciles on rest)", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])

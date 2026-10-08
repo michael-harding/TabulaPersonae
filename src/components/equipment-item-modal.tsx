@@ -830,14 +830,13 @@ function EquipmentForm(props: EquipmentFormProps) {
 
       <Show when={formData.type === "consumable" && formData.actionKind !== ""}>
         <div class="space-y-3">
-          <p class="text-sm font-medium">Consumption</p>
           <div>
-            <Label for="item-uses">Uses Spent</Label>
+            <Label for="item-uses">Quantity Consumed</Label>
             <NumericInput id="item-uses" min={0}
               max={formData.quantity}
               value={formData.uses}
               onChange={(v) => setFormData("uses", v)} />
-            <p class="text-xs text-muted-foreground mt-1">Quantity will be reduced by this amount on any rest.</p>
+            <p class="text-xs text-muted-foreground mt-1">Quantity will be reduced by this amount on rest.</p>
           </div>
         </div>
       </Show>
