@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, For, Show, type ParentProps } from "solid-js"
+import { createSignal, createEffect, on, For, Show } from "solid-js"
 import { createStore, reconcile, unwrap } from "solid-js/store"
 import type { AbilityScores, ActionKind, Equipment, ItemModifiers, ItemRarity, SenseType, Skills } from "@/lib/character-types"
 import {
@@ -22,12 +22,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ModifierGroup } from "@/components/ui/modifier-group"
 import Plus from "lucide-solid/icons/plus"
 import Save from "lucide-solid/icons/save"
 import Gem from "lucide-solid/icons/gem"
-import ChevronDown from "lucide-solid/icons/chevron-down"
 import X from "lucide-solid/icons/x"
 
 export const RARITY_OPTIONS: { value: ItemRarity; label: string }[] = [
@@ -297,18 +296,6 @@ function StringListField(props: { label: string; placeholder: string; values: st
         </Button>
       </div>
     </div>
-  )
-}
-
-function ModifierGroup(props: ParentProps<{ label: string; open: boolean; onOpenChange: (open: boolean) => void }>) {
-  return (
-    <Collapsible open={props.open} onOpenChange={props.onOpenChange}>
-      <CollapsibleTrigger class="flex w-full items-center justify-between text-xs font-medium text-muted-foreground border-t pt-2">
-        <span>{props.label}</span>
-        <ChevronDown class="h-3.5 w-3.5" />
-      </CollapsibleTrigger>
-      <CollapsibleContent class="space-y-3 pt-2 pb-1">{props.children}</CollapsibleContent>
-    </Collapsible>
   )
 }
 
