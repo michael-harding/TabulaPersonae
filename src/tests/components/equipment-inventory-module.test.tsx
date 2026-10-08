@@ -440,7 +440,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
-      const usedAsSection = within(modal).getByText("Used As").closest("div")!
+      const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
       fireEvent.click(within(usedAsSection).getByRole("button"))
       fireEvent.click(screen.getByRole("option", { name: "Bonus Action" }))
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
@@ -500,7 +500,7 @@ describe("EquipmentInventoryModule", () => {
       )
       fireEvent.click(screen.getByRole("button", { name: /edit scroll of fireball/i }))
       const modal = screen.getByRole("dialog")
-      const usedAsSection = within(modal).getByText("Used As").closest("div")!
+      const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
       expect(within(usedAsSection).getByText("action")).toBeInTheDocument()
       fireEvent.click(within(modal).getByRole("button", { name: /update item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -768,7 +768,8 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
-      expect(within(modal).getByText(/bonuses \(optional\)/i)).toBeInTheDocument()
+      expect(within(modal).getByText("Magic Item Details")).toBeInTheDocument()
+      expect(within(modal).getByText("AC & Initiative Bonus")).toBeInTheDocument()
     })
 
     it("submits nonzero AC, saving throw, and ability score bonuses as Equipment.modifiers", () => {
@@ -778,6 +779,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Ring of Protection" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("AC & Initiative Bonus"))
       setNumericValue(document.querySelector("#modifier-ac")!, "1")
       fireEvent.click(within(modal).getByText("Saving Throws"))
       setNumericValue(document.querySelector("#modifier-save-wisdom")!, "2")
@@ -818,6 +820,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("Charges"))
       setNumericValue(document.querySelector("#item-max-uses")!, "3")
       // The Recharge On select's trigger has no accessible name (its placeholder text
       // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
@@ -844,6 +847,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("Charges"))
       setNumericValue(document.querySelector("#item-max-uses")!, "3")
       // The Recharge On select's trigger has no accessible name (its placeholder text
       // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
@@ -1044,6 +1048,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chainmail" } })
+      fireEvent.click(within(modal).getByText("Skill Effects"))
 
       await user.click(within(modal).getByTitle("Add Grants Disadvantage On"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
@@ -1071,6 +1076,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Cloak of Elvenkind" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("Skill Effects"))
 
       await user.click(within(modal).getByTitle("Add Grants Advantage On"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
@@ -1095,6 +1101,7 @@ describe("EquipmentInventoryModule", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByText("Skill Effects"))
 
       await user.click(within(modal).getByTitle("Add Grants Advantage On"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())

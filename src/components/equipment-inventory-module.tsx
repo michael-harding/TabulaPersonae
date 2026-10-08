@@ -225,6 +225,15 @@ function hasMovementValues(d: EquipmentFormData): boolean {
 function hasLanguageValues(d: EquipmentFormData): boolean {
   return d.modifierLanguages.length > 0 || d.modifierProficiencies.length > 0
 }
+function hasSkillEffectValues(d: EquipmentFormData): boolean {
+  return d.modifierSkillAdvantage.length > 0 || d.modifierSkillDisadvantage.length > 0
+}
+function hasACInitiativeValues(d: EquipmentFormData): boolean {
+  return d.modifierArmorClass !== 0 || d.modifierInitiative !== 0
+}
+function hasChargesValues(d: EquipmentFormData): boolean {
+  return d.uses !== 0 || d.maxUses !== 0 || d.rechargeOn !== ""
+}
 
 function TagPickerField(props: { label: string; options: string[]; selected: string[]; onChange: (next: string[]) => void }) {
   const toggle = (tag: string) => {
@@ -368,6 +377,9 @@ function EquipmentForm(props: EquipmentFormProps) {
   const [openSenses, setOpenSenses] = createSignal(hasSenseValues(props.initialData))
   const [openMovement, setOpenMovement] = createSignal(hasMovementValues(props.initialData))
   const [openLanguages, setOpenLanguages] = createSignal(hasLanguageValues(props.initialData))
+  const [openSkillEffects, setOpenSkillEffects] = createSignal(hasSkillEffectValues(props.initialData))
+  const [openACInitiative, setOpenACInitiative] = createSignal(hasACInitiativeValues(props.initialData))
+  const [openUses, setOpenUses] = createSignal(hasChargesValues(props.initialData))
   createEffect(
     on(
       () => props.initialData,
@@ -379,6 +391,9 @@ function EquipmentForm(props: EquipmentFormProps) {
         setOpenSenses(hasSenseValues(init))
         setOpenMovement(hasMovementValues(init))
         setOpenLanguages(hasLanguageValues(init))
+        setOpenSkillEffects(hasSkillEffectValues(init))
+        setOpenACInitiative(hasACInitiativeValues(init))
+        setOpenUses(hasChargesValues(init))
       }
     )
   )
@@ -414,6 +429,23 @@ function EquipmentForm(props: EquipmentFormProps) {
           <SelectContent>
             <For each={EQUIPMENT_TYPES}>
               {(t) => <SelectItem value={t.value}>{t.label}</SelectItem>}
+            </For>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label for="item-action-kind">Used As Action</Label>
+        <Select
+          value={formData().actionKind}
+          onValueChange={(v) => setFormData((prev) => ({ ...prev, actionKind: v as ActionKind | "" }))}
+        >
+          <SelectTrigger id="item-action-kind">
+            <SelectValue placeholder="None" />
+          </SelectTrigger>
+          <SelectContent>
+            <For each={ACTION_KIND_OPTIONS}>
+              {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
             </For>
           </SelectContent>
         </Select>
@@ -523,8 +555,7 @@ function EquipmentForm(props: EquipmentFormProps) {
         </div>
       </Show>
 
-      <div class="space-y-3 border rounded-md p-3 bg-muted/30">
-        <p class="text-sm font-medium">Skill Effects (applies while equipped)</p>
+      <ModifierGroup label="Skill Effects" open={openSkillEffects()} onOpenChange={setOpenSkillEffects}>
         <div class="grid grid-cols-1 gap-3">
           <TagPickerField
             label="Grants Advantage On"
@@ -545,8 +576,7 @@ function EquipmentForm(props: EquipmentFormProps) {
             }))}
           />
         </div>
-      </div>
-
+      </ModifierGroup>
       <div class="flex items-center space-x-2">
         <Checkbox
           id="item-magic"
@@ -557,7 +587,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       </div>
 
       <Show when={formData().magic}>
-        <div class="space-y-3">
+        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
           <p class="text-sm font-medium flex items-center gap-1">
             <Gem class="h-3.5 w-3.5" />
             Magic Item Details
@@ -596,73 +626,62 @@ function EquipmentForm(props: EquipmentFormProps) {
               <Label for="item-attuned">Attuned</Label>
             </div>
           </Show>
-        </div>
-      </Show>
 
-      <Show when={formData().magic || formData().type === "consumable"}>
-        <div class="space-y-3">
-          <div class={formData().type === "consumable" ? "" : "grid grid-cols-2 gap-3"}>
-            <div>
-              <Label for="item-uses">Uses Spent</Label>
-              <NumericInput id="item-uses" min={0}
-                max={formData().type === "consumable" ? formData().quantity : formData().maxUses}
-                value={formData().uses}
-                onChange={(v) => setFormData((prev) => ({ ...prev, uses: v }))} />
-              <Show when={formData().type === "consumable"}>
-                <p class="text-xs text-muted-foreground mt-1">Quantity will be reduced by this amount when reconciled on rest.</p>
-              </Show>
-            </div>
-            <Show when={formData().type !== "consumable"}>
-              <div>
-                <Label for="item-max-uses">Max Charges (0 = none)</Label>
-                <NumericInput id="item-max-uses" min={0} value={formData().maxUses}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: Math.min(prev.uses, v) }))} />
-              </div>
-            </Show>
-          </div>
-          <Show when={formData().type === "consumable" || formData().maxUses > 0}>
-            <div>
-              <Label>{formData().type === "consumable" ? "Reconcile On" : "Recharge On"}</Label>
-              <Select
-                value={formData().rechargeOn}
-                onValueChange={(v) => setFormData((prev) => ({ ...prev, rechargeOn: v as "" | "short-rest" | "long-rest" }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <For each={RECHARGE_OPTIONS}>
-                    {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                  </For>
-                </SelectContent>
-              </Select>
-            </div>
-          </Show>
-        </div>
-      </Show>
-
-      <Show when={formData().magic}>
-        <div class="space-y-3">
           <div class="space-y-2 pt-2 border-t">
-            <p class="text-xs font-medium text-muted-foreground">Bonuses (optional)</p>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <Label for="modifier-ac">AC Bonus</Label>
-                <NumericInput
-                  id="modifier-ac"
-                  value={formData().modifierArmorClass}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierArmorClass: v }))}
-                />
+            <ModifierGroup label="Charges" open={openUses()} onOpenChange={setOpenUses}>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <Label for="item-uses">Uses Spent</Label>
+                  <NumericInput id="item-uses" min={0}
+                    max={formData().maxUses}
+                    value={formData().uses}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, uses: v }))} />
+                </div>
+                <div>
+                  <Label for="item-max-uses">Max Charges (0 = none)</Label>
+                  <NumericInput id="item-max-uses" min={0} value={formData().maxUses}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: Math.min(prev.uses, v) }))} />
+                </div>
               </div>
-              <div>
-                <Label for="modifier-initiative">Initiative Bonus</Label>
-                <NumericInput
-                  id="modifier-initiative"
-                  value={formData().modifierInitiative}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierInitiative: v }))}
-                />
+              <Show when={formData().maxUses > 0}>
+                <div>
+                  <Label>Recharge On</Label>
+                  <Select
+                    value={formData().rechargeOn}
+                    onValueChange={(v) => setFormData((prev) => ({ ...prev, rechargeOn: v as "" | "short-rest" | "long-rest" }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <For each={RECHARGE_OPTIONS}>
+                        {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                      </For>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </Show>
+            </ModifierGroup>
+            <ModifierGroup label="AC & Initiative Bonus" open={openACInitiative()} onOpenChange={setOpenACInitiative}>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <Label for="modifier-ac">AC Bonus</Label>
+                  <NumericInput
+                    id="modifier-ac"
+                    value={formData().modifierArmorClass}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierArmorClass: v }))}
+                  />
+                </div>
+                <div>
+                  <Label for="modifier-initiative">Initiative Bonus</Label>
+                  <NumericInput
+                    id="modifier-initiative"
+                    value={formData().modifierInitiative}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierInitiative: v }))}
+                  />
+                </div>
               </div>
-            </div>
+            </ModifierGroup>
             <ModifierGroup label="Ability Scores" open={openAbilityScores()} onOpenChange={setOpenAbilityScores}>
               <div>
                 <Label class="text-xs">Bonuses</Label>
@@ -853,22 +872,64 @@ function EquipmentForm(props: EquipmentFormProps) {
         </div>
       </div>
 
-      <div>
-        <Label for="item-action-kind">Used As</Label>
-        <Select
-          value={formData().actionKind}
-          onValueChange={(v) => setFormData((prev) => ({ ...prev, actionKind: v as ActionKind | "" }))}
-        >
-          <SelectTrigger id="item-action-kind">
-            <SelectValue placeholder="None" />
-          </SelectTrigger>
-          <SelectContent>
-            <For each={ACTION_KIND_OPTIONS}>
-              {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
-            </For>
-          </SelectContent>
-        </Select>
-      </div>
+      <Show when={!formData().magic && formData().type !== "consumable" && formData().actionKind !== ""}>
+        <div class="space-y-3">
+          <p class="text-sm font-medium">Uses</p>
+          <div>
+            <Label for="item-uses">Uses Spent</Label>
+            <NumericInput id="item-uses" min={0}
+              max={formData().quantity}
+              value={formData().uses}
+              onChange={(v) => setFormData((prev) => ({ ...prev, uses: v }))} />
+          </div>
+          <div>
+            <Label>Recharge On</Label>
+            <Select
+              value={formData().rechargeOn}
+              onValueChange={(v) => setFormData((prev) => ({ ...prev, rechargeOn: v as "" | "short-rest" | "long-rest" }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <For each={RECHARGE_OPTIONS}>
+                  {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                </For>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={formData().type === "consumable"}>
+        <div class="space-y-3">
+          <p class="text-sm font-medium">Consumption</p>
+          <div>
+            <Label for="item-uses">Uses Spent</Label>
+            <NumericInput id="item-uses" min={0}
+              max={formData().quantity}
+              value={formData().uses}
+              onChange={(v) => setFormData((prev) => ({ ...prev, uses: v }))} />
+            <p class="text-xs text-muted-foreground mt-1">Quantity will be reduced by this amount when reconciled on rest.</p>
+          </div>
+          <div>
+            <Label>Reconcile On</Label>
+            <Select
+              value={formData().rechargeOn}
+              onValueChange={(v) => setFormData((prev) => ({ ...prev, rechargeOn: v as "" | "short-rest" | "long-rest" }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <For each={RECHARGE_OPTIONS}>
+                  {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                </For>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </Show>
 
       <div>
         <Label for="description">Description</Label>
@@ -1067,11 +1128,19 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         rechargeOn: formData.rechargeOn || undefined,
       }
     }
-    const tracksCharges = formData.magic && formData.maxUses > 0
+    if (formData.magic) {
+      const tracksCharges = formData.maxUses > 0
+      return {
+        uses: tracksCharges ? formData.uses : undefined,
+        maxUses: tracksCharges ? formData.maxUses : undefined,
+        rechargeOn: tracksCharges && formData.rechargeOn ? formData.rechargeOn : undefined,
+      }
+    }
+    const tracksUses = formData.actionKind !== ""
     return {
-      uses: tracksCharges ? formData.uses : undefined,
-      maxUses: tracksCharges ? formData.maxUses : undefined,
-      rechargeOn: tracksCharges && formData.rechargeOn ? formData.rechargeOn : undefined,
+      uses: tracksUses && formData.uses > 0 ? formData.uses : undefined,
+      maxUses: undefined,
+      rechargeOn: tracksUses && formData.rechargeOn ? formData.rechargeOn : undefined,
     }
   }
 
