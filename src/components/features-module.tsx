@@ -1105,7 +1105,8 @@ export function FeaturesModule(props: FeaturesModuleProps) {
   const toggleExpanded = (kind: FeatureKind, open: boolean) => {
     setExpandedSections((prev) => {
       const next = new Set(prev)
-      open ? next.add(kind) : next.delete(kind)
+      if (open) next.add(kind)
+      else next.delete(kind)
       return next
     })
   }

@@ -277,7 +277,8 @@ export function ActionsModule(props: ActionsModuleProps) {
   const toggleSection = (section: ActionSection, open: boolean) => {
     setExpandedSections(prev => {
       const next = new Set(prev)
-      open ? next.add(section) : next.delete(section)
+      if (open) next.add(section)
+      else next.delete(section)
       return next
     })
   }

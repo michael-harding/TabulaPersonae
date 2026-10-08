@@ -322,7 +322,8 @@ export default function TabSettings() {
   const toggleExpanded = (tabId: string, open: boolean) => {
     setExpandedTabs((prev) => {
       const next = new Set(prev)
-      open ? next.add(tabId) : next.delete(tabId)
+      if (open) next.add(tabId)
+      else next.delete(tabId)
       return next
     })
   }

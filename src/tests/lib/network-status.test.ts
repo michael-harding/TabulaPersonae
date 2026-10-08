@@ -14,8 +14,7 @@ const mockWaitForPendingWrites = vi.mocked(waitForPendingWrites)
 
 function makeStatus() {
   let status!: ReturnType<typeof createNetworkStatus>
-  let dispose!: () => void
-  dispose = createRoot(d => {
+  const dispose = createRoot(d => {
     status = createNetworkStatus()
     return d
   })

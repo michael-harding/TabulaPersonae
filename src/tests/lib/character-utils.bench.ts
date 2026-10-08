@@ -8,7 +8,7 @@ import {
   getAbilityModifier,
   getSkillModifier,
 } from '@/lib/character-utils'
-import { testCharacter } from '../../../__tests__/visual/fixtures'
+import { testCharacter } from '../../../tests/visual/fixtures'
 
 describe('character-utils — derived stat calculations', () => {
   bench('getSpellSaveDC', () => {
