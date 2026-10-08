@@ -657,42 +657,40 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
             </ModifierGroup>
 
-            <Show when={formData.type !== "consumable"}>
-              <ModifierGroup label="Charges" open={openUses()} onOpenChange={setOpenUses}>
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label for="item-uses">Uses Spent</Label>
-                    <NumericInput id="item-uses" min={0}
-                      max={formData.maxUses}
-                      value={formData.uses}
-                      onChange={(v) => setFormData("uses", v)} />
-                  </div>
-                  <div>
-                    <Label for="item-max-uses">Max Charges (0 = none)</Label>
-                    <NumericInput id="item-max-uses" min={0} value={formData.maxUses}
-                      onChange={(v) => setFormData({ maxUses: v, uses: Math.min(formData.uses, v) })} />
-                  </div>
+            <ModifierGroup label="Charges" open={openUses()} onOpenChange={setOpenUses}>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <Label for="item-uses">Uses Spent</Label>
+                  <NumericInput id="item-uses" min={0}
+                    max={formData.maxUses}
+                    value={formData.uses}
+                    onChange={(v) => setFormData("uses", v)} />
                 </div>
-                <Show when={formData.maxUses > 0}>
-                  <div>
-                    <Label>Recharge On</Label>
-                    <Select
-                      value={formData.rechargeOn}
-                      onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="None" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <For each={RECHARGE_OPTIONS}>
-                          {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                        </For>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </Show>
-              </ModifierGroup>
-            </Show>
+                <div>
+                  <Label for="item-max-uses">Max Charges (0 = none)</Label>
+                  <NumericInput id="item-max-uses" min={0} value={formData.maxUses}
+                    onChange={(v) => setFormData({ maxUses: v, uses: Math.min(formData.uses, v) })} />
+                </div>
+              </div>
+              <Show when={formData.maxUses > 0}>
+                <div>
+                  <Label>Recharge On</Label>
+                  <Select
+                    value={formData.rechargeOn}
+                    onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <For each={RECHARGE_OPTIONS}>
+                        {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                      </For>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </Show>
+            </ModifierGroup>
 
             <ModifierGroup label="Languages & Proficiencies" open={openLanguages()} onOpenChange={setOpenLanguages}>
               <StringListField

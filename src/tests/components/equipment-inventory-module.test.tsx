@@ -1204,6 +1204,20 @@ describe("EquipmentInventoryModule", () => {
       expect(within(modal).getByLabelText(/quantity consumed/i)).toBeInTheDocument()
     })
 
+    // A magic Consumable (e.g. a Potion stored as a magic item) still has its own charges
+    // independent of the Quantity Consumed tracking above, so the Charges group inside Magic
+    // Item Details is no longer hidden for consumables.
+    it("shows the Charges section for a Consumable item when 'This is a Magic Item' is checked", () => {
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      selectConsumableType(modal)
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      expect(within(modal).getByText("Charges")).toBeInTheDocument()
+      fireEvent.click(within(modal).getByText("Charges"))
+      expect(within(modal).getByLabelText(/max charges/i)).toBeInTheDocument()
+    })
+
     it("saves uses spent for a Consumable item with no rechargeOn (reconciles on rest)", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
