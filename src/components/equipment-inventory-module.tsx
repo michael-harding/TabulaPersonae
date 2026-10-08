@@ -628,60 +628,6 @@ function EquipmentForm(props: EquipmentFormProps) {
           </Show>
 
           <div class="space-y-2 pt-2 border-t">
-            <ModifierGroup label="Charges" open={openUses()} onOpenChange={setOpenUses}>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <Label for="item-uses">Uses Spent</Label>
-                  <NumericInput id="item-uses" min={0}
-                    max={formData().maxUses}
-                    value={formData().uses}
-                    onChange={(v) => setFormData((prev) => ({ ...prev, uses: v }))} />
-                </div>
-                <div>
-                  <Label for="item-max-uses">Max Charges (0 = none)</Label>
-                  <NumericInput id="item-max-uses" min={0} value={formData().maxUses}
-                    onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: Math.min(prev.uses, v) }))} />
-                </div>
-              </div>
-              <Show when={formData().maxUses > 0}>
-                <div>
-                  <Label>Recharge On</Label>
-                  <Select
-                    value={formData().rechargeOn}
-                    onValueChange={(v) => setFormData((prev) => ({ ...prev, rechargeOn: v as "" | "short-rest" | "long-rest" }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="None" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <For each={RECHARGE_OPTIONS}>
-                        {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                      </For>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </Show>
-            </ModifierGroup>
-            <ModifierGroup label="AC & Initiative Bonus" open={openACInitiative()} onOpenChange={setOpenACInitiative}>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <Label for="modifier-ac">AC Bonus</Label>
-                  <NumericInput
-                    id="modifier-ac"
-                    value={formData().modifierArmorClass}
-                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierArmorClass: v }))}
-                  />
-                </div>
-                <div>
-                  <Label for="modifier-initiative">Initiative Bonus</Label>
-                  <NumericInput
-                    id="modifier-initiative"
-                    value={formData().modifierInitiative}
-                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierInitiative: v }))}
-                  />
-                </div>
-              </div>
-            </ModifierGroup>
             <ModifierGroup label="Ability Scores" open={openAbilityScores()} onOpenChange={setOpenAbilityScores}>
               <div>
                 <Label class="text-xs">Bonuses</Label>
@@ -738,68 +684,75 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="Saving Throws" open={openSavingThrows()} onOpenChange={setOpenSavingThrows}>
-              <div class="grid grid-cols-3 gap-2">
-                <For each={ABILITY_KEYS}>
-                  {(ability) => (
-                    <div>
-                      <Label for={`modifier-save-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
-                      <NumericInput
-                        id={`modifier-save-${ability}`}
-                        value={formData().modifierSavingThrows[ability]}
-                        onChange={(v) => setFormData((prev) => ({ ...prev, modifierSavingThrows: { ...prev.modifierSavingThrows, [ability]: v } }))}
-                      />
-                    </div>
-                  )}
-                </For>
+            <ModifierGroup label="AC & Initiative Bonus" open={openACInitiative()} onOpenChange={setOpenACInitiative}>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <Label for="modifier-ac">AC Bonus</Label>
+                  <NumericInput
+                    id="modifier-ac"
+                    value={formData().modifierArmorClass}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierArmorClass: v }))}
+                  />
+                </div>
+                <div>
+                  <Label for="modifier-initiative">Initiative Bonus</Label>
+                  <NumericInput
+                    id="modifier-initiative"
+                    value={formData().modifierInitiative}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, modifierInitiative: v }))}
+                  />
+                </div>
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="Resistances & Immunities" open={openResistances()} onOpenChange={setOpenResistances}>
-              <div class="grid grid-cols-1 gap-3">
-                <TagPickerField
-                  label="Damage Resistances"
-                  options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData().modifierResistances}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierResistances: v }))}
-                />
-                <TagPickerField
-                  label="Damage Immunities"
-                  options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData().modifierImmunities}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierImmunities: v }))}
-                />
-                <TagPickerField
-                  label="Damage Vulnerabilities"
-                  options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData().modifierVulnerabilities}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierVulnerabilities: v }))}
-                />
-                <TagPickerField
-                  label="Condition Immunities"
-                  options={CONDITIONS}
-                  selected={formData().modifierConditionImmunities}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierConditionImmunities: v }))}
-                />
+            <ModifierGroup label="Charges" open={openUses()} onOpenChange={setOpenUses}>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <Label for="item-uses">Uses Spent</Label>
+                  <NumericInput id="item-uses" min={0}
+                    max={formData().maxUses}
+                    value={formData().uses}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, uses: v }))} />
+                </div>
+                <div>
+                  <Label for="item-max-uses">Max Charges (0 = none)</Label>
+                  <NumericInput id="item-max-uses" min={0} value={formData().maxUses}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: Math.min(prev.uses, v) }))} />
+                </div>
               </div>
+              <Show when={formData().maxUses > 0}>
+                <div>
+                  <Label>Recharge On</Label>
+                  <Select
+                    value={formData().rechargeOn}
+                    onValueChange={(v) => setFormData((prev) => ({ ...prev, rechargeOn: v as "" | "short-rest" | "long-rest" }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <For each={RECHARGE_OPTIONS}>
+                        {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                      </For>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </Show>
             </ModifierGroup>
 
-            <ModifierGroup label="Senses" open={openSenses()} onOpenChange={setOpenSenses}>
-              <div class="grid grid-cols-2 gap-2">
-                <For each={SENSE_TYPES}>
-                  {(sense) => (
-                    <div>
-                      <Label for={`modifier-sense-${sense}`} class="text-xs">{SENSE_LABELS[sense]} (ft)</Label>
-                      <NumericInput
-                        id={`modifier-sense-${sense}`}
-                        min={0}
-                        value={formData().modifierSenses[sense]}
-                        onChange={(v) => setFormData((prev) => ({ ...prev, modifierSenses: { ...prev.modifierSenses, [sense]: v } }))}
-                      />
-                    </div>
-                  )}
-                </For>
-              </div>
+            <ModifierGroup label="Languages & Proficiencies" open={openLanguages()} onOpenChange={setOpenLanguages}>
+              <StringListField
+                label="Languages Granted"
+                placeholder="Add language"
+                values={formData().modifierLanguages}
+                onChange={(v) => setFormData((prev) => ({ ...prev, modifierLanguages: v }))}
+              />
+              <StringListField
+                label="Proficiencies Granted"
+                placeholder="Add proficiency (weapons, tools, etc.)"
+                values={formData().modifierProficiencies}
+                onChange={(v) => setFormData((prev) => ({ ...prev, modifierProficiencies: v }))}
+              />
             </ModifierGroup>
 
             <ModifierGroup label="Movement & Weight" open={openMovement()} onOpenChange={setOpenMovement}>
@@ -843,19 +796,68 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="Languages & Proficiencies" open={openLanguages()} onOpenChange={setOpenLanguages}>
-              <StringListField
-                label="Languages Granted"
-                placeholder="Add language"
-                values={formData().modifierLanguages}
-                onChange={(v) => setFormData((prev) => ({ ...prev, modifierLanguages: v }))}
-              />
-              <StringListField
-                label="Proficiencies Granted"
-                placeholder="Add proficiency (weapons, tools, etc.)"
-                values={formData().modifierProficiencies}
-                onChange={(v) => setFormData((prev) => ({ ...prev, modifierProficiencies: v }))}
-              />
+            <ModifierGroup label="Resistances & Immunities" open={openResistances()} onOpenChange={setOpenResistances}>
+              <div class="grid grid-cols-1 gap-3">
+                <TagPickerField
+                  label="Damage Resistances"
+                  options={DAMAGE_TYPE_OPTIONS}
+                  selected={formData().modifierResistances}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierResistances: v }))}
+                />
+                <TagPickerField
+                  label="Damage Immunities"
+                  options={DAMAGE_TYPE_OPTIONS}
+                  selected={formData().modifierImmunities}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierImmunities: v }))}
+                />
+                <TagPickerField
+                  label="Damage Vulnerabilities"
+                  options={DAMAGE_TYPE_OPTIONS}
+                  selected={formData().modifierVulnerabilities}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierVulnerabilities: v }))}
+                />
+                <TagPickerField
+                  label="Condition Immunities"
+                  options={CONDITIONS}
+                  selected={formData().modifierConditionImmunities}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierConditionImmunities: v }))}
+                />
+              </div>
+            </ModifierGroup>
+
+            <ModifierGroup label="Saving Throws" open={openSavingThrows()} onOpenChange={setOpenSavingThrows}>
+              <div class="grid grid-cols-3 gap-2">
+                <For each={ABILITY_KEYS}>
+                  {(ability) => (
+                    <div>
+                      <Label for={`modifier-save-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
+                      <NumericInput
+                        id={`modifier-save-${ability}`}
+                        value={formData().modifierSavingThrows[ability]}
+                        onChange={(v) => setFormData((prev) => ({ ...prev, modifierSavingThrows: { ...prev.modifierSavingThrows, [ability]: v } }))}
+                      />
+                    </div>
+                  )}
+                </For>
+              </div>
+            </ModifierGroup>
+
+            <ModifierGroup label="Senses" open={openSenses()} onOpenChange={setOpenSenses}>
+              <div class="grid grid-cols-2 gap-2">
+                <For each={SENSE_TYPES}>
+                  {(sense) => (
+                    <div>
+                      <Label for={`modifier-sense-${sense}`} class="text-xs">{SENSE_LABELS[sense]} (ft)</Label>
+                      <NumericInput
+                        id={`modifier-sense-${sense}`}
+                        min={0}
+                        value={formData().modifierSenses[sense]}
+                        onChange={(v) => setFormData((prev) => ({ ...prev, modifierSenses: { ...prev.modifierSenses, [sense]: v } }))}
+                      />
+                    </div>
+                  )}
+                </For>
+              </div>
             </ModifierGroup>
           </div>
         </div>
