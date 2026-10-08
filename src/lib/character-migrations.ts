@@ -1,5 +1,5 @@
-import type { Character, Feature, SenseType } from "./character-types"
-import { calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, inferFeatureType, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import type { Character, Equipment, Feature, SenseType } from "./character-types"
+import { calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
 const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass",
@@ -74,6 +74,26 @@ function backfillFeatureTypes(features: Feature[]): Feature[] | undefined {
 }
 
 /**
+ * `Equipment.uses` was a single field doing double duty: magic-item charges spent (bounded by
+ * maxUses, reset by rechargeOn) for one set of items, and action-triggered quantity consumption
+ * (bounded by quantity, decremented on any rest) for another. It's since split into `charges` and
+ * `consumedUses` so an item can track both independently. Relocate any still-persisted `uses` value
+ * to whichever new field matches what it was actually being used for on that item — this moves real
+ * data to its correct home, it doesn't fabricate a value that was never there.
+ */
+function backfillEquipmentUses(equipment: Equipment[]): Equipment[] | undefined {
+  let changed = false
+  const next = equipment.map((item) => {
+    const legacy = item as Equipment & { uses?: number }
+    if (!('uses' in legacy)) return item
+    changed = true
+    const { uses, ...rest } = legacy
+    return hasChargesTracking(item) ? { ...rest, charges: uses } : { ...rest, consumedUses: uses }
+  })
+  return changed ? next : undefined
+}
+
+/**
  * Flags introduced after launch default to "calculated" for brand-new characters (see
  * createDefaultCharacter), but characters saved before a given flag existed have no such key in
  * their persisted JSON. Back-fill those based on whether the character's existing value already
@@ -129,6 +149,11 @@ export function migrateCharacter(raw: any): Character {
     const current = safeFeatures((patch[field] as Feature[] | undefined) ?? raw[field])
     const backfilled = backfillFeatureTypes(current)
     if (backfilled) patch[field] = backfilled
+  }
+
+  if (Array.isArray(raw.equipment)) {
+    const backfilledEquipment = backfillEquipmentUses(raw.equipment as Equipment[])
+    if (backfilledEquipment) patch.equipment = backfilledEquipment
   }
 
   return Object.keys(patch).length > 0 ? { ...raw, ...patch } : (raw as Character)

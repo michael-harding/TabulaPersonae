@@ -1,5 +1,6 @@
 import {
   createContext,
+  createMemo,
   createSignal,
   useContext,
   JSX,
@@ -65,14 +66,14 @@ export function Select(props: SelectRootProps) {
 
   // Falls back to the current value's item, then the first item, whenever nothing has been
   // explicitly highlighted yet (just opened, or the explicit pick scrolled out of items()).
-  const activeValue = () => {
+  const activeValue = createMemo(() => {
     const list = items()
     if (list.length === 0) return undefined
     const explicit = explicitActive()
     if (explicit !== undefined && list.includes(explicit)) return explicit
     const current = value()
     return current !== undefined && list.includes(current) ? current : list[0]
-  }
+  })
 
   // Closing the popup by any path (select, outside click, Escape, Tab) also drops the explicit
   // keyboard highlight, so the next open starts fresh instead of resuming a stale pick.

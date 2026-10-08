@@ -28,7 +28,7 @@ export function EditableModule(props: EditableModuleProps) {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (!props.isEditing) return
     if (!(e.ctrlKey || e.metaKey)) return
-    if (e.key === "s") {
+    if (e.key.toLowerCase() === "s") {
       e.preventDefault()
       props.onSaveKeepEditing()
     } else if (e.key === "Enter") {

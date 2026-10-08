@@ -1,7 +1,7 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -498,9 +498,11 @@ export function ActionsModule(props: ActionsModuleProps) {
   const handleEquipmentUsesChange = (id: string, v: number) => {
     props.onUpdate({
       ...props.character,
-      equipment: (props.character.equipment || []).map((item) =>
-        item.id === id ? { ...item, uses: Math.max(0, Math.min(v, effectiveEquipmentMaxUses(item))) } : item
-      ),
+      equipment: (props.character.equipment || []).map((item) => {
+        if (item.id !== id) return item
+        const clamped = Math.max(0, Math.min(v, effectiveEquipmentMaxUses(item)))
+        return hasChargesTracking(item) ? { ...item, charges: clamped } : { ...item, consumedUses: clamped }
+      }),
     })
   }
 
@@ -552,7 +554,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       name={item.name}
       badgeLabel={item.type.charAt(0).toUpperCase() + item.type.slice(1)}
       description={item.description}
-      uses={item.uses ?? 0}
+      uses={effectiveEquipmentUses(item)}
       maxUses={effectiveEquipmentMaxUses(item)}
       rechargeOn={item.rechargeOn}
       onUsesChange={(v) => handleEquipmentUsesChange(item.id, v)}

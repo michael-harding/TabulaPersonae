@@ -46,9 +46,11 @@ export function RestModal(props: RestModalProps) {
       ...(props.character.equipment ?? []),
     ]
     return all.filter((a) => {
-      if ("quantity" in a && (a as Equipment).type === "consumable") return ((a as Equipment).uses ?? 0) > 0
-      if (restType() === "short") return a.rechargeOn === "short-rest"
-      return a.rechargeOn === "short-rest" || a.rechargeOn === "long-rest"
+      const consumedPending = "quantity" in a && (a as Equipment).type === "consumable" && ((a as Equipment).consumedUses ?? 0) > 0
+      const rechargeMatches = restType() === "short"
+        ? a.rechargeOn === "short-rest"
+        : a.rechargeOn === "short-rest" || a.rechargeOn === "long-rest"
+      return consumedPending || rechargeMatches
     })
   }
 
@@ -237,8 +239,8 @@ export function RestModal(props: RestModalProps) {
                     <li class="text-sm flex items-center justify-between">
                       <span>{feature.name}</span>
                       <span class="text-xs text-muted-foreground capitalize">
-                        {"quantity" in feature && (feature as Equipment).type === "consumable" && ((feature as Equipment).uses ?? 0) > 0
-                          ? `-${(feature as Equipment).uses} qty`
+                        {"quantity" in feature && (feature as Equipment).type === "consumable" && ((feature as Equipment).consumedUses ?? 0) > 0
+                          ? `-${(feature as Equipment).consumedUses} qty`
                           : feature.rechargeOn === "short-rest" ? "Short Rest" : "Long Rest"}
                       </span>
                     </li>

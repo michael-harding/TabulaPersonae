@@ -84,7 +84,14 @@ export interface ItemModifiers {
   skillDisadvantage?: (keyof Skills)[]
 }
 
-export interface Equipment extends UseableEntry {
+export interface Equipment extends Omit<UseableEntry, "uses"> {
+  // Charges spent on a rechargeable magic item, bounded by maxUses, reset by rechargeOn.
+  // Kept distinct from consumedUses below since an item can need both independently (e.g. a
+  // magic consumable that both recharges on a rest and is also consumed via an action).
+  charges?: number
+  // Quantity consumed via an action, bounded by quantity, decremented on any rest regardless
+  // of rechargeOn.
+  consumedUses?: number
   quantity: number
   weight: number
   equipped: boolean

@@ -1190,7 +1190,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       render(
         <ActionsModule
           character={makeCharacter({
-            equipment: [makeConsumable({ id: "item-2", actionKind: "bonus-action", maxUses: 3, uses: 0 })],
+            equipment: [makeConsumable({ id: "item-2", actionKind: "bonus-action", maxUses: 3, consumedUses: 0 })],
           })}
           onUpdate={onUpdate}
         />
@@ -1199,7 +1199,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       fireEvent.click(pips[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          equipment: expect.arrayContaining([expect.objectContaining({ id: "item-2", uses: 1 })]),
+          equipment: expect.arrayContaining([expect.objectContaining({ id: "item-2", consumedUses: 1 })]),
         })
       )
     })

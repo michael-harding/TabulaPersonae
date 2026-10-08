@@ -17,13 +17,13 @@ import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ModifierGroup } from "@/components/ui/modifier-group"
+import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
 import Plus from "lucide-solid/icons/plus"
 import Save from "lucide-solid/icons/save"
 import Gem from "lucide-solid/icons/gem"
@@ -86,7 +86,8 @@ interface EquipmentFormData {
   requiresAttunement: boolean
   attuned: boolean
   rarity: ItemRarity
-  uses: number
+  charges: number
+  consumedUses: number
   maxUses: number
   rechargeOn: "" | "short-rest" | "long-rest"
   modifierArmorClass: number
@@ -125,7 +126,8 @@ const defaultEquipmentForm: EquipmentFormData = {
   requiresAttunement: true,
   attuned: false,
   rarity: "common",
-  uses: 0,
+  charges: 0,
+  consumedUses: 0,
   maxUses: 0,
   rechargeOn: "",
   modifierArmorClass: 0,
@@ -198,7 +200,11 @@ function hasACInitiativeValues(d: EquipmentFormData): boolean {
   return d.modifierArmorClass !== 0 || d.modifierInitiative !== 0
 }
 function hasChargesValues(d: EquipmentFormData): boolean {
-  return d.uses !== 0 || d.maxUses !== 0 || d.rechargeOn !== ""
+  return d.charges !== 0 || d.maxUses !== 0 || d.rechargeOn !== ""
+}
+
+function tagPickerTestId(label: string): string {
+  return `tag-picker-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`
 }
 
 function TagPickerField(props: { label: string; options: string[]; selected: string[]; onChange: (next: string[]) => void }) {
@@ -208,12 +214,13 @@ function TagPickerField(props: { label: string; options: string[]; selected: str
     )
   }
   return (
-    <div>
+    <div data-sem="tag-picker-field">
       <div class="flex items-center justify-between">
         <Label class="text-xs">{props.label}</Label>
         <DropdownMenu>
           <DropdownMenuTrigger
             as="button"
+            data-test={tagPickerTestId(props.label)}
             class="inline-flex items-center justify-center h-5 w-5 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
             title={`Add ${props.label}`}
           >
@@ -252,48 +259,6 @@ function TagPickerField(props: { label: string; options: string[]; selected: str
             )}
           </For>
         </Show>
-      </div>
-    </div>
-  )
-}
-
-function StringListField(props: { label: string; placeholder: string; values: string[]; onChange: (next: string[]) => void }) {
-  const [newValue, setNewValue] = createSignal("")
-  const add = () => {
-    const trimmed = newValue().trim()
-    if (!trimmed || props.values.includes(trimmed)) return
-    props.onChange([...props.values, trimmed])
-    setNewValue("")
-  }
-  const remove = (value: string) => props.onChange(props.values.filter((v) => v !== value))
-  return (
-    <div>
-      <Label class="text-xs">{props.label}</Label>
-      <div class="flex flex-wrap gap-1 mt-1 mb-2">
-        <Show when={props.values.length > 0} fallback={<span class="text-xs text-muted-foreground italic">None</span>}>
-          <For each={props.values}>
-            {(value) => (
-              <Badge variant="outline" class="gap-1 text-xs">
-                {value}
-                <Button variant="ghost" size="sm" aria-label={`Remove ${value}`} class="h-auto p-0 hover:bg-transparent" onClick={() => remove(value)}>
-                  <X class="h-2.5 w-2.5" />
-                </Button>
-              </Badge>
-            )}
-          </For>
-        </Show>
-      </div>
-      <div class="flex gap-2">
-        <Input
-          placeholder={props.placeholder}
-          value={newValue()}
-          onInput={(e) => setNewValue(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
-          class="flex-1 h-8 text-xs"
-        />
-        <Button onClick={add} size="sm" aria-label={props.label} disabled={!newValue().trim()}>
-          <Plus class="h-3 w-3" />
-        </Button>
       </div>
     </div>
   )
@@ -367,11 +332,12 @@ function EquipmentForm(props: EquipmentFormProps) {
   }
 
   return (
-    <div class="space-y-4">
+    <div class="space-y-4" data-sem="equipment-item-modal">
       <div>
         <Label for="item-name">Item Name</Label>
         <Input
           id="item-name"
+          data-test="item-name"
           value={formData.name}
           onInput={(e) => setFormData("name", e.currentTarget.value)}
           placeholder="Enter item name"
@@ -381,7 +347,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       <div>
         <Label>Item Type</Label>
         <Select value={formData.type} onValueChange={handleTypeChange}>
-          <SelectTrigger>
+          <SelectTrigger data-test="item-type">
             <SelectValue placeholder="Select type" />
           </SelectTrigger>
           <SelectContent>
@@ -398,7 +364,7 @@ function EquipmentForm(props: EquipmentFormProps) {
           value={formData.actionKind}
           onValueChange={(v) => setFormData("actionKind", v as ActionKind | "")}
         >
-          <SelectTrigger id="item-action-kind">
+          <SelectTrigger id="item-action-kind" data-test="item-action-kind">
             <SelectValue placeholder="None" />
           </SelectTrigger>
           <SelectContent>
@@ -417,6 +383,7 @@ function EquipmentForm(props: EquipmentFormProps) {
               <Label for="weapon-damage">Damage Dice</Label>
               <Input
                 id="weapon-damage"
+                data-test="weapon-damage"
                 value={formData.weaponStats?.damage ?? ""}
                 onInput={(e) => setFormData("weaponStats", "damage", e.currentTarget.value)}
                 placeholder="e.g. 1d8"
@@ -425,6 +392,7 @@ function EquipmentForm(props: EquipmentFormProps) {
             <div>
               <Label>Damage Type</Label>
               <Combobox
+                data-test="weapon-damage-type"
                 value={formData.weaponStats?.damageType ?? ""}
                 onValueChange={(v) => setFormData("weaponStats", "damageType", v)}
                 options={DAMAGE_TYPE_OPTIONS}
@@ -437,6 +405,7 @@ function EquipmentForm(props: EquipmentFormProps) {
               <Label for="weapon-range">Range</Label>
               <Input
                 id="weapon-range"
+                data-test="weapon-range"
                 value={formData.weaponStats?.weaponRange ?? ""}
                 onInput={(e) => setFormData("weaponStats", "weaponRange", e.currentTarget.value)}
                 placeholder="e.g. 5 ft"
@@ -448,7 +417,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                 value={formData.weaponStats?.attackAbility ?? "str"}
                 onValueChange={(v) => setFormData("weaponStats", "attackAbility", v as "str" | "dex" | "finesse")}
               >
-                <SelectTrigger>
+                <SelectTrigger data-test="weapon-attack-ability">
                   <SelectValue placeholder="Select ability" />
                 </SelectTrigger>
                 <SelectContent>
@@ -462,6 +431,7 @@ function EquipmentForm(props: EquipmentFormProps) {
           <div class="flex items-center gap-2">
             <Checkbox
               id="weapon-proficient"
+              data-test="weapon-proficient"
               checked={formData.weaponStats?.proficient ?? true}
               onChange={(checked: boolean) => setFormData("weaponStats", "proficient", checked)}
             />
@@ -480,7 +450,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                 value={formData.armorStats?.armorType ?? "light"}
                 onValueChange={(v) => setFormData("armorStats", "armorType", v as "light" | "medium" | "heavy" | "shield")}
               >
-                <SelectTrigger>
+                <SelectTrigger data-test="armor-type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -503,6 +473,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                 <Label for="armor-base-ac">Base AC</Label>
                 <NumericInput
                   id="armor-base-ac"
+                  data-test="armor-base-ac"
                   min={1}
                   value={formData.armorStats?.baseAC ?? 11}
                   onChange={(v) => setFormData("armorStats", "baseAC", v)}
@@ -513,7 +484,7 @@ function EquipmentForm(props: EquipmentFormProps) {
         </div>
       </Show>
 
-      <ModifierGroup label="Advantage/Disadvantage" open={openSkillEffects()} onOpenChange={setOpenSkillEffects}>
+      <ModifierGroup label="Advantage/Disadvantage" data-test="modifier-group-skill-effects" open={openSkillEffects()} onOpenChange={setOpenSkillEffects}>
         <div class="grid grid-cols-1 gap-3">
           <TagPickerField
             label="Grants Advantage On"
@@ -532,6 +503,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       <div class="flex items-center space-x-2">
         <Checkbox
           id="item-magic"
+          data-test="item-magic"
           checked={formData.magic}
           onChange={(checked: boolean) => setFormData("magic", checked)}
         />
@@ -550,7 +522,7 @@ function EquipmentForm(props: EquipmentFormProps) {
               value={formData.rarity}
               onValueChange={(v) => setFormData("rarity", v as ItemRarity)}
             >
-              <SelectTrigger>
+              <SelectTrigger data-test="item-rarity">
                 <SelectValue placeholder="Select rarity" />
               </SelectTrigger>
               <SelectContent>
@@ -563,6 +535,7 @@ function EquipmentForm(props: EquipmentFormProps) {
           <div class="flex items-center gap-2">
             <Checkbox
               id="item-requires-attunement"
+              data-test="item-requires-attunement"
               checked={formData.requiresAttunement}
               onChange={(checked: boolean) => setFormData({ requiresAttunement: checked, attuned: checked ? formData.attuned : false })}
             />
@@ -572,6 +545,7 @@ function EquipmentForm(props: EquipmentFormProps) {
             <div class="flex items-center gap-2">
               <Checkbox
                 id="item-attuned"
+                data-test="item-attuned"
                 checked={formData.attuned}
                 onChange={(checked: boolean) => setFormData("attuned", checked)}
               />
@@ -580,7 +554,7 @@ function EquipmentForm(props: EquipmentFormProps) {
           </Show>
 
           <div class="space-y-2 pt-2">
-            <ModifierGroup label="Ability Scores" open={openAbilityScores()} onOpenChange={setOpenAbilityScores}>
+            <ModifierGroup label="Ability Scores" data-test="modifier-group-ability-scores" open={openAbilityScores()} onOpenChange={setOpenAbilityScores}>
               <div>
                 <Label class="text-xs">Bonuses</Label>
                 <div class="grid grid-cols-3 gap-2 mt-1">
@@ -590,6 +564,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                         <Label for={`modifier-ability-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
                         <NumericInput
                           id={`modifier-ability-${ability}`}
+                          data-test={`modifier-ability-${ability}`}
                           value={formData.modifierAbilityScores[ability]}
                           onChange={(v) => setFormData("modifierAbilityScores", ability, v)}
                         />
@@ -607,6 +582,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                         <Label for={`modifier-floor-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
                         <NumericInput
                           id={`modifier-floor-${ability}`}
+                          data-test={`modifier-floor-${ability}`}
                           min={0}
                           value={formData.modifierAbilityScoreFloors[ability]}
                           onChange={(v) => setFormData("modifierAbilityScoreFloors", ability, v)}
@@ -625,6 +601,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                         <Label for={`modifier-cap-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
                         <NumericInput
                           id={`modifier-cap-${ability}`}
+                          data-test={`modifier-cap-${ability}`}
                           min={0}
                           value={formData.modifierAbilityScoreMaxCaps[ability]}
                           onChange={(v) => setFormData("modifierAbilityScoreMaxCaps", ability, v)}
@@ -636,12 +613,13 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="AC & Initiative Bonus" open={openACInitiative()} onOpenChange={setOpenACInitiative}>
+            <ModifierGroup label="AC & Initiative Bonus" data-test="modifier-group-ac-initiative" open={openACInitiative()} onOpenChange={setOpenACInitiative}>
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <Label for="modifier-ac">AC Bonus</Label>
                   <NumericInput
                     id="modifier-ac"
+                    data-test="modifier-ac"
                     value={formData.modifierArmorClass}
                     onChange={(v) => setFormData("modifierArmorClass", v)}
                   />
@@ -650,6 +628,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                   <Label for="modifier-initiative">Initiative Bonus</Label>
                   <NumericInput
                     id="modifier-initiative"
+                    data-test="modifier-initiative"
                     value={formData.modifierInitiative}
                     onChange={(v) => setFormData("modifierInitiative", v)}
                   />
@@ -657,19 +636,19 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="Charges" open={openUses()} onOpenChange={setOpenUses}>
+            <ModifierGroup label="Charges" data-test="modifier-group-charges" open={openUses()} onOpenChange={setOpenUses}>
               <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <Label for="item-uses">Uses Spent</Label>
-                  <NumericInput id="item-uses" min={0}
+                  <Label for="item-uses-charges">Uses Spent</Label>
+                  <NumericInput id="item-uses-charges" data-test="item-uses-charges" min={0}
                     max={formData.maxUses}
-                    value={formData.uses}
-                    onChange={(v) => setFormData("uses", v)} />
+                    value={formData.charges}
+                    onChange={(v) => setFormData("charges", v)} />
                 </div>
                 <div>
                   <Label for="item-max-uses">Max Charges (0 = none)</Label>
-                  <NumericInput id="item-max-uses" min={0} value={formData.maxUses}
-                    onChange={(v) => setFormData({ maxUses: v, uses: Math.min(formData.uses, v) })} />
+                  <NumericInput id="item-max-uses" data-test="item-max-uses" min={0} value={formData.maxUses}
+                    onChange={(v) => setFormData({ maxUses: v, charges: Math.min(formData.charges, v) })} />
                 </div>
               </div>
               <Show when={formData.maxUses > 0}>
@@ -679,7 +658,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                     value={formData.rechargeOn}
                     onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-test="item-recharge-on">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
@@ -692,44 +671,48 @@ function EquipmentForm(props: EquipmentFormProps) {
               </Show>
             </ModifierGroup>
 
-            <ModifierGroup label="Languages & Proficiencies" open={openLanguages()} onOpenChange={setOpenLanguages}>
-              <StringListField
+            <ModifierGroup label="Languages & Proficiencies" data-test="modifier-group-languages" open={openLanguages()} onOpenChange={setOpenLanguages}>
+              <FreeTextListEditor
                 label="Languages Granted"
+                ariaLabel="Add language"
                 placeholder="Add language"
                 values={formData.modifierLanguages}
                 onChange={(v) => setFormData("modifierLanguages", v)}
+                data-test="modifier-languages"
               />
-              <StringListField
+              <FreeTextListEditor
                 label="Proficiencies Granted"
+                ariaLabel="Add proficiency"
                 placeholder="Add proficiency (weapons, tools, etc.)"
                 values={formData.modifierProficiencies}
                 onChange={(v) => setFormData("modifierProficiencies", v)}
+                data-test="modifier-proficiencies"
               />
             </ModifierGroup>
 
-            <ModifierGroup label="Movement & Weight" open={openMovement()} onOpenChange={setOpenMovement}>
+            <ModifierGroup label="Movement & Weight" data-test="modifier-group-movement" open={openMovement()} onOpenChange={setOpenMovement}>
               <div>
                 <Label class="text-xs">Movement (ft)</Label>
                 <div class="grid grid-cols-3 gap-2 mt-1">
                   <div>
                     <Label for="modifier-speed" class="text-xs">Speed</Label>
-                    <NumericInput id="modifier-speed" value={formData.modifierSpeed} onChange={(v) => setFormData("modifierSpeed", v)} />
+                    <NumericInput id="modifier-speed" data-test="modifier-speed" value={formData.modifierSpeed} onChange={(v) => setFormData("modifierSpeed", v)} />
                   </div>
                   <div>
                     <Label for="modifier-fly-speed" class="text-xs">Fly</Label>
-                    <NumericInput id="modifier-fly-speed" min={0} value={formData.modifierFlySpeed} onChange={(v) => setFormData("modifierFlySpeed", v)} />
+                    <NumericInput id="modifier-fly-speed" data-test="modifier-fly-speed" min={0} value={formData.modifierFlySpeed} onChange={(v) => setFormData("modifierFlySpeed", v)} />
                   </div>
                   <div>
                     <Label for="modifier-swim-speed" class="text-xs">Swim</Label>
-                    <NumericInput id="modifier-swim-speed" min={0} value={formData.modifierSwimSpeed} onChange={(v) => setFormData("modifierSwimSpeed", v)} />
+                    <NumericInput id="modifier-swim-speed" data-test="modifier-swim-speed" min={0} value={formData.modifierSwimSpeed} onChange={(v) => setFormData("modifierSwimSpeed", v)} />
                   </div>
                   <div>
                     <Label for="modifier-climb-speed" class="text-xs">Climb</Label>
-                    <NumericInput id="modifier-climb-speed" min={0} value={formData.modifierClimbSpeed} onChange={(v) => setFormData("modifierClimbSpeed", v)} />
+                    <NumericInput id="modifier-climb-speed" data-test="modifier-climb-speed" min={0} value={formData.modifierClimbSpeed} onChange={(v) => setFormData("modifierClimbSpeed", v)} />
                   </div>
                   <div>
                     <Label for="modifier-burrow-speed" class="text-xs">Burrow</Label>
-                    <NumericInput id="modifier-burrow-speed" min={0} value={formData.modifierBurrowSpeed} onChange={(v) => setFormData("modifierBurrowSpeed", v)} />
+                    <NumericInput id="modifier-burrow-speed" data-test="modifier-burrow-speed" min={0} value={formData.modifierBurrowSpeed} onChange={(v) => setFormData("modifierBurrowSpeed", v)} />
                   </div>
                 </div>
               </div>
@@ -738,17 +721,17 @@ function EquipmentForm(props: EquipmentFormProps) {
                 <div class="grid grid-cols-2 gap-2 mt-1">
                   <div>
                     <Label for="modifier-capacity-bonus" class="text-xs">Bonus (lbs)</Label>
-                    <NumericInput id="modifier-capacity-bonus" value={formData.modifierCarryingCapacityBonus} onChange={(v) => setFormData("modifierCarryingCapacityBonus", v)} />
+                    <NumericInput id="modifier-capacity-bonus" data-test="modifier-capacity-bonus" value={formData.modifierCarryingCapacityBonus} onChange={(v) => setFormData("modifierCarryingCapacityBonus", v)} />
                   </div>
                   <div>
                     <Label for="modifier-capacity-multiplier" class="text-xs">Multiplier (0 = none)</Label>
-                    <NumericInput id="modifier-capacity-multiplier" min={0} step="0.5" value={formData.modifierCarryingCapacityMultiplier} onChange={(v) => setFormData("modifierCarryingCapacityMultiplier", v)} parser={parseFloat} />
+                    <NumericInput id="modifier-capacity-multiplier" data-test="modifier-capacity-multiplier" min={0} step="0.5" value={formData.modifierCarryingCapacityMultiplier} onChange={(v) => setFormData("modifierCarryingCapacityMultiplier", v)} parser={parseFloat} />
                   </div>
                 </div>
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="Resistances & Immunities" open={openResistances()} onOpenChange={setOpenResistances}>
+            <ModifierGroup label="Resistances & Immunities" data-test="modifier-group-resistances" open={openResistances()} onOpenChange={setOpenResistances}>
               <div class="grid grid-cols-1 gap-3">
                 <TagPickerField
                   label="Damage Resistances"
@@ -777,7 +760,7 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="Saving Throws" open={openSavingThrows()} onOpenChange={setOpenSavingThrows}>
+            <ModifierGroup label="Saving Throws" data-test="modifier-group-saving-throws" open={openSavingThrows()} onOpenChange={setOpenSavingThrows}>
               <div class="grid grid-cols-3 gap-2">
                 <For each={ABILITY_KEYS}>
                   {(ability) => (
@@ -785,6 +768,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                       <Label for={`modifier-save-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
                       <NumericInput
                         id={`modifier-save-${ability}`}
+                        data-test={`modifier-save-${ability}`}
                         value={formData.modifierSavingThrows[ability]}
                         onChange={(v) => setFormData("modifierSavingThrows", ability, v)}
                       />
@@ -794,7 +778,7 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="Senses" open={openSenses()} onOpenChange={setOpenSenses}>
+            <ModifierGroup label="Senses" data-test="modifier-group-senses" open={openSenses()} onOpenChange={setOpenSenses}>
               <div class="grid grid-cols-2 gap-2">
                 <For each={SENSE_TYPES}>
                   {(sense) => (
@@ -802,6 +786,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                       <Label for={`modifier-sense-${sense}`} class="text-xs">{SENSE_LABELS[sense]} (ft)</Label>
                       <NumericInput
                         id={`modifier-sense-${sense}`}
+                        data-test={`modifier-sense-${sense}`}
                         min={0}
                         value={formData.modifierSenses[sense]}
                         onChange={(v) => setFormData("modifierSenses", sense, v)}
@@ -818,22 +803,22 @@ function EquipmentForm(props: EquipmentFormProps) {
       <div class="grid grid-cols-2 gap-4">
         <div>
           <Label for="quantity">Quantity</Label>
-          <NumericInput id="quantity" min={1} value={formData.quantity} onChange={(v) => setFormData("quantity", v)} />
+          <NumericInput id="quantity" data-test="quantity" min={1} value={formData.quantity} onChange={(v) => setFormData("quantity", v)} />
         </div>
         <div>
           <Label for="weight">Weight (lbs)</Label>
-          <NumericInput id="weight" min={0} step="0.1" value={formData.weight} onChange={(v) => setFormData("weight", v)} parser={parseFloat} />
+          <NumericInput id="weight" data-test="weight" min={0} step="0.1" value={formData.weight} onChange={(v) => setFormData("weight", v)} parser={parseFloat} />
         </div>
       </div>
 
       <Show when={formData.type === "consumable" && formData.actionKind !== ""}>
         <div class="space-y-3">
           <div>
-            <Label for="item-uses">Quantity Consumed</Label>
-            <NumericInput id="item-uses" min={0}
+            <Label for="item-uses-consumed">Quantity Consumed</Label>
+            <NumericInput id="item-uses-consumed" data-test="item-uses-consumed" min={0}
               max={formData.quantity}
-              value={formData.uses}
-              onChange={(v) => setFormData("uses", v)} />
+              value={formData.consumedUses}
+              onChange={(v) => setFormData("consumedUses", v)} />
             <p class="text-xs text-muted-foreground mt-1">Quantity will be reduced by this amount on rest.</p>
           </div>
         </div>
@@ -843,6 +828,7 @@ function EquipmentForm(props: EquipmentFormProps) {
         <Label for="description">Description</Label>
         <Textarea
           id="description"
+          data-test="description"
           value={formData.description}
           onInput={(e) => setFormData("description", e.currentTarget.value)}
           placeholder="Optional description"
@@ -853,6 +839,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       <div class="flex items-center space-x-2">
         <Checkbox
           id="equipped"
+          data-test="equipped"
           checked={formData.equipped}
           onChange={(checked: boolean) => setFormData("equipped", checked)}
         />
@@ -860,11 +847,11 @@ function EquipmentForm(props: EquipmentFormProps) {
       </div>
 
       <div class="flex gap-2 pt-4">
-        <Button onClick={() => props.onSubmit(unwrap(formData))} class="gap-2">
+        <Button data-test="equipment-modal-submit" onClick={() => props.onSubmit(unwrap(formData))} class="gap-2">
           <Save class="h-4 w-4" />
           {props.editing ? "Update Item" : "Add Item"}
         </Button>
-        <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
+        <Button data-test="equipment-modal-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
       </div>
     </div>
   )
@@ -886,7 +873,8 @@ function formDataFromItem(item: Equipment | null): EquipmentFormData {
     requiresAttunement: item.requiresAttunement ?? true,
     attuned: item.attuned ?? false,
     rarity: item.rarity ?? "common",
-    uses: item.uses ?? 0,
+    charges: item.charges ?? 0,
+    consumedUses: item.consumedUses ?? 0,
     maxUses: item.maxUses ?? 0,
     rechargeOn: item.rechargeOn ?? "",
     modifierArmorClass: item.modifiers?.armorClass ?? 0,
@@ -970,22 +958,14 @@ function buildModifiers(formData: EquipmentFormData): ItemModifiers | undefined 
 }
 
 function usesFields(formData: EquipmentFormData) {
-  if (formData.magic && formData.maxUses > 0) {
-    return {
-      uses: formData.uses,
-      maxUses: formData.maxUses,
-      rechargeOn: formData.rechargeOn || undefined,
-    }
+  const hasCharges = formData.magic && formData.maxUses > 0
+  const tracksConsumption = formData.type === "consumable" && formData.actionKind !== ""
+  return {
+    charges: hasCharges ? formData.charges : undefined,
+    maxUses: hasCharges ? formData.maxUses : undefined,
+    rechargeOn: hasCharges ? (formData.rechargeOn || undefined) : undefined,
+    consumedUses: (tracksConsumption && (formData.consumedUses ?? 0) > 0) ? formData.consumedUses : undefined,
   }
-  if (formData.type === "consumable") {
-    const tracksConsumption = formData.actionKind !== ""
-    return {
-      uses: (tracksConsumption && (formData.uses ?? 0) > 0) ? formData.uses : undefined,
-      maxUses: undefined,
-      rechargeOn: undefined,
-    }
-  }
-  return { uses: undefined, maxUses: undefined, rechargeOn: undefined }
 }
 
 function magicFields(formData: EquipmentFormData) {

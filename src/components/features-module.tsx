@@ -19,6 +19,7 @@ import { MarkdownContent } from "@/components/ui/markdown-content"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
+import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
 import BookOpen from "lucide-solid/icons/book-open"
 import Leaf from "lucide-solid/icons/leaf"
 import Star from "lucide-solid/icons/star"
@@ -297,55 +298,6 @@ function ClosedListEditor(props: {
           <Button type="button" size="sm" variant="outline" onClick={add}>Add</Button>
         </div>
       </Show>
-    </div>
-  )
-}
-
-// Reusable picker for free-text string-list effect fields (no fixed enum) — mirrors the same
-// Add+Badge idiom as ClosedListEditor, but accepts any typed value (used by Other Proficiency
-// and Language, neither of which has a closed list of valid values).
-function FreeTextListEditor(props: {
-  label: string
-  ariaLabel: string
-  placeholder: string
-  values: string[]
-  onChange: (next: string[]) => void
-}) {
-  const [newValue, setNewValue] = createSignal('')
-  const add = () => {
-    const trimmed = newValue().trim()
-    if (!trimmed || props.values.includes(trimmed)) return
-    props.onChange([...props.values, trimmed])
-    setNewValue('')
-  }
-  const remove = (v: string) => props.onChange(props.values.filter((x) => x !== v))
-  return (
-    <div class="space-y-1">
-      <Label class="text-xs">{props.label}</Label>
-      <Show when={props.values.length > 0}>
-        <div class="flex flex-wrap gap-2 mb-2">
-          <For each={props.values}>
-            {(v) => (
-              <Badge variant="secondary" class="gap-1.5 pr-1">
-                {v}
-                <button type="button" aria-label={`Remove ${v}`} onClick={() => remove(v)}>
-                  <X class="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
-          </For>
-        </div>
-      </Show>
-      <div class="flex gap-2">
-        <Input
-          aria-label={props.ariaLabel}
-          value={newValue()}
-          onInput={(e) => setNewValue(e.currentTarget.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add() } }}
-          placeholder={props.placeholder}
-        />
-        <Button type="button" size="sm" variant="outline" onClick={add}>Add</Button>
-      </div>
     </div>
   )
 }

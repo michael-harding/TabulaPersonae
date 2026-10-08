@@ -1185,16 +1185,28 @@ export function effectiveMaxUses(feature: Feature, characterLevel: number): numb
   return feature.maxUses ?? 0
 }
 
-export function effectiveEquipmentMaxUses(item: Pick<Equipment, "type" | "quantity" | "maxUses">): number {
+export function hasChargesTracking(item: Pick<Equipment, "magic" | "maxUses">): boolean {
+  return !!item.magic && (item.maxUses ?? 0) > 0
+}
+
+export function effectiveEquipmentMaxUses(item: Pick<Equipment, "type" | "quantity" | "magic" | "maxUses">): number {
+  if (hasChargesTracking(item)) return item.maxUses ?? 0
   if (item.type === "consumable") return item.quantity
   return item.maxUses ?? 0
 }
 
+export function effectiveEquipmentUses(item: Pick<Equipment, "charges" | "consumedUses" | "magic" | "maxUses">): number {
+  return hasChargesTracking(item) ? (item.charges ?? 0) : (item.consumedUses ?? 0)
+}
+
 export function reconcileEquipmentRest(item: Equipment, restTypes: Array<"short-rest" | "long-rest">): Equipment {
-  if (item.type === "consumable") {
-    const spent = item.uses ?? 0
-    return spent > 0 ? { ...item, quantity: Math.max(0, item.quantity - spent), uses: 0 } : item
+  let next = item
+  const consumed = item.consumedUses ?? 0
+  if (item.type === "consumable" && consumed > 0) {
+    next = { ...next, quantity: Math.max(0, next.quantity - consumed), consumedUses: 0 }
   }
-  if (!item.rechargeOn || !restTypes.includes(item.rechargeOn)) return item
-  return { ...item, uses: 0 }
+  if (hasChargesTracking(item) && item.rechargeOn && restTypes.includes(item.rechargeOn)) {
+    next = { ...next, charges: 0 }
+  }
+  return next
 }

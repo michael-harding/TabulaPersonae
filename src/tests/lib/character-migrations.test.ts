@@ -241,6 +241,39 @@ describe("migrateCharacter", () => {
     })
   })
 
+  describe("equipment uses backfill", () => {
+    it("relocates a legacy consumedUses-style uses to charges for a magic item with charges configured", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        equipment: [{ id: "e1", name: "Wand", quantity: 1, weight: 1, description: "", equipped: true, type: "other", magic: true, maxUses: 3, uses: 2 }],
+      }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.equipment![0].charges).toBe(2)
+      expect(migrated.equipment![0].consumedUses).toBeUndefined()
+      expect("uses" in migrated.equipment![0]).toBe(false)
+    })
+
+    it("relocates a legacy uses to consumedUses for a plain consumable item", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        equipment: [{ id: "e1", name: "Potion", quantity: 5, weight: 1, description: "", equipped: true, type: "consumable", uses: 2 }],
+      }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.equipment![0].consumedUses).toBe(2)
+      expect(migrated.equipment![0].charges).toBeUndefined()
+      expect("uses" in migrated.equipment![0]).toBe(false)
+    })
+
+    it("does not touch an item that already has no legacy uses field", () => {
+      const raw: any = {
+        ...createDefaultCharacter(),
+        equipment: [{ id: "e1", name: "Rope", quantity: 1, weight: 1, description: "", equipped: false, type: "other", charges: 0 }],
+      }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.equipment![0]).toEqual(raw.equipment[0])
+    })
+  })
+
   describe("useCalculatedSenses backfill", () => {
     it("backfills to true when the stored sense already matches the calculated total", () => {
       const raw: any = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: 0 } }

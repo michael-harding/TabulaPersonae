@@ -8,6 +8,8 @@ import {
   remainingUses,
   spentFromRemaining,
   effectiveEquipmentMaxUses,
+  effectiveEquipmentUses,
+  hasChargesTracking,
   isItemModifierActive,
   formatModifier,
   getEffectiveCarryingCapacity,
@@ -136,7 +138,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       equipment: safeEquipment().map((item) => {
         if (item.id !== itemId) return item
         const next = { ...item, quantity }
-        if (item.type === "consumable" && (item.uses ?? 0) > quantity) next.uses = quantity
+        if (item.type === "consumable" && (item.consumedUses ?? 0) > quantity) next.consumedUses = quantity
         return next
       }),
     }
@@ -154,9 +156,11 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const updateItemUses = (itemId: string, uses: number) => {
     const updated = {
       ...props.character,
-      equipment: safeEquipment().map((item) =>
-        item.id === itemId ? { ...item, uses: Math.max(0, Math.min(uses, effectiveEquipmentMaxUses(item))) } : item
-      ),
+      equipment: safeEquipment().map((item) => {
+        if (item.id !== itemId) return item
+        const clamped = Math.max(0, Math.min(uses, effectiveEquipmentMaxUses(item)))
+        return hasChargesTracking(item) ? { ...item, charges: clamped } : { ...item, consumedUses: clamped }
+      }),
     }
     props.onUpdate(updated)
   }
@@ -319,7 +323,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </p>
                       </Show>
                       <Show when={item.description}>
-                        <MarkdownContent text={item.description!} class="text-xs text-muted-foreground" />
+                        <MarkdownContent text={item.description!} class="text-xs text-muted-foreground line-clamp-1" />
                       </Show>
                       <Show when={hasOtherModifierFields(item.modifiers)}>
                         <div class={`text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5 ${isItemModifierActive(item) ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground italic"}`}>
@@ -410,7 +414,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             when={effectiveEquipmentMaxUses(item) <= 5}
                             fallback={
                               <StepperInput
-                                value={remainingUses(item.uses, effectiveEquipmentMaxUses(item))}
+                                value={remainingUses(effectiveEquipmentUses(item), effectiveEquipmentMaxUses(item))}
                                 min={0}
                                 max={effectiveEquipmentMaxUses(item)}
                                 onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
@@ -420,7 +424,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           >
                             <PipTracker
                               total={effectiveEquipmentMaxUses(item)}
-                              used={item.uses ?? 0}
+                              used={effectiveEquipmentUses(item)}
                               onToggle={(v) => updateItemUses(item.id, v)}
                               usedTitle={item.type === "consumable" ? "Used (click to restore)" : "Charge spent (click to restore)"}
                               availableTitle={item.type === "consumable" ? "Available (click to use)" : "Charge available (click to use)"}
@@ -619,7 +623,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         when={effectiveEquipmentMaxUses(item) <= 5}
                         fallback={
                           <StepperInput
-                            value={remainingUses(item.uses, effectiveEquipmentMaxUses(item))}
+                            value={remainingUses(effectiveEquipmentUses(item), effectiveEquipmentMaxUses(item))}
                             min={0}
                             max={effectiveEquipmentMaxUses(item)}
                             onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
@@ -629,7 +633,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       >
                         <PipTracker
                           total={effectiveEquipmentMaxUses(item)}
-                          used={item.uses ?? 0}
+                          used={effectiveEquipmentUses(item)}
                           onToggle={(v) => updateItemUses(item.id, v)}
                           usedTitle="Used (click to restore)"
                           availableTitle="Available (click to use)"

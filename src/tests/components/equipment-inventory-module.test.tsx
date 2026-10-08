@@ -744,14 +744,14 @@ describe("EquipmentInventoryModule", () => {
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule
-          character={makeCharacter({ equipment: [makeMagicItem({ name: "Wand", uses: 0, maxUses: 3, rechargeOn: "long-rest" })] })}
+          character={makeCharacter({ equipment: [makeMagicItem({ name: "Wand", charges: 0, maxUses: 3, rechargeOn: "long-rest" })] })}
           onUpdate={onUpdate}
         />
       )
       fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          equipment: expect.arrayContaining([expect.objectContaining({ uses: 1 })]),
+          equipment: expect.arrayContaining([expect.objectContaining({ charges: 1 })]),
         })
       )
     })
@@ -868,36 +868,36 @@ describe("EquipmentInventoryModule", () => {
     // Regression: editing Max Charges on an item that already has spent charges used to
     // hard-reset `uses` to 0 regardless of direction, silently "recharging" the item as a
     // side effect of an unrelated edit (e.g. correcting the max). It must clamp instead.
-    it("clamps uses (not reset to 0) when Max Charges is edited on an item with spent charges", () => {
-      const item = makeMagicItem({ name: "Wand", uses: 2, maxUses: 3 })
+    it("clamps charges (not reset to 0) when Max Charges is edited on an item with spent charges", () => {
+      const item = makeMagicItem({ name: "Wand", charges: 2, maxUses: 3 })
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
       )
       fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
       setNumericValue(document.querySelector("#item-max-uses")!, "4")
-      expect((document.querySelector("#item-uses") as HTMLInputElement).value).toBe("2")
+      expect((document.querySelector("#item-uses-charges") as HTMLInputElement).value).toBe("2")
       fireEvent.click(screen.getByRole("button", { name: /update item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", uses: 2, maxUses: 4 })]),
+          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", charges: 2, maxUses: 4 })]),
         })
       )
     })
 
-    it("clamps uses down when Max Charges is edited below the current spent-charges count", () => {
-      const item = makeMagicItem({ name: "Wand", uses: 2, maxUses: 3 })
+    it("clamps charges down when Max Charges is edited below the current spent-charges count", () => {
+      const item = makeMagicItem({ name: "Wand", charges: 2, maxUses: 3 })
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
       )
       fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
       setNumericValue(document.querySelector("#item-max-uses")!, "1")
-      expect((document.querySelector("#item-uses") as HTMLInputElement).value).toBe("1")
+      expect((document.querySelector("#item-uses-charges") as HTMLInputElement).value).toBe("1")
       fireEvent.click(screen.getByRole("button", { name: /update item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", uses: 1, maxUses: 1 })]),
+          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", charges: 1, maxUses: 1 })]),
         })
       )
     })
@@ -988,8 +988,9 @@ describe("EquipmentInventoryModule", () => {
 
       // Languages granted (free-text add)
       fireEvent.click(within(modal).getByText("Languages & Proficiencies"))
-      fireEvent.input(within(modal).getByPlaceholderText("Add language"), { target: { value: "Auran" } })
-      fireEvent.click(within(modal).getByRole("button", { name: "Languages Granted" }))
+      const languageInput = within(modal).getByLabelText(/add language/i)
+      fireEvent.input(languageInput, { target: { value: "Auran" } })
+      fireEvent.keyDown(languageInput, { key: "Enter" })
 
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
 
@@ -1246,12 +1247,12 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
       selectConsumableType(modal)
       selectUsedAsAction(modal)
-      setNumericValue(document.querySelector("#item-uses")!, "1")
+      setNumericValue(document.querySelector("#item-uses-consumed")!, "1")
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([
-            expect.objectContaining({ name: "Potion of Healing", type: "consumable", rechargeOn: undefined, uses: 1 }),
+            expect.objectContaining({ name: "Potion of Healing", type: "consumable", rechargeOn: undefined, consumedUses: 1 }),
           ]),
         })
       )
@@ -1276,7 +1277,7 @@ describe("EquipmentInventoryModule", () => {
       render(
         <EquipmentInventoryModule
           character={makeCharacter({
-            equipment: [makeItem({ name: "Potion of Healing", type: "consumable", quantity: 3, uses: 1, rechargeOn: "short-rest" })],
+            equipment: [makeItem({ name: "Potion of Healing", type: "consumable", quantity: 3, consumedUses: 1, rechargeOn: "short-rest" })],
           })}
           onUpdate={vi.fn()}
         />
@@ -1290,7 +1291,7 @@ describe("EquipmentInventoryModule", () => {
       render(
         <EquipmentInventoryModule
           character={makeCharacter({
-            equipment: [makeItem({ id: "pot-1", name: "Potion of Healing", type: "consumable", quantity: 2, uses: 2, rechargeOn: "short-rest" })],
+            equipment: [makeItem({ id: "pot-1", name: "Potion of Healing", type: "consumable", quantity: 2, consumedUses: 2, rechargeOn: "short-rest" })],
           })}
           onUpdate={onUpdate}
         />
@@ -1298,7 +1299,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("button", { name: "-" }))
       const updated = onUpdate.mock.calls[0][0]
       expect(updated.equipment[0].quantity).toBe(1)
-      expect(updated.equipment[0].uses).toBe(1)
+      expect(updated.equipment[0].consumedUses).toBe(1)
     })
   })
 
