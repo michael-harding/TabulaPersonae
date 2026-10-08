@@ -5,6 +5,26 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.1] - 2026-10-08
+
+### Added
+- **Skill advantage/disadvantage** — equipped items and granting features can now give advantage or disadvantage on specific skills, with a manual per-skill override; tooltips name the granting item or feature, matching the existing pattern for other calculated stats
+- **Equipment "Used As Action"** — an item can be marked as usable via an Action, Bonus Action, Reaction, or Other, surfacing it alongside spells and features in the Actions tab
+- **Independent charges and quantity-consumed tracking on equipment** — a magic item's rechargeable charges (spent/max, reset by short or long rest) and a consumable's per-use quantity deduction are now tracked separately, so a single item can have both (e.g. a magic potion that is both consumed by quantity and recharges on a long rest)
+- **Per-level max uses for features** — a feature's use limit can scale with character level (e.g. "2 uses per level") instead of only a flat number
+- Feature cards now show level, type, range, and recharge badges
+- Ctrl+S (or Cmd+S) while editing a sheet section now saves and stays in edit mode; Enter saves and exits
+- `Select` supports full keyboard navigation (arrow keys to highlight, Enter to select, Escape/Tab to close)
+
+### Changed
+- Exporting a character (or all characters) to JSON now refreshes calculated fields first, so an export always reflects current values instead of potentially-stale ones
+- Equipment's magic-item modal was extracted into its own component with reusable modifier-group sections, for easier maintenance
+
+### Fixed
+- Ctrl+S (or Cmd+S) no longer silently does nothing when Caps Lock is on or Shift is held
+- A magic item's description in the Magic Items list no longer expands the card to show the full text — long descriptions clip back to a single line as intended
+- Two equipment form fields ("Uses Spent" and "Quantity Consumed") no longer collide when both are visible on the same item
+
 ## [v1.6.0] - 2026-08-11
 
 ### Added
