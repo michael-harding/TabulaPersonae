@@ -117,7 +117,7 @@ export default function CharacterSheet() {
     <Show
       when={!isLoading() && !authLoading()}
       fallback={
-        <div class="flex flex-1 items-center justify-center bg-background">
+        <div data-sem="character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
             <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
             <p class="text-muted-foreground">Loading character...</p>
@@ -127,7 +127,7 @@ export default function CharacterSheet() {
     >
       <Show when={charStore.data}>
         {(getChar) => (
-          <div class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
+          <div data-sem="character-sheet-route" class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
             <StatsBar character={getChar()} />
 
             <header class="border-b bg-card">
@@ -149,6 +149,7 @@ export default function CharacterSheet() {
                           onClick={() => updateCharacter({ ...getChar(), heroicInspiration: !getChar().heroicInspiration })}
                           class={`ml-2 transition-colors ${getChar().heroicInspiration ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`}
                           style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}
+                          data-test="toggle-heroic-inspiration"
                         >
                           <Sunrise class={`h-11 w-11 ${getChar().heroicInspiration ? "fill-yellow-400" : "fill-none"}`} stroke-width={2} />
                         </button>
@@ -160,6 +161,7 @@ export default function CharacterSheet() {
                           onClick={() => setIsRestOpen(true)}
                           class="ml-2 text-muted-foreground hover:text-orange-400 transition-colors"
                           style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}
+                          data-test="take-a-rest-button"
                         >
                           <FlameKindling class="h-11 w-11" stroke-width={2} />
                         </button>
@@ -183,7 +185,7 @@ export default function CharacterSheet() {
                 <div class="flex items-center border-b border-border">
                   <TabsList class="border-b-0 flex-1">
                     <For each={tabConfig().tabs}>
-                      {(tab) => <TabsTrigger value={tab.id}>{tab.label}</TabsTrigger>}
+                      {(tab) => <TabsTrigger value={tab.id} data-test={`tab-trigger-${tab.id}`}>{tab.label}</TabsTrigger>}
                     </For>
                   </TabsList>
                   <Tooltip content="Configure Tabs">
@@ -192,6 +194,7 @@ export default function CharacterSheet() {
                       aria-label="Configure tabs"
                       onClick={() => navigate('/settings/tabs')}
                       class="px-3 py-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      data-test="configure-tabs-button"
                     >
                       <Settings class="h-4 w-4" />
                     </button>

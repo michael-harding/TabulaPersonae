@@ -39,6 +39,13 @@ function clickEditButton() {
   fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
 
+// Each CalculatedValue/CalculatedValueSelect field renders its own focusable tooltip
+// trigger. Scoping by the field's (unique) label avoids depending on DOM order/position.
+function tooltipTriggerFor(label: string) {
+  const fieldContainer = screen.getByText(label).closest('[data-sem="calculated-value"]') as HTMLElement
+  return within(fieldContainer).getByRole("group")
+}
+
 describe("CombatStatsModule", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -266,9 +273,7 @@ describe("CombatStatsModule", () => {
         proficiencyBonus: 2,
       })
       render(<CombatStatsModule character={char} onUpdate={vi.fn()} />)
-      // In view mode, focusable triggers are: AC (0), Initiative (1), Speed (2), Proficiency Bonus (3), Passive Perception (4)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[4])
+      fireEvent.focus(tooltipTriggerFor("Passive Perception"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // Wis 14 → +2, proficient with prof +2 → 10 + 2 + 2 = 14
       expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 2 (Wis) + 2 (Prof)")
@@ -278,9 +283,7 @@ describe("CombatStatsModule", () => {
   describe("AC tooltip", () => {
     it("shows the unarmored DEX-based AC formula in the tooltip in view mode", async () => {
       render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      // AC is the first focusable trigger in view mode
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      fireEvent.focus(tooltipTriggerFor("Armor Class"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // No armor equipped, DEX 10 -> +0: unarmored AC = 10 + 0 DEX
       expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 (Dex)")
@@ -296,9 +299,7 @@ describe("CombatStatsModule", () => {
   describe("movement speed tooltip", () => {
     it("shows a fallback message when no species trait grants Speed", async () => {
       render(<CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      // AC (0), Initiative (1), Speed (2), Proficiency Bonus (3), Passive Perception (4)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[2])
+      fireEvent.focus(tooltipTriggerFor("Speed"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent(/no species trait grants this/i)
     })
@@ -309,8 +310,7 @@ describe("CombatStatsModule", () => {
         levelEffects: [{ level: 1, effects: { speed: 25 } }],
       }
       render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[2])
+      fireEvent.focus(tooltipTriggerFor("Speed"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("25 ft (Dwarf Speed Species Trait)")
     })
@@ -575,13 +575,13 @@ describe("CombatStatsModule", () => {
       const item = makeMagicItem({ modifiers: { conditionImmunities: ["Charmed"] } })
       const { container } = render(<CombatStatsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Charmed")).toBeInTheDocument()
-      expect(container.querySelector('[data-test="remove-condition-immunity-Charmed"]')).not.toBeInTheDocument()
+      expect(within(container).queryByTestId("remove-condition-immunity-Charmed")).not.toBeInTheDocument()
     })
 
     it("shows an own condition immunity as removable", () => {
       const onUpdate = vi.fn()
       const { container } = render(<CombatStatsModule character={makeCharacter({ conditionImmunities: ["Poisoned"] })} onUpdate={onUpdate} />)
-      fireEvent.click(container.querySelector('[data-test="remove-condition-immunity-Poisoned"]')!)
+      fireEvent.click(within(container).getByTestId("remove-condition-immunity-Poisoned"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ conditionImmunities: [] })
       )
@@ -594,7 +594,7 @@ describe("CombatStatsModule", () => {
       }
       const { container } = render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Charmed")).toHaveAttribute("title", "Granted by Fey Ancestry Species Trait — edit in Features")
-      expect(container.querySelector('[data-test="remove-condition-immunity-Charmed"]')).not.toBeInTheDocument()
+      expect(within(container).queryByTestId("remove-condition-immunity-Charmed")).not.toBeInTheDocument()
     })
   })
 
@@ -1024,7 +1024,7 @@ describe("CombatStatsModule", () => {
     it("shows a custom-value toggle button for every calculated field in edit mode (AC, initiative, speed x5, proficiency bonus, passive perception, size, maximum HP)", () => {
       render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(11)
+      expect(screen.getAllByTestId("calculated-value-toggle")).toHaveLength(11)
     })
 
     it("shows a tooltip on the AC value in edit mode when not custom", async () => {
@@ -1032,9 +1032,8 @@ describe("CombatStatsModule", () => {
         <CombatStatsModule character={makeCharacter({ useCalculatedArmorClass: true })} onUpdate={vi.fn()} />
       )
       clickEditButton()
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      expect(triggers.length).toBeGreaterThan(0)
-      fireEvent.focus(triggers[0])
+      const trigger = tooltipTriggerFor("Armor Class")
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
     })
 
@@ -1043,9 +1042,9 @@ describe("CombatStatsModule", () => {
         <CombatStatsModule character={makeCharacter({ useCalculatedArmorClass: true })} onUpdate={vi.fn()} />
       )
       clickEditButton()
-      const triggersBefore = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]').length
+      const triggersBefore = screen.getAllByRole("group").length
       fireEvent.click(screen.getByRole("button", { name: /use custom armor class/i }))
-      const triggersAfter = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]').length
+      const triggersAfter = screen.getAllByRole("group").length
       expect(triggersAfter).toBe(triggersBefore - 1)
     })
 
@@ -1095,8 +1094,7 @@ describe("CombatStatsModule", () => {
       render(
         <CombatStatsModule character={makeCharacter({ useCalculatedArmorClass: false })} onUpdate={vi.fn()} />
       )
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      fireEvent.focus(tooltipTriggerFor("Armor Class"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
@@ -1212,8 +1210,7 @@ describe("CombatStatsModule", () => {
           onUpdate={vi.fn()}
         />
       )
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[4])
+      fireEvent.focus(tooltipTriggerFor("Passive Perception"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
@@ -1260,8 +1257,7 @@ describe("CombatStatsModule", () => {
         />
       )
       // Default ability scores → Dex 10 → modifier +0
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[1])
+      fireEvent.focus(tooltipTriggerFor("Initiative"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("+0 (Dex)")
     })
@@ -1273,8 +1269,7 @@ describe("CombatStatsModule", () => {
           onUpdate={vi.fn()}
         />
       )
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[1])
+      fireEvent.focus(tooltipTriggerFor("Initiative"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
@@ -1289,8 +1284,7 @@ describe("CombatStatsModule", () => {
         />
       )
       // Default level 1 → getProficiencyBonus(1) = +2
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[3])
+      fireEvent.focus(tooltipTriggerFor("Proficiency Bonus"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Level 1)")
     })
@@ -1302,8 +1296,7 @@ describe("CombatStatsModule", () => {
           onUpdate={vi.fn()}
         />
       )
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[3])
+      fireEvent.focus(tooltipTriggerFor("Proficiency Bonus"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })

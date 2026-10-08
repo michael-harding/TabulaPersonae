@@ -128,6 +128,7 @@ export function RestModal(props: RestModalProps) {
           <div class="grid grid-cols-2 gap-2">
             <button
               type="button"
+              data-test="rest-type-short-button"
               onClick={() => { setRestType("short"); setDicesToSpend(0); setRollResult(null) }}
               class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "short" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
             >
@@ -136,6 +137,7 @@ export function RestModal(props: RestModalProps) {
             </button>
             <button
               type="button"
+              data-test="rest-type-long-button"
               onClick={() => { setRestType("long"); setDicesToSpend(0); setRollResult(null) }}
               class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "long" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
             >
@@ -256,12 +258,12 @@ export function RestModal(props: RestModalProps) {
             when={rollResult()}
             fallback={
               <>
-                <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                <Button onClick={handleConfirm}>Confirm Rest</Button>
+                <Button data-test="rest-cancel-button" variant="outline" onClick={handleClose}>Cancel</Button>
+                <Button data-test="rest-confirm-button" onClick={handleConfirm}>Confirm Rest</Button>
               </>
             }
           >
-            <Button onClick={handleClose}>Done</Button>
+            <Button data-test="rest-done-button" onClick={handleClose}>Done</Button>
           </Show>
         </ModalFooter>
       </ModalContent>

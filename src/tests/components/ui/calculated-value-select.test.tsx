@@ -29,33 +29,33 @@ describe("CalculatedValueSelect", () => {
   })
 
   it("renders an icon alongside the label when provided", () => {
-    render(<CalculatedValueSelect {...baseProps({ icon: <span data-testid="size-icon" /> })} />)
+    render(<CalculatedValueSelect {...baseProps({ icon: <span data-test="size-icon" /> })} />)
     expect(screen.getByTestId("size-icon")).toBeInTheDocument()
   })
 
   it("defaults to a top/column layout", () => {
-    const { container } = render(<CalculatedValueSelect {...baseProps()} />)
-    const root = container.querySelector('[data-sem="calculated-value"]')
+    render(<CalculatedValueSelect {...baseProps()} />)
+    const root = screen.getByTestId("calculated-value-select")
     expect(root).toHaveClass("flex-col")
     expect(root).not.toHaveClass("flex-row")
   })
 
   it("applies a left/row layout when labelPosition is 'left'", () => {
-    const { container } = render(<CalculatedValueSelect {...baseProps({ labelPosition: "left" })} />)
-    const root = container.querySelector('[data-sem="calculated-value"]')
+    render(<CalculatedValueSelect {...baseProps({ labelPosition: "left" })} />)
+    const root = screen.getByTestId("calculated-value-select")
     expect(root).toHaveClass("flex-row")
     expect(root).not.toHaveClass("flex-col")
   })
 
   it("uses the default label class when labelClass is not provided", () => {
-    const { container } = render(<CalculatedValueSelect {...baseProps()} />)
-    const label = container.querySelector('[data-sem="calculated-value"] > span')
+    render(<CalculatedValueSelect {...baseProps()} />)
+    const label = screen.getByTestId("calculated-value-select-label")
     expect(label).toHaveClass("text-sm", "text-muted-foreground")
   })
 
   it("overrides the label class when labelClass is provided", () => {
-    const { container } = render(<CalculatedValueSelect {...baseProps({ labelClass: "text-lg font-bold" })} />)
-    const label = container.querySelector('[data-sem="calculated-value"] > span')
+    render(<CalculatedValueSelect {...baseProps({ labelClass: "text-lg font-bold" })} />)
+    const label = screen.getByTestId("calculated-value-select-label")
     expect(label).toHaveClass("text-lg", "font-bold")
     expect(label).not.toHaveClass("text-sm", "text-muted-foreground")
   })
@@ -73,7 +73,7 @@ describe("CalculatedValueSelect", () => {
   describe("tooltip", () => {
     it("shows the calculated tooltip when not custom", async () => {
       render(<CalculatedValueSelect {...baseProps()} />)
-      const trigger = document.querySelector('[data-sem="tooltip-trigger"][tabindex="0"]')!
+      const trigger = screen.getByTestId("calculated-value-select-display").closest('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("(Species Trait)")
@@ -81,7 +81,7 @@ describe("CalculatedValueSelect", () => {
 
     it("shows 'Custom' instead of the calculated tooltip when custom", async () => {
       render(<CalculatedValueSelect {...baseProps({ custom: true, value: "Large" })} />)
-      const trigger = document.querySelector('[data-sem="tooltip-trigger"][tabindex="0"]')!
+      const trigger = screen.getByTestId("calculated-value-select-display").closest('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")

@@ -17,6 +17,7 @@ export const MarkdownContent: Component<MarkdownContentProps> = (props) => {
   const html = () => DOMPurify.sanitize(marked.parse(props.text) as string)
   return (
     <div
+      data-sem="markdown-content"
       class={`markdown-content text-sm${props.class ? ` ${props.class}` : ""}`}
       // eslint-disable-next-line solid/no-innerhtml -- sanitized via DOMPurify.sanitize() above; approved exception per CONSTITUTION.md §10.3
       innerHTML={html()}

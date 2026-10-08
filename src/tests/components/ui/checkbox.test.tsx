@@ -30,8 +30,8 @@ describe("Checkbox", () => {
   describe("clicking the visible control square (not the hidden input)", () => {
     it("toggles exactly once via the built-in label prop", () => {
       const onChange = vi.fn()
-      const { container } = render(<Checkbox id="safe" label="Some Item" checked={false} onChange={onChange} />)
-      const control = container.querySelector('[id$="-control"]') as HTMLElement
+      render(<Checkbox id="safe" label="Some Item" checked={false} onChange={onChange} />)
+      const control = screen.getByTestId("checkbox-control-safe")
       fireEvent.click(control)
       expect(onChange).toHaveBeenCalledTimes(1)
       expect(onChange).toHaveBeenCalledWith(true)
@@ -39,8 +39,8 @@ describe("Checkbox", () => {
 
     it("toggles exactly once with no label at all", () => {
       const onChange = vi.fn()
-      const { container } = render(<Checkbox aria-label="Toggle" checked={false} onChange={onChange} />)
-      const control = container.querySelector('[id$="-control"]') as HTMLElement
+      render(<Checkbox aria-label="Toggle" checked={false} onChange={onChange} />)
+      const control = screen.getByTestId("checkbox-control")
       fireEvent.click(control)
       expect(onChange).toHaveBeenCalledTimes(1)
     })
@@ -54,13 +54,13 @@ describe("Checkbox", () => {
     // changed, that's good news — the warning comment in checkbox.tsx should be revisited too.
     it("DOES double-fire when hand-wrapped in a native <label> — do not use this pattern", () => {
       const onChange = vi.fn()
-      const { container } = render(
+      render(
         <label>
           <Checkbox checked={false} onChange={onChange} />
           <span>Some Item</span>
         </label>
       )
-      const control = container.querySelector('[id$="-control"]') as HTMLElement
+      const control = screen.getByTestId("checkbox-control")
       fireEvent.click(control)
       expect(onChange).toHaveBeenCalledTimes(2)
     })

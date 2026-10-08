@@ -83,7 +83,7 @@ export function OfflineIndicator() {
               <RefreshCwOff class={`h-5 w-5 ${TEXT_COLOR[status()]}`} />
             </Match>
             <Match when={status() === 'syncing'}>
-              <RefreshCw class="h-5 w-5 animate-spin text-white" />
+              <RefreshCw data-test="offline-indicator-spinner" class="h-5 w-5 animate-spin text-white" />
             </Match>
             <Match when={status() === 'synced'}>
               <RefreshCw class="h-5 w-5 text-white" />

@@ -179,7 +179,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
               {totalWeight()} lbs
             </Badge>
             <Show when={!isReadOnly}>
-              <Button size="sm" class="gap-2" onClick={openAdd}>
+              <Button data-test="add-equipment-button" size="sm" class="gap-2" onClick={openAdd}>
                 <Plus class="h-4 w-4" />
                 Add Item
               </Button>
@@ -189,7 +189,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       </CardHeader>
       <CardContent class="space-y-4">
         {/* Carrying Capacity */}
-        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div data-test="carrying-capacity-row" class="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span>Carrying Capacity: {totalWeight()} /</span>
           <CalculatedValue
             label="Carrying Capacity"
@@ -250,12 +250,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         <Separator />
 
         {/* Magic Items */}
-        <div data-sem="magic-items-section">
+        <div data-sem="magic-items-section" data-test="magic-items-section">
           <h2 class="font-semibold text-sm flex items-center gap-2 mb-2">
             <Gem class="h-4 w-4 text-primary" />
             Magic Items
           </h2>
-          <div class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
+          <div data-test="attunement-limit-row" class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
             <span>{attunedCount()}/</span>
             <CalculatedValue
               label="Attunement Limit"
@@ -280,6 +280,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       <div class="flex items-center gap-2 flex-wrap">
                         <Show when={!isReadOnly} fallback={<span class="font-medium text-sm">{item.name}</span>}>
                           <Checkbox
+                            data-test={`magic-item-toggle-equipped-${item.id}`}
                             checked={item.equipped ?? false}
                             onChange={() => toggleEquipped(item.id)}
                             title="Toggle equipped"
@@ -302,7 +303,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </Show>
                         <Show when={item.requiresAttunement}>
                           <Show when={!isReadOnly}>
-                            <Checkbox checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} title="Toggle attuned" aria-label="Toggle attuned" />
+                            <Checkbox data-test={`magic-item-toggle-attuned-${item.id}`} checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} title="Toggle attuned" aria-label="Toggle attuned" />
                           </Show>
                           <Show when={item.attuned}>
                             <Badge variant="secondary" class="text-xs">Attuned</Badge>
@@ -437,12 +438,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                     <Show when={!isReadOnly}>
                       <div class="flex items-center gap-1 shrink-0 ml-2">
                         <Tooltip content={`Edit ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
+                          <Button data-test={`magic-item-edit-${item.id}`} variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
                             <Edit class="h-4 w-4" />
                           </Button>
                         </Tooltip>
                         <Tooltip content={`Delete ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
+                          <Button data-test={`magic-item-delete-${item.id}`} variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
                             <Trash2 class="h-4 w-4" />
                           </Button>
                         </Tooltip>
@@ -460,6 +461,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         <div class="relative">
           <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            data-test="equipment-search-input"
             placeholder="Search equipment..."
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
@@ -501,6 +503,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         <div class="flex items-center gap-2">
                           <Show when={!isReadOnly}>
                             <Checkbox
+                              data-test={`equipment-toggle-equipped-${item.id}`}
                               checked={item.equipped || false}
                               onChange={() => toggleEquipped(item.id)}
                               title="Toggle equipped"
@@ -508,6 +511,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             />
                           </Show>
                           <h3
+                            data-test={`equipment-item-name-${item.id}`}
                             class={`font-medium ${isReadOnly ? "" : "cursor-pointer"}`}
                             onClick={() => !isReadOnly && toggleEquipped(item.id)}
                           >
@@ -566,12 +570,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                     <Show when={!isReadOnly}>
                       <div class="flex items-center gap-2">
                         <Tooltip content={`Edit ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
+                          <Button data-test={`equipment-edit-${item.id}`} variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
                             <Edit class="h-4 w-4" />
                           </Button>
                         </Tooltip>
                         <Tooltip content={`Delete ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
+                          <Button data-test={`equipment-delete-${item.id}`} variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
                             <Trash2 class="h-4 w-4" />
                           </Button>
                         </Tooltip>
@@ -589,6 +593,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         >
                           <div class="flex items-center gap-1">
                             <Button
+                              data-test={`equipment-quantity-decrease-${item.id}`}
                               variant="outline"
                               size="sm"
                               onClick={() => updateQuantity(item.id, item.quantity - 1)}
@@ -599,6 +604,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             </Button>
                             <span class="w-8 text-center">{item.quantity}</span>
                             <Button
+                              data-test={`equipment-quantity-increase-${item.id}`}
                               variant="outline"
                               size="sm"
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}

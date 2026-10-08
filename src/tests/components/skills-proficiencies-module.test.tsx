@@ -58,6 +58,21 @@ function clickEditButton() {
   fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
 
+function savingThrowTrigger(ability: string) {
+  return screen.getByTestId(`saving-throw-modifier-${ability}`).parentElement as HTMLElement
+}
+
+function skillTrigger(skill: string) {
+  return screen.getByTestId(`skill-modifier-${skill}`).parentElement as HTMLElement
+}
+
+// Passive sense fields render via the shared CalculatedValue component, which doesn't expose a
+// per-field data-test on its tooltip trigger — scope by the field's (unique) label instead.
+function passiveTrigger(label: string) {
+  const fieldContainer = screen.getByText(label).closest('[data-sem="calculated-value"]') as HTMLElement
+  return within(fieldContainer).getByRole("group")
+}
+
 // Skill order in SKILL_DISPLAY_NAMES (matches component's Object.keys order):
 // acrobatics(0), animalHandling(1), arcana(2), athletics(3), deception(4),
 // history(5), insight(6), intimidation(7), investigation(8), medicine(9),
@@ -509,36 +524,27 @@ describe("SkillsProficienciesModule", () => {
   })
 
   describe("calculation tooltips", () => {
-    // Trigger DOM order: 6 saving throws, 18 skills, 3 passive senses = 27 total
-    // Skill order (Object.keys of SKILL_DISPLAY_NAMES):
-    //   acrobatics(6), animalHandling(7), arcana(8), athletics(9), deception(10),
-    //   history(11), insight(12), intimidation(13), investigation(14), medicine(15),
-    //   nature(16), perception(17), performance(18), persuasion(19), religion(20),
-    //   sleightOfHand(21), stealth(22), survival(23)
-    // Senses: perception(24), insight(25), investigation(26)
+    // 27 focusable tooltip triggers total: 6 saving throws + 18 skills + 3 passive senses.
 
     beforeEach(() => cleanupPortals())
 
     it("renders 27 focusable tooltip triggers in view mode (6 saves + 18 skills + 3 senses)", () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      expect(triggers).toHaveLength(27)
+      expect(screen.getAllByRole("group")).toHaveLength(27)
     })
 
     it("shows ability mod + proficiency bonus for a proficient saving throw", async () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      // STR (index 0) is proficient: Str +3 + Prof +3 = +6
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      // STR is proficient: Str +3 + Prof +3 = +6
+      fireEvent.focus(savingThrowTrigger("strength"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 3 (Prof)")
     })
 
     it("shows only ability modifier for a non-proficient saving throw", async () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      // DEX (index 1) is not proficient: just Dex +2
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[1])
+      // DEX is not proficient: just Dex +2
+      fireEvent.focus(savingThrowTrigger("dexterity"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Dex)")
       expect(screen.getByRole("tooltip").textContent).not.toContain("Prof")
@@ -546,18 +552,16 @@ describe("SkillsProficienciesModule", () => {
 
     it("shows expertise bonus in skill modifier tooltip", async () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      // Stealth at index 22 (6 saves + 16 skill): Dex +2 + Prof +3 + Exp +3 = +8
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[22])
+      // Stealth: Dex +2 + Prof +3 + Exp +3 = +8
+      fireEvent.focus(skillTrigger("stealth"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Dex) + 3 (Prof) + 3 (Exp)")
     })
 
     it("shows only ability modifier for a skill with no proficiency", async () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      // Acrobatics at index 6: Dex +2 (no proficiency in makeCharacter)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[6])
+      // Acrobatics: Dex +2 (no proficiency in makeCharacter)
+      fireEvent.focus(skillTrigger("acrobatics"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("+2 (Dex)")
       expect(screen.getByRole("tooltip").textContent).not.toContain("Prof")
@@ -565,9 +569,8 @@ describe("SkillsProficienciesModule", () => {
 
     it("shows passive skill formula in the senses section tooltip", async () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      // Passive Perception at index 24: Wis 8 → -1, no prof → 10 + (-1) = 9
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[24])
+      // Passive Perception: Wis 8 → -1, no prof → 10 + (-1) = 9
+      fireEvent.focus(passiveTrigger("Passive Perception"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("10 - 1 (Wis)")
     })
@@ -691,9 +694,7 @@ describe("SkillsProficienciesModule", () => {
           onUpdate={vi.fn()}
         />
       )
-      // Passive Insight is at trigger index 25 (perception=24, insight=25, investigation=26)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[25])
+      fireEvent.focus(passiveTrigger("Passive Insight"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
@@ -748,8 +749,7 @@ describe("SkillsProficienciesModule", () => {
       })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       // effective WIS 10 -> +0, not proficient -> passive = 10
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[24])
+      fireEvent.focus(passiveTrigger("Passive Perception"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("10 + 0 (Wis)")
     })
@@ -813,7 +813,7 @@ describe("SkillsProficienciesModule", () => {
       })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       const card = screen.getByText("Darkvision").closest('[data-sem="calculated-value"]')!
-      const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
+      const trigger = within(card as HTMLElement).getByRole("group")
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("+ 10 (Eyes of the Eagle) + 60 (Superior Darkvision Species Trait)")
@@ -831,7 +831,7 @@ describe("SkillsProficienciesModule", () => {
       const character = makeCharacter({ speciesTraits: [featureA], feats: [featureB] })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       const card = screen.getByText("Darkvision").closest('[data-sem="calculated-value"]')!
-      const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
+      const trigger = within(card as HTMLElement).getByRole("group")
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("+ 30 (Keen Senses Species Trait) + 60 (Devil's Sight Feat)")
@@ -846,7 +846,7 @@ describe("SkillsProficienciesModule", () => {
       })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       const card = screen.getByText("Darkvision").closest('[data-sem="calculated-value"]')!
-      const trigger = card.querySelector('[data-sem="tooltip-trigger"]')!
+      const trigger = within(card as HTMLElement).getByRole("group")
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("+ 30 (Eyes of the Eagle) + 60 (Goggles of Night)")

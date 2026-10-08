@@ -34,6 +34,7 @@ export function Button(props: ButtonProps) {
   const [local, others] = splitProps(props, ["class", "variant", "size"])
   return (
     <button
+      data-sem="button"
       class={cn(buttonVariants({ variant: local.variant, size: local.size, className: local.class }))}
       {...others}
     />

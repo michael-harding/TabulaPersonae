@@ -255,24 +255,23 @@ describe("AbilityScoresModule", () => {
     it("renders a focusable trigger for each ability card and each proficient saving throw in view mode", () => {
       render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // 6 ability cards + 1 STR saving throw (only STR is proficient in makeCharacter)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      expect(triggers).toHaveLength(7)
+      expect(screen.getAllByRole("group")).toHaveLength(7)
     })
 
     it("shows ability modifier formula in tooltip when card is focused", async () => {
       render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      // STR card is the first focusable trigger (contains "+3" modifier, score 16)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      // STR card's score tooltip trigger wraps the strength-score-value content node
+      const trigger = screen.getByTestId("strength-score-value").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("(16 − 10) / 2 = +3")
     })
 
     it("shows saving throw formula in tooltip when the saving throw section is focused", async () => {
       render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      // STR saving throw trigger is at index 1 (after the STR ability card at index 0)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[1])
+      // STR is the only proficient saving throw in makeCharacter
+      const trigger = screen.getByTestId("strength-saving-throw-value").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // STR 16 → +3, Prof +3 → total +6
       expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 3 (Prof)")
@@ -281,7 +280,9 @@ describe("AbilityScoresModule", () => {
     it("renders one focusable effective-score tooltip trigger per ability in edit mode", () => {
       render(<AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
-      // Each ability's "Effective" CalculatedValue control renders its own focusable tooltip trigger
+      // Each ability's "Effective" CalculatedValue control renders its own focusable tooltip trigger.
+      // getAllByRole("group") would also match CalculatedValue's internal edit-mode grouping element,
+      // doubling the count — scope to the tooltip-trigger wrapper specifically instead.
       const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
       expect(triggers).toHaveLength(6)
     })
@@ -305,8 +306,8 @@ describe("AbilityScoresModule", () => {
         equipment: [makeMagicItem({ name: "Belt of Giant Strength", modifiers: { abilityScores: { strength: 2 } } })],
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      const trigger = screen.getByTestId("strength-score-value").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) = 18")
     })
@@ -327,8 +328,8 @@ describe("AbilityScoresModule", () => {
         ],
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      const trigger = screen.getByTestId("strength-score-value").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) + 1 (Gauntlets of Ogre Power) = 19")
     })
@@ -338,8 +339,8 @@ describe("AbilityScoresModule", () => {
         speciesTraits: [{ id: "f1", name: "Hill Dwarf Toughness", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 2 } } }] }],
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      const trigger = screen.getByTestId("strength-score-value").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Hill Dwarf Toughness Species Trait) = 18")
     })
@@ -350,8 +351,8 @@ describe("AbilityScoresModule", () => {
         classFeatures: [{ id: "f2", name: "Ability Score Improvement", description: "", source: "class-feature", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 1 } } }] }],
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      const trigger = screen.getByTestId("strength-score-value").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 1 (Ability Score Improvement Class Feature) + 2 (Hill Dwarf Toughness Species Trait) = 19")
     })
@@ -362,8 +363,8 @@ describe("AbilityScoresModule", () => {
         speciesTraits: [{ id: "f1", name: "Hill Dwarf Toughness", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { abilityScores: { strength: 1 } } }] }],
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      const trigger = screen.getByTestId("strength-score-value").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("16 base + 2 (Belt of Giant Strength) + 1 (Hill Dwarf Toughness Species Trait) = 19")
     })
@@ -433,10 +434,8 @@ describe("AbilityScoresModule", () => {
         equipment: [makeMagicItem({ modifiers: { abilityScoreFloors: { wisdom: 18 } } })],
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      // View mode order: STR card(0), STR saving throw(1), DEX(2), CON(3), INT(4), WIS(5), CHA(6) —
-      // only strength has a proficient save in makeCharacter, adding one extra trigger before DEX.
-      fireEvent.focus(triggers[5])
+      const trigger = screen.getByTestId("wisdom-score-value").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent(/floor 18/i)
       expect(screen.getByRole("tooltip")).toHaveTextContent("(18 − 10) / 2 = +4")
@@ -457,8 +456,8 @@ describe("AbilityScoresModule", () => {
         equipment: [makeMagicItem({ modifiers: { abilityScoreMaxCaps: { strength: 7 } } })],
       })
       render(<AbilityScoresModule character={character} onUpdate={vi.fn()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      const trigger = screen.getByTestId("strength-score-value").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent(/cap 7/i)
       expect(screen.getByRole("tooltip")).toHaveTextContent("(7 − 10) / 2 = -2")

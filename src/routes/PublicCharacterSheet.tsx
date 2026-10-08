@@ -59,7 +59,7 @@ export default function PublicCharacterSheet() {
     <Show
       when={!isLoading()}
       fallback={
-        <div class="flex flex-1 items-center justify-center bg-background">
+        <div data-sem="public-character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
             <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
             <p class="text-muted-foreground">Loading character...</p>
@@ -70,18 +70,18 @@ export default function PublicCharacterSheet() {
       <Show
         when={character()}
         fallback={
-          <div class="flex flex-1 items-center justify-center bg-background">
+          <div data-sem="public-character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
             <div class="text-center space-y-2">
               <Scroll class="h-12 w-12 mx-auto text-muted-foreground" />
               <p class="text-lg font-semibold">Character not found or not shared publicly.</p>
-              <A href="/" class="text-sm text-primary underline underline-offset-2">Go to TabulaPersonae</A>
+              <A href="/" class="text-sm text-primary underline underline-offset-2" data-test="go-to-app-link">Go to TabulaPersonae</A>
             </div>
           </div>
         }
       >
         {(getChar) => (
           <ReadOnlyProvider value={true}>
-            <div class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
+            <div data-sem="public-character-sheet-route" class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
               <StatsBar character={getChar()} />
 
               <header class="border-b bg-card">
@@ -102,7 +102,7 @@ export default function PublicCharacterSheet() {
                         </p>
                       </div>
                     </div>
-                    <A href="/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    <A href="/" class="text-sm text-muted-foreground hover:text-foreground transition-colors" data-test="app-home-link">
                       TabulaPersonae ↗
                     </A>
                   </div>
@@ -114,7 +114,7 @@ export default function PublicCharacterSheet() {
                   <div class="flex items-center border-b border-border">
                     <TabsList class="border-b-0 flex-1">
                       <For each={PUBLIC_TAB_CONFIG.tabs}>
-                        {(tab) => <TabsTrigger value={tab.id}>{tab.label}</TabsTrigger>}
+                        {(tab) => <TabsTrigger value={tab.id} data-test={`tab-trigger-${tab.id}`}>{tab.label}</TabsTrigger>}
                       </For>
                     </TabsList>
                   </div>

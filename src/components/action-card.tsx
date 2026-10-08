@@ -130,6 +130,7 @@ export function ActionCard(props: ActionCardProps) {
               <Popover.Trigger
                 class="inline-flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={`Details for ${props.name}`}
+                data-test={`action-details-trigger-${props.name}`}
               >
                 <CircleHelp class="w-4 h-4" />
               </Popover.Trigger>
@@ -211,6 +212,7 @@ export function ActionCard(props: ActionCardProps) {
                 type="button"
                 class="text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={`Edit ${props.name}`}
+                data-test={`action-edit-button-${props.name}`}
                 onClick={props.onEdit}
               >
                 <Pencil class="h-4 w-4" />
@@ -249,6 +251,7 @@ export function ActionCard(props: ActionCardProps) {
               <Badge
                 variant={concentrationActive() ? "default" : "outline"}
                 class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground border-muted-foreground/40"}${!isReadOnly ? " cursor-pointer" : ""}`}
+                data-test={`concentration-badge-${props.name}-${concentrationActive() ? "active" : "inactive"}`}
                 onClick={isReadOnly ? undefined : () => setConcentrationActive(v => !v)}
               >
                 Concentration
@@ -267,7 +270,10 @@ export function ActionCard(props: ActionCardProps) {
                   ? "border-blue-500 text-blue-700 dark:text-blue-400"
                   : "border-red-500 text-red-700 dark:text-red-400"
                 return (
-                  <div class={`px-2 py-1 border-2 rounded font-semibold whitespace-nowrap text-sm ${colorClass}`}>
+                  <div
+                    class={`px-2 py-1 border-2 rounded font-semibold whitespace-nowrap text-sm ${colorClass}`}
+                    data-test={`effect-pill-${props.name}-${p().color}`}
+                  >
                     {p().text}
                   </div>
                 )
@@ -319,6 +325,7 @@ export function ActionCard(props: ActionCardProps) {
                         variant="secondary"
                         size="sm"
                         class="h-11 min-w-[44px] px-2 text-xs"
+                        data-test={`action-upcast-level-${props.name}-${level}`}
                         onClick={() => props.onCastAtLevel?.(level)}
                       >
                         {getOrdinalSuffix(level)}
@@ -331,6 +338,7 @@ export function ActionCard(props: ActionCardProps) {
                 variant="outline"
                 size="sm"
                 class="h-11 px-4"
+                data-test={`action-cast-button-${props.name}`}
                 disabled={!props.castable?.()}
                 onClick={props.onCast}
               >
@@ -342,6 +350,7 @@ export function ActionCard(props: ActionCardProps) {
                   size="sm"
                   class="h-11 w-11 p-0"
                   aria-label="Upcast"
+                  data-test={`action-upcast-toggle-${props.name}`}
                   disabled={!props.upcastLevels?.().length}
                   onClick={() => props.onUpcastSpellId?.(
                     props.upcastSpellId?.() === props.spellId ? null : (props.spellId ?? null)

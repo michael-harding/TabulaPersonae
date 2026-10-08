@@ -557,15 +557,15 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("renders magic item names", () => {
-      const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring of Protection" })] })} onUpdate={vi.fn()} />)
-      const section = container.querySelector('[data-sem="magic-items-section"]')!
-      expect(within(section as HTMLElement).getByText("Ring of Protection")).toBeInTheDocument()
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring of Protection" })] })} onUpdate={vi.fn()} />)
+      const section = screen.getByTestId("magic-items-section")
+      expect(within(section).getByText("Ring of Protection")).toBeInTheDocument()
     })
 
     it("shows the action kind badge on a magic item card", () => {
       const item = makeMagicItem({ name: "Wand of Magic Missiles", actionKind: "action" })
-      const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
-      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      const section = screen.getByTestId("magic-items-section")
       expect(within(section).getByText("Action")).toBeInTheDocument()
     })
 
@@ -577,8 +577,8 @@ describe("EquipmentInventoryModule", () => {
         type: "weapon",
         weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
       })
-      const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
-      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      const section = screen.getByTestId("magic-items-section")
       expect(within(section).getByText("weapon")).toBeInTheDocument()
       expect(within(section).getByText(/1d8 slashing.*5 ft/)).toBeInTheDocument()
     })
@@ -589,8 +589,8 @@ describe("EquipmentInventoryModule", () => {
         type: "armor",
         armorStats: { baseAC: 18, armorType: "heavy" },
       })
-      const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
-      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      const section = screen.getByTestId("magic-items-section")
       expect(within(section).getByText("armor")).toBeInTheDocument()
       expect(within(section).getByText(/AC 18.*heavy/)).toBeInTheDocument()
     })
@@ -606,11 +606,10 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows attuned count vs the (calculated) attunement limit in the heading", () => {
-      const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Staff", attuned: true })] })} onUpdate={vi.fn()} />)
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Staff", attuned: true })] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("1/")).toBeInTheDocument()
       expect(screen.getByText("attuned")).toBeInTheDocument()
-      const magicItemsSection = container.querySelector('[data-sem="magic-items-section"]')
-      expect(magicItemsSection?.querySelector('[data-sem="calculated-value"]')).toHaveTextContent("3")
+      expect(screen.getByTestId("attunement-limit-row")).toHaveTextContent("3")
     })
 
     it("does not show an over-limit warning when at or below the attunement limit", () => {
@@ -680,10 +679,10 @@ describe("EquipmentInventoryModule", () => {
     // Magic Items list itself, so items don't need to be found twice to be equipped.
     it("allows equipping a magic item directly from the Magic Items list", () => {
       const onUpdate = vi.fn()
-      const { container } = render(
+      render(
         <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", equipped: false })] })} onUpdate={onUpdate} />
       )
-      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      const section = screen.getByTestId("magic-items-section")
       fireEvent.click(within(section).getByTitle("Toggle equipped"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -694,10 +693,10 @@ describe("EquipmentInventoryModule", () => {
 
     it("also toggles equipped when a magic item's name is clicked in the Magic Items list", () => {
       const onUpdate = vi.fn()
-      const { container } = render(
+      render(
         <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", equipped: false })] })} onUpdate={onUpdate} />
       )
-      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      const section = screen.getByTestId("magic-items-section")
       fireEvent.click(within(section).getByText("Ring"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -707,20 +706,20 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows an 'Equipped' badge on an equipped magic item in the Magic Items list", () => {
-      const { container } = render(
+      render(
         <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Cloak", equipped: true })] })} onUpdate={vi.fn()} />
       )
-      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      const section = screen.getByTestId("magic-items-section")
       expect(within(section).getByText("Equipped")).toBeInTheDocument()
     })
 
     it("does not render an equip checkbox for magic items in readOnly mode", () => {
-      const { container } = render(
+      render(
         <ReadOnlyProvider value={true}>
           <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring" })] })} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
       )
-      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      const section = screen.getByTestId("magic-items-section")
       expect(within(section).queryByTitle("Toggle equipped")).not.toBeInTheDocument()
       expect(within(section).getByText("Ring")).toBeInTheDocument()
     })
@@ -780,11 +779,11 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Ring of Protection" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
       fireEvent.click(within(modal).getByText("AC & Initiative Bonus"))
-      setNumericValue(document.querySelector("#modifier-ac")!, "1")
+      setNumericValue(screen.getByTestId("modifier-ac"), "1")
       fireEvent.click(within(modal).getByText("Saving Throws"))
-      setNumericValue(document.querySelector("#modifier-save-wisdom")!, "2")
+      setNumericValue(screen.getByTestId("modifier-save-wisdom"), "2")
       fireEvent.click(within(modal).getByText("Ability Scores"))
-      setNumericValue(document.querySelector("#modifier-ability-strength")!, "3")
+      setNumericValue(screen.getByTestId("modifier-ability-strength"), "3")
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -821,7 +820,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
       fireEvent.click(within(modal).getByText("Charges"))
-      setNumericValue(document.querySelector("#item-max-uses")!, "3")
+      setNumericValue(screen.getByTestId("item-max-uses"), "3")
       // The Recharge On select's trigger has no accessible name (its placeholder text
       // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
       const rechargeSection = within(modal).getByText("Recharge On").closest("div")!
@@ -848,13 +847,13 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
       fireEvent.click(within(modal).getByText("Charges"))
-      setNumericValue(document.querySelector("#item-max-uses")!, "3")
+      setNumericValue(screen.getByTestId("item-max-uses"), "3")
       // The Recharge On select's trigger has no accessible name (its placeholder text
       // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
       const rechargeSection = within(modal).getByText("Recharge On").closest("div")!
       fireEvent.click(within(rechargeSection).getByRole("button"))
       fireEvent.click(screen.getByRole("option", { name: "Long Rest" }))
-      setNumericValue(document.querySelector("#item-max-uses")!, "0")
+      setNumericValue(screen.getByTestId("item-max-uses"), "0")
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -875,8 +874,8 @@ describe("EquipmentInventoryModule", () => {
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
       )
       fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
-      setNumericValue(document.querySelector("#item-max-uses")!, "4")
-      expect((document.querySelector("#item-uses-charges") as HTMLInputElement).value).toBe("2")
+      setNumericValue(screen.getByTestId("item-max-uses"), "4")
+      expect((screen.getByTestId("item-uses-charges") as HTMLInputElement).value).toBe("2")
       fireEvent.click(screen.getByRole("button", { name: /update item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -892,8 +891,8 @@ describe("EquipmentInventoryModule", () => {
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
       )
       fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
-      setNumericValue(document.querySelector("#item-max-uses")!, "1")
-      expect((document.querySelector("#item-uses-charges") as HTMLInputElement).value).toBe("1")
+      setNumericValue(screen.getByTestId("item-max-uses"), "1")
+      expect((screen.getByTestId("item-uses-charges") as HTMLInputElement).value).toBe("1")
       fireEvent.click(screen.getByRole("button", { name: /update item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -911,9 +910,9 @@ describe("EquipmentInventoryModule", () => {
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />
       )
       fireEvent.click(screen.getAllByRole("button", { name: /edit cloak of protection/i })[0])
-      expect((document.querySelector("#modifier-ac") as HTMLInputElement).value).toBe("1")
-      expect((document.querySelector("#modifier-save-wisdom") as HTMLInputElement).value).toBe("2")
-      expect((document.querySelector("#modifier-ability-strength") as HTMLInputElement).value).toBe("3")
+      expect((screen.getByTestId("modifier-ac") as HTMLInputElement).value).toBe("1")
+      expect((screen.getByTestId("modifier-save-wisdom") as HTMLInputElement).value).toBe("2")
+      expect((screen.getByTestId("modifier-ability-strength") as HTMLInputElement).value).toBe("3")
     })
 
     it("keeps all modifier groups collapsed by default when adding a new magic item", () => {
@@ -921,9 +920,9 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
-      expect(document.querySelector("#modifier-save-wisdom")).not.toBeInTheDocument()
-      expect(document.querySelector("#modifier-ability-strength")).not.toBeInTheDocument()
-      expect(document.querySelector("#modifier-sense-darkvision")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("modifier-save-wisdom")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("modifier-ability-strength")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("modifier-sense-darkvision")).not.toBeInTheDocument()
     })
 
     it("only auto-expands modifier groups that already have values when editing", () => {
@@ -934,10 +933,10 @@ describe("EquipmentInventoryModule", () => {
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /edit boots of the winterlands/i })[0])
       // Senses has a value, so it auto-expands...
-      expect((document.querySelector("#modifier-sense-darkvision") as HTMLInputElement).value).toBe("60")
+      expect((screen.getByTestId("modifier-sense-darkvision") as HTMLInputElement).value).toBe("60")
       // ...but unrelated groups with no values stay collapsed.
-      expect(document.querySelector("#modifier-save-wisdom")).not.toBeInTheDocument()
-      expect(document.querySelector("#modifier-fly-speed")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("modifier-save-wisdom")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("modifier-fly-speed")).not.toBeInTheDocument()
     })
 
     it("shows an active bonus summary in the Magic Items list", () => {
@@ -971,14 +970,14 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
 
       fireEvent.click(within(modal).getByText("Senses"))
-      setNumericValue(document.querySelector("#modifier-sense-darkvision")!, "60")
+      setNumericValue(screen.getByTestId("modifier-sense-darkvision"), "60")
 
       fireEvent.click(within(modal).getByText("Movement & Weight"))
-      setNumericValue(document.querySelector("#modifier-fly-speed")!, "30")
-      setNumericValue(document.querySelector("#modifier-capacity-bonus")!, "20")
+      setNumericValue(screen.getByTestId("modifier-fly-speed"), "30")
+      setNumericValue(screen.getByTestId("modifier-capacity-bonus"), "20")
 
       fireEvent.click(within(modal).getByText("Ability Scores"))
-      setNumericValue(document.querySelector("#modifier-floor-strength")!, "19")
+      setNumericValue(screen.getByTestId("modifier-floor-strength"), "19")
 
       // Damage resistance picker (fixed-vocabulary dropdown)
       fireEvent.click(within(modal).getByText("Resistances & Immunities"))
@@ -1034,8 +1033,8 @@ describe("EquipmentInventoryModule", () => {
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /edit boots of striding/i })[0])
       // Movement & Weight and Ability Scores both have values, so both auto-expand without a click.
-      expect((document.querySelector("#modifier-speed") as HTMLInputElement).value).toBe("10")
-      expect((document.querySelector("#modifier-floor-strength") as HTMLInputElement).value).toBe("19")
+      expect((screen.getByTestId("modifier-speed") as HTMLInputElement).value).toBe("10")
+      expect((screen.getByTestId("modifier-floor-strength") as HTMLInputElement).value).toBe("19")
     })
   })
 
@@ -1140,8 +1139,7 @@ describe("EquipmentInventoryModule", () => {
     it("shows carrying capacity computed from STR score x 15", () => {
       render(<EquipmentInventoryModule character={makeCharacter({ abilityScores: { ...createDefaultCharacter().abilityScores, strength: 16 } })} onUpdate={vi.fn()} />)
       expect(screen.getAllByText(/carrying capacity/i).length).toBeGreaterThan(0)
-      const value = document.querySelector('[data-sem="calculated-value"]')
-      expect(value).toHaveTextContent("240")
+      expect(screen.getByTestId("carrying-capacity-row")).toHaveTextContent("240")
     })
   })
 
@@ -1247,7 +1245,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
       selectConsumableType(modal)
       selectUsedAsAction(modal)
-      setNumericValue(document.querySelector("#item-uses-consumed")!, "1")
+      setNumericValue(screen.getByTestId("item-uses-consumed"), "1")
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({

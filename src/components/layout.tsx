@@ -14,6 +14,7 @@ export default function Layout(props: ParentProps) {
         <span>© 2026 Michael Harding</span>
         <span class="mx-2">·</span>
         <a
+          data-test="source-link"
           href="https://github.com/michael-harding/TabulaPersonae"
           target="_blank"
           rel="noopener noreferrer"

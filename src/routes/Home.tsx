@@ -72,7 +72,7 @@ export default function Home() {
     <Show
       when={!isLoading() && !authLoading()}
       fallback={
-        <div class="flex flex-1 items-center justify-center bg-background">
+        <div data-sem="home-route" class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
             <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
             <p class="text-muted-foreground">Loading your characters...</p>
@@ -80,7 +80,7 @@ export default function Home() {
         </div>
       }
     >
-      <div class="bg-background p-4">
+      <div data-sem="home-route" class="bg-background p-4">
         <div class="max-w-4xl mx-auto">
           <div class="flex justify-end mb-4">
             <HeaderMenu

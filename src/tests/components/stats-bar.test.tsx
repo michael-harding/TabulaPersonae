@@ -103,20 +103,19 @@ describe("StatsBar", () => {
 
     it("renders a focusable tooltip trigger on the spell hit/DC section when spellcasting ability is set", () => {
       render(<StatsBar character={makeSpellcaster()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      expect(triggers.length).toBeGreaterThan(0)
+      // triggerFocusable sets role="group" together with tabIndex 0, so the
+      // accessible role is a direct proxy for "focusable trigger is present".
+      expect(screen.getByRole("group")).toBeInTheDocument()
     })
 
     it("does not render a focusable tooltip trigger when no spellcasting ability is set", () => {
       render(<StatsBar character={makeCharacter(8, 10)} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      expect(triggers).toHaveLength(0)
+      expect(screen.queryByRole("group")).not.toBeInTheDocument()
     })
 
     it("shows spell hit and DC formula in tooltip when focused", async () => {
       render(<StatsBar character={makeSpellcaster()} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      fireEvent.focus(screen.getByRole("group"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // WIS 18 → +4, Prof +3 → Hit +7, DC 15
       expect(screen.getByRole("tooltip")).toHaveTextContent("Spell Hit: WIS +4 + Prof +3 = +7")
@@ -133,8 +132,7 @@ describe("StatsBar", () => {
         }],
       }
       render(<StatsBar character={character} />)
-      const triggers = document.querySelectorAll('[data-sem="tooltip-trigger"][tabindex="0"]')
-      fireEvent.focus(triggers[0])
+      fireEvent.focus(screen.getByRole("group"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // WIS 18+2=20 → +5, Prof +3 → Hit +8, DC 16 — the tooltip's own arithmetic must match
       expect(screen.getByRole("tooltip")).toHaveTextContent("Spell Hit: WIS +5 + Prof +3 = +8")

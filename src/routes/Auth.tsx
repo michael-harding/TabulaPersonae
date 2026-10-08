@@ -251,7 +251,7 @@ export default function Auth() {
   return (
     <Show when={!loading()}>
       <ConsentModal open={consentOpen()} onAgree={handleAgree} onDecline={handleDecline} />
-      <div class="flex flex-1 items-center justify-center bg-background p-4">
+      <div data-sem="auth-route" class="flex flex-1 items-center justify-center bg-background p-4">
         <div class="max-w-md mx-auto text-center w-full">
           <Scroll class="h-16 w-16 mx-auto mb-6 text-primary" />
           <h1 class="text-4xl font-bold mb-4 text-foreground">TabulaPersonae</h1>

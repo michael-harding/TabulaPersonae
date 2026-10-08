@@ -149,6 +149,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                       <NumericInput
                         min={1} max={baseMax()}
                         aria-label={ABILITY_NAMES[ability]}
+                        data-test={`${ability}-score-input`}
                         value={editedScores()[ability]}
                         onChange={(v) => setEditedScores((prev) => ({ ...prev, [ability]: v }))}
                         class="text-center text-2xl font-bold h-16"
@@ -166,6 +167,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                         fallback={
                           <Checkbox
                             aria-label={`${ABILITY_NAMES[ability]} saving throw`}
+                            data-test={`${ability}-save-prof-checkbox`}
                             checked={ownProfSave()}
                             onChange={(checked) => setEditedSaves((prev) => ({ ...prev, [ability]: checked }))}
                             label="Save Prof"
@@ -177,6 +179,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                         <Tooltip content={`Granted by ${grantedBySave()}`} triggerFocusable>
                           <Checkbox
                             aria-label={`${ABILITY_NAMES[ability]} saving throw`}
+                            data-test={`${ability}-save-prof-checkbox`}
                             checked
                             disabled
                             label="Save Prof"
@@ -192,7 +195,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                       triggerFocusable
                       triggerClass="w-full"
                     >
-                      <div class="ring-1 ring-black rounded-lg p-3 w-full">
+                      <div class="ring-1 ring-black rounded-lg p-3 w-full" data-test={`${ability}-score-value`}>
                         <div class="text-2xl font-bold text-primary">{abilityField.resolvedValue()}</div>
                         <div class="text-lg font-semibold text-foreground">{formatModifier(modifier())}</div>
                       </div>
@@ -204,7 +207,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                       triggerFocusable
                       triggerClass="w-full"
                     >
-                      <div class="space-y-1 w-full">
+                      <div class="space-y-1 w-full" data-test={`${ability}-saving-throw-value`}>
                         <div class="text-xs">Saving Throw</div>
                         <div class="flex items-center justify-center gap-1">
                           <span class="font-medium">

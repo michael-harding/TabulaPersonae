@@ -143,7 +143,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     it("shows a custom-value toggle for spell attack, spell modifier, and spell save DC in edit mode", () => {
       render(<ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(document.querySelectorAll('[data-test="calculated-value-toggle"]')).toHaveLength(3)
+      expect(screen.queryAllByTestId("calculated-value-toggle")).toHaveLength(3)
     })
 
     it("shows the ability-derived spell attack and save DC in view mode", () => {

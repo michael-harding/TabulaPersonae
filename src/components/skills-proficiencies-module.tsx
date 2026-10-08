@@ -368,7 +368,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                       </Show>
                     </Show>
                     <Tooltip content={saveTooltip()} triggerFocusable>
-                      <span class="font-semibold">{formatModifier(modifier())}</span>
+                      <span data-test={`saving-throw-modifier-${ability}`} class="font-semibold">{formatModifier(modifier())}</span>
                     </Tooltip>
                   </div>
                 )
@@ -440,7 +440,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                         onToggleDisadvantage={() => toggleSkillDisadvantage(skillKey)}
                       />
                       <Tooltip content={skillTooltip()} triggerFocusable>
-                        <span class="font-semibold">{formatModifier(modifier())}</span>
+                        <span data-test={`skill-modifier-${skillKey}`} class="font-semibold">{formatModifier(modifier())}</span>
                       </Tooltip>
                     </div>
                   </div>

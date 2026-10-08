@@ -77,14 +77,12 @@ describe("ActionCard", () => {
 
     it("shows green pill when gain provided", () => {
       render(<ActionCard {...makeProps({ gain: "1d8+3" })} />)
-      const pill = screen.getByText("1d8+3")
-      expect(pill.className).toMatch(/green/)
+      expect(screen.getByTestId("effect-pill-Test Action-green")).toHaveTextContent("1d8+3")
     })
 
     it("shows blue pill when tempHp provided", () => {
       render(<ActionCard {...makeProps({ tempHp: "5" })} />)
-      const pill = screen.getByText("5")
-      expect(pill.className).toMatch(/blue/)
+      expect(screen.getByTestId("effect-pill-Test Action-blue")).toHaveTextContent("5")
     })
 
     it("gain takes priority over tempHp and damage", () => {
@@ -161,12 +159,11 @@ describe("ActionCard", () => {
 
     it("toggles styling on click without calling onUpdate", () => {
       render(<ActionCard {...makeProps({ concentration: true })} />)
-      const badge = screen.getByText("Concentration")
-      expect(badge.className).toMatch(/text-muted-foreground/)
-      fireEvent.click(badge)
-      expect(badge.className).not.toMatch(/text-muted-foreground/)
-      fireEvent.click(badge)
-      expect(badge.className).toMatch(/text-muted-foreground/)
+      expect(screen.getByTestId("concentration-badge-Test Action-inactive")).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId("concentration-badge-Test Action-inactive"))
+      expect(screen.getByTestId("concentration-badge-Test Action-active")).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId("concentration-badge-Test Action-active"))
+      expect(screen.getByTestId("concentration-badge-Test Action-inactive")).toBeInTheDocument()
     })
   })
 

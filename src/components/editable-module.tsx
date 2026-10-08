@@ -38,7 +38,7 @@ export function EditableModule(props: EditableModuleProps) {
   }
 
   return (
-    <Card data-sem={props["data-sem"]} data-test={props["data-test"]} onKeyDown={handleKeyDown}>
+    <Card data-sem={props["data-sem"]} data-test={props["data-test"] ?? "editable-module"} onKeyDown={handleKeyDown}>
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -70,7 +70,7 @@ export function EditableModule(props: EditableModuleProps) {
           </Show>
         </CardTitle>
       </CardHeader>
-      <CardContent class={props.contentClass}>
+      <CardContent data-test="editable-module-content" class={props.contentClass}>
         {props.children}
       </CardContent>
     </Card>

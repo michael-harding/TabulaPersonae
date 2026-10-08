@@ -33,7 +33,7 @@ export function PipTracker(props: PipTrackerProps) {
           <Show
             when={!props.readOnly}
             fallback={
-              <span class="w-11 h-11 flex items-center justify-center" title={index < props.used ? usedTitle() : availableTitle()}>
+              <span data-test={`pip-tracker-slot-${index}`} class="w-11 h-11 flex items-center justify-center" title={index < props.used ? usedTitle() : availableTitle()}>
                 <span class={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${index < props.used ? filledClassReadOnly() : emptyClass()}`}>
                   {index < props.used ? props.filledIcon : props.emptyIcon}
                 </span>

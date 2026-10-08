@@ -46,6 +46,7 @@ export function NumericInput(props: NumericInputProps) {
   return (
     <Input
       {...rest}
+      data-sem="numeric-input"
       type="number"
       min={local.min}
       max={local.max}

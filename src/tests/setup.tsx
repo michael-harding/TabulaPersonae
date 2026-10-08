@@ -1,5 +1,11 @@
 import "@testing-library/jest-dom"
+import { configure } from "@testing-library/dom"
 import { vi } from "vitest"
+
+// TESTING.md §6: tests select elements via the `data-test` attribute, not the
+// Testing Library default of `data-testid`. This repoints getByTestId/findByTestId
+// at the attribute this codebase actually uses.
+configure({ testIdAttribute: "data-test" })
 
 // Mock Firebase to prevent initialization errors
 vi.mock("@/lib/firebase", () => ({ auth: {}, db: {} }))

@@ -66,6 +66,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                 {(preset) => (
                   <button
                     type="button"
+                    data-test={`sheet-color-preset-${preset.name.toLowerCase()}`}
                     aria-label={`${preset.name} theme color`}
                     class="w-11 h-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => props.onUpdate({ ...props.character, sheetColor: preset.hex })}
@@ -90,6 +91,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                 >
                   <input
                     type="color"
+                    data-test="sheet-color-custom-input"
                     aria-label="Custom theme color"
                     value={isCustomColor() ? sheetColor()! : "#6366f1"}
                     onInput={(e) => props.onUpdate({ ...props.character, sheetColor: e.currentTarget.value })}
@@ -103,6 +105,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
             <Show when={sheetColor()}>
               <button
                 type="button"
+                data-test="sheet-color-reset-button"
                 aria-label="Reset sheet color"
                 class="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
                 onClick={() => props.onUpdate({ ...props.character, sheetColor: undefined })}
@@ -134,6 +137,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                 <div class="flex items-center gap-2">
                   <input
                     type="text"
+                    data-test="share-url-input"
                     readOnly
                     value={getUrl()}
                     aria-label="Share URL"
@@ -142,6 +146,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                   />
                   <button
                     type="button"
+                    data-test="share-url-copy-button"
                     aria-label="Copy share link"
                     class="h-9 px-3 rounded-md border text-xs hover:bg-accent transition-colors whitespace-nowrap"
                     onClick={() => {

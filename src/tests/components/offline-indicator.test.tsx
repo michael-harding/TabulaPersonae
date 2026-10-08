@@ -94,34 +94,34 @@ describe('OfflineIndicator', () => {
     })
 
     it('renders with gold background', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.bg-yellow-500')).toBeTruthy()
+      render(<OfflineIndicator />)
+      expect(screen.getByTestId('offline-indicator')).toHaveClass('bg-yellow-500')
     })
 
     it('renders collapsed by default', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       expect(pill.classList.contains('max-w-xs')).toBe(false)
     })
 
     it('expands on mouseenter', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(pill.classList.contains('max-w-xs')).toBe(true)
     })
 
     it('collapses on mouseleave', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       fireEvent.mouseLeave(pill)
       expect(pill.classList.contains('max-w-xs')).toBe(false)
     })
 
     it('toggles expanded on click', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.click(pill)
       expect(pill.classList.contains('max-w-xs')).toBe(true)
       fireEvent.click(pill)
@@ -129,8 +129,8 @@ describe('OfflineIndicator', () => {
     })
 
     it('shows "Offline" label when expanded', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Offline')).toBeInTheDocument()
     })
@@ -140,8 +140,8 @@ describe('OfflineIndicator', () => {
         syncState: () => ({ hasPendingWrites: true, updatedAt: null }),
         setSyncState: vi.fn(),
       })
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Not yet synced')).toBeInTheDocument()
     })
@@ -151,8 +151,8 @@ describe('OfflineIndicator', () => {
         syncState: () => ({ hasPendingWrites: true, updatedAt: new Date(Date.now() - 90_000) }),
         setSyncState: vi.fn(),
       })
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('1 min ago')).toBeInTheDocument()
     })
@@ -162,8 +162,8 @@ describe('OfflineIndicator', () => {
         syncState: () => ({ hasPendingWrites: false, updatedAt: new Date(Date.now() - 90_000) }),
         setSyncState: vi.fn(),
       })
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('1 min ago')).toBeInTheDocument()
     })
@@ -175,20 +175,20 @@ describe('OfflineIndicator', () => {
     })
 
     it('renders with blue background', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.bg-blue-500')).toBeTruthy()
+      render(<OfflineIndicator />)
+      expect(screen.getByTestId('offline-indicator')).toHaveClass('bg-blue-500')
     })
 
     it('shows "Syncing…" label when expanded', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Syncing…')).toBeInTheDocument()
     })
 
     it('renders the spinning icon', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.animate-spin')).toBeTruthy()
+      render(<OfflineIndicator />)
+      expect(screen.getByTestId('offline-indicator-spinner')).toHaveClass('animate-spin')
     })
   })
 
@@ -198,20 +198,20 @@ describe('OfflineIndicator', () => {
     })
 
     it('renders with green background', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.bg-green-500')).toBeTruthy()
+      render(<OfflineIndicator />)
+      expect(screen.getByTestId('offline-indicator')).toHaveClass('bg-green-500')
     })
 
     it('shows "Synced" label when expanded', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Synced')).toBeInTheDocument()
     })
 
     it('does not render spinning icon', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.animate-spin')).toBeNull()
+      render(<OfflineIndicator />)
+      expect(screen.queryByTestId('offline-indicator-spinner')).toBeNull()
     })
   })
 

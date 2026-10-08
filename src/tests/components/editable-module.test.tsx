@@ -119,15 +119,15 @@ describe("EditableModule", () => {
     })
 
     it("applies contentClass to the card content", () => {
-      const { container } = renderEdit({ contentClass: "my-custom-class" })
-      expect(container.querySelector(".my-custom-class")).toBeInTheDocument()
+      renderEdit({ contentClass: "my-custom-class" })
+      expect(screen.getByTestId("editable-module-content")).toHaveClass("my-custom-class")
     })
 
     it("calls onSaveKeepEditing (not onSave) on Ctrl+S", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderEdit({ onSave, onSaveKeepEditing })
-      fireEvent.keyDown(container.querySelector('[data-sem="card"]')!, { key: "s", ctrlKey: true })
+      renderEdit({ onSave, onSaveKeepEditing })
+      fireEvent.keyDown(screen.getByTestId("editable-module"), { key: "s", ctrlKey: true })
       expect(onSaveKeepEditing).toHaveBeenCalledTimes(1)
       expect(onSave).not.toHaveBeenCalled()
     })
@@ -135,8 +135,8 @@ describe("EditableModule", () => {
     it("calls onSaveKeepEditing (not onSave) on Cmd+S", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderEdit({ onSave, onSaveKeepEditing })
-      fireEvent.keyDown(container.querySelector('[data-sem="card"]')!, { key: "s", metaKey: true })
+      renderEdit({ onSave, onSaveKeepEditing })
+      fireEvent.keyDown(screen.getByTestId("editable-module"), { key: "s", metaKey: true })
       expect(onSaveKeepEditing).toHaveBeenCalledTimes(1)
       expect(onSave).not.toHaveBeenCalled()
     })
@@ -144,8 +144,8 @@ describe("EditableModule", () => {
     it("calls onSave (not onSaveKeepEditing) on Ctrl+Enter", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderEdit({ onSave, onSaveKeepEditing })
-      fireEvent.keyDown(container.querySelector('[data-sem="card"]')!, { key: "Enter", ctrlKey: true })
+      renderEdit({ onSave, onSaveKeepEditing })
+      fireEvent.keyDown(screen.getByTestId("editable-module"), { key: "Enter", ctrlKey: true })
       expect(onSave).toHaveBeenCalledTimes(1)
       expect(onSaveKeepEditing).not.toHaveBeenCalled()
     })
@@ -153,8 +153,8 @@ describe("EditableModule", () => {
     it("does not save on plain 's' or 'Enter' without a modifier key", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderEdit({ onSave, onSaveKeepEditing })
-      const card = container.querySelector('[data-sem="card"]')!
+      renderEdit({ onSave, onSaveKeepEditing })
+      const card = screen.getByTestId("editable-module")
       fireEvent.keyDown(card, { key: "s" })
       fireEvent.keyDown(card, { key: "Enter" })
       expect(onSave).not.toHaveBeenCalled()
@@ -164,8 +164,8 @@ describe("EditableModule", () => {
     it("ignores Ctrl+S / Ctrl+Enter when not editing", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderView({ onSave, onSaveKeepEditing })
-      const card = container.querySelector('[data-sem="card"]')!
+      renderView({ onSave, onSaveKeepEditing })
+      const card = screen.getByTestId("editable-module")
       fireEvent.keyDown(card, { key: "s", ctrlKey: true })
       fireEvent.keyDown(card, { key: "Enter", ctrlKey: true })
       expect(onSave).not.toHaveBeenCalled()

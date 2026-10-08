@@ -59,6 +59,7 @@ function SortableModuleRow(props: SortableModuleRowProps) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {...(sortable.dragActivators as any)}
         aria-label="Drag to reorder"
+        data-test={`module-drag-handle-${props.moduleId}`}
       >
         <GripVertical class="h-4 w-4" />
       </button>
@@ -68,6 +69,7 @@ function SortableModuleRow(props: SortableModuleRowProps) {
         onClick={props.onRemove}
         class="text-muted-foreground hover:text-destructive transition-colors"
         aria-label={`Remove ${MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}`}
+        data-test={`remove-module-${props.moduleId}`}
       >
         <X class="h-4 w-4" />
       </button>
@@ -131,6 +133,7 @@ function SortableTabRow(props: SortableTabRowProps) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {...(sortable.dragActivators as any)}
             aria-label="Drag to reorder tab"
+            data-test={`tab-drag-handle-${props.tab.id}`}
           >
             <GripVertical class="h-4 w-4" />
           </button>
@@ -151,14 +154,16 @@ function SortableTabRow(props: SortableTabRowProps) {
                 onInput={(e) => setRenameValue(e.currentTarget.value)}
                 autofocus
                 class="h-7 text-sm"
+                data-test={`tab-rename-input-${props.tab.id}`}
               />
-              <Button type="submit" size="sm" class="h-7">Save</Button>
+              <Button type="submit" size="sm" class="h-7" data-test={`tab-rename-save-${props.tab.id}`}>Save</Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 class="h-7"
                 onClick={() => { setRenaming(false); setRenameValue(props.tab.label) }}
+                data-test={`tab-rename-cancel-${props.tab.id}`}
               >
                 Cancel
               </Button>
@@ -172,6 +177,7 @@ function SortableTabRow(props: SortableTabRowProps) {
               onClick={() => { setRenameValue(props.tab.label); setRenaming(true) }}
               class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
               aria-label="Rename tab"
+              data-test={`tab-rename-${props.tab.id}`}
             >
               <Pencil class="h-4 w-4" />
             </button>
@@ -181,10 +187,14 @@ function SortableTabRow(props: SortableTabRowProps) {
               disabled={props.disableDelete}
               class="text-muted-foreground hover:text-destructive transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
               aria-label="Delete tab"
+              data-test={`tab-delete-${props.tab.id}`}
             >
               <Trash2 class="h-4 w-4" />
             </button>
-            <CollapsibleTrigger class="text-muted-foreground hover:text-foreground transition-colors shrink-0">
+            <CollapsibleTrigger
+              class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              data-test={`tab-toggle-${props.tab.id}`}
+            >
               <ChevronDown
                 class={cn("h-4 w-4 transition-transform duration-200", props.expanded && "rotate-180")}
               />
@@ -230,6 +240,7 @@ function SortableTabRow(props: SortableTabRowProps) {
                         type="button"
                         onClick={() => props.onAddModule(moduleId)}
                         class="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-accent transition-colors"
+                        data-test={`add-module-${props.tab.id}-${moduleId}`}
                       >
                         <Plus class="h-3 w-3" />
                         {MODULE_REGISTRY[moduleId].label}
@@ -329,12 +340,13 @@ export default function TabSettings() {
   }
 
   return (
-    <div class="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div data-sem="tab-settings-route" class="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div>
         <button
           type="button"
           onClick={() => navigate(-1)}
           class="flex items-center gap-1 text-sm text-primary hover:underline"
+          data-test="back-button"
         >
           <ChevronLeft class="h-4 w-4" />
           Back
@@ -376,7 +388,7 @@ export default function TabSettings() {
       <Show
         when={addingTab()}
         fallback={
-          <Button variant="outline" onClick={() => setAddingTab(true)}>
+          <Button variant="outline" onClick={() => setAddingTab(true)} data-test="add-tab-button">
             <Plus class="h-4 w-4 mr-2" />
             Add Tab
           </Button>
@@ -391,12 +403,14 @@ export default function TabSettings() {
             value={newTabLabel()}
             onInput={(e) => setNewTabLabel(e.currentTarget.value)}
             autofocus
+            data-test="new-tab-name-input"
           />
-          <Button type="submit">Add</Button>
+          <Button type="submit" data-test="add-tab-submit">Add</Button>
           <Button
             type="button"
             variant="outline"
             onClick={() => { setAddingTab(false); setNewTabLabel("") }}
+            data-test="add-tab-cancel"
           >
             Cancel
           </Button>

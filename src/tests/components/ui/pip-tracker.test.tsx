@@ -78,20 +78,20 @@ describe("PipTracker", () => {
 
     it("does not call onToggle when pips are clicked", () => {
       const onToggle = vi.fn()
-      const { container } = render(
+      render(
         <PipTracker total={3} used={1} onToggle={onToggle} readOnly />
       )
-      container.querySelectorAll('[data-sem="pip-tracker"] > span').forEach((pip) =>
+      screen.getAllByTestId(/^pip-tracker-slot-/).forEach((pip) =>
         fireEvent.click(pip)
       )
       expect(onToggle).not.toHaveBeenCalled()
     })
 
     it("renders the correct number of pip spans", () => {
-      const { container } = render(
+      render(
         <PipTracker total={4} used={2} onToggle={vi.fn()} readOnly />
       )
-      expect(container.querySelectorAll('[data-sem="pip-tracker"] > span')).toHaveLength(4)
+      expect(screen.getAllByTestId(/^pip-tracker-slot-/)).toHaveLength(4)
     })
   })
 })
