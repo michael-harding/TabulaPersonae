@@ -555,7 +555,7 @@ function EquipmentForm(props: EquipmentFormProps) {
         </div>
       </Show>
 
-      <ModifierGroup label="Skill Effects" open={openSkillEffects()} onOpenChange={setOpenSkillEffects}>
+      <ModifierGroup label="Advantage/Disadvantage" open={openSkillEffects()} onOpenChange={setOpenSkillEffects}>
         <div class="grid grid-cols-1 gap-3">
           <TagPickerField
             label="Grants Advantage On"
@@ -627,7 +627,7 @@ function EquipmentForm(props: EquipmentFormProps) {
             </div>
           </Show>
 
-          <div class="space-y-2 pt-2 border-t">
+          <div class="space-y-2 pt-2">
             <ModifierGroup label="Ability Scores" open={openAbilityScores()} onOpenChange={setOpenAbilityScores}>
               <div>
                 <Label class="text-xs">Bonuses</Label>
