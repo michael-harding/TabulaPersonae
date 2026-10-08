@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    name: Lint, typecheck, unit/integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  coverage:
+    name: Coverage report (informational)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # TESTING.md §4 sets 80%/90% coverage targets, but several critical modules
+      # (auth-context.tsx, firebase-storage.ts, storage-manager.ts, character-storage.ts,
+      # character-import-reconciliation.ts) are currently below the 90% bar — see the
+      # constitutional-alignment plan's Phase 2. This job reports real numbers without
+      # blocking merges until that gap is closed; continue-on-error is the documented
+      # enforcement decision required by §4, to be revisited once Phase 2 lands.
+      - run: pnpm test:coverage
+        continue-on-error: true
+
+  e2e:
+    name: Playwright accessibility & visual regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium firefox
+      - run: pnpm test:e2e
+      - run: pnpm test:visual

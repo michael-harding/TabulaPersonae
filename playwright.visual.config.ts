@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test"
 
 export default defineConfig({
-  testDir: "__tests__/visual",
-  snapshotDir: "__tests__/visual/__snapshots__",
+  testDir: "tests/visual",
+  snapshotDir: "tests/visual/__snapshots__",
   updateSnapshots: "missing",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

@@ -1,17 +1,12 @@
-export default [
+import tseslint from 'typescript-eslint'
+import solid from 'eslint-plugin-solid'
+
+export default tseslint.config(
   {
-    ignores: [
-      '.next/**',
-      'node_modules/**',
-      'dist/**',
-      '.eslintrc.json',
-      '**/*.tsx',
-      '**/*.ts',
-      '__tests__/**',
-    ],
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'tests/visual/__snapshots__/**'],
   },
   {
-    files: ['**/*.{js,mjs,cjs,jsx}'],
+    files: ['**/*.{js,mjs,cjs,jsx,ts,tsx}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -27,6 +22,23 @@ export default [
         __dirname: 'readonly',
         __filename: 'readonly',
         global: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        fetch: 'readonly',
+        navigator: 'readonly',
+        crypto: 'readonly',
+        URL: 'readonly',
+        FormData: 'readonly',
+        Blob: 'readonly',
+        File: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
       },
     },
     rules: {
@@ -34,4 +46,32 @@ export default [
       'no-console': 'warn',
     },
   },
-]
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'warn',
+      // CONSTITUTION.md §6.2 permits `any` with a justifying inline comment rather than
+      // banning it outright; downgraded to warn until the Phase 4 cleanup adds comments
+      // or removes each remaining use (tracked in the constitutional-alignment plan).
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // `declare module "solid-js" { namespace JSX { ... } }` is the standard way to
+      // augment Solid's JSX.Directives for a custom directive (see TabSettings.tsx) —
+      // not a stray namespace that should be ES modules.
+      '@typescript-eslint/no-namespace': ['error', { allowDeclarations: true }],
+    },
+  },
+  {
+    files: ['**/*.{tsx,jsx}'],
+    plugins: { solid },
+    rules: {
+      ...solid.configs.recommended.rules,
+      // 5 existing call sites (character-notes-module.tsx, equipment-inventory-module.tsx)
+      // render lists via Array#map instead of Solid's <For>. Converting is a real,
+      // behavior-sensitive rendering refactor, not lint-infra setup — downgraded to warn
+      // and tracked as a follow-up rather than rewritten here.
+      'solid/prefer-for': 'warn',
+    },
+  },
+)
