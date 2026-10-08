@@ -1969,10 +1969,11 @@ describe("reconcileEquipmentRest", () => {
     expect(result.uses).toBe(0)
   })
 
-  it("leaves a consumable unchanged when its rechargeOn doesn't match the rest type", () => {
-    const item = makeMagicItem({ type: "consumable", quantity: 5, uses: 2, rechargeOn: "long-rest" })
+  it("decrements a consumable on any rest, regardless of rechargeOn", () => {
+    const item = makeMagicItem({ type: "consumable", quantity: 5, uses: 2, rechargeOn: undefined })
     const result = reconcileEquipmentRest(item, ["short-rest"])
-    expect(result).toBe(item)
+    expect(result.quantity).toBe(3)
+    expect(result.uses).toBe(0)
   })
 
   it("hard-resets uses to 0 without touching quantity for a matching non-consumable item", () => {

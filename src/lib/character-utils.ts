@@ -1191,10 +1191,10 @@ export function effectiveEquipmentMaxUses(item: Pick<Equipment, "type" | "quanti
 }
 
 export function reconcileEquipmentRest(item: Equipment, restTypes: Array<"short-rest" | "long-rest">): Equipment {
-  if (!item.rechargeOn || !restTypes.includes(item.rechargeOn)) return item
   if (item.type === "consumable") {
     const spent = item.uses ?? 0
     return spent > 0 ? { ...item, quantity: Math.max(0, item.quantity - spent), uses: 0 } : item
   }
+  if (!item.rechargeOn || !restTypes.includes(item.rechargeOn)) return item
   return { ...item, uses: 0 }
 }

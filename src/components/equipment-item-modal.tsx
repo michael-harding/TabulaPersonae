@@ -364,7 +364,6 @@ function EquipmentForm(props: EquipmentFormProps) {
     } else if (formData.armorStats) {
       setFormData("armorStats", undefined)
     }
-    if (type === "consumable" && formData.rechargeOn === "") setFormData("rechargeOn", "short-rest")
   }
 
   return (
@@ -838,23 +837,7 @@ function EquipmentForm(props: EquipmentFormProps) {
               max={formData.quantity}
               value={formData.uses}
               onChange={(v) => setFormData("uses", v)} />
-            <p class="text-xs text-muted-foreground mt-1">Quantity will be reduced by this amount when reconciled on rest.</p>
-          </div>
-          <div>
-            <Label>Reconcile On</Label>
-            <Select
-              value={formData.rechargeOn}
-              onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="None" />
-              </SelectTrigger>
-              <SelectContent>
-                <For each={RECHARGE_OPTIONS}>
-                  {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                </For>
-              </SelectContent>
-            </Select>
+            <p class="text-xs text-muted-foreground mt-1">Quantity will be reduced by this amount on any rest.</p>
           </div>
         </div>
       </Show>
@@ -995,7 +978,7 @@ function usesFields(formData: EquipmentFormData) {
     return {
       uses: (tracksConsumption && (formData.uses ?? 0) > 0) ? formData.uses : undefined,
       maxUses: undefined,
-      rechargeOn: tracksConsumption && formData.rechargeOn ? formData.rechargeOn : undefined,
+      rechargeOn: undefined,
     }
   }
   if (formData.magic) {

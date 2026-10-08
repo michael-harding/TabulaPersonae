@@ -45,8 +45,11 @@ export function RestModal(props: RestModalProps) {
       ...safeFeatures(props.character.backgroundFeatures),
       ...(props.character.equipment ?? []),
     ]
-    if (restType() === "short") return all.filter((a) => a.rechargeOn === "short-rest")
-    return all.filter((a) => a.rechargeOn === "short-rest" || a.rechargeOn === "long-rest")
+    return all.filter((a) => {
+      if ("quantity" in a && (a as Equipment).type === "consumable") return ((a as Equipment).uses ?? 0) > 0
+      if (restType() === "short") return a.rechargeOn === "short-rest"
+      return a.rechargeOn === "short-rest" || a.rechargeOn === "long-rest"
+    })
   }
 
   const handleClose = () => {

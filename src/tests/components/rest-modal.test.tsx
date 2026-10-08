@@ -562,7 +562,7 @@ describe("RestModal", () => {
       expect(updated.equipment![0].uses).toBe(0)
     })
 
-    it("leaves quantity and uses unchanged on rest for a consumable with rechargeOn 'None'", () => {
+    it("decrements quantity and zeroes uses for a consumable item on rest even with no rechargeOn set", () => {
       const onRest = vi.fn()
       const char = makeCharacter({
         equipment: [makeEquipmentItem({ type: "consumable", quantity: 5, rechargeOn: undefined, uses: 2 })],
@@ -570,8 +570,8 @@ describe("RestModal", () => {
       openModal(char, onRest)
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
-      expect(updated.equipment![0].quantity).toBe(5)
-      expect(updated.equipment![0].uses).toBe(2)
+      expect(updated.equipment![0].quantity).toBe(3)
+      expect(updated.equipment![0].uses).toBe(0)
     })
   })
 

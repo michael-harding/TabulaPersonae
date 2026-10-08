@@ -1174,23 +1174,22 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("option", { name: "Action" }))
     }
 
-    it("hides Uses Spent and Reconcile On for a Consumable item with no action kind selected", () => {
+    it("hides Uses Spent for a Consumable item with no action kind selected", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
       expect(within(modal).queryByLabelText(/uses spent/i)).not.toBeInTheDocument()
-      expect(within(modal).queryByText("Reconcile On")).not.toBeInTheDocument()
     })
 
-    it("shows Uses Spent and Reconcile On, but hides Max Charges, when a Consumable item is also Used As an action", () => {
+    it("shows Uses Spent, but hides Max Charges and Reconcile On, when a Consumable item is also Used As an action", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
       selectUsedAsAction(modal)
       expect(within(modal).getByLabelText(/uses spent/i)).toBeInTheDocument()
-      expect(within(modal).getByText("Reconcile On")).toBeInTheDocument()
+      expect(within(modal).queryByText("Reconcile On")).not.toBeInTheDocument()
       expect(within(modal).queryByLabelText(/max charges/i)).not.toBeInTheDocument()
       expect(within(modal).queryByText("Recharge On")).not.toBeInTheDocument()
     })
@@ -1205,7 +1204,7 @@ describe("EquipmentInventoryModule", () => {
       expect(within(modal).getByLabelText(/uses spent/i)).toBeInTheDocument()
     })
 
-    it("defaults Reconcile On to Short Rest when switching an item to Consumable", () => {
+    it("saves uses spent for a Consumable item with no rechargeOn (reconciles on any rest)", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
@@ -1218,7 +1217,7 @@ describe("EquipmentInventoryModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([
-            expect.objectContaining({ name: "Potion of Healing", type: "consumable", rechargeOn: "short-rest", uses: 1 }),
+            expect.objectContaining({ name: "Potion of Healing", type: "consumable", rechargeOn: undefined, uses: 1 }),
           ]),
         })
       )
