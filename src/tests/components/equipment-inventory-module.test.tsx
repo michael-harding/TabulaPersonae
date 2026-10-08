@@ -1218,6 +1218,26 @@ describe("EquipmentInventoryModule", () => {
       expect(within(modal).getByLabelText(/max charges/i)).toBeInTheDocument()
     })
 
+    it("persists Max Charges and Recharge On for a Consumable item that is also a Magic Item", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
+      selectConsumableType(modal)
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("Charges"))
+      setNumericValue(within(modal).getByLabelText(/max charges/i), "3")
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Potion of Healing", type: "consumable", maxUses: 3 }),
+          ]),
+        })
+      )
+    })
+
     it("saves uses spent for a Consumable item with no rechargeOn (reconciles on rest)", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)

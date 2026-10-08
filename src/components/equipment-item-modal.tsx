@@ -970,20 +970,19 @@ function buildModifiers(formData: EquipmentFormData): ItemModifiers | undefined 
 }
 
 function usesFields(formData: EquipmentFormData) {
+  if (formData.magic && formData.maxUses > 0) {
+    return {
+      uses: formData.uses,
+      maxUses: formData.maxUses,
+      rechargeOn: formData.rechargeOn || undefined,
+    }
+  }
   if (formData.type === "consumable") {
     const tracksConsumption = formData.actionKind !== ""
     return {
       uses: (tracksConsumption && (formData.uses ?? 0) > 0) ? formData.uses : undefined,
       maxUses: undefined,
       rechargeOn: undefined,
-    }
-  }
-  if (formData.magic) {
-    const tracksCharges = formData.maxUses > 0
-    return {
-      uses: tracksCharges ? formData.uses : undefined,
-      maxUses: tracksCharges ? formData.maxUses : undefined,
-      rechargeOn: tracksCharges && formData.rechargeOn ? formData.rechargeOn : undefined,
     }
   }
   return { uses: undefined, maxUses: undefined, rechargeOn: undefined }

@@ -1982,4 +1982,23 @@ describe("reconcileEquipmentRest", () => {
     expect(result.uses).toBe(0)
     expect(result.quantity).toBe(1)
   })
+
+  it("leaves a non-consumable item untouched when restTypes does not include its rechargeOn", () => {
+    const item = makeMagicItem({ type: "other", quantity: 1, uses: 2, maxUses: 3, rechargeOn: "long-rest" })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result).toEqual(item)
+  })
+
+  it("decrements a consumable with spent uses even when restTypes is empty, since consumables ignore rechargeOn entirely", () => {
+    const item = makeMagicItem({ type: "consumable", quantity: 5, uses: 2, rechargeOn: undefined })
+    const result = reconcileEquipmentRest(item, [])
+    expect(result.quantity).toBe(3)
+    expect(result.uses).toBe(0)
+  })
+
+  it("returns a consumable unchanged when it has no spent uses", () => {
+    const item = makeMagicItem({ type: "consumable", quantity: 5, uses: 0 })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result).toEqual(item)
+  })
 })
