@@ -1,6 +1,6 @@
 > **Document Authority**: This is the authoritative standard for all work in this repository. See §1 for scope and applicability.
-> **Template Version:** 1.0.2
-> **Last updated:** 2026-05-28
+> **Template Version:** 1.0.3
+> **Last updated:** 2026-10-08
 
 ---
 
@@ -49,7 +49,7 @@ This document covers the frontend codebase in this repository.
 
 6. **Mock data in tests by default.** Tests must use mock data by default and must not depend on live backend state. Seeded or live-backend testing may be permitted only in explicit, documented cases (for example when `USE_SEED_DATA=true`) and requires prior human approval; any exception must be clearly documented in the test and the PR.
 
-7. **Composable over duplicated.** Prefer shared components and utilities over copy-pasted code. Extract reusable logic into `src/lib/` or `hooks/`. Do not abstract prematurely.
+7. **Abstract when it clarifies or protects correctness, not by default.** Prefer shared components and utilities over copy-pasted code. Extract reusable logic into `src/lib/` or `hooks/` when doing so improves readability or maintainability, or when independent reimplementations of the same logic (e.g., calculations, formatting, business rules) risk producing inconsistent results. Do not abstract merely to support hypothetical future flexibility.
 
 8. **Rules, not suggestions.** Every standard in this document is a requirement. Use `must`, `must not`, `may`, and `may not` to express intent; avoid `should` or `consider`.
 
