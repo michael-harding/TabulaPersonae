@@ -79,7 +79,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const [edited, setEdited] = createSignal(toEdit(props.character))
   const current = () => (isEditing() ? edited() : props.character)
 
-  const handleSave = () => {
+  const persist = () => {
     ;(document.activeElement as HTMLElement | null)?.blur()
     const data = edited()
     const effMax = getEffectiveMaxHp(data)
@@ -102,8 +102,9 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       size: sizeField.resolvedValue(),
     }
     props.onUpdate(normalized)
-    setIsEditing(false)
   }
+  const handleSave = () => { persist(); setIsEditing(false) }
+  const handleSaveKeepEditing = () => { persist() }
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   const edition = createMemo(() => props.character.edition ?? "2024")
@@ -316,6 +317,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
       onSave={handleSave}
+      onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}
       contentClass="space-y-6"
     >

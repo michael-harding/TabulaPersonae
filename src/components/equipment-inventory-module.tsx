@@ -1,17 +1,15 @@
-import { createSignal, createEffect, on, For, Show, type ParentProps } from "solid-js"
-import type { AbilityScores, Character, Equipment, ItemModifiers, ItemRarity, SenseType } from "@/lib/character-types"
+import { createSignal, For, Show } from "solid-js"
+import type { AbilityScores, Character, Equipment, SenseType } from "@/lib/character-types"
 import {
-  DAMAGE_TYPE_OPTIONS,
-  CONDITIONS,
-  SENSE_TYPES,
   SENSE_LABELS,
+  SKILL_DISPLAY_NAMES,
   BASE_ATTUNEMENT_LIMIT,
-  ABILITY_KEYS,
   ABILITY_ABBREVIATIONS,
-  ZERO_ABILITY_SCORES,
-  ZERO_SENSES,
   remainingUses,
   spentFromRemaining,
+  effectiveEquipmentMaxUses,
+  effectiveEquipmentUses,
+  hasChargesTracking,
   isItemModifierActive,
   formatModifier,
   getEffectiveCarryingCapacity,
@@ -22,797 +20,34 @@ import { CalculatedValue } from "@/components/ui/calculated-value"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { NumericInput } from "@/components/ui/numeric-input"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { cascadeDecrement } from "@/lib/currency-utils"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Combobox } from "@/components/ui/combobox"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Package from "lucide-solid/icons/package"
 import Plus from "lucide-solid/icons/plus"
 import Edit from "lucide-solid/icons/edit"
 import Trash2 from "lucide-solid/icons/trash-2"
-import Save from "lucide-solid/icons/save"
 import Search from "lucide-solid/icons/search"
 import Scale from "lucide-solid/icons/scale"
 import Gem from "lucide-solid/icons/gem"
 import Coins from "lucide-solid/icons/coins"
 import TriangleAlert from "lucide-solid/icons/triangle-alert"
-import ChevronDown from "lucide-solid/icons/chevron-down"
-import X from "lucide-solid/icons/x"
+import Zap from "lucide-solid/icons/zap"
 import { useReadOnly } from "@/lib/read-only-context"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-
-const RARITY_OPTIONS: { value: ItemRarity; label: string }[] = [
-  { value: "common", label: "Common" },
-  { value: "uncommon", label: "Uncommon" },
-  { value: "rare", label: "Rare" },
-  { value: "very-rare", label: "Very Rare" },
-  { value: "legendary", label: "Legendary" },
-  { value: "artifact", label: "Artifact" },
-]
-
-const RECHARGE_OPTIONS: { value: "" | "short-rest" | "long-rest"; label: string }[] = [
-  { value: "", label: "None" },
-  { value: "short-rest", label: "Short Rest" },
-  { value: "long-rest", label: "Long Rest" },
-]
+import { EquipmentItemModal, ACTION_KIND_OPTIONS, hasOtherModifierFields } from "@/components/equipment-item-modal"
 
 const roundToOneDecimal = (n: number): number => Math.round(n * 10) / 10
 
 interface EquipmentInventoryModuleProps {
   character: Character
   onUpdate: (character: Character) => void
-}
-
-type EquipmentType = "weapon" | "armor" | "tool" | "consumable" | "treasure" | "other"
-
-interface EquipmentFormData {
-  name: string
-  quantity: number
-  weight: number
-  description: string
-  equipped: boolean
-  type: EquipmentType
-  weaponStats?: {
-    damage: string
-    damageType: string
-    weaponRange: string
-    attackAbility: "str" | "dex" | "finesse"
-    proficient: boolean
-  }
-  armorStats?: {
-    baseAC: number
-    armorType: "light" | "medium" | "heavy" | "shield"
-  }
-  magic: boolean
-  requiresAttunement: boolean
-  attuned: boolean
-  rarity: ItemRarity
-  uses: number
-  maxUses: number
-  rechargeOn: "" | "short-rest" | "long-rest"
-  modifierArmorClass: number
-  modifierInitiative: number
-  modifierSavingThrows: Record<keyof AbilityScores, number>
-  modifierAbilityScores: Record<keyof AbilityScores, number>
-  modifierResistances: string[]
-  modifierImmunities: string[]
-  modifierVulnerabilities: string[]
-  modifierConditionImmunities: string[]
-  modifierSenses: Record<SenseType, number>
-  modifierSpeed: number
-  modifierFlySpeed: number
-  modifierSwimSpeed: number
-  modifierClimbSpeed: number
-  modifierBurrowSpeed: number
-  modifierCarryingCapacityBonus: number
-  modifierCarryingCapacityMultiplier: number
-  modifierAbilityScoreFloors: Record<keyof AbilityScores, number>
-  modifierAbilityScoreMaxCaps: Record<keyof AbilityScores, number>
-  modifierLanguages: string[]
-  modifierProficiencies: string[]
-}
-
-const defaultEquipmentForm: EquipmentFormData = {
-  name: "",
-  quantity: 1,
-  weight: 0,
-  description: "",
-  equipped: false,
-  type: "other",
-  magic: false,
-  requiresAttunement: true,
-  attuned: false,
-  rarity: "common",
-  uses: 0,
-  maxUses: 0,
-  rechargeOn: "",
-  modifierArmorClass: 0,
-  modifierInitiative: 0,
-  modifierSavingThrows: { ...ZERO_ABILITY_SCORES },
-  modifierAbilityScores: { ...ZERO_ABILITY_SCORES },
-  modifierResistances: [],
-  modifierImmunities: [],
-  modifierVulnerabilities: [],
-  modifierConditionImmunities: [],
-  modifierSenses: { ...ZERO_SENSES },
-  modifierSpeed: 0,
-  modifierFlySpeed: 0,
-  modifierSwimSpeed: 0,
-  modifierClimbSpeed: 0,
-  modifierBurrowSpeed: 0,
-  modifierCarryingCapacityBonus: 0,
-  modifierCarryingCapacityMultiplier: 0,
-  modifierAbilityScoreFloors: { ...ZERO_ABILITY_SCORES },
-  modifierAbilityScoreMaxCaps: { ...ZERO_ABILITY_SCORES },
-  modifierLanguages: [],
-  modifierProficiencies: [],
-}
-
-interface EquipmentFormProps {
-  initialData: EquipmentFormData
-  onSubmit: (data: EquipmentFormData) => void
-  onCancel: () => void
-  editing: boolean
-}
-
-function anyAbilityNonZero(record: Record<keyof AbilityScores, number>): boolean {
-  return ABILITY_KEYS.some((k) => record[k] !== 0)
-}
-function anySenseNonZero(record: Record<SenseType, number>): boolean {
-  return SENSE_TYPES.some((s) => record[s] !== 0)
-}
-function hasAbilityScoreValues(d: EquipmentFormData): boolean {
-  return anyAbilityNonZero(d.modifierAbilityScores) || anyAbilityNonZero(d.modifierAbilityScoreFloors) || anyAbilityNonZero(d.modifierAbilityScoreMaxCaps)
-}
-function hasSavingThrowValues(d: EquipmentFormData): boolean {
-  return anyAbilityNonZero(d.modifierSavingThrows)
-}
-function hasResistanceValues(d: EquipmentFormData): boolean {
-  return d.modifierResistances.length > 0 || d.modifierImmunities.length > 0 || d.modifierVulnerabilities.length > 0 || d.modifierConditionImmunities.length > 0
-}
-function hasSenseValues(d: EquipmentFormData): boolean {
-  return anySenseNonZero(d.modifierSenses)
-}
-function hasMovementValues(d: EquipmentFormData): boolean {
-  return (
-    d.modifierSpeed !== 0 ||
-    d.modifierFlySpeed !== 0 ||
-    d.modifierSwimSpeed !== 0 ||
-    d.modifierClimbSpeed !== 0 ||
-    d.modifierBurrowSpeed !== 0 ||
-    d.modifierCarryingCapacityBonus !== 0 ||
-    d.modifierCarryingCapacityMultiplier !== 0
-  )
-}
-function hasLanguageValues(d: EquipmentFormData): boolean {
-  return d.modifierLanguages.length > 0 || d.modifierProficiencies.length > 0
-}
-
-function TagPickerField(props: { label: string; options: string[]; selected: string[]; onChange: (next: string[]) => void }) {
-  const toggle = (tag: string) => {
-    props.onChange(
-      props.selected.includes(tag) ? props.selected.filter((t) => t !== tag) : [...props.selected, tag]
-    )
-  }
-  return (
-    <div>
-      <div class="flex items-center justify-between">
-        <Label class="text-xs">{props.label}</Label>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            as="button"
-            class="inline-flex items-center justify-center h-5 w-5 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
-            title={`Add ${props.label}`}
-          >
-            <Plus class="h-3 w-3" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <For each={props.options}>
-              {(option) => (
-                <DropdownMenuItem
-                  onSelect={() => toggle(option)}
-                  class={props.selected.includes(option) ? "text-primary font-medium" : ""}
-                >
-                  {option}
-                  <Show when={props.selected.includes(option)}>
-                    <span class="ml-auto text-primary">✓</span>
-                  </Show>
-                </DropdownMenuItem>
-              )}
-            </For>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div class="flex flex-wrap gap-1 mt-1 min-h-[1.25rem]">
-        <Show when={props.selected.length > 0} fallback={<span class="text-xs text-muted-foreground italic">None</span>}>
-          <For each={props.selected}>
-            {(tag) => (
-              <button
-                type="button"
-                onClick={() => toggle(tag)}
-                class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                title="Click to remove"
-              >
-                {tag}
-                <X class="h-2.5 w-2.5" />
-              </button>
-            )}
-          </For>
-        </Show>
-      </div>
-    </div>
-  )
-}
-
-function StringListField(props: { label: string; placeholder: string; values: string[]; onChange: (next: string[]) => void }) {
-  const [newValue, setNewValue] = createSignal("")
-  const add = () => {
-    const trimmed = newValue().trim()
-    if (!trimmed || props.values.includes(trimmed)) return
-    props.onChange([...props.values, trimmed])
-    setNewValue("")
-  }
-  const remove = (value: string) => props.onChange(props.values.filter((v) => v !== value))
-  return (
-    <div>
-      <Label class="text-xs">{props.label}</Label>
-      <div class="flex flex-wrap gap-1 mt-1 mb-2">
-        <Show when={props.values.length > 0} fallback={<span class="text-xs text-muted-foreground italic">None</span>}>
-          <For each={props.values}>
-            {(value) => (
-              <Badge variant="outline" class="gap-1 text-xs">
-                {value}
-                <Button variant="ghost" size="sm" aria-label={`Remove ${value}`} class="h-auto p-0 hover:bg-transparent" onClick={() => remove(value)}>
-                  <X class="h-2.5 w-2.5" />
-                </Button>
-              </Badge>
-            )}
-          </For>
-        </Show>
-      </div>
-      <div class="flex gap-2">
-        <Input
-          placeholder={props.placeholder}
-          value={newValue()}
-          onInput={(e) => setNewValue(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
-          class="flex-1 h-8 text-xs"
-        />
-        <Button onClick={add} size="sm" aria-label={props.label} disabled={!newValue().trim()}>
-          <Plus class="h-3 w-3" />
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function ModifierGroup(props: ParentProps<{ label: string; open: boolean; onOpenChange: (open: boolean) => void }>) {
-  return (
-    <Collapsible open={props.open} onOpenChange={props.onOpenChange}>
-      <CollapsibleTrigger class="flex w-full items-center justify-between text-xs font-medium text-muted-foreground border-t pt-2">
-        <span>{props.label}</span>
-        <ChevronDown class="h-3.5 w-3.5" />
-      </CollapsibleTrigger>
-      <CollapsibleContent class="space-y-3 pt-2 pb-1">{props.children}</CollapsibleContent>
-    </Collapsible>
-  )
-}
-
-const EQUIPMENT_TYPES: { value: EquipmentType; label: string }[] = [
-  { value: "weapon", label: "Weapon" },
-  { value: "armor", label: "Armor" },
-  { value: "tool", label: "Tool" },
-  { value: "consumable", label: "Consumable" },
-  { value: "treasure", label: "Treasure" },
-  { value: "other", label: "Other" },
-]
-
-const ATTACK_ABILITY_OPTIONS: { value: "str" | "dex" | "finesse"; label: string }[] = [
-  { value: "str", label: "Strength" },
-  { value: "dex", label: "Dexterity" },
-  { value: "finesse", label: "Finesse (higher of STR/DEX)" },
-]
-
-const ARMOR_TYPE_OPTIONS: { value: "light" | "medium" | "heavy" | "shield"; label: string }[] = [
-  { value: "light", label: "Light (base AC + full DEX)" },
-  { value: "medium", label: "Medium (base AC + DEX, max +2)" },
-  { value: "heavy", label: "Heavy (base AC only)" },
-  { value: "shield", label: "Shield (+2 stacks with armor)" },
-]
-
-function EquipmentForm(props: EquipmentFormProps) {
-  const [formData, setFormData] = createSignal<EquipmentFormData>(props.initialData)
-  const [openAbilityScores, setOpenAbilityScores] = createSignal(hasAbilityScoreValues(props.initialData))
-  const [openSavingThrows, setOpenSavingThrows] = createSignal(hasSavingThrowValues(props.initialData))
-  const [openResistances, setOpenResistances] = createSignal(hasResistanceValues(props.initialData))
-  const [openSenses, setOpenSenses] = createSignal(hasSenseValues(props.initialData))
-  const [openMovement, setOpenMovement] = createSignal(hasMovementValues(props.initialData))
-  const [openLanguages, setOpenLanguages] = createSignal(hasLanguageValues(props.initialData))
-  createEffect(
-    on(
-      () => props.initialData,
-      (init) => {
-        setFormData(init)
-        setOpenAbilityScores(hasAbilityScoreValues(init))
-        setOpenSavingThrows(hasSavingThrowValues(init))
-        setOpenResistances(hasResistanceValues(init))
-        setOpenSenses(hasSenseValues(init))
-        setOpenMovement(hasMovementValues(init))
-        setOpenLanguages(hasLanguageValues(init))
-      }
-    )
-  )
-
-  const handleTypeChange = (type: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      type: type as EquipmentType,
-      weaponStats: type === "weapon" ? (prev.weaponStats ?? { damage: "", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true }) : undefined,
-      armorStats: type === "armor" ? (prev.armorStats ?? { baseAC: 11, armorType: "light" }) : undefined,
-    }))
-  }
-
-  return (
-    <div class="space-y-4">
-      <div>
-        <Label for="item-name">Item Name</Label>
-        <Input
-          id="item-name"
-          value={formData().name}
-          onInput={(e) => setFormData((prev) => ({ ...prev, name: e.currentTarget.value }))}
-          placeholder="Enter item name"
-        />
-      </div>
-
-      <div>
-        <Label>Item Type</Label>
-        <Select value={formData().type} onValueChange={handleTypeChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select type" />
-          </SelectTrigger>
-          <SelectContent>
-            <For each={EQUIPMENT_TYPES}>
-              {(t) => <SelectItem value={t.value}>{t.label}</SelectItem>}
-            </For>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Show when={formData().type === "weapon"}>
-        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
-          <p class="text-sm font-medium">Weapon Stats</p>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <Label for="weapon-damage">Damage Dice</Label>
-              <Input
-                id="weapon-damage"
-                value={formData().weaponStats?.damage ?? ""}
-                onInput={(e) => setFormData((prev) => ({ ...prev, weaponStats: { ...prev.weaponStats!, damage: e.currentTarget.value } }))}
-                placeholder="e.g. 1d8"
-              />
-            </div>
-            <div>
-              <Label>Damage Type</Label>
-              <Combobox
-                value={formData().weaponStats?.damageType ?? ""}
-                onValueChange={(v) => setFormData((prev) => ({ ...prev, weaponStats: { ...prev.weaponStats!, damageType: v } }))}
-                options={DAMAGE_TYPE_OPTIONS}
-                placeholder="Select type"
-              />
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <Label for="weapon-range">Range</Label>
-              <Input
-                id="weapon-range"
-                value={formData().weaponStats?.weaponRange ?? ""}
-                onInput={(e) => setFormData((prev) => ({ ...prev, weaponStats: { ...prev.weaponStats!, weaponRange: e.currentTarget.value } }))}
-                placeholder="e.g. 5 ft"
-              />
-            </div>
-            <div>
-              <Label>Attack Using</Label>
-              <Select
-                value={formData().weaponStats?.attackAbility ?? "str"}
-                onValueChange={(v) => setFormData((prev) => ({ ...prev, weaponStats: { ...prev.weaponStats!, attackAbility: v as "str" | "dex" | "finesse" } }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select ability" />
-                </SelectTrigger>
-                <SelectContent>
-                  <For each={ATTACK_ABILITY_OPTIONS}>
-                    {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
-                  </For>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox
-              id="weapon-proficient"
-              checked={formData().weaponStats?.proficient ?? true}
-              onChange={(checked: boolean) => setFormData((prev) => ({ ...prev, weaponStats: { ...prev.weaponStats!, proficient: checked } }))}
-            />
-            <Label for="weapon-proficient">Proficient with this weapon</Label>
-          </div>
-        </div>
-      </Show>
-
-      <Show when={formData().type === "armor"}>
-        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
-          <p class="text-sm font-medium">Armor Stats</p>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Armor Type</Label>
-              <Select
-                value={formData().armorStats?.armorType ?? "light"}
-                onValueChange={(v) => setFormData((prev) => ({ ...prev, armorStats: { ...prev.armorStats!, armorType: v as "light" | "medium" | "heavy" | "shield" } }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <For each={ARMOR_TYPE_OPTIONS}>
-                    {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
-                  </For>
-                </SelectContent>
-              </Select>
-            </div>
-            <Show
-              when={formData().armorStats?.armorType !== "shield"}
-              fallback={
-                <div>
-                  <Label>AC Bonus</Label>
-                  <p class="text-sm text-muted-foreground mt-2">+2 (fixed)</p>
-                </div>
-              }
-            >
-              <div>
-                <Label for="armor-base-ac">Base AC</Label>
-                <NumericInput
-                  id="armor-base-ac"
-                  min={1}
-                  value={formData().armorStats?.baseAC ?? 11}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, armorStats: { ...prev.armorStats!, baseAC: v } }))}
-                />
-              </div>
-            </Show>
-          </div>
-        </div>
-      </Show>
-
-      <div class="flex items-center space-x-2">
-        <Checkbox
-          id="item-magic"
-          checked={formData().magic}
-          onChange={(checked: boolean) => setFormData((prev) => ({ ...prev, magic: checked }))}
-        />
-        <Label for="item-magic">This is a Magic Item</Label>
-      </div>
-
-      <Show when={formData().magic}>
-        <div class="space-y-3">
-          <p class="text-sm font-medium flex items-center gap-1">
-            <Gem class="h-3.5 w-3.5" />
-            Magic Item Details
-          </p>
-          <div>
-            <Label>Rarity</Label>
-            <Select
-              value={formData().rarity}
-              onValueChange={(v) => setFormData((prev) => ({ ...prev, rarity: v as ItemRarity }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select rarity" />
-              </SelectTrigger>
-              <SelectContent>
-                <For each={RARITY_OPTIONS}>
-                  {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                </For>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox
-              id="item-requires-attunement"
-              checked={formData().requiresAttunement}
-              onChange={(checked: boolean) => setFormData((prev) => ({ ...prev, requiresAttunement: checked, attuned: checked ? prev.attuned : false }))}
-            />
-            <Label for="item-requires-attunement">Requires Attunement</Label>
-          </div>
-          <Show when={formData().requiresAttunement}>
-            <div class="flex items-center gap-2">
-              <Checkbox
-                id="item-attuned"
-                checked={formData().attuned}
-                onChange={(checked: boolean) => setFormData((prev) => ({ ...prev, attuned: checked }))}
-              />
-              <Label for="item-attuned">Attuned</Label>
-            </div>
-          </Show>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <Label for="item-uses">Uses Spent</Label>
-              <NumericInput id="item-uses" min={0} value={formData().uses}
-                onChange={(v) => setFormData((prev) => ({ ...prev, uses: v }))} />
-            </div>
-            <div>
-              <Label for="item-max-uses">Max Charges (0 = none)</Label>
-              <NumericInput id="item-max-uses" min={0} value={formData().maxUses}
-                onChange={(v) => setFormData((prev) => ({ ...prev, maxUses: v, uses: Math.min(prev.uses, v) }))} />
-            </div>
-          </div>
-          <Show when={formData().maxUses > 0}>
-            <div>
-              <Label>Recharge On</Label>
-              <Select
-                value={formData().rechargeOn}
-                onValueChange={(v) => setFormData((prev) => ({ ...prev, rechargeOn: v as "" | "short-rest" | "long-rest" }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <For each={RECHARGE_OPTIONS}>
-                    {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                  </For>
-                </SelectContent>
-              </Select>
-            </div>
-          </Show>
-
-          <div class="space-y-2 pt-2 border-t">
-            <p class="text-xs font-medium text-muted-foreground">Bonuses (optional)</p>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <Label for="modifier-ac">AC Bonus</Label>
-                <NumericInput
-                  id="modifier-ac"
-                  value={formData().modifierArmorClass}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierArmorClass: v }))}
-                />
-              </div>
-              <div>
-                <Label for="modifier-initiative">Initiative Bonus</Label>
-                <NumericInput
-                  id="modifier-initiative"
-                  value={formData().modifierInitiative}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierInitiative: v }))}
-                />
-              </div>
-            </div>
-            <ModifierGroup label="Ability Scores" open={openAbilityScores()} onOpenChange={setOpenAbilityScores}>
-              <div>
-                <Label class="text-xs">Bonuses</Label>
-                <div class="grid grid-cols-3 gap-2 mt-1">
-                  <For each={ABILITY_KEYS}>
-                    {(ability) => (
-                      <div>
-                        <Label for={`modifier-ability-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
-                        <NumericInput
-                          id={`modifier-ability-${ability}`}
-                          value={formData().modifierAbilityScores[ability]}
-                          onChange={(v) => setFormData((prev) => ({ ...prev, modifierAbilityScores: { ...prev.modifierAbilityScores, [ability]: v } }))}
-                        />
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </div>
-              <div>
-                <Label class="text-xs">Floors (sets score to at least this value)</Label>
-                <div class="grid grid-cols-3 gap-2 mt-1">
-                  <For each={ABILITY_KEYS}>
-                    {(ability) => (
-                      <div>
-                        <Label for={`modifier-floor-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
-                        <NumericInput
-                          id={`modifier-floor-${ability}`}
-                          min={0}
-                          value={formData().modifierAbilityScoreFloors[ability]}
-                          onChange={(v) => setFormData((prev) => ({ ...prev, modifierAbilityScoreFloors: { ...prev.modifierAbilityScoreFloors, [ability]: v } }))}
-                        />
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </div>
-              <div>
-                <Label class="text-xs">Max Caps (sets score to at most this value)</Label>
-                <div class="grid grid-cols-3 gap-2 mt-1">
-                  <For each={ABILITY_KEYS}>
-                    {(ability) => (
-                      <div>
-                        <Label for={`modifier-cap-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
-                        <NumericInput
-                          id={`modifier-cap-${ability}`}
-                          min={0}
-                          value={formData().modifierAbilityScoreMaxCaps[ability]}
-                          onChange={(v) => setFormData((prev) => ({ ...prev, modifierAbilityScoreMaxCaps: { ...prev.modifierAbilityScoreMaxCaps, [ability]: v } }))}
-                        />
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </div>
-            </ModifierGroup>
-
-            <ModifierGroup label="Saving Throws" open={openSavingThrows()} onOpenChange={setOpenSavingThrows}>
-              <div class="grid grid-cols-3 gap-2">
-                <For each={ABILITY_KEYS}>
-                  {(ability) => (
-                    <div>
-                      <Label for={`modifier-save-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
-                      <NumericInput
-                        id={`modifier-save-${ability}`}
-                        value={formData().modifierSavingThrows[ability]}
-                        onChange={(v) => setFormData((prev) => ({ ...prev, modifierSavingThrows: { ...prev.modifierSavingThrows, [ability]: v } }))}
-                      />
-                    </div>
-                  )}
-                </For>
-              </div>
-            </ModifierGroup>
-
-            <ModifierGroup label="Resistances & Immunities" open={openResistances()} onOpenChange={setOpenResistances}>
-              <div class="grid grid-cols-1 gap-3">
-                <TagPickerField
-                  label="Damage Resistances"
-                  options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData().modifierResistances}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierResistances: v }))}
-                />
-                <TagPickerField
-                  label="Damage Immunities"
-                  options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData().modifierImmunities}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierImmunities: v }))}
-                />
-                <TagPickerField
-                  label="Damage Vulnerabilities"
-                  options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData().modifierVulnerabilities}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierVulnerabilities: v }))}
-                />
-                <TagPickerField
-                  label="Condition Immunities"
-                  options={CONDITIONS}
-                  selected={formData().modifierConditionImmunities}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, modifierConditionImmunities: v }))}
-                />
-              </div>
-            </ModifierGroup>
-
-            <ModifierGroup label="Senses" open={openSenses()} onOpenChange={setOpenSenses}>
-              <div class="grid grid-cols-2 gap-2">
-                <For each={SENSE_TYPES}>
-                  {(sense) => (
-                    <div>
-                      <Label for={`modifier-sense-${sense}`} class="text-xs">{SENSE_LABELS[sense]} (ft)</Label>
-                      <NumericInput
-                        id={`modifier-sense-${sense}`}
-                        min={0}
-                        value={formData().modifierSenses[sense]}
-                        onChange={(v) => setFormData((prev) => ({ ...prev, modifierSenses: { ...prev.modifierSenses, [sense]: v } }))}
-                      />
-                    </div>
-                  )}
-                </For>
-              </div>
-            </ModifierGroup>
-
-            <ModifierGroup label="Movement & Weight" open={openMovement()} onOpenChange={setOpenMovement}>
-              <div>
-                <Label class="text-xs">Movement (ft)</Label>
-                <div class="grid grid-cols-3 gap-2 mt-1">
-                  <div>
-                    <Label for="modifier-speed" class="text-xs">Speed</Label>
-                    <NumericInput id="modifier-speed" value={formData().modifierSpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierSpeed: v }))} />
-                  </div>
-                  <div>
-                    <Label for="modifier-fly-speed" class="text-xs">Fly</Label>
-                    <NumericInput id="modifier-fly-speed" min={0} value={formData().modifierFlySpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierFlySpeed: v }))} />
-                  </div>
-                  <div>
-                    <Label for="modifier-swim-speed" class="text-xs">Swim</Label>
-                    <NumericInput id="modifier-swim-speed" min={0} value={formData().modifierSwimSpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierSwimSpeed: v }))} />
-                  </div>
-                  <div>
-                    <Label for="modifier-climb-speed" class="text-xs">Climb</Label>
-                    <NumericInput id="modifier-climb-speed" min={0} value={formData().modifierClimbSpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierClimbSpeed: v }))} />
-                  </div>
-                  <div>
-                    <Label for="modifier-burrow-speed" class="text-xs">Burrow</Label>
-                    <NumericInput id="modifier-burrow-speed" min={0} value={formData().modifierBurrowSpeed} onChange={(v) => setFormData((prev) => ({ ...prev, modifierBurrowSpeed: v }))} />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <Label class="text-xs">Carrying Capacity</Label>
-                <div class="grid grid-cols-2 gap-2 mt-1">
-                  <div>
-                    <Label for="modifier-capacity-bonus" class="text-xs">Bonus (lbs)</Label>
-                    <NumericInput id="modifier-capacity-bonus" value={formData().modifierCarryingCapacityBonus} onChange={(v) => setFormData((prev) => ({ ...prev, modifierCarryingCapacityBonus: v }))} />
-                  </div>
-                  <div>
-                    <Label for="modifier-capacity-multiplier" class="text-xs">Multiplier (0 = none)</Label>
-                    <NumericInput id="modifier-capacity-multiplier" min={0} step="0.5" value={formData().modifierCarryingCapacityMultiplier} onChange={(v) => setFormData((prev) => ({ ...prev, modifierCarryingCapacityMultiplier: v }))} parser={parseFloat} />
-                  </div>
-                </div>
-              </div>
-            </ModifierGroup>
-
-            <ModifierGroup label="Languages & Proficiencies" open={openLanguages()} onOpenChange={setOpenLanguages}>
-              <StringListField
-                label="Languages Granted"
-                placeholder="Add language"
-                values={formData().modifierLanguages}
-                onChange={(v) => setFormData((prev) => ({ ...prev, modifierLanguages: v }))}
-              />
-              <StringListField
-                label="Proficiencies Granted"
-                placeholder="Add proficiency (weapons, tools, etc.)"
-                values={formData().modifierProficiencies}
-                onChange={(v) => setFormData((prev) => ({ ...prev, modifierProficiencies: v }))}
-              />
-            </ModifierGroup>
-          </div>
-        </div>
-      </Show>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <Label for="quantity">Quantity</Label>
-          <NumericInput id="quantity" min={1} value={formData().quantity} onChange={(v) => setFormData(prev => ({ ...prev, quantity: v }))} />
-        </div>
-        <div>
-          <Label for="weight">Weight (lbs)</Label>
-          <NumericInput id="weight" min={0} step="0.1" value={formData().weight} onChange={(v) => setFormData(prev => ({ ...prev, weight: v }))} parser={parseFloat} />
-        </div>
-      </div>
-
-      <div>
-        <Label for="description">Description</Label>
-        <Textarea
-          id="description"
-          value={formData().description}
-          onInput={(e) => setFormData((prev) => ({ ...prev, description: e.currentTarget.value }))}
-          placeholder="Optional description"
-          rows={3}
-        />
-      </div>
-
-      <div class="flex items-center space-x-2">
-        <Checkbox
-          id="equipped"
-          checked={formData().equipped}
-          onChange={(checked: boolean) => setFormData((prev) => ({ ...prev, equipped: checked }))}
-        />
-        <Label for="equipped">Currently equipped</Label>
-      </div>
-
-      <div class="flex gap-2 pt-4">
-        <Button onClick={() => props.onSubmit(formData())} class="gap-2">
-          <Save class="h-4 w-4" />
-          {props.editing ? "Update Item" : "Add Item"}
-        </Button>
-        <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-      </div>
-    </div>
-  )
 }
 
 export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
@@ -860,156 +95,24 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const filteredEquipment = () =>
     safeEquipment().filter(
       (item) =>
-        item.name.toLowerCase().includes(searchTerm().toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchTerm().toLowerCase()),
+        !item.magic &&
+        (item.name.toLowerCase().includes(searchTerm().toLowerCase()) ||
+          item.description?.toLowerCase().includes(searchTerm().toLowerCase())),
     )
   const totalWeight = () => roundToOneDecimal(safeEquipment().reduce((total, item) => total + (item.weight || 0) * item.quantity, 0))
   const equippedItems = () => safeEquipment().filter((item) => item.equipped)
-
-  const currentFormData = (): EquipmentFormData => {
-    const item = editingItem()
-    if (item) {
-      return {
-        name: item.name,
-        quantity: item.quantity,
-        weight: item.weight || 0,
-        description: item.description || "",
-        equipped: item.equipped || false,
-        type: item.type || "other",
-        weaponStats: item.weaponStats,
-        armorStats: item.armorStats,
-        magic: item.magic ?? false,
-        requiresAttunement: item.requiresAttunement ?? true,
-        attuned: item.attuned ?? false,
-        rarity: item.rarity ?? "common",
-        uses: item.uses ?? 0,
-        maxUses: item.maxUses ?? 0,
-        rechargeOn: item.rechargeOn ?? "",
-        modifierArmorClass: item.modifiers?.armorClass ?? 0,
-        modifierInitiative: item.modifiers?.initiative ?? 0,
-        modifierSavingThrows: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.savingThrows },
-        modifierAbilityScores: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScores },
-        modifierResistances: item.modifiers?.resistances ?? [],
-        modifierImmunities: item.modifiers?.immunities ?? [],
-        modifierVulnerabilities: item.modifiers?.vulnerabilities ?? [],
-        modifierConditionImmunities: item.modifiers?.conditionImmunities ?? [],
-        modifierSenses: { ...ZERO_SENSES, ...item.modifiers?.senses },
-        modifierSpeed: item.modifiers?.speed ?? 0,
-        modifierFlySpeed: item.modifiers?.flySpeed ?? 0,
-        modifierSwimSpeed: item.modifiers?.swimSpeed ?? 0,
-        modifierClimbSpeed: item.modifiers?.climbSpeed ?? 0,
-        modifierBurrowSpeed: item.modifiers?.burrowSpeed ?? 0,
-        modifierCarryingCapacityBonus: item.modifiers?.carryingCapacityBonus ?? 0,
-        modifierCarryingCapacityMultiplier: item.modifiers?.carryingCapacityMultiplier ?? 0,
-        modifierAbilityScoreFloors: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScoreFloors },
-        modifierAbilityScoreMaxCaps: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScoreMaxCaps },
-        modifierLanguages: item.modifiers?.languages ?? [],
-        modifierProficiencies: item.modifiers?.proficiencies ?? [],
-      }
-    }
-    return defaultEquipmentForm
-  }
 
   const openAdd = () => { setEditingItem(null); setModalOpen(true) }
   const openEdit = (item: Equipment) => { setEditingItem(item); setModalOpen(true) }
   const closeModal = () => { setEditingItem(null); setModalOpen(false) }
 
-  const buildModifiers = (formData: EquipmentFormData): ItemModifiers | undefined => {
-    if (!formData.magic) return undefined
-    const modifiers: ItemModifiers = {}
-    if (formData.modifierArmorClass !== 0) modifiers.armorClass = formData.modifierArmorClass
-    if (formData.modifierInitiative !== 0) modifiers.initiative = formData.modifierInitiative
-    const savingThrows = Object.fromEntries(
-      ABILITY_KEYS.filter((a) => formData.modifierSavingThrows[a] !== 0).map((a) => [a, formData.modifierSavingThrows[a]])
-    ) as Partial<Record<keyof AbilityScores, number>>
-    if (Object.keys(savingThrows).length > 0) modifiers.savingThrows = savingThrows
-    const abilityScores = Object.fromEntries(
-      ABILITY_KEYS.filter((a) => formData.modifierAbilityScores[a] !== 0).map((a) => [a, formData.modifierAbilityScores[a]])
-    ) as Partial<Record<keyof AbilityScores, number>>
-    if (Object.keys(abilityScores).length > 0) modifiers.abilityScores = abilityScores
-
-    if (formData.modifierResistances.length > 0) modifiers.resistances = formData.modifierResistances
-    if (formData.modifierImmunities.length > 0) modifiers.immunities = formData.modifierImmunities
-    if (formData.modifierVulnerabilities.length > 0) modifiers.vulnerabilities = formData.modifierVulnerabilities
-    if (formData.modifierConditionImmunities.length > 0) modifiers.conditionImmunities = formData.modifierConditionImmunities
-
-    const senses = Object.fromEntries(
-      SENSE_TYPES.filter((s) => formData.modifierSenses[s] !== 0).map((s) => [s, formData.modifierSenses[s]])
-    ) as Partial<Record<SenseType, number>>
-    if (Object.keys(senses).length > 0) modifiers.senses = senses
-
-    if (formData.modifierSpeed !== 0) modifiers.speed = formData.modifierSpeed
-    if (formData.modifierFlySpeed !== 0) modifiers.flySpeed = formData.modifierFlySpeed
-    if (formData.modifierSwimSpeed !== 0) modifiers.swimSpeed = formData.modifierSwimSpeed
-    if (formData.modifierClimbSpeed !== 0) modifiers.climbSpeed = formData.modifierClimbSpeed
-    if (formData.modifierBurrowSpeed !== 0) modifiers.burrowSpeed = formData.modifierBurrowSpeed
-
-    if (formData.modifierCarryingCapacityBonus !== 0) modifiers.carryingCapacityBonus = formData.modifierCarryingCapacityBonus
-    if (formData.modifierCarryingCapacityMultiplier !== 0) modifiers.carryingCapacityMultiplier = formData.modifierCarryingCapacityMultiplier
-
-    const abilityScoreFloors = Object.fromEntries(
-      ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreFloors[a] !== 0).map((a) => [a, formData.modifierAbilityScoreFloors[a]])
-    ) as Partial<Record<keyof AbilityScores, number>>
-    if (Object.keys(abilityScoreFloors).length > 0) modifiers.abilityScoreFloors = abilityScoreFloors
-    const abilityScoreMaxCaps = Object.fromEntries(
-      ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreMaxCaps[a] !== 0).map((a) => [a, formData.modifierAbilityScoreMaxCaps[a]])
-    ) as Partial<Record<keyof AbilityScores, number>>
-    if (Object.keys(abilityScoreMaxCaps).length > 0) modifiers.abilityScoreMaxCaps = abilityScoreMaxCaps
-
-    if (formData.modifierLanguages.length > 0) modifiers.languages = formData.modifierLanguages
-    if (formData.modifierProficiencies.length > 0) modifiers.proficiencies = formData.modifierProficiencies
-
-    return Object.keys(modifiers).length > 0 ? modifiers : undefined
-  }
-
-  const magicFields = (formData: EquipmentFormData) => ({
-    magic: formData.magic || undefined,
-    requiresAttunement: formData.magic ? formData.requiresAttunement : undefined,
-    attuned: formData.magic && formData.requiresAttunement ? formData.attuned : undefined,
-    rarity: formData.magic ? formData.rarity : undefined,
-    uses: formData.magic && formData.maxUses > 0 ? formData.uses : undefined,
-    maxUses: formData.magic && formData.maxUses > 0 ? formData.maxUses : undefined,
-    rechargeOn: formData.magic && formData.maxUses > 0 && formData.rechargeOn ? formData.rechargeOn : undefined,
-    modifiers: buildModifiers(formData),
-  })
-
-  const handleAddItem = (formData: EquipmentFormData) => {
-    if (!formData.name.trim()) return
-    const newItem: Equipment = {
-      id: crypto.randomUUID(),
-      name: formData.name.trim(),
-      quantity: formData.quantity,
-      weight: formData.weight,
-      description: formData.description.trim(),
-      equipped: formData.equipped,
-      type: formData.type,
-      weaponStats: formData.weaponStats,
-      armorStats: formData.armorStats,
-      ...magicFields(formData),
-    }
-    const updated = { ...props.character, equipment: [...safeEquipment(), newItem] }
-    props.onUpdate(updated)
-    closeModal()
-  }
-
-  const handleUpdateItem = (formData: EquipmentFormData) => {
-    const item = editingItem()
-    if (!item || !formData.name.trim()) return
-    const updatedItem: Equipment = {
-      ...item,
-      name: formData.name.trim(),
-      quantity: formData.quantity,
-      weight: formData.weight,
-      description: formData.description.trim(),
-      equipped: formData.equipped,
-      type: formData.type,
-      weaponStats: formData.weaponStats,
-      armorStats: formData.armorStats,
-      ...magicFields(formData),
-    }
+  const handleSaveItem = (item: Equipment) => {
+    const existing = editingItem()
     const updated = {
       ...props.character,
-      equipment: safeEquipment().map((e) => (e.id === item.id ? updatedItem : e)),
+      equipment: existing
+        ? safeEquipment().map((e) => (e.id === existing.id ? item : e))
+        : [...safeEquipment(), item],
     }
     props.onUpdate(updated)
     closeModal()
@@ -1032,7 +135,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
     if (quantity < 1) return
     const updated = {
       ...props.character,
-      equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, quantity } : item)),
+      equipment: safeEquipment().map((item) => {
+        if (item.id !== itemId) return item
+        const next = { ...item, quantity }
+        if (item.type === "consumable" && (item.consumedUses ?? 0) > quantity) next.consumedUses = quantity
+        return next
+      }),
     }
     props.onUpdate(updated)
   }
@@ -1048,7 +156,11 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const updateItemUses = (itemId: string, uses: number) => {
     const updated = {
       ...props.character,
-      equipment: safeEquipment().map((item) => (item.id === itemId ? { ...item, uses } : item)),
+      equipment: safeEquipment().map((item) => {
+        if (item.id !== itemId) return item
+        const clamped = Math.max(0, Math.min(uses, effectiveEquipmentMaxUses(item)))
+        return hasChargesTracking(item) ? { ...item, charges: clamped } : { ...item, consumedUses: clamped }
+      }),
     }
     props.onUpdate(updated)
   }
@@ -1179,6 +291,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         <Show when={item.type && item.type !== "other"}>
                           <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
                         </Show>
+                        <Show when={item.actionKind}>
+                          <Badge variant="outline" class="text-xs flex items-center gap-1">
+                            <Zap class="h-3 w-3" />
+                            {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
+                          </Badge>
+                        </Show>
                         <Show when={item.rarity}>
                           <Badge variant="outline" class="text-xs capitalize">{item.rarity?.replace("-", " ")}</Badge>
                         </Show>
@@ -1205,9 +323,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </p>
                       </Show>
                       <Show when={item.description}>
-                        <p class="text-xs text-muted-foreground truncate">{item.description}</p>
+                        <MarkdownContent text={item.description!} class="text-xs text-muted-foreground line-clamp-1" />
                       </Show>
-                      <Show when={item.modifiers}>
+                      <Show when={hasOtherModifierFields(item.modifiers)}>
                         <div class={`text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5 ${isItemModifierActive(item) ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground italic"}`}>
                           <Show when={item.modifiers?.armorClass}>
                             <span>AC {formatModifier(item.modifiers!.armorClass!)}</span>
@@ -1274,26 +392,42 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           </Show>
                         </div>
                       </Show>
-                      <Show when={(item.maxUses ?? 0) > 0}>
+                      {/* Skill advantage/disadvantage activates on equip alone, unlike every other
+                          modifier field above (which requires magic + attunement), so it's shown
+                          and colored independently of isItemModifierActive. */}
+                      <Show when={(item.modifiers?.skillAdvantage?.length ?? 0) > 0 || (item.modifiers?.skillDisadvantage?.length ?? 0) > 0}>
+                        <div class={`text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5 ${item.equipped ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground italic"}`}>
+                          <Show when={(item.modifiers?.skillAdvantage?.length ?? 0) > 0}>
+                            <span>Advantage: {item.modifiers!.skillAdvantage!.map((s) => SKILL_DISPLAY_NAMES[s]).join(", ")}</span>
+                          </Show>
+                          <Show when={(item.modifiers?.skillDisadvantage?.length ?? 0) > 0}>
+                            <span>Disadvantage: {item.modifiers!.skillDisadvantage!.map((s) => SKILL_DISPLAY_NAMES[s]).join(", ")}</span>
+                          </Show>
+                          <Show when={!item.equipped}>
+                            <span>(equip to activate)</span>
+                          </Show>
+                        </div>
+                      </Show>
+                      <Show when={effectiveEquipmentMaxUses(item) > 0}>
                         <div class="mt-1">
                           <Show
-                            when={(item.maxUses ?? 0) <= 5}
+                            when={effectiveEquipmentMaxUses(item) <= 5}
                             fallback={
                               <StepperInput
-                                value={remainingUses(item.uses, item.maxUses)}
+                                value={remainingUses(effectiveEquipmentUses(item), effectiveEquipmentMaxUses(item))}
                                 min={0}
-                                max={item.maxUses!}
-                                onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, item.maxUses))}
+                                max={effectiveEquipmentMaxUses(item)}
+                                onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
                                 readOnly={isReadOnly}
                               />
                             }
                           >
                             <PipTracker
-                              total={item.maxUses!}
-                              used={item.uses ?? 0}
+                              total={effectiveEquipmentMaxUses(item)}
+                              used={effectiveEquipmentUses(item)}
                               onToggle={(v) => updateItemUses(item.id, v)}
-                              usedTitle="Charge spent (click to restore)"
-                              availableTitle="Charge available (click to use)"
+                              usedTitle={item.type === "consumable" ? "Used (click to restore)" : "Charge spent (click to restore)"}
+                              availableTitle={item.type === "consumable" ? "Available (click to use)" : "Charge available (click to use)"}
                               readOnly={isReadOnly}
                             />
                           </Show>
@@ -1383,6 +517,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         <Show when={item.type && item.type !== "other"}>
                           <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
                         </Show>
+                        <Show when={item.actionKind}>
+                          <Badge variant="outline" class="text-xs flex items-center gap-1">
+                            <Zap class="h-3 w-3" />
+                            {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
+                          </Badge>
+                        </Show>
                         <Show when={item.magic}>
                           <Badge variant="outline" class="text-xs gap-1">
                             <Gem class="h-3 w-3" />
@@ -1405,6 +545,22 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       </Show>
                       <Show when={item.description}>
                         <MarkdownContent text={item.description!} class="text-muted-foreground mt-1" />
+                      </Show>
+                      {/* Skill advantage/disadvantage activates on equip alone (see
+                          getEquipmentSkillEffectTotals), so non-magic items can grant it too —
+                          shown here since this general list excludes magic items (filteredEquipment). */}
+                      <Show when={(item.modifiers?.skillAdvantage?.length ?? 0) > 0 || (item.modifiers?.skillDisadvantage?.length ?? 0) > 0}>
+                        <div class={`text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5 ${item.equipped ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground italic"}`}>
+                          <Show when={(item.modifiers?.skillAdvantage?.length ?? 0) > 0}>
+                            <span>Advantage: {item.modifiers!.skillAdvantage!.map((s) => SKILL_DISPLAY_NAMES[s]).join(", ")}</span>
+                          </Show>
+                          <Show when={(item.modifiers?.skillDisadvantage?.length ?? 0) > 0}>
+                            <span>Disadvantage: {item.modifiers!.skillDisadvantage!.map((s) => SKILL_DISPLAY_NAMES[s]).join(", ")}</span>
+                          </Show>
+                          <Show when={!item.equipped}>
+                            <span>(equip to activate)</span>
+                          </Show>
+                        </div>
                       </Show>
                     </div>
                     <Show when={!isReadOnly}>
@@ -1461,6 +617,31 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       </Show>
                     </div>
                   </div>
+                  <Show when={item.type === "consumable" && effectiveEquipmentMaxUses(item) > 0}>
+                    <div>
+                      <Show
+                        when={effectiveEquipmentMaxUses(item) <= 5}
+                        fallback={
+                          <StepperInput
+                            value={remainingUses(effectiveEquipmentUses(item), effectiveEquipmentMaxUses(item))}
+                            min={0}
+                            max={effectiveEquipmentMaxUses(item)}
+                            onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
+                            readOnly={isReadOnly}
+                          />
+                        }
+                      >
+                        <PipTracker
+                          total={effectiveEquipmentMaxUses(item)}
+                          used={effectiveEquipmentUses(item)}
+                          onToggle={(v) => updateItemUses(item.id, v)}
+                          usedTitle="Used (click to restore)"
+                          availableTitle="Available (click to use)"
+                          readOnly={isReadOnly}
+                        />
+                      </Show>
+                    </div>
+                  </Show>
                 </div>
               )}
             </For>
@@ -1468,19 +649,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         </div>
       </CardContent>
 
-      <Modal open={modalOpen()} onOpenChange={(open: boolean) => { if (!open) closeModal() }}>
-        <ModalContent>
-          <ModalHeader>
-            <ModalTitle>{editingItem() ? "Edit Item" : "Add New Item"}</ModalTitle>
-          </ModalHeader>
-          <EquipmentForm
-            initialData={currentFormData()}
-            onSubmit={editingItem() ? handleUpdateItem : handleAddItem}
-            onCancel={closeModal}
-            editing={!!editingItem()}
-          />
-        </ModalContent>
-      </Modal>
+      <EquipmentItemModal
+        open={modalOpen()}
+        editingItem={editingItem()}
+        onSave={handleSaveItem}
+        onCancel={closeModal}
+      />
     </Card>
   )
 }

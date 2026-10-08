@@ -368,6 +368,23 @@ describe("CombatStatsModule", () => {
       )
     })
 
+    it("persists edits on Ctrl+S without leaving edit mode", () => {
+      const onUpdate = vi.fn()
+      render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+      const currentInput = screen.getAllByRole("spinbutton")[0]
+      fireEvent.input(currentInput, { target: { value: "7" } })
+      fireEvent.blur(currentInput)
+      fireEvent.keyDown(currentInput, { key: "s", ctrlKey: true })
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hitPoints: expect.objectContaining({ current: 7 }),
+        })
+      )
+      expect(screen.getAllByRole("spinbutton").length).toBeGreaterThanOrEqual(4)
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
+    })
+
     it("reverts to original values on cancel without calling onUpdate", () => {
       const onUpdate = vi.fn()
       render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)

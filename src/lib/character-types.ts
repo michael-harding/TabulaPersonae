@@ -31,24 +31,24 @@ export interface SavingThrows {
 }
 
 export interface Skills {
-  acrobatics: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  animalHandling: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  arcana: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  athletics: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  deception: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  history: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  insight: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  intimidation: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  investigation: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  medicine: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  nature: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  perception: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  performance: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  persuasion: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  religion: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  sleightOfHand: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  stealth: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
-  survival: { proficient: boolean; expertise: boolean; disadvantage?: boolean }
+  acrobatics: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  animalHandling: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  arcana: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  athletics: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  deception: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  history: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  insight: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  intimidation: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  investigation: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  medicine: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  nature: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  perception: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  performance: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  persuasion: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  religion: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  sleightOfHand: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  stealth: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
+  survival: { proficient: boolean; expertise: boolean; advantage?: boolean; disadvantage?: boolean }
 }
 
 export type ActionType = 'attack' | 'ability' | 'class-feature' | 'feat' | 'species-ability' | 'other' | string
@@ -78,9 +78,20 @@ export interface ItemModifiers {
   abilityScoreMaxCaps?: Partial<Record<keyof AbilityScores, number>>
   languages?: string[]
   proficiencies?: string[]
+  // Applies whenever the item is equipped, regardless of magic/attunement status — unlike every
+  // other field above, which is gated to magic items only (see isItemModifierActive).
+  skillAdvantage?: (keyof Skills)[]
+  skillDisadvantage?: (keyof Skills)[]
 }
 
-export interface Equipment extends UseableEntry {
+export interface Equipment extends Omit<UseableEntry, "uses"> {
+  // Charges spent on a rechargeable magic item, bounded by maxUses, reset by rechargeOn.
+  // Kept distinct from consumedUses below since an item can need both independently (e.g. a
+  // magic consumable that both recharges on a rest and is also consumed via an action).
+  charges?: number
+  // Quantity consumed via an action, bounded by quantity, decremented on any rest regardless
+  // of rechargeOn.
+  consumedUses?: number
   quantity: number
   weight: number
   equipped: boolean
@@ -101,6 +112,7 @@ export interface Equipment extends UseableEntry {
   attuned?: boolean
   rarity?: ItemRarity
   modifiers?: ItemModifiers
+  actionKind?: ActionKind
 }
 
 export interface Spell extends CharacterEntry {
@@ -143,6 +155,8 @@ export interface FeatureEffects {
   hitPointsRolledLevels?: number[]
   savingThrowProficiencies?: (keyof AbilityScores)[]
   skillProficiencies?: { skill: keyof Skills; expertise?: boolean }[]
+  skillAdvantage?: (keyof Skills)[]
+  skillDisadvantage?: (keyof Skills)[]
   otherProficiencies?: string[]
   size?: string
   speed?: number
@@ -170,12 +184,32 @@ export interface FeatureLevelEffect {
   effects: FeatureEffects
 }
 
+// Values double as their own display labels — the shared Select component's trigger renders
+// the raw controlled value verbatim (it doesn't look up a SelectItem's rendered children), so
+// using human-readable strings here avoids showing raw codes like "skill-proficiency" in the UI.
+export type FeatureTypeValue =
+  | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
+  | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
+  | 'Ability Scores' | 'Max HP Bonus'
+
 export interface Feature extends UseableEntry {
   source: FeatureKind
   actionKind?: ActionKind
   type?: ActionType
   range?: string
   level?: number
+  // 'per-level' means maxUses is ignored and the effective cap is maxUsesPerLevel * character.level
+  // — same "rate × current total level" math as FeatureEffects.hpBonusPerLevel, computed fresh at
+  // read time rather than baked in, so leveling up never requires manually editing the feature.
+  maxUsesMode?: 'flat' | 'per-level'
+  maxUsesPerLevel?: number
+  // '' means "migrated; determined to have no mechanical type" — distinct from the key being
+  // absent ("not yet migrated"). JSON.stringify drops undefined-valued keys (characters persist
+  // via localStorage.setItem(key, JSON.stringify(...))), so `featureType: undefined` would be
+  // indistinguishable from "never set" after a save/reload, breaking the migration's
+  // `'featureType' in feature` idempotency check.
+  featureType?: FeatureTypeValue | ''
   // Every tier whose level threshold the character has reached contributes to the totals in
   // getActiveFeatureEffects — not just the highest one. A tier at level 1 and another at level 4
   // both apply once the character is level 4 or higher (see getQualifyingLevelEffects).
@@ -365,24 +399,24 @@ export function createDefaultCharacter(): Character {
     },
 
     skills: {
-      acrobatics: { proficient: false, expertise: false, disadvantage: false },
-      animalHandling: { proficient: false, expertise: false, disadvantage: false },
-      arcana: { proficient: false, expertise: false, disadvantage: false },
-      athletics: { proficient: false, expertise: false, disadvantage: false },
-      deception: { proficient: false, expertise: false, disadvantage: false },
-      history: { proficient: false, expertise: false, disadvantage: false },
-      insight: { proficient: false, expertise: false, disadvantage: false },
-      intimidation: { proficient: false, expertise: false, disadvantage: false },
-      investigation: { proficient: false, expertise: false, disadvantage: false },
-      medicine: { proficient: false, expertise: false, disadvantage: false },
-      nature: { proficient: false, expertise: false, disadvantage: false },
-      perception: { proficient: false, expertise: false, disadvantage: false },
-      performance: { proficient: false, expertise: false, disadvantage: false },
-      persuasion: { proficient: false, expertise: false, disadvantage: false },
-      religion: { proficient: false, expertise: false, disadvantage: false },
-      sleightOfHand: { proficient: false, expertise: false, disadvantage: false },
-      stealth: { proficient: false, expertise: false, disadvantage: false },
-      survival: { proficient: false, expertise: false, disadvantage: false },
+      acrobatics: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      animalHandling: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      arcana: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      athletics: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      deception: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      history: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      insight: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      intimidation: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      investigation: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      medicine: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      nature: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      perception: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      performance: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      persuasion: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      religion: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      sleightOfHand: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      stealth: { proficient: false, expertise: false, advantage: false, disadvantage: false },
+      survival: { proficient: false, expertise: false, advantage: false, disadvantage: false },
     },
 
     armorClass: 10,
@@ -469,6 +503,7 @@ export function createDefaultCharacter(): Character {
         name: "Hit Points",
         description: "Grants this character's hit die, used to calculate Max HP and spend Hit Dice on a short rest. Update the die size to match your class.",
         source: "class-feature",
+        featureType: "Hit Points",
         levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
       },
     ],

@@ -1,0 +1,1024 @@
+import { createSignal, createEffect, on, For, Show } from "solid-js"
+import { createStore, reconcile, unwrap } from "solid-js/store"
+import type { AbilityScores, ActionKind, Equipment, ItemModifiers, ItemRarity, SenseType, Skills } from "@/lib/character-types"
+import {
+  DAMAGE_TYPE_OPTIONS,
+  CONDITIONS,
+  SENSE_TYPES,
+  SENSE_LABELS,
+  SKILL_DISPLAY_NAMES,
+  ABILITY_KEYS,
+  ABILITY_ABBREVIATIONS,
+  ZERO_ABILITY_SCORES,
+  ZERO_SENSES,
+} from "@/lib/character-utils"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { NumericInput } from "@/components/ui/numeric-input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ModifierGroup } from "@/components/ui/modifier-group"
+import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
+import Plus from "lucide-solid/icons/plus"
+import Save from "lucide-solid/icons/save"
+import Gem from "lucide-solid/icons/gem"
+import X from "lucide-solid/icons/x"
+
+export const RARITY_OPTIONS: { value: ItemRarity; label: string }[] = [
+  { value: "common", label: "Common" },
+  { value: "uncommon", label: "Uncommon" },
+  { value: "rare", label: "Rare" },
+  { value: "very-rare", label: "Very Rare" },
+  { value: "legendary", label: "Legendary" },
+  { value: "artifact", label: "Artifact" },
+]
+
+const RECHARGE_OPTIONS: { value: "" | "short-rest" | "long-rest"; label: string }[] = [
+  { value: "", label: "None" },
+  { value: "short-rest", label: "Short Rest" },
+  { value: "long-rest", label: "Long Rest" },
+]
+
+export const ACTION_KIND_OPTIONS: { value: ActionKind | ""; label: string }[] = [
+  { value: "", label: "None" },
+  { value: "action", label: "Action" },
+  { value: "bonus-action", label: "Bonus Action" },
+  { value: "reaction", label: "Reaction" },
+  { value: "other", label: "Other" },
+]
+
+// skillAdvantage/skillDisadvantage activate on equip alone (see getEquipmentSkillEffectTotals),
+// unlike every other ItemModifiers field, which requires magic + attunement — the item summary
+// line renders them in a separate block, so this excludes them from the "has any magic-gated
+// modifier" check that controls that shared block's visibility and active/inactive styling.
+export function hasOtherModifierFields(mods: ItemModifiers | undefined): boolean {
+  if (!mods) return false
+  return Object.keys(mods).some((key) => key !== "skillAdvantage" && key !== "skillDisadvantage")
+}
+
+export type EquipmentType = "weapon" | "armor" | "tool" | "consumable" | "treasure" | "other"
+
+interface EquipmentFormData {
+  name: string
+  quantity: number
+  weight: number
+  description: string
+  equipped: boolean
+  type: EquipmentType
+  actionKind: ActionKind | ""
+  weaponStats?: {
+    damage: string
+    damageType: string
+    weaponRange: string
+    attackAbility: "str" | "dex" | "finesse"
+    proficient: boolean
+  }
+  armorStats?: {
+    baseAC: number
+    armorType: "light" | "medium" | "heavy" | "shield"
+  }
+  magic: boolean
+  requiresAttunement: boolean
+  attuned: boolean
+  rarity: ItemRarity
+  charges: number
+  consumedUses: number
+  maxUses: number
+  rechargeOn: "" | "short-rest" | "long-rest"
+  modifierArmorClass: number
+  modifierInitiative: number
+  modifierSavingThrows: Record<keyof AbilityScores, number>
+  modifierAbilityScores: Record<keyof AbilityScores, number>
+  modifierResistances: string[]
+  modifierImmunities: string[]
+  modifierVulnerabilities: string[]
+  modifierConditionImmunities: string[]
+  modifierSenses: Record<SenseType, number>
+  modifierSpeed: number
+  modifierFlySpeed: number
+  modifierSwimSpeed: number
+  modifierClimbSpeed: number
+  modifierBurrowSpeed: number
+  modifierCarryingCapacityBonus: number
+  modifierCarryingCapacityMultiplier: number
+  modifierAbilityScoreFloors: Record<keyof AbilityScores, number>
+  modifierAbilityScoreMaxCaps: Record<keyof AbilityScores, number>
+  modifierLanguages: string[]
+  modifierProficiencies: string[]
+  modifierSkillAdvantage: (keyof Skills)[]
+  modifierSkillDisadvantage: (keyof Skills)[]
+}
+
+const defaultEquipmentForm: EquipmentFormData = {
+  name: "",
+  quantity: 1,
+  weight: 0,
+  description: "",
+  equipped: false,
+  type: "other",
+  actionKind: "",
+  magic: false,
+  requiresAttunement: true,
+  attuned: false,
+  rarity: "common",
+  charges: 0,
+  consumedUses: 0,
+  maxUses: 0,
+  rechargeOn: "",
+  modifierArmorClass: 0,
+  modifierInitiative: 0,
+  modifierSavingThrows: { ...ZERO_ABILITY_SCORES },
+  modifierAbilityScores: { ...ZERO_ABILITY_SCORES },
+  modifierResistances: [],
+  modifierImmunities: [],
+  modifierVulnerabilities: [],
+  modifierConditionImmunities: [],
+  modifierSenses: { ...ZERO_SENSES },
+  modifierSpeed: 0,
+  modifierFlySpeed: 0,
+  modifierSwimSpeed: 0,
+  modifierClimbSpeed: 0,
+  modifierBurrowSpeed: 0,
+  modifierCarryingCapacityBonus: 0,
+  modifierCarryingCapacityMultiplier: 0,
+  modifierAbilityScoreFloors: { ...ZERO_ABILITY_SCORES },
+  modifierAbilityScoreMaxCaps: { ...ZERO_ABILITY_SCORES },
+  modifierLanguages: [],
+  modifierProficiencies: [],
+  modifierSkillAdvantage: [],
+  modifierSkillDisadvantage: [],
+}
+
+interface EquipmentFormProps {
+  initialData: EquipmentFormData
+  onSubmit: (data: EquipmentFormData) => void
+  onCancel: () => void
+  editing: boolean
+}
+
+function anyAbilityNonZero(record: Record<keyof AbilityScores, number>): boolean {
+  return ABILITY_KEYS.some((k) => record[k] !== 0)
+}
+function anySenseNonZero(record: Record<SenseType, number>): boolean {
+  return SENSE_TYPES.some((s) => record[s] !== 0)
+}
+function hasAbilityScoreValues(d: EquipmentFormData): boolean {
+  return anyAbilityNonZero(d.modifierAbilityScores) || anyAbilityNonZero(d.modifierAbilityScoreFloors) || anyAbilityNonZero(d.modifierAbilityScoreMaxCaps)
+}
+function hasSavingThrowValues(d: EquipmentFormData): boolean {
+  return anyAbilityNonZero(d.modifierSavingThrows)
+}
+function hasResistanceValues(d: EquipmentFormData): boolean {
+  return d.modifierResistances.length > 0 || d.modifierImmunities.length > 0 || d.modifierVulnerabilities.length > 0 || d.modifierConditionImmunities.length > 0
+}
+function hasSenseValues(d: EquipmentFormData): boolean {
+  return anySenseNonZero(d.modifierSenses)
+}
+function hasMovementValues(d: EquipmentFormData): boolean {
+  return (
+    d.modifierSpeed !== 0 ||
+    d.modifierFlySpeed !== 0 ||
+    d.modifierSwimSpeed !== 0 ||
+    d.modifierClimbSpeed !== 0 ||
+    d.modifierBurrowSpeed !== 0 ||
+    d.modifierCarryingCapacityBonus !== 0 ||
+    d.modifierCarryingCapacityMultiplier !== 0
+  )
+}
+function hasLanguageValues(d: EquipmentFormData): boolean {
+  return d.modifierLanguages.length > 0 || d.modifierProficiencies.length > 0
+}
+function hasSkillEffectValues(d: EquipmentFormData): boolean {
+  return d.modifierSkillAdvantage.length > 0 || d.modifierSkillDisadvantage.length > 0
+}
+function hasACInitiativeValues(d: EquipmentFormData): boolean {
+  return d.modifierArmorClass !== 0 || d.modifierInitiative !== 0
+}
+function hasChargesValues(d: EquipmentFormData): boolean {
+  return d.charges !== 0 || d.maxUses !== 0 || d.rechargeOn !== ""
+}
+
+function tagPickerTestId(label: string): string {
+  return `tag-picker-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`
+}
+
+function TagPickerField(props: { label: string; options: string[]; selected: string[]; onChange: (next: string[]) => void }) {
+  const toggle = (tag: string) => {
+    props.onChange(
+      props.selected.includes(tag) ? props.selected.filter((t) => t !== tag) : [...props.selected, tag]
+    )
+  }
+  return (
+    <div data-sem="tag-picker-field">
+      <div class="flex items-center justify-between">
+        <Label class="text-xs">{props.label}</Label>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            as="button"
+            data-test={tagPickerTestId(props.label)}
+            class="inline-flex items-center justify-center h-5 w-5 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+            title={`Add ${props.label}`}
+          >
+            <Plus class="h-3 w-3" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <For each={props.options}>
+              {(option) => (
+                <DropdownMenuItem
+                  onSelect={() => toggle(option)}
+                  class={props.selected.includes(option) ? "text-primary font-medium" : ""}
+                >
+                  {option}
+                  <Show when={props.selected.includes(option)}>
+                    <span class="ml-auto text-primary">✓</span>
+                  </Show>
+                </DropdownMenuItem>
+              )}
+            </For>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div class="flex flex-wrap gap-1 mt-1 min-h-[1.25rem]">
+        <Show when={props.selected.length > 0} fallback={<span class="text-xs text-muted-foreground italic">None</span>}>
+          <For each={props.selected}>
+            {(tag) => (
+              <button
+                type="button"
+                onClick={() => toggle(tag)}
+                class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                title="Click to remove"
+              >
+                {tag}
+                <X class="h-2.5 w-2.5" />
+              </button>
+            )}
+          </For>
+        </Show>
+      </div>
+    </div>
+  )
+}
+
+const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
+
+const EQUIPMENT_TYPES: { value: EquipmentType; label: string }[] = [
+  { value: "weapon", label: "Weapon" },
+  { value: "armor", label: "Armor" },
+  { value: "tool", label: "Tool" },
+  { value: "consumable", label: "Consumable" },
+  { value: "treasure", label: "Treasure" },
+  { value: "other", label: "Other" },
+]
+
+const ATTACK_ABILITY_OPTIONS: { value: "str" | "dex" | "finesse"; label: string }[] = [
+  { value: "str", label: "Strength" },
+  { value: "dex", label: "Dexterity" },
+  { value: "finesse", label: "Finesse (higher of STR/DEX)" },
+]
+
+const ARMOR_TYPE_OPTIONS: { value: "light" | "medium" | "heavy" | "shield"; label: string }[] = [
+  { value: "light", label: "Light (base AC + full DEX)" },
+  { value: "medium", label: "Medium (base AC + DEX, max +2)" },
+  { value: "heavy", label: "Heavy (base AC only)" },
+  { value: "shield", label: "Shield (+2 stacks with armor)" },
+]
+
+function EquipmentForm(props: EquipmentFormProps) {
+  const [formData, setFormData] = createStore<EquipmentFormData>(structuredClone(props.initialData))
+  const [openAbilityScores, setOpenAbilityScores] = createSignal(hasAbilityScoreValues(props.initialData))
+  const [openSavingThrows, setOpenSavingThrows] = createSignal(hasSavingThrowValues(props.initialData))
+  const [openResistances, setOpenResistances] = createSignal(hasResistanceValues(props.initialData))
+  const [openSenses, setOpenSenses] = createSignal(hasSenseValues(props.initialData))
+  const [openMovement, setOpenMovement] = createSignal(hasMovementValues(props.initialData))
+  const [openLanguages, setOpenLanguages] = createSignal(hasLanguageValues(props.initialData))
+  const [openSkillEffects, setOpenSkillEffects] = createSignal(hasSkillEffectValues(props.initialData))
+  const [openACInitiative, setOpenACInitiative] = createSignal(hasACInitiativeValues(props.initialData))
+  const [openUses, setOpenUses] = createSignal(hasChargesValues(props.initialData))
+  createEffect(
+    on(
+      () => props.initialData,
+      (init) => {
+        setFormData(reconcile(structuredClone(init)))
+        setOpenAbilityScores(hasAbilityScoreValues(init))
+        setOpenSavingThrows(hasSavingThrowValues(init))
+        setOpenResistances(hasResistanceValues(init))
+        setOpenSenses(hasSenseValues(init))
+        setOpenMovement(hasMovementValues(init))
+        setOpenLanguages(hasLanguageValues(init))
+        setOpenSkillEffects(hasSkillEffectValues(init))
+        setOpenACInitiative(hasACInitiativeValues(init))
+        setOpenUses(hasChargesValues(init))
+      }
+    )
+  )
+
+  const handleTypeChange = (type: string) => {
+    setFormData("type", type as EquipmentType)
+    if (type === "weapon") {
+      if (!formData.weaponStats) setFormData("weaponStats", { damage: "", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true })
+    } else if (formData.weaponStats) {
+      setFormData("weaponStats", undefined)
+    }
+    if (type === "armor") {
+      if (!formData.armorStats) setFormData("armorStats", { baseAC: 11, armorType: "light" })
+    } else if (formData.armorStats) {
+      setFormData("armorStats", undefined)
+    }
+  }
+
+  return (
+    <div class="space-y-4" data-sem="equipment-item-modal">
+      <div>
+        <Label for="item-name">Item Name</Label>
+        <Input
+          id="item-name"
+          data-test="item-name"
+          value={formData.name}
+          onInput={(e) => setFormData("name", e.currentTarget.value)}
+          placeholder="Enter item name"
+        />
+      </div>
+
+      <div>
+        <Label>Item Type</Label>
+        <Select value={formData.type} onValueChange={handleTypeChange}>
+          <SelectTrigger data-test="item-type">
+            <SelectValue placeholder="Select type" />
+          </SelectTrigger>
+          <SelectContent>
+            <For each={EQUIPMENT_TYPES}>
+              {(t) => <SelectItem value={t.value}>{t.label}</SelectItem>}
+            </For>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label for="item-action-kind">Used As Action</Label>
+        <Select
+          value={formData.actionKind}
+          onValueChange={(v) => setFormData("actionKind", v as ActionKind | "")}
+        >
+          <SelectTrigger id="item-action-kind" data-test="item-action-kind">
+            <SelectValue placeholder="None" />
+          </SelectTrigger>
+          <SelectContent>
+            <For each={ACTION_KIND_OPTIONS}>
+              {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
+            </For>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Show when={formData.type === "weapon"}>
+        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
+          <p class="text-sm font-medium">Weapon Stats</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <Label for="weapon-damage">Damage Dice</Label>
+              <Input
+                id="weapon-damage"
+                data-test="weapon-damage"
+                value={formData.weaponStats?.damage ?? ""}
+                onInput={(e) => setFormData("weaponStats", "damage", e.currentTarget.value)}
+                placeholder="e.g. 1d8"
+              />
+            </div>
+            <div>
+              <Label>Damage Type</Label>
+              <Combobox
+                data-test="weapon-damage-type"
+                value={formData.weaponStats?.damageType ?? ""}
+                onValueChange={(v) => setFormData("weaponStats", "damageType", v)}
+                options={DAMAGE_TYPE_OPTIONS}
+                placeholder="Select type"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <Label for="weapon-range">Range</Label>
+              <Input
+                id="weapon-range"
+                data-test="weapon-range"
+                value={formData.weaponStats?.weaponRange ?? ""}
+                onInput={(e) => setFormData("weaponStats", "weaponRange", e.currentTarget.value)}
+                placeholder="e.g. 5 ft"
+              />
+            </div>
+            <div>
+              <Label>Attack Using</Label>
+              <Select
+                value={formData.weaponStats?.attackAbility ?? "str"}
+                onValueChange={(v) => setFormData("weaponStats", "attackAbility", v as "str" | "dex" | "finesse")}
+              >
+                <SelectTrigger data-test="weapon-attack-ability">
+                  <SelectValue placeholder="Select ability" />
+                </SelectTrigger>
+                <SelectContent>
+                  <For each={ATTACK_ABILITY_OPTIONS}>
+                    {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
+                  </For>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <Checkbox
+              id="weapon-proficient"
+              data-test="weapon-proficient"
+              checked={formData.weaponStats?.proficient ?? true}
+              onChange={(checked: boolean) => setFormData("weaponStats", "proficient", checked)}
+            />
+            <Label for="weapon-proficient">Proficient with this weapon</Label>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={formData.type === "armor"}>
+        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
+          <p class="text-sm font-medium">Armor Stats</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Armor Type</Label>
+              <Select
+                value={formData.armorStats?.armorType ?? "light"}
+                onValueChange={(v) => setFormData("armorStats", "armorType", v as "light" | "medium" | "heavy" | "shield")}
+              >
+                <SelectTrigger data-test="armor-type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <For each={ARMOR_TYPE_OPTIONS}>
+                    {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
+                  </For>
+                </SelectContent>
+              </Select>
+            </div>
+            <Show
+              when={formData.armorStats?.armorType !== "shield"}
+              fallback={
+                <div>
+                  <Label>AC Bonus</Label>
+                  <p class="text-sm text-muted-foreground mt-2">+2 (fixed)</p>
+                </div>
+              }
+            >
+              <div>
+                <Label for="armor-base-ac">Base AC</Label>
+                <NumericInput
+                  id="armor-base-ac"
+                  data-test="armor-base-ac"
+                  min={1}
+                  value={formData.armorStats?.baseAC ?? 11}
+                  onChange={(v) => setFormData("armorStats", "baseAC", v)}
+                />
+              </div>
+            </Show>
+          </div>
+        </div>
+      </Show>
+
+      <ModifierGroup label="Advantage/Disadvantage" data-test="modifier-group-skill-effects" open={openSkillEffects()} onOpenChange={setOpenSkillEffects}>
+        <div class="grid grid-cols-1 gap-3">
+          <TagPickerField
+            label="Grants Advantage On"
+            options={SKILL_KEYS.filter((k) => !formData.modifierSkillDisadvantage.includes(k)).map((k) => SKILL_DISPLAY_NAMES[k])}
+            selected={formData.modifierSkillAdvantage.map((k) => SKILL_DISPLAY_NAMES[k])}
+            onChange={(labels) => setFormData("modifierSkillAdvantage", SKILL_KEYS.filter((k) => labels.includes(SKILL_DISPLAY_NAMES[k])))}
+          />
+          <TagPickerField
+            label="Grants Disadvantage On"
+            options={SKILL_KEYS.filter((k) => !formData.modifierSkillAdvantage.includes(k)).map((k) => SKILL_DISPLAY_NAMES[k])}
+            selected={formData.modifierSkillDisadvantage.map((k) => SKILL_DISPLAY_NAMES[k])}
+            onChange={(labels) => setFormData("modifierSkillDisadvantage", SKILL_KEYS.filter((k) => labels.includes(SKILL_DISPLAY_NAMES[k])))}
+          />
+        </div>
+      </ModifierGroup>
+      <div class="flex items-center space-x-2">
+        <Checkbox
+          id="item-magic"
+          data-test="item-magic"
+          checked={formData.magic}
+          onChange={(checked: boolean) => setFormData("magic", checked)}
+        />
+        <Label for="item-magic">This is a Magic Item</Label>
+      </div>
+
+      <Show when={formData.magic}>
+        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
+          <p class="text-sm font-medium flex items-center gap-1">
+            <Gem class="h-3.5 w-3.5" />
+            Magic Item Details
+          </p>
+          <div>
+            <Label>Rarity</Label>
+            <Select
+              value={formData.rarity}
+              onValueChange={(v) => setFormData("rarity", v as ItemRarity)}
+            >
+              <SelectTrigger data-test="item-rarity">
+                <SelectValue placeholder="Select rarity" />
+              </SelectTrigger>
+              <SelectContent>
+                <For each={RARITY_OPTIONS}>
+                  {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                </For>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="flex items-center gap-2">
+            <Checkbox
+              id="item-requires-attunement"
+              data-test="item-requires-attunement"
+              checked={formData.requiresAttunement}
+              onChange={(checked: boolean) => setFormData({ requiresAttunement: checked, attuned: checked ? formData.attuned : false })}
+            />
+            <Label for="item-requires-attunement">Requires Attunement</Label>
+          </div>
+          <Show when={formData.requiresAttunement}>
+            <div class="flex items-center gap-2">
+              <Checkbox
+                id="item-attuned"
+                data-test="item-attuned"
+                checked={formData.attuned}
+                onChange={(checked: boolean) => setFormData("attuned", checked)}
+              />
+              <Label for="item-attuned">Attuned</Label>
+            </div>
+          </Show>
+
+          <div class="space-y-2 pt-2">
+            <ModifierGroup label="Ability Scores" data-test="modifier-group-ability-scores" open={openAbilityScores()} onOpenChange={setOpenAbilityScores}>
+              <div>
+                <Label class="text-xs">Bonuses</Label>
+                <div class="grid grid-cols-3 gap-2 mt-1">
+                  <For each={ABILITY_KEYS}>
+                    {(ability) => (
+                      <div>
+                        <Label for={`modifier-ability-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
+                        <NumericInput
+                          id={`modifier-ability-${ability}`}
+                          data-test={`modifier-ability-${ability}`}
+                          value={formData.modifierAbilityScores[ability]}
+                          onChange={(v) => setFormData("modifierAbilityScores", ability, v)}
+                        />
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+              <div>
+                <Label class="text-xs">Floors (sets score to at least this value)</Label>
+                <div class="grid grid-cols-3 gap-2 mt-1">
+                  <For each={ABILITY_KEYS}>
+                    {(ability) => (
+                      <div>
+                        <Label for={`modifier-floor-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
+                        <NumericInput
+                          id={`modifier-floor-${ability}`}
+                          data-test={`modifier-floor-${ability}`}
+                          min={0}
+                          value={formData.modifierAbilityScoreFloors[ability]}
+                          onChange={(v) => setFormData("modifierAbilityScoreFloors", ability, v)}
+                        />
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+              <div>
+                <Label class="text-xs">Max Caps (sets score to at most this value)</Label>
+                <div class="grid grid-cols-3 gap-2 mt-1">
+                  <For each={ABILITY_KEYS}>
+                    {(ability) => (
+                      <div>
+                        <Label for={`modifier-cap-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
+                        <NumericInput
+                          id={`modifier-cap-${ability}`}
+                          data-test={`modifier-cap-${ability}`}
+                          min={0}
+                          value={formData.modifierAbilityScoreMaxCaps[ability]}
+                          onChange={(v) => setFormData("modifierAbilityScoreMaxCaps", ability, v)}
+                        />
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </ModifierGroup>
+
+            <ModifierGroup label="AC & Initiative Bonus" data-test="modifier-group-ac-initiative" open={openACInitiative()} onOpenChange={setOpenACInitiative}>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <Label for="modifier-ac">AC Bonus</Label>
+                  <NumericInput
+                    id="modifier-ac"
+                    data-test="modifier-ac"
+                    value={formData.modifierArmorClass}
+                    onChange={(v) => setFormData("modifierArmorClass", v)}
+                  />
+                </div>
+                <div>
+                  <Label for="modifier-initiative">Initiative Bonus</Label>
+                  <NumericInput
+                    id="modifier-initiative"
+                    data-test="modifier-initiative"
+                    value={formData.modifierInitiative}
+                    onChange={(v) => setFormData("modifierInitiative", v)}
+                  />
+                </div>
+              </div>
+            </ModifierGroup>
+
+            <ModifierGroup label="Charges" data-test="modifier-group-charges" open={openUses()} onOpenChange={setOpenUses}>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <Label for="item-uses-charges">Uses Spent</Label>
+                  <NumericInput id="item-uses-charges" data-test="item-uses-charges" min={0}
+                    max={formData.maxUses}
+                    value={formData.charges}
+                    onChange={(v) => setFormData("charges", v)} />
+                </div>
+                <div>
+                  <Label for="item-max-uses">Max Charges (0 = none)</Label>
+                  <NumericInput id="item-max-uses" data-test="item-max-uses" min={0} value={formData.maxUses}
+                    onChange={(v) => setFormData({ maxUses: v, charges: Math.min(formData.charges, v) })} />
+                </div>
+              </div>
+              <Show when={formData.maxUses > 0}>
+                <div>
+                  <Label>Recharge On</Label>
+                  <Select
+                    value={formData.rechargeOn}
+                    onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
+                  >
+                    <SelectTrigger data-test="item-recharge-on">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <For each={RECHARGE_OPTIONS}>
+                        {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
+                      </For>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </Show>
+            </ModifierGroup>
+
+            <ModifierGroup label="Languages & Proficiencies" data-test="modifier-group-languages" open={openLanguages()} onOpenChange={setOpenLanguages}>
+              <FreeTextListEditor
+                label="Languages Granted"
+                ariaLabel="Add language"
+                placeholder="Add language"
+                values={formData.modifierLanguages}
+                onChange={(v) => setFormData("modifierLanguages", v)}
+                data-test="modifier-languages"
+              />
+              <FreeTextListEditor
+                label="Proficiencies Granted"
+                ariaLabel="Add proficiency"
+                placeholder="Add proficiency (weapons, tools, etc.)"
+                values={formData.modifierProficiencies}
+                onChange={(v) => setFormData("modifierProficiencies", v)}
+                data-test="modifier-proficiencies"
+              />
+            </ModifierGroup>
+
+            <ModifierGroup label="Movement & Weight" data-test="modifier-group-movement" open={openMovement()} onOpenChange={setOpenMovement}>
+              <div>
+                <Label class="text-xs">Movement (ft)</Label>
+                <div class="grid grid-cols-3 gap-2 mt-1">
+                  <div>
+                    <Label for="modifier-speed" class="text-xs">Speed</Label>
+                    <NumericInput id="modifier-speed" data-test="modifier-speed" value={formData.modifierSpeed} onChange={(v) => setFormData("modifierSpeed", v)} />
+                  </div>
+                  <div>
+                    <Label for="modifier-fly-speed" class="text-xs">Fly</Label>
+                    <NumericInput id="modifier-fly-speed" data-test="modifier-fly-speed" min={0} value={formData.modifierFlySpeed} onChange={(v) => setFormData("modifierFlySpeed", v)} />
+                  </div>
+                  <div>
+                    <Label for="modifier-swim-speed" class="text-xs">Swim</Label>
+                    <NumericInput id="modifier-swim-speed" data-test="modifier-swim-speed" min={0} value={formData.modifierSwimSpeed} onChange={(v) => setFormData("modifierSwimSpeed", v)} />
+                  </div>
+                  <div>
+                    <Label for="modifier-climb-speed" class="text-xs">Climb</Label>
+                    <NumericInput id="modifier-climb-speed" data-test="modifier-climb-speed" min={0} value={formData.modifierClimbSpeed} onChange={(v) => setFormData("modifierClimbSpeed", v)} />
+                  </div>
+                  <div>
+                    <Label for="modifier-burrow-speed" class="text-xs">Burrow</Label>
+                    <NumericInput id="modifier-burrow-speed" data-test="modifier-burrow-speed" min={0} value={formData.modifierBurrowSpeed} onChange={(v) => setFormData("modifierBurrowSpeed", v)} />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <Label class="text-xs">Carrying Capacity</Label>
+                <div class="grid grid-cols-2 gap-2 mt-1">
+                  <div>
+                    <Label for="modifier-capacity-bonus" class="text-xs">Bonus (lbs)</Label>
+                    <NumericInput id="modifier-capacity-bonus" data-test="modifier-capacity-bonus" value={formData.modifierCarryingCapacityBonus} onChange={(v) => setFormData("modifierCarryingCapacityBonus", v)} />
+                  </div>
+                  <div>
+                    <Label for="modifier-capacity-multiplier" class="text-xs">Multiplier (0 = none)</Label>
+                    <NumericInput id="modifier-capacity-multiplier" data-test="modifier-capacity-multiplier" min={0} step="0.5" value={formData.modifierCarryingCapacityMultiplier} onChange={(v) => setFormData("modifierCarryingCapacityMultiplier", v)} parser={parseFloat} />
+                  </div>
+                </div>
+              </div>
+            </ModifierGroup>
+
+            <ModifierGroup label="Resistances & Immunities" data-test="modifier-group-resistances" open={openResistances()} onOpenChange={setOpenResistances}>
+              <div class="grid grid-cols-1 gap-3">
+                <TagPickerField
+                  label="Damage Resistances"
+                  options={DAMAGE_TYPE_OPTIONS}
+                  selected={formData.modifierResistances}
+                  onChange={(v) => setFormData("modifierResistances", v)}
+                />
+                <TagPickerField
+                  label="Damage Immunities"
+                  options={DAMAGE_TYPE_OPTIONS}
+                  selected={formData.modifierImmunities}
+                  onChange={(v) => setFormData("modifierImmunities", v)}
+                />
+                <TagPickerField
+                  label="Damage Vulnerabilities"
+                  options={DAMAGE_TYPE_OPTIONS}
+                  selected={formData.modifierVulnerabilities}
+                  onChange={(v) => setFormData("modifierVulnerabilities", v)}
+                />
+                <TagPickerField
+                  label="Condition Immunities"
+                  options={CONDITIONS}
+                  selected={formData.modifierConditionImmunities}
+                  onChange={(v) => setFormData("modifierConditionImmunities", v)}
+                />
+              </div>
+            </ModifierGroup>
+
+            <ModifierGroup label="Saving Throws" data-test="modifier-group-saving-throws" open={openSavingThrows()} onOpenChange={setOpenSavingThrows}>
+              <div class="grid grid-cols-3 gap-2">
+                <For each={ABILITY_KEYS}>
+                  {(ability) => (
+                    <div>
+                      <Label for={`modifier-save-${ability}`} class="text-xs">{ABILITY_ABBREVIATIONS[ability]}</Label>
+                      <NumericInput
+                        id={`modifier-save-${ability}`}
+                        data-test={`modifier-save-${ability}`}
+                        value={formData.modifierSavingThrows[ability]}
+                        onChange={(v) => setFormData("modifierSavingThrows", ability, v)}
+                      />
+                    </div>
+                  )}
+                </For>
+              </div>
+            </ModifierGroup>
+
+            <ModifierGroup label="Senses" data-test="modifier-group-senses" open={openSenses()} onOpenChange={setOpenSenses}>
+              <div class="grid grid-cols-2 gap-2">
+                <For each={SENSE_TYPES}>
+                  {(sense) => (
+                    <div>
+                      <Label for={`modifier-sense-${sense}`} class="text-xs">{SENSE_LABELS[sense]} (ft)</Label>
+                      <NumericInput
+                        id={`modifier-sense-${sense}`}
+                        data-test={`modifier-sense-${sense}`}
+                        min={0}
+                        value={formData.modifierSenses[sense]}
+                        onChange={(v) => setFormData("modifierSenses", sense, v)}
+                      />
+                    </div>
+                  )}
+                </For>
+              </div>
+            </ModifierGroup>
+          </div>
+        </div>
+      </Show>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <Label for="quantity">Quantity</Label>
+          <NumericInput id="quantity" data-test="quantity" min={1} value={formData.quantity} onChange={(v) => setFormData("quantity", v)} />
+        </div>
+        <div>
+          <Label for="weight">Weight (lbs)</Label>
+          <NumericInput id="weight" data-test="weight" min={0} step="0.1" value={formData.weight} onChange={(v) => setFormData("weight", v)} parser={parseFloat} />
+        </div>
+      </div>
+
+      <Show when={formData.type === "consumable" && formData.actionKind !== ""}>
+        <div class="space-y-3">
+          <div>
+            <Label for="item-uses-consumed">Quantity Consumed</Label>
+            <NumericInput id="item-uses-consumed" data-test="item-uses-consumed" min={0}
+              max={formData.quantity}
+              value={formData.consumedUses}
+              onChange={(v) => setFormData("consumedUses", v)} />
+            <p class="text-xs text-muted-foreground mt-1">Quantity will be reduced by this amount on rest.</p>
+          </div>
+        </div>
+      </Show>
+
+      <div>
+        <Label for="description">Description</Label>
+        <Textarea
+          id="description"
+          data-test="description"
+          value={formData.description}
+          onInput={(e) => setFormData("description", e.currentTarget.value)}
+          placeholder="Optional description"
+          rows={3}
+        />
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <Checkbox
+          id="equipped"
+          data-test="equipped"
+          checked={formData.equipped}
+          onChange={(checked: boolean) => setFormData("equipped", checked)}
+        />
+        <Label for="equipped">Currently equipped</Label>
+      </div>
+
+      <div class="flex gap-2 pt-4">
+        <Button data-test="equipment-modal-submit" onClick={() => props.onSubmit(unwrap(formData))} class="gap-2">
+          <Save class="h-4 w-4" />
+          {props.editing ? "Update Item" : "Add Item"}
+        </Button>
+        <Button data-test="equipment-modal-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
+      </div>
+    </div>
+  )
+}
+
+function formDataFromItem(item: Equipment | null): EquipmentFormData {
+  if (!item) return defaultEquipmentForm
+  return {
+    name: item.name,
+    quantity: item.quantity,
+    weight: item.weight || 0,
+    description: item.description || "",
+    equipped: item.equipped || false,
+    type: item.type || "other",
+    actionKind: item.actionKind ?? "",
+    weaponStats: item.weaponStats,
+    armorStats: item.armorStats,
+    magic: item.magic ?? false,
+    requiresAttunement: item.requiresAttunement ?? true,
+    attuned: item.attuned ?? false,
+    rarity: item.rarity ?? "common",
+    charges: item.charges ?? 0,
+    consumedUses: item.consumedUses ?? 0,
+    maxUses: item.maxUses ?? 0,
+    rechargeOn: item.rechargeOn ?? "",
+    modifierArmorClass: item.modifiers?.armorClass ?? 0,
+    modifierInitiative: item.modifiers?.initiative ?? 0,
+    modifierSavingThrows: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.savingThrows },
+    modifierAbilityScores: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScores },
+    modifierResistances: item.modifiers?.resistances ?? [],
+    modifierImmunities: item.modifiers?.immunities ?? [],
+    modifierVulnerabilities: item.modifiers?.vulnerabilities ?? [],
+    modifierConditionImmunities: item.modifiers?.conditionImmunities ?? [],
+    modifierSenses: { ...ZERO_SENSES, ...item.modifiers?.senses },
+    modifierSpeed: item.modifiers?.speed ?? 0,
+    modifierFlySpeed: item.modifiers?.flySpeed ?? 0,
+    modifierSwimSpeed: item.modifiers?.swimSpeed ?? 0,
+    modifierClimbSpeed: item.modifiers?.climbSpeed ?? 0,
+    modifierBurrowSpeed: item.modifiers?.burrowSpeed ?? 0,
+    modifierCarryingCapacityBonus: item.modifiers?.carryingCapacityBonus ?? 0,
+    modifierCarryingCapacityMultiplier: item.modifiers?.carryingCapacityMultiplier ?? 0,
+    modifierAbilityScoreFloors: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScoreFloors },
+    modifierAbilityScoreMaxCaps: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScoreMaxCaps },
+    modifierLanguages: item.modifiers?.languages ?? [],
+    modifierProficiencies: item.modifiers?.proficiencies ?? [],
+    modifierSkillAdvantage: item.modifiers?.skillAdvantage ?? [],
+    modifierSkillDisadvantage: item.modifiers?.skillDisadvantage ?? [],
+  }
+}
+
+function buildModifiers(formData: EquipmentFormData): ItemModifiers | undefined {
+  const modifiers: ItemModifiers = {}
+
+  // Skill advantage/disadvantage applies whenever the item is equipped, regardless of magic
+  // status (see getEquipmentSkillEffectTotals), so these are built outside the magic gate below.
+  if (formData.modifierSkillAdvantage.length > 0) modifiers.skillAdvantage = formData.modifierSkillAdvantage
+  if (formData.modifierSkillDisadvantage.length > 0) modifiers.skillDisadvantage = formData.modifierSkillDisadvantage
+
+  if (formData.magic) {
+    if (formData.modifierArmorClass !== 0) modifiers.armorClass = formData.modifierArmorClass
+    if (formData.modifierInitiative !== 0) modifiers.initiative = formData.modifierInitiative
+    const savingThrows = Object.fromEntries(
+      ABILITY_KEYS.filter((a) => formData.modifierSavingThrows[a] !== 0).map((a) => [a, formData.modifierSavingThrows[a]])
+    ) as Partial<Record<keyof AbilityScores, number>>
+    if (Object.keys(savingThrows).length > 0) modifiers.savingThrows = savingThrows
+    const abilityScores = Object.fromEntries(
+      ABILITY_KEYS.filter((a) => formData.modifierAbilityScores[a] !== 0).map((a) => [a, formData.modifierAbilityScores[a]])
+    ) as Partial<Record<keyof AbilityScores, number>>
+    if (Object.keys(abilityScores).length > 0) modifiers.abilityScores = abilityScores
+
+    if (formData.modifierResistances.length > 0) modifiers.resistances = formData.modifierResistances
+    if (formData.modifierImmunities.length > 0) modifiers.immunities = formData.modifierImmunities
+    if (formData.modifierVulnerabilities.length > 0) modifiers.vulnerabilities = formData.modifierVulnerabilities
+    if (formData.modifierConditionImmunities.length > 0) modifiers.conditionImmunities = formData.modifierConditionImmunities
+
+    const senses = Object.fromEntries(
+      SENSE_TYPES.filter((s) => formData.modifierSenses[s] !== 0).map((s) => [s, formData.modifierSenses[s]])
+    ) as Partial<Record<SenseType, number>>
+    if (Object.keys(senses).length > 0) modifiers.senses = senses
+
+    if (formData.modifierSpeed !== 0) modifiers.speed = formData.modifierSpeed
+    if (formData.modifierFlySpeed !== 0) modifiers.flySpeed = formData.modifierFlySpeed
+    if (formData.modifierSwimSpeed !== 0) modifiers.swimSpeed = formData.modifierSwimSpeed
+    if (formData.modifierClimbSpeed !== 0) modifiers.climbSpeed = formData.modifierClimbSpeed
+    if (formData.modifierBurrowSpeed !== 0) modifiers.burrowSpeed = formData.modifierBurrowSpeed
+
+    if (formData.modifierCarryingCapacityBonus !== 0) modifiers.carryingCapacityBonus = formData.modifierCarryingCapacityBonus
+    if (formData.modifierCarryingCapacityMultiplier !== 0) modifiers.carryingCapacityMultiplier = formData.modifierCarryingCapacityMultiplier
+
+    const abilityScoreFloors = Object.fromEntries(
+      ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreFloors[a] !== 0).map((a) => [a, formData.modifierAbilityScoreFloors[a]])
+    ) as Partial<Record<keyof AbilityScores, number>>
+    if (Object.keys(abilityScoreFloors).length > 0) modifiers.abilityScoreFloors = abilityScoreFloors
+    const abilityScoreMaxCaps = Object.fromEntries(
+      ABILITY_KEYS.filter((a) => formData.modifierAbilityScoreMaxCaps[a] !== 0).map((a) => [a, formData.modifierAbilityScoreMaxCaps[a]])
+    ) as Partial<Record<keyof AbilityScores, number>>
+    if (Object.keys(abilityScoreMaxCaps).length > 0) modifiers.abilityScoreMaxCaps = abilityScoreMaxCaps
+
+    if (formData.modifierLanguages.length > 0) modifiers.languages = formData.modifierLanguages
+    if (formData.modifierProficiencies.length > 0) modifiers.proficiencies = formData.modifierProficiencies
+  }
+
+  return Object.keys(modifiers).length > 0 ? modifiers : undefined
+}
+
+function usesFields(formData: EquipmentFormData) {
+  const hasCharges = formData.magic && formData.maxUses > 0
+  const tracksConsumption = formData.type === "consumable" && formData.actionKind !== ""
+  return {
+    charges: hasCharges ? formData.charges : undefined,
+    maxUses: hasCharges ? formData.maxUses : undefined,
+    rechargeOn: hasCharges ? (formData.rechargeOn || undefined) : undefined,
+    consumedUses: (tracksConsumption && (formData.consumedUses ?? 0) > 0) ? formData.consumedUses : undefined,
+  }
+}
+
+function magicFields(formData: EquipmentFormData) {
+  return {
+    magic: formData.magic || undefined,
+    requiresAttunement: formData.magic ? formData.requiresAttunement : undefined,
+    attuned: formData.magic && formData.requiresAttunement ? formData.attuned : undefined,
+    rarity: formData.magic ? formData.rarity : undefined,
+    ...usesFields(formData),
+    modifiers: buildModifiers(formData),
+  }
+}
+
+interface EquipmentItemModalProps {
+  open: boolean
+  editingItem: Equipment | null
+  onSave: (item: Equipment) => void
+  onCancel: () => void
+}
+
+export function EquipmentItemModal(props: EquipmentItemModalProps) {
+  const handleSubmit = (formData: EquipmentFormData) => {
+    if (!formData.name.trim()) return
+    const item = props.editingItem
+    const shared = {
+      name: formData.name.trim(),
+      quantity: formData.quantity,
+      weight: formData.weight,
+      description: formData.description.trim(),
+      equipped: formData.equipped,
+      type: formData.type,
+      actionKind: formData.actionKind || undefined,
+      weaponStats: formData.weaponStats,
+      armorStats: formData.armorStats,
+      ...magicFields(formData),
+    }
+    const savedItem: Equipment = item ? { ...item, ...shared } : { id: crypto.randomUUID(), ...shared }
+    props.onSave(savedItem)
+  }
+
+  return (
+    <Modal open={props.open} onOpenChange={(open: boolean) => { if (!open) props.onCancel() }}>
+      <ModalContent>
+        <ModalHeader>
+          <ModalTitle>{props.editingItem ? "Edit Item" : "Add New Item"}</ModalTitle>
+        </ModalHeader>
+        <EquipmentForm
+          initialData={formDataFromItem(props.editingItem)}
+          onSubmit={handleSubmit}
+          onCancel={props.onCancel}
+          editing={!!props.editingItem}
+        />
+      </ModalContent>
+    </Modal>
+  )
+}

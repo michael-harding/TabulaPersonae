@@ -1,16 +1,21 @@
-# Repository Agent Rules
+# Frontend Agent Rules
 
-Single source of truth for all agents working in this repository.
+Single source of truth for all agents working on this repository.
 
 ## Read first
 
 Before starting any task:
 
-- `README.md` — project overview and setup
+- `docs/CONSTITUTION.md` — authoritative standard for all frontend work; defines tech stack, architecture, code quality, testing, accessibility, and security requirements
+- `docs/ARCHITECTURE.md` — architectural decisions and rationale
+- `docs/TESTING.md` — detailed testing standard; supplements CONSTITUTION.md §7
+- `docs/ACCESSIBILITY.md` — detailed accessibility standard; supplements CONSTITUTION.md §9
 
 ## Permitted
 
 - Read, create, edit, and delete files in this repository.
+- Run linters, type checkers, and test suites.
+- Add or remove frontend dependencies with explicit human approval.
 - Comment on or request changes to pull requests when instructed by a human.
 - Approve a pull request when explicitly instructed by a human.
 - Create or switch git branches when explicitly instructed by a human.
@@ -20,10 +25,12 @@ Before starting any task:
 ## Prohibited
 
 - Proactively offer or ask to commit, push, branch, or open a pull request.
+- Introduce a new external dependency without explicit human approval.
+- Modify network abstraction types in `src/network/`, data models, acceptance criteria, UX notes, tracked metrics, or files in `docs/` without explicit human approval.
 
 ## Escalation
 
-When a situation is not covered by these rules: stop, describe the gap clearly, and await explicit human instruction. Never assume and proceed silently.
+When a situation is not covered by these rules or the constitution: stop, describe the gap clearly, and await explicit human instruction. Never assume and proceed silently.
 
 ## Violations
 

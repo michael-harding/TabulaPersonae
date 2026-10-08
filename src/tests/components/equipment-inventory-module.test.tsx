@@ -433,6 +433,86 @@ describe("EquipmentInventoryModule", () => {
     })
   })
 
+  describe("Action Kind (Used As)", () => {
+    it("saves actionKind on the created item when a 'Used As' option is selected", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
+      const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
+      fireEvent.click(within(usedAsSection).getByRole("button"))
+      fireEvent.click(screen.getByRole("option", { name: "Bonus Action" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Potion of Healing", actionKind: "bonus-action" }),
+          ]),
+        })
+      )
+    })
+
+    it("omits actionKind when 'Used As' is left at None", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Rope" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Rope", actionKind: undefined }),
+          ]),
+        })
+      )
+    })
+
+    it("shows the action kind badge on a general item card", () => {
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeItem({ name: "Potion of Healing", actionKind: "bonus-action" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getByText("Bonus Action")).toBeInTheDocument()
+    })
+
+    it("does not show an action kind badge when actionKind is not set", () => {
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeItem({ name: "Rope" })] })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.queryByText("Bonus Action")).not.toBeInTheDocument()
+      expect(screen.queryByText("Action")).not.toBeInTheDocument()
+    })
+
+    it("pre-fills the Used As select and preserves actionKind when editing an existing item", () => {
+      const onUpdate = vi.fn()
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeItem({ name: "Scroll of Fireball", actionKind: "action" })] })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getByRole("button", { name: /edit scroll of fireball/i }))
+      const modal = screen.getByRole("dialog")
+      const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
+      expect(within(usedAsSection).getByText("action")).toBeInTheDocument()
+      fireEvent.click(within(modal).getByRole("button", { name: /update item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Scroll of Fireball", actionKind: "action" }),
+          ]),
+        })
+      )
+    })
+  })
+
   describe("Coins", () => {
     it("renders CP, SP, EP, GP, PP labels", () => {
       render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
@@ -480,6 +560,13 @@ describe("EquipmentInventoryModule", () => {
       const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring of Protection" })] })} onUpdate={vi.fn()} />)
       const section = container.querySelector('[data-sem="magic-items-section"]')!
       expect(within(section as HTMLElement).getByText("Ring of Protection")).toBeInTheDocument()
+    })
+
+    it("shows the action kind badge on a magic item card", () => {
+      const item = makeMagicItem({ name: "Wand of Magic Missiles", actionKind: "action" })
+      const { container } = render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      const section = container.querySelector('[data-sem="magic-items-section"]') as HTMLElement
+      expect(within(section).getByText("Action")).toBeInTheDocument()
     })
 
     // Magic items are still equipment first — a magic weapon/armor keeps the same
@@ -657,14 +744,14 @@ describe("EquipmentInventoryModule", () => {
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule
-          character={makeCharacter({ equipment: [makeMagicItem({ name: "Wand", uses: 0, maxUses: 3, rechargeOn: "long-rest" })] })}
+          character={makeCharacter({ equipment: [makeMagicItem({ name: "Wand", charges: 0, maxUses: 3, rechargeOn: "long-rest" })] })}
           onUpdate={onUpdate}
         />
       )
       fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          equipment: expect.arrayContaining([expect.objectContaining({ uses: 1 })]),
+          equipment: expect.arrayContaining([expect.objectContaining({ charges: 1 })]),
         })
       )
     })
@@ -681,7 +768,8 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
-      expect(within(modal).getByText(/bonuses \(optional\)/i)).toBeInTheDocument()
+      expect(within(modal).getByText("Magic Item Details")).toBeInTheDocument()
+      expect(within(modal).getByText("AC & Initiative Bonus")).toBeInTheDocument()
     })
 
     it("submits nonzero AC, saving throw, and ability score bonuses as Equipment.modifiers", () => {
@@ -691,6 +779,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Ring of Protection" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("AC & Initiative Bonus"))
       setNumericValue(document.querySelector("#modifier-ac")!, "1")
       fireEvent.click(within(modal).getByText("Saving Throws"))
       setNumericValue(document.querySelector("#modifier-save-wisdom")!, "2")
@@ -731,6 +820,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("Charges"))
       setNumericValue(document.querySelector("#item-max-uses")!, "3")
       // The Recharge On select's trigger has no accessible name (its placeholder text
       // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
@@ -757,6 +847,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("Charges"))
       setNumericValue(document.querySelector("#item-max-uses")!, "3")
       // The Recharge On select's trigger has no accessible name (its placeholder text
       // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
@@ -777,36 +868,36 @@ describe("EquipmentInventoryModule", () => {
     // Regression: editing Max Charges on an item that already has spent charges used to
     // hard-reset `uses` to 0 regardless of direction, silently "recharging" the item as a
     // side effect of an unrelated edit (e.g. correcting the max). It must clamp instead.
-    it("clamps uses (not reset to 0) when Max Charges is edited on an item with spent charges", () => {
-      const item = makeMagicItem({ name: "Wand", uses: 2, maxUses: 3 })
+    it("clamps charges (not reset to 0) when Max Charges is edited on an item with spent charges", () => {
+      const item = makeMagicItem({ name: "Wand", charges: 2, maxUses: 3 })
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
       )
       fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
       setNumericValue(document.querySelector("#item-max-uses")!, "4")
-      expect((document.querySelector("#item-uses") as HTMLInputElement).value).toBe("2")
+      expect((document.querySelector("#item-uses-charges") as HTMLInputElement).value).toBe("2")
       fireEvent.click(screen.getByRole("button", { name: /update item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", uses: 2, maxUses: 4 })]),
+          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", charges: 2, maxUses: 4 })]),
         })
       )
     })
 
-    it("clamps uses down when Max Charges is edited below the current spent-charges count", () => {
-      const item = makeMagicItem({ name: "Wand", uses: 2, maxUses: 3 })
+    it("clamps charges down when Max Charges is edited below the current spent-charges count", () => {
+      const item = makeMagicItem({ name: "Wand", charges: 2, maxUses: 3 })
       const onUpdate = vi.fn()
       render(
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
       )
       fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
       setNumericValue(document.querySelector("#item-max-uses")!, "1")
-      expect((document.querySelector("#item-uses") as HTMLInputElement).value).toBe("1")
+      expect((document.querySelector("#item-uses-charges") as HTMLInputElement).value).toBe("1")
       fireEvent.click(screen.getByRole("button", { name: /update item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", uses: 1, maxUses: 1 })]),
+          equipment: expect.arrayContaining([expect.objectContaining({ name: "Wand", charges: 1, maxUses: 1 })]),
         })
       )
     })
@@ -897,8 +988,9 @@ describe("EquipmentInventoryModule", () => {
 
       // Languages granted (free-text add)
       fireEvent.click(within(modal).getByText("Languages & Proficiencies"))
-      fireEvent.input(within(modal).getByPlaceholderText("Add language"), { target: { value: "Auran" } })
-      fireEvent.click(within(modal).getByRole("button", { name: "Languages Granted" }))
+      const languageInput = within(modal).getByLabelText(/add language/i)
+      fireEvent.input(languageInput, { target: { value: "Auran" } })
+      fireEvent.keyDown(languageInput, { key: "Enter" })
 
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
 
@@ -947,6 +1039,103 @@ describe("EquipmentInventoryModule", () => {
     })
   })
 
+  describe("Skill Effects (advantage/disadvantage)", () => {
+    // Regression: unlike every other ItemModifiers field, skill advantage/disadvantage must work
+    // on a mundane item — the "Skill Effects" section must not be gated behind "This is a Magic Item".
+    it("submits a skill disadvantage grant on a non-magic item", async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chainmail" } })
+      fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
+
+      await user.click(within(modal).getByTitle("Add Grants Disadvantage On"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
+
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Chainmail",
+              modifiers: { skillDisadvantage: ["stealth"] },
+            }),
+          ]),
+        })
+      )
+    })
+
+    it("submits a skill advantage grant when the item is also marked as a magic item", async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Cloak of Elvenkind" } })
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
+
+      await user.click(within(modal).getByTitle("Add Grants Advantage On"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
+
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({
+              name: "Cloak of Elvenkind",
+              modifiers: { skillAdvantage: ["stealth"] },
+            }),
+          ]),
+        })
+      )
+    })
+
+    it("excludes a skill already granted advantage from the Grants Disadvantage On options, and vice versa", async () => {
+      const user = userEvent.setup()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
+
+      await user.click(within(modal).getByTitle("Add Grants Advantage On"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
+
+      await user.click(within(modal).getByTitle("Add Grants Disadvantage On"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Perception" })).toBeInTheDocument())
+      expect(screen.queryByRole("menuitem", { name: "Stealth" })).not.toBeInTheDocument()
+    })
+
+    it("pre-fills the Skill Effects pickers when editing an item with existing skill grants", () => {
+      const item = makeItem({ name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /edit chainmail/i })[0])
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByText("Stealth")).toBeInTheDocument()
+    })
+
+    it("shows a skill-effect summary line for an equipped, non-magic item (not tagged inactive)", () => {
+      const item = makeItem({ name: "Chainmail", equipped: true, modifiers: { skillDisadvantage: ["stealth"] } })
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Disadvantage: Stealth")).toBeInTheDocument()
+      expect(screen.queryByText("(inactive)")).not.toBeInTheDocument()
+    })
+
+    it("flags the skill-effect summary as inactive when the granting item is not equipped", () => {
+      const item = makeItem({ name: "Chainmail", equipped: false, modifiers: { skillDisadvantage: ["stealth"] } })
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("Disadvantage: Stealth")).toBeInTheDocument()
+      expect(screen.getByText("(equip to activate)")).toBeInTheDocument()
+    })
+  })
+
   describe("Carrying Capacity", () => {
     it("shows carrying capacity computed from STR score x 15", () => {
       render(<EquipmentInventoryModule character={makeCharacter({ abilityScores: { ...createDefaultCharacter().abilityScores, strength: 16 } })} onUpdate={vi.fn()} />)
@@ -966,6 +1155,151 @@ describe("EquipmentInventoryModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ equipment: expect.arrayContaining([expect.objectContaining({ name: "Torch", type: "other" })]) })
       )
+    })
+  })
+
+  describe("consumable uses tracking", () => {
+    function setNumericValue(input: HTMLElement, value: string) {
+      fireEvent.input(input, { target: { value } })
+      fireEvent.blur(input)
+    }
+
+    const selectConsumableType = (modal: HTMLElement) => {
+      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(screen.getByRole("option", { name: "Consumable" }))
+    }
+
+    const selectUsedAsAction = (modal: HTMLElement) => {
+      const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
+      fireEvent.click(within(usedAsSection).getByRole("button"))
+      fireEvent.click(screen.getByRole("option", { name: "Action" }))
+    }
+
+    it("hides Quantity Consumed for a Consumable item with no action kind selected", () => {
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      selectConsumableType(modal)
+      expect(within(modal).queryByLabelText(/quantity consumed/i)).not.toBeInTheDocument()
+    })
+
+    it("shows Quantity Consumed, but hides Max Charges and Reconcile On, when a Consumable item is also Used As an action", () => {
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      selectConsumableType(modal)
+      selectUsedAsAction(modal)
+      expect(within(modal).getByLabelText(/quantity consumed/i)).toBeInTheDocument()
+      expect(within(modal).queryByText("Reconcile On")).not.toBeInTheDocument()
+      expect(within(modal).queryByLabelText(/max charges/i)).not.toBeInTheDocument()
+      expect(within(modal).queryByText("Recharge On")).not.toBeInTheDocument()
+    })
+
+    it("shows uses tracking for a Consumable item without checking 'This is a Magic Item'", () => {
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      selectConsumableType(modal)
+      selectUsedAsAction(modal)
+      expect(within(modal).queryByText("Magic Item Details")).not.toBeInTheDocument()
+      expect(within(modal).getByLabelText(/quantity consumed/i)).toBeInTheDocument()
+    })
+
+    // A magic Consumable (e.g. a Potion stored as a magic item) still has its own charges
+    // independent of the Quantity Consumed tracking above, so the Charges group inside Magic
+    // Item Details is no longer hidden for consumables.
+    it("shows the Charges section for a Consumable item when 'This is a Magic Item' is checked", () => {
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      selectConsumableType(modal)
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      expect(within(modal).getByText("Charges")).toBeInTheDocument()
+      fireEvent.click(within(modal).getByText("Charges"))
+      expect(within(modal).getByLabelText(/max charges/i)).toBeInTheDocument()
+    })
+
+    it("persists Max Charges and Recharge On for a Consumable item that is also a Magic Item", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
+      selectConsumableType(modal)
+      fireEvent.click(within(modal).getByText("This is a Magic Item"))
+      fireEvent.click(within(modal).getByText("Charges"))
+      setNumericValue(within(modal).getByLabelText(/max charges/i), "3")
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Potion of Healing", type: "consumable", maxUses: 3 }),
+          ]),
+        })
+      )
+    })
+
+    it("saves uses spent for a Consumable item with no rechargeOn (reconciles on rest)", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
+      selectConsumableType(modal)
+      selectUsedAsAction(modal)
+      setNumericValue(document.querySelector("#item-uses-consumed")!, "1")
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([
+            expect.objectContaining({ name: "Potion of Healing", type: "consumable", rechargeOn: undefined, consumedUses: 1 }),
+          ]),
+        })
+      )
+    })
+
+    it("does not persist maxUses for a saved consumable item", () => {
+      const onUpdate = vi.fn()
+      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
+      selectConsumableType(modal)
+      fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          equipment: expect.arrayContaining([expect.objectContaining({ name: "Potion of Healing", maxUses: undefined })]),
+        })
+      )
+    })
+
+    it("shows a pip tracker in the equipment list bound to quantity for a consumable item", () => {
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({
+            equipment: [makeItem({ name: "Potion of Healing", type: "consumable", quantity: 3, consumedUses: 1, rechargeOn: "short-rest" })],
+          })}
+          onUpdate={vi.fn()}
+        />
+      )
+      expect(screen.getAllByTitle("Available (click to use)")).toHaveLength(2)
+      expect(screen.getAllByTitle("Used (click to restore)")).toHaveLength(1)
+    })
+
+    it("clamps uses down when quantity is manually reduced below the current spent-uses count", () => {
+      const onUpdate = vi.fn()
+      render(
+        <EquipmentInventoryModule
+          character={makeCharacter({
+            equipment: [makeItem({ id: "pot-1", name: "Potion of Healing", type: "consumable", quantity: 2, consumedUses: 2, rechargeOn: "short-rest" })],
+          })}
+          onUpdate={onUpdate}
+        />
+      )
+      fireEvent.click(screen.getByRole("button", { name: "-" }))
+      const updated = onUpdate.mock.calls[0][0]
+      expect(updated.equipment[0].quantity).toBe(1)
+      expect(updated.equipment[0].consumedUses).toBe(1)
     })
   })
 

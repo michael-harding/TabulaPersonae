@@ -11,6 +11,7 @@ type ComboboxProps = {
   disabled?: boolean
   class?: string
   "aria-label"?: string
+  "data-test"?: string
 }
 
 export function Combobox(props: ComboboxProps) {
@@ -135,6 +136,7 @@ export function Combobox(props: ComboboxProps) {
           role="combobox"
           aria-expanded={open()}
           aria-label={props["aria-label"]}
+          data-test={props["data-test"]}
           aria-autocomplete="list"
           aria-activedescendant={activeIndex() >= 0 ? `combobox-option-${activeIndex()}` : undefined}
           value={inputValue()}

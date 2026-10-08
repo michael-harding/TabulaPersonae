@@ -1,4 +1,4 @@
-import type { AbilityScores, Character, Equipment, Feature, FeatureEffects, FeatureKind, HitPointsMode, SenseType, Skills } from "./character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -107,6 +107,45 @@ export function featureSourceLabel(feature: Pick<Feature, "name" | "source">): s
   return `${feature.name} ${FEATURE_KIND_LABELS[feature.source]}`
 }
 
+// Migration-only: derives the Feature Type a pre-existing Feature would have had, from its stored
+// effects shape, for backfilling the persisted featureType field onto records that predate it (see
+// character-migrations.ts). The live UI never calls this — once a Feature has a persisted
+// featureType, that's the source of truth, not a re-guess from its current effects.
+export function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue | '' {
+  if (actionKind) return 'Action'
+  const effects = levelEffects?.[0]?.effects
+  if (effects?.spellcastingAbility) return 'Spellcasting Ability'
+  if (
+    effects?.hitDiceSize ||
+    effects?.hitPointsMode !== undefined ||
+    effects?.hitPointsFlatValue !== undefined ||
+    effects?.hitPointsPerLevelAmount !== undefined ||
+    (effects?.hitPointsRolledLevels?.length ?? 0) > 0
+  ) return 'Hit Points'
+  if (effects?.size) return 'Size'
+  if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
+  if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
+  if (effects?.otherProficiencies?.length) return 'Other Proficiency'
+  if (
+    effects?.speed !== undefined ||
+    effects?.flySpeed !== undefined ||
+    effects?.swimSpeed !== undefined ||
+    effects?.climbSpeed !== undefined ||
+    effects?.burrowSpeed !== undefined
+  ) return 'Speed'
+  if (effects?.senses && Object.values(effects.senses).some((v) => v !== undefined)) return 'Senses'
+  if (effects?.resistances?.length || effects?.immunities?.length || effects?.vulnerabilities?.length) return 'Damage Resistance/Immunity/Vulnerability'
+  if (effects?.conditionImmunities?.length) return 'Condition Immunity'
+  if (effects?.languages?.length) return 'Language'
+  if (effects?.carryingCapacityBonus !== undefined || effects?.carryingCapacityMultiplier !== undefined) return 'Carrying Capacity'
+  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v !== undefined)) return 'Ability Scores'
+  if (effects?.hpBonusPerLevel !== undefined) return 'Max HP Bonus'
+  return ''
+}
+
 export const ZERO_ABILITY_SCORES: Record<keyof AbilityScores, number> = {
   strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0,
 }
@@ -207,6 +246,28 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
   return totals
 }
 
+export interface EquipmentSkillEffectTotals {
+  advantage: Partial<Record<keyof Skills, string[]>>
+  disadvantage: Partial<Record<keyof Skills, string[]>>
+}
+
+// Skill advantage/disadvantage applies whenever an item is equipped, regardless of magic status —
+// unlike every field in EquipmentModifierTotals above, which is gated by isItemModifierActive()
+// (magic + attunement). A mundane suit of Chainmail must still impose Stealth disadvantage.
+export function getEquipmentSkillEffectTotals(equipment: Equipment[] | undefined): EquipmentSkillEffectTotals {
+  const totals: EquipmentSkillEffectTotals = { advantage: {}, disadvantage: {} }
+  for (const item of equipment ?? []) {
+    if (!item.equipped || !item.modifiers) continue
+    for (const skill of item.modifiers.skillAdvantage ?? []) {
+      (totals.advantage[skill] ??= []).push(item.name)
+    }
+    for (const skill of item.modifiers.skillDisadvantage ?? []) {
+      (totals.disadvantage[skill] ??= []).push(item.name)
+    }
+  }
+  return totals
+}
+
 export interface FeatureEffectTotals {
   spellcastingAbility?: keyof AbilityScores
   spellcastingAbilitySource?: string
@@ -221,6 +282,8 @@ export interface FeatureEffectTotals {
   sizeSource?: string
   savingThrowProficiencies: Partial<Record<keyof AbilityScores, string>>
   skillProficiencies: Partial<Record<keyof Skills, { expertise: boolean; source: string }>>
+  skillAdvantageGrants: Partial<Record<keyof Skills, string[]>>
+  skillDisadvantageGrants: Partial<Record<keyof Skills, string[]>>
   /** Proficiency/resistance/etc. name -> name of the granting feature (first source wins). */
   otherProficiencies: Record<string, string>
   resistances: Record<string, string>
@@ -285,6 +348,8 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
   const totals: FeatureEffectTotals = {
     savingThrowProficiencies: {},
     skillProficiencies: {},
+    skillAdvantageGrants: {},
+    skillDisadvantageGrants: {},
     otherProficiencies: {},
     resistances: {},
     immunities: {},
@@ -351,6 +416,12 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
             expertise: (existing?.expertise ?? false) || !!grant.expertise,
             source: existing?.source ?? sourceLabel,
           }
+        }
+        for (const skill of effects.skillAdvantage ?? []) {
+          (totals.skillAdvantageGrants[skill] ??= []).push(sourceLabel)
+        }
+        for (const skill of effects.skillDisadvantage ?? []) {
+          (totals.skillDisadvantageGrants[skill] ??= []).push(sourceLabel)
         }
         for (const prof of effects.otherProficiencies ?? []) {
           if (!totals.otherProficiencies[prof]) {
@@ -467,6 +538,49 @@ export function getEffectiveSkillProficiency(
     expertiseGranted: !!grant?.expertise,
     grantedBy: grant?.source,
   }
+}
+
+export type SkillAdvantageState = "advantage" | "disadvantage" | "none"
+
+export interface EffectiveSkillAdvantage {
+  state: SkillAdvantageState
+  isManualOverride: boolean
+  advantageSources: string[]
+  disadvantageSources: string[]
+}
+
+// A manually-set advantage/disadvantage on the skill itself always wins outright, regardless of
+// what equipment or features say (e.g. a player fighting blind overrides a mundane Stealth
+// disadvantage from armor). Only when neither is manually set do pooled equipment + feature
+// sources apply, and per 5e's stacking rule, an advantage source and a disadvantage source cancel
+// each other out to "none" rather than combining.
+export function getEffectiveSkillAdvantage(
+  character: Pick<Character, "skills" | "equipment" | "classFeatures" | "speciesTraits" | "feats" | "level">,
+  skill: keyof Skills,
+): EffectiveSkillAdvantage {
+  const own = character.skills?.[skill]
+  const manualAdvantage = own?.advantage ?? false
+  const manualDisadvantage = own?.disadvantage ?? false
+
+  const equipTotals = getEquipmentSkillEffectTotals(character.equipment)
+  const featureTotals = getActiveFeatureEffects(character)
+  const advantageSources = [...(equipTotals.advantage[skill] ?? []), ...(featureTotals.skillAdvantageGrants[skill] ?? [])]
+  const disadvantageSources = [...(equipTotals.disadvantage[skill] ?? []), ...(featureTotals.skillDisadvantageGrants[skill] ?? [])]
+
+  if (manualAdvantage || manualDisadvantage) {
+    return {
+      state: manualAdvantage ? "advantage" : "disadvantage",
+      isManualOverride: true,
+      advantageSources,
+      disadvantageSources,
+    }
+  }
+
+  const hasAdvantage = advantageSources.length > 0
+  const hasDisadvantage = disadvantageSources.length > 0
+  const state: SkillAdvantageState = hasAdvantage && hasDisadvantage ? "none" : hasAdvantage ? "advantage" : hasDisadvantage ? "disadvantage" : "none"
+
+  return { state, isManualOverride: false, advantageSources, disadvantageSources }
 }
 
 type AbilityScoreCharacter = Pick<
@@ -1062,4 +1176,37 @@ export function remainingUses(used: number | undefined, max: number | undefined)
 
 export function spentFromRemaining(remaining: number, max: number | undefined): number {
   return (max ?? 0) - remaining
+}
+
+export function effectiveMaxUses(feature: Feature, characterLevel: number): number {
+  if (feature.maxUsesMode === 'per-level') {
+    return (feature.maxUsesPerLevel ?? 0) * characterLevel
+  }
+  return feature.maxUses ?? 0
+}
+
+export function hasChargesTracking(item: Pick<Equipment, "magic" | "maxUses">): boolean {
+  return !!item.magic && (item.maxUses ?? 0) > 0
+}
+
+export function effectiveEquipmentMaxUses(item: Pick<Equipment, "type" | "quantity" | "magic" | "maxUses">): number {
+  if (hasChargesTracking(item)) return item.maxUses ?? 0
+  if (item.type === "consumable") return item.quantity
+  return item.maxUses ?? 0
+}
+
+export function effectiveEquipmentUses(item: Pick<Equipment, "charges" | "consumedUses" | "magic" | "maxUses">): number {
+  return hasChargesTracking(item) ? (item.charges ?? 0) : (item.consumedUses ?? 0)
+}
+
+export function reconcileEquipmentRest(item: Equipment, restTypes: Array<"short-rest" | "long-rest">): Equipment {
+  let next = item
+  const consumed = item.consumedUses ?? 0
+  if (item.type === "consumable" && consumed > 0) {
+    next = { ...next, quantity: Math.max(0, next.quantity - consumed), consumedUses: 0 }
+  }
+  if (hasChargesTracking(item) && item.rechargeOn && restTypes.includes(item.rechargeOn)) {
+    next = { ...next, charges: 0 }
+  }
+  return next
 }

@@ -23,7 +23,7 @@ import { theme, setTheme } from "@/lib/theme"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { parsePdfCharacterSheet, mergeWithDefault } from "@/lib/pdf-parser"
-import { reconcileImportedCharacter, reconcileImportedCharacters } from "@/lib/character-import-reconciliation"
+import { reconcileImportedCharacter, reconcileImportedCharacters, freshenCalculatedFields } from "@/lib/character-import-reconciliation"
 import { migrateCharacter, migrateCharacters } from "@/lib/character-migrations"
 import type { Character } from "@/lib/character-types"
 
@@ -61,12 +61,13 @@ export function HeaderMenu(props: HeaderMenuProps) {
   const handleExport = () => {
     try {
       if (props.currentCharacter) {
-        const char = props.currentCharacter
+        const char = freshenCalculatedFields(props.currentCharacter)
         makeDownload(JSON.stringify(char, null, 2), `${char.name || "character"}-${dateStr()}.json`)
         toast({ title: "Export Successful", description: `Exported ${char.name || "character"} successfully!` })
       } else {
-        makeDownload(JSON.stringify(props.characters, null, 2), `all-characters-${dateStr()}.json`)
-        toast({ title: "Export Successful", description: `Exported ${props.characters.length} characters successfully!` })
+        const chars = props.characters.map(freshenCalculatedFields)
+        makeDownload(JSON.stringify(chars, null, 2), `all-characters-${dateStr()}.json`)
+        toast({ title: "Export Successful", description: `Exported ${chars.length} characters successfully!` })
       }
     } catch (error) {
       toast({ title: "Export Failed", description: "Failed to export", variant: "destructive" })

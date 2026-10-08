@@ -38,7 +38,13 @@ import {
   getEffectiveHitDiceSize,
   getEffectiveSavingThrowProficiency,
   getEffectiveSkillProficiency,
+  getEffectiveSkillAdvantage,
+  getEquipmentSkillEffectTotals,
   getAbilityScoreBaseMax,
+  inferFeatureType,
+  effectiveEquipmentMaxUses,
+  effectiveEquipmentUses,
+  reconcileEquipmentRest,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type AbilityScores, type Equipment, type Feature } from "@/lib/character-types"
 
@@ -1798,6 +1804,38 @@ describe("getEffectiveHitDiceSize", () => {
   })
 })
 
+describe("inferFeatureType", () => {
+  it("returns 'Action' whenever actionKind is set, regardless of levelEffects", () => {
+    expect(inferFeatureType("action", undefined)).toBe("Action")
+  })
+
+  it("returns '' when there is no actionKind and no levelEffects", () => {
+    expect(inferFeatureType(undefined, undefined)).toBe("")
+  })
+
+  it("infers 'Hit Points' from an explicit hitDiceSize of 0", () => {
+    // 0 is falsy, so the check for hitDiceSize can't be a bare truthiness test on its own —
+    // hitPointsMode being present at all is what actually catches this case.
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { hitDiceSize: 0, hitPointsMode: "flat" } }])).toBe("Hit Points")
+  })
+
+  it("infers 'Senses' from an explicit sense value of 0", () => {
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { senses: { darkvision: 0 } } }])).toBe("Senses")
+  })
+
+  it("infers 'Max HP Bonus' from an explicit hpBonusPerLevel of 0", () => {
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { hpBonusPerLevel: 0 } }])).toBe("Max HP Bonus")
+  })
+
+  it("infers 'Ability Scores' from an explicit floor of 0", () => {
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { abilityScoreFloors: { strength: 0 } } }])).toBe("Ability Scores")
+  })
+
+  it("checks spellcastingAbility before hitDiceSize when both are somehow present", () => {
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { spellcastingAbility: "wisdom", hitDiceSize: 8 } }])).toBe("Spellcasting Ability")
+  })
+})
+
 describe("getEffectiveSavingThrowProficiency / getEffectiveSkillProficiency", () => {
   it("is proficient via the character's own flag when no feature grants it", () => {
     const character = { savingThrows: { strength: true } as any, classFeatures: [], speciesTraits: [], feats: [], level: 1 }
@@ -1826,6 +1864,64 @@ describe("getEffectiveSavingThrowProficiency / getEffectiveSkillProficiency", ()
   })
 })
 
+describe("getEquipmentSkillEffectTotals", () => {
+  it("applies to a mundane (non-magic) equipped item, unlike every other modifier field", () => {
+    const chainmail = makeMagicItem({ magic: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+    expect(getEquipmentSkillEffectTotals([chainmail])).toEqual({ advantage: {}, disadvantage: { stealth: ["Chainmail"] } })
+  })
+
+  it("does not apply when the item is not equipped", () => {
+    const chainmail = makeMagicItem({ magic: false, equipped: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+    expect(getEquipmentSkillEffectTotals([chainmail])).toEqual({ advantage: {}, disadvantage: {} })
+  })
+
+  it("collects multiple items granting the same skill", () => {
+    const a = makeMagicItem({ magic: false, id: "a", name: "Item A", modifiers: { skillAdvantage: ["perception"] } })
+    const b = makeMagicItem({ magic: false, id: "b", name: "Item B", modifiers: { skillAdvantage: ["perception"] } })
+    expect(getEquipmentSkillEffectTotals([a, b]).advantage).toEqual({ perception: ["Item A", "Item B"] })
+  })
+})
+
+describe("getEffectiveSkillAdvantage", () => {
+  it("is none when nothing grants advantage or disadvantage", () => {
+    const character = { skills: { stealth: { proficient: false, expertise: false } } as any, equipment: [], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "none", isManualOverride: false, advantageSources: [], disadvantageSources: [] })
+  })
+
+  it("reflects a manually-set disadvantage", () => {
+    const character = { skills: { stealth: { proficient: false, expertise: false, disadvantage: true } } as any, equipment: [], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "disadvantage", isManualOverride: true, advantageSources: [], disadvantageSources: [] })
+  })
+
+  it("grants disadvantage from a mundane equipped item", () => {
+    const chainmail = makeMagicItem({ magic: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+    const character = { skills: { stealth: { proficient: false, expertise: false } } as any, equipment: [chainmail], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "disadvantage", isManualOverride: false, advantageSources: [], disadvantageSources: ["Chainmail"] })
+  })
+
+  it("grants advantage from a feature", () => {
+    const feature = makeFeature({ name: "Keen Senses", levelEffects: [{ level: 1, effects: { skillAdvantage: ["perception"] } }] })
+    const character = { skills: { perception: { proficient: false, expertise: false } } as any, equipment: [], classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "perception")).toEqual({ state: "advantage", isManualOverride: false, advantageSources: ["Keen Senses Class Feature"], disadvantageSources: [] })
+  })
+
+  it("cancels an equipment-granted advantage and a feature-granted disadvantage on the same skill to none", () => {
+    const boots = makeMagicItem({ id: "boots", name: "Boots of Quiet", modifiers: { skillAdvantage: ["stealth"] } })
+    const feature = makeFeature({ name: "Clumsy Curse", levelEffects: [{ level: 1, effects: { skillDisadvantage: ["stealth"] } }] })
+    const character = { skills: { stealth: { proficient: false, expertise: false } } as any, equipment: [boots], classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({
+      state: "none", isManualOverride: false,
+      advantageSources: ["Boots of Quiet"], disadvantageSources: ["Clumsy Curse Class Feature"],
+    })
+  })
+
+  it("a manual advantage override wins even when an equipped item grants disadvantage on the same skill", () => {
+    const chainmail = makeMagicItem({ magic: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
+    const character = { skills: { stealth: { proficient: false, expertise: false, advantage: true } } as any, equipment: [chainmail], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "advantage", isManualOverride: true, advantageSources: [], disadvantageSources: ["Chainmail"] })
+  })
+})
+
 describe("spell calculations with a feature-granted spellcasting ability", () => {
   it("uses the feature-granted ability instead of a stale raw spellcastingAbility field", () => {
     const feature = makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] })
@@ -1839,5 +1935,105 @@ describe("spell calculations with a feature-granted spellcasting ability", () =>
     expect(getSpellSaveDC(character)).toBe(14) // 8 + 3 prof + 3 WIS mod
     expect(getSpellAttackBonus(character)).toBe(6) // 3 prof + 3 WIS mod
     expect(computeSpellModifier(character)).toBe(3)
+  })
+})
+
+describe("effectiveEquipmentMaxUses", () => {
+  it("uses quantity as the effective max for a non-magic consumable item, ignoring any stored maxUses", () => {
+    const item = makeMagicItem({ type: "consumable", magic: false, quantity: 5, maxUses: 99 })
+    expect(effectiveEquipmentMaxUses(item)).toBe(5)
+  })
+
+  it("uses the configured maxUses as the effective max for a magic consumable with charges tracking", () => {
+    const item = makeMagicItem({ type: "consumable", magic: true, quantity: 5, maxUses: 99 })
+    expect(effectiveEquipmentMaxUses(item)).toBe(99)
+  })
+
+  it("falls back to the stored maxUses for a non-consumable item", () => {
+    const item = makeMagicItem({ type: "other", quantity: 1, maxUses: 3 })
+    expect(effectiveEquipmentMaxUses(item)).toBe(3)
+  })
+
+  it("returns 0 for a non-consumable item with no maxUses set", () => {
+    const item = makeMagicItem({ type: "other", quantity: 1, maxUses: undefined })
+    expect(effectiveEquipmentMaxUses(item)).toBe(0)
+  })
+})
+
+describe("effectiveEquipmentUses", () => {
+  it("returns charges for an item with charges tracking configured", () => {
+    const item = makeMagicItem({ magic: true, maxUses: 5, charges: 2, consumedUses: 9 })
+    expect(effectiveEquipmentUses(item)).toBe(2)
+  })
+
+  it("returns consumedUses for an item without charges tracking", () => {
+    const item = makeMagicItem({ type: "consumable", magic: false, consumedUses: 1 })
+    expect(effectiveEquipmentUses(item)).toBe(1)
+  })
+})
+
+describe("reconcileEquipmentRest", () => {
+  it("decrements quantity by spent consumedUses and zeroes it for a matching consumable", () => {
+    const item = makeMagicItem({ type: "consumable", magic: false, quantity: 5, consumedUses: 2, rechargeOn: "short-rest" })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result.quantity).toBe(3)
+    expect(result.consumedUses).toBe(0)
+  })
+
+  it("clamps quantity at 0 rather than going negative when spent consumedUses exceed quantity", () => {
+    const item = makeMagicItem({ type: "consumable", magic: false, quantity: 1, consumedUses: 3, rechargeOn: "short-rest" })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result.quantity).toBe(0)
+    expect(result.consumedUses).toBe(0)
+  })
+
+  it("decrements a consumable on any rest, regardless of rechargeOn", () => {
+    const item = makeMagicItem({ type: "consumable", magic: false, quantity: 5, consumedUses: 2, rechargeOn: undefined })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result.quantity).toBe(3)
+    expect(result.consumedUses).toBe(0)
+  })
+
+  it("hard-resets charges to 0 without touching quantity for a matching non-consumable item", () => {
+    const item = makeMagicItem({ type: "other", quantity: 1, charges: 2, maxUses: 3, rechargeOn: "short-rest" })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result.charges).toBe(0)
+    expect(result.quantity).toBe(1)
+  })
+
+  it("leaves a non-consumable item untouched when restTypes does not include its rechargeOn", () => {
+    const item = makeMagicItem({ type: "other", quantity: 1, charges: 2, maxUses: 3, rechargeOn: "long-rest" })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result).toEqual(item)
+  })
+
+  it("decrements a consumable with spent consumedUses even when restTypes is empty, since consumption ignores rechargeOn entirely", () => {
+    const item = makeMagicItem({ type: "consumable", magic: false, quantity: 5, consumedUses: 2, rechargeOn: undefined })
+    const result = reconcileEquipmentRest(item, [])
+    expect(result.quantity).toBe(3)
+    expect(result.consumedUses).toBe(0)
+  })
+
+  it("returns a consumable unchanged when it has no spent consumedUses", () => {
+    const item = makeMagicItem({ type: "consumable", magic: false, quantity: 5, consumedUses: 0 })
+    const result = reconcileEquipmentRest(item, ["short-rest"])
+    expect(result).toEqual(item)
+  })
+
+  it("reconciles charges and consumedUses independently on the same magic consumable in one call", () => {
+    const item = makeMagicItem({
+      type: "consumable", magic: true, maxUses: 7, rechargeOn: "long-rest",
+      quantity: 1, charges: 3, consumedUses: 1,
+    })
+
+    const shortRest = reconcileEquipmentRest(item, ["short-rest"])
+    expect(shortRest.quantity).toBe(0) // consumedUses always decrements quantity, regardless of rest type
+    expect(shortRest.consumedUses).toBe(0)
+    expect(shortRest.charges).toBe(3) // rechargeOn is long-rest only, so a short rest leaves charges untouched
+
+    const longRest = reconcileEquipmentRest(item, ["long-rest"])
+    expect(longRest.quantity).toBe(0)
+    expect(longRest.consumedUses).toBe(0)
+    expect(longRest.charges).toBe(0) // matching rest type resets charges too, independent of the quantity effect above
   })
 })

@@ -21,7 +21,9 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
     setEditedCharacter(props.character)
   }))
 
-  const handleSave = () => { props.onUpdate(editedCharacter()); setIsEditing(false) }
+  const persist = () => { props.onUpdate(editedCharacter()) }
+  const handleSave = () => { persist(); setIsEditing(false) }
+  const handleSaveKeepEditing = () => { persist() }
   const handleCancel = () => { setEditedCharacter(props.character); setIsEditing(false) }
 
   const updateField = (field: keyof Character, value: string) => {
@@ -81,6 +83,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
       isEditing={isEditing()}
       onEdit={() => { setEditedCharacter(props.character); setIsEditing(true) }}
       onSave={handleSave}
+      onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}
       contentClass="space-y-6"
     >

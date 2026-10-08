@@ -47,7 +47,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
     setEditedUseCalculatedAbility(safeUseCalculatedAbility())
   }))
 
-  const handleSave = () => {
+  const persist = () => {
     props.onUpdate({
       ...props.character,
       abilityScores: editedScores(),
@@ -55,8 +55,9 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
       abilityScoreOverrides: editedAbilityOverrides(),
       useCalculatedAbilityScores: editedUseCalculatedAbility(),
     })
-    setIsEditing(false)
   }
+  const handleSave = () => { persist(); setIsEditing(false) }
+  const handleSaveKeepEditing = () => { persist() }
   const handleCancel = () => {
     setEditedScores(safeScores())
     setEditedSaves(safeSaves())
@@ -79,6 +80,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
         setIsEditing(true)
       }}
       onSave={handleSave}
+      onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}
     >
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4">

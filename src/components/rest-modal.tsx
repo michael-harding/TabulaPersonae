@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
-import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp } from "@/lib/character-utils"
+import type { Character, Equipment } from "@/lib/character-types"
+import { getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -45,8 +45,13 @@ export function RestModal(props: RestModalProps) {
       ...safeFeatures(props.character.backgroundFeatures),
       ...(props.character.equipment ?? []),
     ]
-    if (restType() === "short") return all.filter((a) => a.rechargeOn === "short-rest")
-    return all.filter((a) => a.rechargeOn === "short-rest" || a.rechargeOn === "long-rest")
+    return all.filter((a) => {
+      const consumedPending = "quantity" in a && (a as Equipment).type === "consumable" && ((a as Equipment).consumedUses ?? 0) > 0
+      const rechargeMatches = restType() === "short"
+        ? a.rechargeOn === "short-rest"
+        : a.rechargeOn === "short-rest" || a.rechargeOn === "long-rest"
+      return consumedPending || rechargeMatches
+    })
   }
 
   const handleClose = () => {
@@ -82,7 +87,7 @@ export function RestModal(props: RestModalProps) {
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest"),
         backgroundFeatures: resetMatching(safeFeatures(char.backgroundFeatures), "short-rest"),
-        equipment: resetMatching(char.equipment ?? [], "short-rest"),
+        equipment: (char.equipment ?? []).map((item) => reconcileEquipmentRest(item, ["short-rest"])),
       })
       if (spent === 0) handleClose()
     } else {
@@ -102,7 +107,7 @@ export function RestModal(props: RestModalProps) {
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest", "long-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest", "long-rest"),
         backgroundFeatures: resetMatching(safeFeatures(char.backgroundFeatures), "short-rest", "long-rest"),
-        equipment: resetMatching(char.equipment ?? [], "short-rest", "long-rest"),
+        equipment: (char.equipment ?? []).map((item) => reconcileEquipmentRest(item, ["short-rest", "long-rest"])),
       })
       handleClose()
     }
@@ -234,7 +239,9 @@ export function RestModal(props: RestModalProps) {
                     <li class="text-sm flex items-center justify-between">
                       <span>{feature.name}</span>
                       <span class="text-xs text-muted-foreground capitalize">
-                        {feature.rechargeOn === "short-rest" ? "Short Rest" : "Long Rest"}
+                        {"quantity" in feature && (feature as Equipment).type === "consumable" && ((feature as Equipment).consumedUses ?? 0) > 0
+                          ? `-${(feature as Equipment).consumedUses} qty`
+                          : feature.rechargeOn === "short-rest" ? "Short Rest" : "Long Rest"}
                       </span>
                     </li>
                   )}

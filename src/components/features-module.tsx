@@ -1,7 +1,7 @@
 import { createSignal, For, Index, Show, type ParentProps } from "solid-js"
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES } from "@/lib/character-utils"
+import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
+import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, formatModifier } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import { MarkdownContent } from "@/components/ui/markdown-content"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
+import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
 import BookOpen from "lucide-solid/icons/book-open"
 import Leaf from "lucide-solid/icons/leaf"
 import Star from "lucide-solid/icons/star"
@@ -82,16 +83,119 @@ const HIT_POINTS_MODE_OPTIONS: { value: HitPointsMode; label: string }[] = [
   { value: 'rolled', label: 'Rolled Values' },
 ]
 
-const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
+const MAX_USES_MODE_OPTIONS: { value: 'flat' | 'per-level'; label: string }[] = [
+  { value: 'flat', label: 'Flat' },
+  { value: 'per-level', label: 'Per Level' },
+]
 
-// Values double as their own display labels — the shared Select component's trigger renders
-// the raw controlled value verbatim (it doesn't look up a SelectItem's rendered children), so
-// using human-readable strings here avoids showing raw codes like "skill-proficiency" in the UI.
-type FeatureTypeValue =
-  | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
-  | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
-  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-  | 'Ability Scores' | 'Max HP Bonus'
+// Formats one tier's effects into a single human-readable summary line for card display, keyed off
+// the same featureType switch LevelEffectRow uses to decide which fields are relevant. Returns ''
+// when nothing in this tier is populated (e.g. a freshly added, still-empty tier) so callers can
+// filter it out rather than rendering a blank line — mirrors the "only show populated fields" idiom
+// used by the Spell/Equipment cards' <Show when={field}> rows.
+function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: FeatureEffects): string {
+  const parts: string[] = []
+  switch (featureType) {
+    case 'Spellcasting Ability': {
+      if (effects.spellcastingAbility) {
+        parts.push(`Spellcasting Ability: ${ABILITY_ABBREVIATIONS[effects.spellcastingAbility]}`)
+      }
+      break
+    }
+    case 'Hit Points': {
+      if (effects.hitDiceSize) parts.push(`Hit Die: d${effects.hitDiceSize}`)
+      if (effects.hitPointsMode === 'flat' && effects.hitPointsFlatValue) {
+        parts.push(`Fixed Max HP: ${effects.hitPointsFlatValue}`)
+      } else if (effects.hitPointsMode === 'per-level' && effects.hitPointsPerLevelAmount) {
+        parts.push(`+${effects.hitPointsPerLevelAmount} HP per level after 1st`)
+      } else if (effects.hitPointsMode === 'rolled' && (effects.hitPointsRolledLevels?.length ?? 0) > 0) {
+        parts.push(`Rolled HP: ${effects.hitPointsRolledLevels!.filter((v) => v > 0).join(', ')}`)
+      }
+      break
+    }
+    case 'Size':
+      if (effects.size) parts.push(`Size: ${effects.size}`)
+      break
+    case 'Max HP Bonus':
+      if (effects.hpBonusPerLevel) parts.push(`+${effects.hpBonusPerLevel} Max HP per level`)
+      break
+    case 'Saving Throw Proficiency':
+      if ((effects.savingThrowProficiencies?.length ?? 0) > 0) {
+        parts.push(`Saving Throws: ${effects.savingThrowProficiencies!.map((a) => ABILITY_ABBREVIATIONS[a]).join(', ')}`)
+      }
+      break
+    case 'Skill Proficiency':
+      if ((effects.skillProficiencies?.length ?? 0) > 0) {
+        parts.push(`Skills: ${effects.skillProficiencies!
+          .map((g) => SKILL_DISPLAY_NAMES[g.skill] + (g.expertise ? ' (Expertise)' : ''))
+          .join(', ')}`)
+      }
+      break
+    case 'Other Proficiency':
+      if ((effects.otherProficiencies?.length ?? 0) > 0) parts.push(`Proficiencies: ${effects.otherProficiencies!.join(', ')}`)
+      break
+    case 'Speed': {
+      const speeds: string[] = []
+      if (effects.speed) speeds.push(`${effects.speed} ft`)
+      if (effects.flySpeed) speeds.push(`Fly ${effects.flySpeed} ft`)
+      if (effects.swimSpeed) speeds.push(`Swim ${effects.swimSpeed} ft`)
+      if (effects.climbSpeed) speeds.push(`Climb ${effects.climbSpeed} ft`)
+      if (effects.burrowSpeed) speeds.push(`Burrow ${effects.burrowSpeed} ft`)
+      if (speeds.length > 0) parts.push(`Speed: ${speeds.join(', ')}`)
+      break
+    }
+    case 'Senses': {
+      const senses = SENSE_TYPES
+        .filter((s) => effects.senses?.[s])
+        .map((s) => `${SENSE_LABELS[s]} ${effects.senses![s]} ft`)
+      if (senses.length > 0) parts.push(senses.join(', '))
+      break
+    }
+    case 'Damage Resistance/Immunity/Vulnerability':
+      if ((effects.resistances?.length ?? 0) > 0) parts.push(`Resistances: ${effects.resistances!.join(', ')}`)
+      if ((effects.immunities?.length ?? 0) > 0) parts.push(`Immunities: ${effects.immunities!.join(', ')}`)
+      if ((effects.vulnerabilities?.length ?? 0) > 0) parts.push(`Vulnerabilities: ${effects.vulnerabilities!.join(', ')}`)
+      break
+    case 'Condition Immunity':
+      if ((effects.conditionImmunities?.length ?? 0) > 0) parts.push(`Condition Immunities: ${effects.conditionImmunities!.join(', ')}`)
+      break
+    case 'Language':
+      if ((effects.languages?.length ?? 0) > 0) parts.push(`Languages: ${effects.languages!.join(', ')}`)
+      break
+    case 'Carrying Capacity': {
+      const cap: string[] = []
+      if (effects.carryingCapacityBonus) cap.push(`${formatModifier(effects.carryingCapacityBonus)} lbs`)
+      if (effects.carryingCapacityMultiplier) cap.push(`×${effects.carryingCapacityMultiplier}`)
+      if (cap.length > 0) parts.push(`Carrying Capacity: ${cap.join(', ')}`)
+      break
+    }
+    case 'Ability Scores': {
+      const fmtGroup = (label: string, record: Partial<Record<keyof AbilityScores, number>> | undefined, fmt: (v: number) => string) => {
+        const entries = SAVE_ABILITIES.filter((a) => record?.[a] !== undefined)
+        if (entries.length === 0) return
+        parts.push(`${label}: ${entries.map((a) => `${ABILITY_ABBREVIATIONS[a]} ${fmt(record![a]!)}`).join(', ')}`)
+      }
+      fmtGroup('Ability Scores', effects.abilityScores, formatModifier)
+      fmtGroup('Floor', effects.abilityScoreFloors, (v) => `${v}`)
+      fmtGroup('Max Cap', effects.abilityScoreMaxCaps, (v) => `${v}`)
+      fmtGroup('Base Max', effects.abilityScoreBaseMax, (v) => `${v}`)
+      break
+    }
+  }
+  return parts.join(' · ')
+}
+
+// Builds the display lines for a feature's levelEffects — one line per tier that has anything
+// populated (a tier added and never filled in is dropped silently rather than rendering blank).
+// 'Action' and '' never reach here (see card JSX, which only calls this for other featureTypes).
+function featureEffectLines(feature: Feature): { level: number; text: string }[] {
+  const type = feature.featureType as FeatureTypeValue
+  return (feature.levelEffects ?? [])
+    .map((tier) => ({ level: tier.level, text: formatFeatureEffectsLine(type, tier.effects) }))
+    .filter((line) => line.text !== '')
+}
+
+const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 
 // Spellcasting Ability, Hit Points, and Size are fixed facts of a class/species, not something
 // that changes at higher levels, so they get a single always-on control. The proficiency-grant
@@ -107,6 +211,12 @@ type FeatureTypeValue =
 // only ever added once actually gained, and amount × current-level is already algebraically
 // equivalent to 5e RAW (e.g. Tough) for any level at or after that, regardless of which level it was.
 const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size', 'Max HP Bonus']
+// The Name field is hidden entirely for these three — the feature type itself is already the name
+// (see changeFeatureType, which fills formData.name with the type string so the hidden field still
+// has a value to submit/display). Max HP Bonus is deliberately excluded even though it's also a
+// SINGLE_EFFECT_TYPE: a character can gain HP-bonus-per-level from more than one source, so its Name
+// stays visible and user-editable to tell those sources apart.
+const NAMELESS_FEATURE_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size']
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
@@ -118,41 +228,6 @@ function isTieredEffectType(t: FeatureTypeValue | ''): boolean {
   return (TIERED_EFFECT_TYPES as string[]).includes(t)
 }
 
-function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue | '' {
-  if (actionKind) return 'Action'
-  const effects = levelEffects?.[0]?.effects
-  if (effects?.spellcastingAbility) return 'Spellcasting Ability'
-  if (
-    effects?.hitDiceSize ||
-    effects?.hitPointsMode !== undefined ||
-    effects?.hitPointsFlatValue !== undefined ||
-    effects?.hitPointsPerLevelAmount !== undefined ||
-    (effects?.hitPointsRolledLevels?.length ?? 0) > 0
-  ) return 'Hit Points'
-  if (effects?.size) return 'Size'
-  if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
-  if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
-  if (effects?.otherProficiencies?.length) return 'Other Proficiency'
-  if (
-    effects?.speed !== undefined ||
-    effects?.flySpeed !== undefined ||
-    effects?.swimSpeed !== undefined ||
-    effects?.climbSpeed !== undefined ||
-    effects?.burrowSpeed !== undefined
-  ) return 'Speed'
-  if (effects?.senses && Object.values(effects.senses).some((v) => v !== undefined)) return 'Senses'
-  if (effects?.resistances?.length || effects?.immunities?.length || effects?.vulnerabilities?.length) return 'Damage Resistance/Immunity/Vulnerability'
-  if (effects?.conditionImmunities?.length) return 'Condition Immunity'
-  if (effects?.languages?.length) return 'Language'
-  if (effects?.carryingCapacityBonus !== undefined || effects?.carryingCapacityMultiplier !== undefined) return 'Carrying Capacity'
-  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.hpBonusPerLevel !== undefined) return 'Max HP Bonus'
-  return ''
-}
-
 interface FeatureFormData {
   name: string
   description: string
@@ -162,6 +237,8 @@ interface FeatureFormData {
   range: string
   uses: number
   maxUses: number
+  maxUsesMode: 'flat' | 'per-level'
+  maxUsesPerLevel: number
   rechargeOn: '' | 'short-rest' | 'long-rest'
   level: number
   levelEffects: FeatureLevelEffect[]
@@ -221,55 +298,6 @@ function ClosedListEditor(props: {
           <Button type="button" size="sm" variant="outline" onClick={add}>Add</Button>
         </div>
       </Show>
-    </div>
-  )
-}
-
-// Reusable picker for free-text string-list effect fields (no fixed enum) — mirrors the same
-// Add+Badge idiom as ClosedListEditor, but accepts any typed value (used by Other Proficiency
-// and Language, neither of which has a closed list of valid values).
-function FreeTextListEditor(props: {
-  label: string
-  ariaLabel: string
-  placeholder: string
-  values: string[]
-  onChange: (next: string[]) => void
-}) {
-  const [newValue, setNewValue] = createSignal('')
-  const add = () => {
-    const trimmed = newValue().trim()
-    if (!trimmed || props.values.includes(trimmed)) return
-    props.onChange([...props.values, trimmed])
-    setNewValue('')
-  }
-  const remove = (v: string) => props.onChange(props.values.filter((x) => x !== v))
-  return (
-    <div class="space-y-1">
-      <Label class="text-xs">{props.label}</Label>
-      <Show when={props.values.length > 0}>
-        <div class="flex flex-wrap gap-2 mb-2">
-          <For each={props.values}>
-            {(v) => (
-              <Badge variant="secondary" class="gap-1.5 pr-1">
-                {v}
-                <button type="button" aria-label={`Remove ${v}`} onClick={() => remove(v)}>
-                  <X class="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
-          </For>
-        </div>
-      </Show>
-      <div class="flex gap-2">
-        <Input
-          aria-label={props.ariaLabel}
-          value={newValue()}
-          onInput={(e) => setNewValue(e.currentTarget.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add() } }}
-          placeholder={props.placeholder}
-        />
-        <Button type="button" size="sm" variant="outline" onClick={add}>Add</Button>
-      </div>
     </div>
   )
 }
@@ -645,7 +673,7 @@ function LevelEffectRow(props: {
 
 function FeatureForm(props: FeatureFormProps) {
   const [formData, setFormData] = createSignal<FeatureFormData>(
-    props.initialData ?? { name: '', description: '', featureType: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '', level: 1, levelEffects: [] }
+    props.initialData ?? { name: '', description: '', featureType: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, maxUsesMode: 'flat', maxUsesPerLevel: 0, rechargeOn: '', level: 1, levelEffects: [] }
   )
 
   // Spellcasting Ability / Hit Points / Size / Max HP Bonus aren't level-dependent — they're always
@@ -736,8 +764,12 @@ function FeatureForm(props: FeatureFormProps) {
       return {
         ...d,
         featureType: next,
+        // A blank Name defaults to the newly picked type string — the only way NAMELESS_FEATURE_TYPES
+        // ever get a name (their Name field is hidden), and a visible starting point for every other
+        // type that the user can overwrite. Never overwrites a name the user already typed.
+        name: d.name.trim() === '' && next !== '' ? next : d.name,
         actionKind: next === 'Action' ? 'action' : '',
-        type: '', range: '', uses: 0, maxUses: 0, rechargeOn: '',
+        type: '', range: '', uses: 0, maxUses: 0, maxUsesMode: 'flat', maxUsesPerLevel: 0, rechargeOn: '',
         level: 1,
         levelEffects: (SINGLE_EFFECT_TYPES as string[]).includes(next) || isTieredEffectType(next) ? [{ level: 1, effects: {} }] : [],
       }
@@ -754,26 +786,6 @@ function FeatureForm(props: FeatureFormProps) {
   return (
     <form onSubmit={handleSubmit} class="space-y-4 p-4">
       <div class="space-y-1">
-        <Label for="feature-name">Name</Label>
-        <Input
-          id="feature-name"
-          value={formData().name}
-          onInput={(e) => setFormData((d) => ({ ...d, name: e.currentTarget.value }))}
-          placeholder="Feature name"
-          required
-        />
-      </div>
-      <div class="space-y-1">
-        <Label for="feature-description">Description</Label>
-        <Textarea
-          id="feature-description"
-          value={formData().description}
-          onInput={(e) => setFormData((d) => ({ ...d, description: e.currentTarget.value }))}
-          placeholder="Describe the feature..."
-          rows={4}
-        />
-      </div>
-      <div class="space-y-1">
         <Label for="feature-type-select">Feature Type</Label>
         <Select value={formData().featureType} onValueChange={changeFeatureType}>
           <SelectTrigger id="feature-type-select" aria-label="Feature Type">
@@ -787,6 +799,34 @@ function FeatureForm(props: FeatureFormProps) {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Also shows once a name exists even with no type picked — otherwise editing a pre-existing
+          untyped feature (name/description only, no mechanical effect) would hide the very fields
+          needed to see or change it, with no way back in since Name only appears once type is set. */}
+      <Show when={formData().featureType !== '' || formData().name.trim() !== ''}>
+        <Show when={!NAMELESS_FEATURE_TYPES.includes(formData().featureType as FeatureTypeValue)}>
+          <div class="space-y-1">
+            <Label for="feature-name">Name</Label>
+            <Input
+              id="feature-name"
+              value={formData().name}
+              onInput={(e) => setFormData((d) => ({ ...d, name: e.currentTarget.value }))}
+              placeholder="Feature name"
+              required
+            />
+          </div>
+        </Show>
+        <div class="space-y-1">
+          <Label for="feature-description">Description</Label>
+          <Textarea
+            id="feature-description"
+            value={formData().description}
+            onInput={(e) => setFormData((d) => ({ ...d, description: e.currentTarget.value }))}
+            placeholder="Describe the feature..."
+            rows={4}
+          />
+        </div>
+      </Show>
 
       <Show when={formData().featureType === 'Action'}>
         <div class="space-y-4 border rounded-md p-3">
@@ -833,11 +873,39 @@ function FeatureForm(props: FeatureFormProps) {
                 onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
             </div>
             <div class="space-y-1">
-              <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
-              <NumericInput id="feature-max-uses" min={0} value={formData().maxUses}
-                onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
+              <Label for="feature-uses-scaling">Uses Scaling</Label>
+              <Select
+                value={formData().maxUsesMode}
+                onValueChange={(v) => setFormData((d) => ({ ...d, maxUsesMode: v as 'flat' | 'per-level' }))}
+              >
+                <SelectTrigger id="feature-uses-scaling" aria-label="Uses Scaling">
+                  <span class="flex-1 text-left">{MAX_USES_MODE_OPTIONS.find((o) => o.value === formData().maxUsesMode)?.label}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <For each={MAX_USES_MODE_OPTIONS}>{(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}</For>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+          <Show
+            when={formData().maxUsesMode === 'per-level'}
+            fallback={
+              <div class="space-y-1">
+                <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
+                <NumericInput id="feature-max-uses" min={0} value={formData().maxUses}
+                  onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
+              </div>
+            }
+          >
+            <div class="space-y-1">
+              <Label for="feature-max-uses-per-level">Max Uses per Level</Label>
+              <NumericInput id="feature-max-uses-per-level" min={0} value={formData().maxUsesPerLevel}
+                onChange={(v) => setFormData((d) => ({ ...d, maxUsesPerLevel: v, uses: 0 }))} />
+              <p class="text-xs text-muted-foreground">
+                = {formData().maxUsesPerLevel * props.characterLevel} at Level {props.characterLevel}
+              </p>
+            </div>
+          </Show>
           <div class="space-y-1">
             <Label for="feature-recharge">Recharge On</Label>
             <Select value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
@@ -1048,12 +1116,15 @@ export function FeaturesModule(props: FeaturesModuleProps) {
       name: data.name.trim(),
       description: data.description,
       source: kind,
+      featureType: data.featureType,
       actionKind: data.actionKind || undefined,
       type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
       range: (data.actionKind && data.range) ? data.range : undefined,
       level: data.actionKind ? (data.level || undefined) : undefined,
       uses: (data.actionKind && data.uses) ? data.uses : undefined,
-      maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
+      maxUses: (data.actionKind && data.maxUsesMode === 'flat' && data.maxUses) ? data.maxUses : undefined,
+      maxUsesMode: (data.actionKind && data.maxUsesMode === 'per-level') ? 'per-level' : undefined,
+      maxUsesPerLevel: (data.actionKind && data.maxUsesMode === 'per-level' && data.maxUsesPerLevel) ? data.maxUsesPerLevel : undefined,
       rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
       levelEffects: data.levelEffects.length > 0 ? data.levelEffects : undefined,
     }
@@ -1075,12 +1146,15 @@ export function FeaturesModule(props: FeaturesModuleProps) {
               ...f,
               name: data.name.trim(),
               description: data.description,
+              featureType: data.featureType,
               actionKind: data.actionKind || undefined,
               type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
               range: (data.actionKind && data.range) ? data.range : undefined,
               level: data.actionKind ? (data.level || undefined) : undefined,
               uses: (data.actionKind && data.uses) ? data.uses : undefined,
-              maxUses: (data.actionKind && data.maxUses) ? data.maxUses : undefined,
+              maxUses: (data.actionKind && data.maxUsesMode === 'flat' && data.maxUses) ? data.maxUses : undefined,
+              maxUsesMode: (data.actionKind && data.maxUsesMode === 'per-level') ? 'per-level' : undefined,
+              maxUsesPerLevel: (data.actionKind && data.maxUsesMode === 'per-level' && data.maxUsesPerLevel) ? data.maxUsesPerLevel : undefined,
               rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
               levelEffects: data.levelEffects.length > 0 ? data.levelEffects : undefined,
             }
@@ -1164,11 +1238,26 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                           <div class="flex items-start justify-between gap-2">
                             <div class="flex items-center gap-2 flex-wrap">
                               <span class="font-medium">{feature.name}</span>
+                              <Show when={feature.featureType && feature.featureType !== 'Action'}>
+                                <Badge variant="outline" class="text-xs">{feature.featureType}</Badge>
+                              </Show>
                               <Show when={feature.actionKind}>
                                 <Badge variant="outline" class="text-xs flex items-center gap-1">
                                   <Zap class="h-3 w-3" />
                                   {ACTION_KIND_LABELS[feature.actionKind!]}
                                 </Badge>
+                              </Show>
+                              <Show when={feature.level}>
+                                <Badge variant="outline" class="text-xs">At Level {feature.level}</Badge>
+                              </Show>
+                              <Show when={feature.type}>
+                                <Badge variant="outline" class="text-xs">{feature.type}</Badge>
+                              </Show>
+                              <Show when={feature.range}>
+                                <Badge variant="outline" class="text-xs">Range: {feature.range}</Badge>
+                              </Show>
+                              <Show when={feature.rechargeOn}>
+                                <Badge variant="outline" class="text-xs">{RECHARGE_ON_LABELS[feature.rechargeOn!]}</Badge>
                               </Show>
                             </div>
                             <Show when={!isReadOnly}>
@@ -1196,33 +1285,59 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                               </div>
                             </Show>
                           </div>
+                          <Show when={feature.featureType && feature.featureType !== 'Action'}>
+                            {(() => {
+                              const lines = featureEffectLines(feature)
+                              return (
+                                <Show when={lines.length > 0}>
+                                  <div class="text-xs text-muted-foreground space-y-0.5">
+                                    <For each={lines}>
+                                      {(line) => (
+                                        <div>
+                                          <Show when={lines.length > 1}>
+                                            <span class="font-medium">Level {line.level}: </span>
+                                          </Show>
+                                          {line.text}
+                                        </div>
+                                      )}
+                                    </For>
+                                  </div>
+                                </Show>
+                              )
+                            })()}
+                          </Show>
                           <Show when={feature.description}>
                             <MarkdownContent text={feature.description!} class="text-muted-foreground" />
                           </Show>
-                          <Show when={(feature.maxUses ?? 0) > 0}>
-                            <Show
-                              when={(feature.maxUses ?? 0) <= 5}
-                              fallback={
-                                // value/onChange are inverted: display shows remaining uses, storage tracks used count
-                                <StepperInput
-                                  value={remainingUses(feature.uses, feature.maxUses)}
-                                  min={0}
-                                  max={feature.maxUses!}
-                                  onChange={(v) => handleFeatureUsesChange(section.field, feature.id, spentFromRemaining(v, feature.maxUses))}
-                                  readOnly={isReadOnly}
-                                />
-                              }
-                            >
-                              <PipTracker
-                                total={feature.maxUses!}
-                                used={feature.uses ?? 0}
-                                onToggle={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
-                                usedTitle="Charge spent (click to restore)"
-                                availableTitle="Charge available (click to use)"
-                                readOnly={isReadOnly}
-                              />
-                            </Show>
-                          </Show>
+                          {(() => {
+                            const maxUses = effectiveMaxUses(feature, props.character.level ?? 1)
+                            return (
+                              <Show when={maxUses > 0}>
+                                <Show
+                                  when={maxUses <= 5}
+                                  fallback={
+                                    // value/onChange are inverted: display shows remaining uses, storage tracks used count
+                                    <StepperInput
+                                      value={remainingUses(feature.uses, maxUses)}
+                                      min={0}
+                                      max={maxUses}
+                                      onChange={(v) => handleFeatureUsesChange(section.field, feature.id, spentFromRemaining(v, maxUses))}
+                                      readOnly={isReadOnly}
+                                    />
+                                  }
+                                >
+                                  <PipTracker
+                                    total={maxUses}
+                                    used={feature.uses ?? 0}
+                                    onToggle={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
+                                    usedTitle="Charge spent (click to restore)"
+                                    availableTitle="Charge available (click to use)"
+                                    readOnly={isReadOnly}
+                                  />
+                                </Show>
+                              </Show>
+                            )
+                          })()}
                           <Show when={isActiveHitDieSource(feature)}>
                             <div class="space-y-1">
                               <Label class="text-xs text-muted-foreground">Spent Hit Dice</Label>
@@ -1301,12 +1416,14 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                     initialData={{
                       name: feature().name,
                       description: feature().description,
-                      featureType: inferFeatureType(feature().actionKind, feature().levelEffects),
+                      featureType: feature().featureType ?? '',
                       actionKind: feature().actionKind ?? '',
                       type: feature().type ?? '',
                       range: feature().range ?? '',
                       uses: feature().uses ?? 0,
                       maxUses: feature().maxUses ?? 0,
+                      maxUsesMode: feature().maxUsesMode ?? 'flat',
+                      maxUsesPerLevel: feature().maxUsesPerLevel ?? 0,
                       rechargeOn: feature().rechargeOn ?? '',
                       level: feature().level ?? 1,
                       levelEffects: feature().levelEffects ?? [],

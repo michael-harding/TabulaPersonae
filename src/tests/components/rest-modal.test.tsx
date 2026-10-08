@@ -492,42 +492,86 @@ describe("RestModal", () => {
       expect(within(getDialog()).getByText("Wand of Magic Missiles")).toBeInTheDocument()
     })
 
-    it("calls onRest with equipment uses reset to 0 for a short-rest item on short rest confirm", () => {
+    it("calls onRest with equipment charges reset to 0 for a short-rest item on short rest confirm", () => {
       const onRest = vi.fn()
       const char = makeCharacter({
-        equipment: [makeEquipmentItem({ rechargeOn: "short-rest", uses: 2, maxUses: 3 })],
+        equipment: [makeEquipmentItem({ rechargeOn: "short-rest", charges: 2, maxUses: 3 })],
       })
       openModal(char, onRest)
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
-      expect(updated.equipment![0].uses).toBe(0)
+      expect(updated.equipment![0].charges).toBe(0)
     })
 
-    it("calls onRest with equipment uses reset to 0 for both short-rest and long-rest items on long rest confirm", () => {
+    it("calls onRest with equipment charges reset to 0 for both short-rest and long-rest items on long rest confirm", () => {
       const onRest = vi.fn()
       const char = makeCharacter({
         equipment: [
-          makeEquipmentItem({ id: "e1", name: "Wand", rechargeOn: "short-rest", uses: 1, maxUses: 2 }),
-          makeEquipmentItem({ id: "e2", name: "Staff", rechargeOn: "long-rest", uses: 1, maxUses: 1 }),
+          makeEquipmentItem({ id: "e1", name: "Wand", rechargeOn: "short-rest", charges: 1, maxUses: 2 }),
+          makeEquipmentItem({ id: "e2", name: "Staff", rechargeOn: "long-rest", charges: 1, maxUses: 1 }),
         ],
       })
       openModal(char, onRest)
       fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /long rest/i }))
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
-      expect(updated.equipment![0].uses).toBe(0)
-      expect(updated.equipment![1].uses).toBe(0)
+      expect(updated.equipment![0].charges).toBe(0)
+      expect(updated.equipment![1].charges).toBe(0)
     })
 
-    it("does not reset a long-rest equipment item's uses when only a short rest is taken", () => {
+    it("does not reset a long-rest equipment item's charges when only a short rest is taken", () => {
       const onRest = vi.fn()
       const char = makeCharacter({
-        equipment: [makeEquipmentItem({ rechargeOn: "long-rest", uses: 2, maxUses: 3 })],
+        equipment: [makeEquipmentItem({ rechargeOn: "long-rest", charges: 2, maxUses: 3 })],
       })
       openModal(char, onRest)
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
-      expect(updated.equipment![0].uses).toBe(2)
+      expect(updated.equipment![0].charges).toBe(2)
+    })
+
+    it("decrements quantity and zeroes consumedUses for a consumable item on rest, instead of hard-resetting charges", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ type: "consumable", quantity: 5, rechargeOn: "short-rest", consumedUses: 2 })],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.equipment![0].quantity).toBe(3)
+      expect(updated.equipment![0].consumedUses).toBe(0)
+    })
+
+    it("shows the quantity delta instead of a rest-type label for a consumable with spent consumedUses", () => {
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ type: "consumable", quantity: 5, rechargeOn: "short-rest", consumedUses: 2 })],
+      })
+      openModal(char)
+      expect(within(getDialog()).getByText("-2 qty")).toBeInTheDocument()
+    })
+
+    it("does not reduce quantity below 0 when consumedUses exceeds quantity", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ type: "consumable", quantity: 1, rechargeOn: "short-rest", consumedUses: 3 })],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.equipment![0].quantity).toBe(0)
+      expect(updated.equipment![0].consumedUses).toBe(0)
+    })
+
+    it("decrements quantity and zeroes consumedUses for a consumable item on rest even with no rechargeOn set", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        equipment: [makeEquipmentItem({ type: "consumable", quantity: 5, rechargeOn: undefined, consumedUses: 2 })],
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.equipment![0].quantity).toBe(3)
+      expect(updated.equipment![0].consumedUses).toBe(0)
     })
   })
 
