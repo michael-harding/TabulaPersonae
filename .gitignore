@@ -20,9 +20,6 @@ yarn-error.log*
 # env files
 .env*
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -31,3 +28,6 @@ next-env.d.ts
 # test output
 playwright-report/
 test-results/
+
+# Notes
+.Notes.*
