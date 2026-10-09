@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { useReadOnly } from "@/lib/read-only-context"
+import { TOUCH_TARGET_BOX } from "@/lib/utils"
 
 interface CharacterBasicInfoModuleProps {
   character: Character
@@ -85,6 +86,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
           <div class="flex items-center gap-3">
             <div class="flex items-center gap-2">
               <Label for="heroic-inspiration-toggle" class="text-xs font-medium">{inspirationLabel()}</Label>
+              <label class={TOUCH_TARGET_BOX}>
               <input
                 id="heroic-inspiration-toggle"
                 type="checkbox"
@@ -93,6 +95,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
                 class="accent-primary h-4 w-4"
                 style={{ "accent-color": "#eab308" }}
               />
+              </label>
             </div>
           </div>
         </Show>

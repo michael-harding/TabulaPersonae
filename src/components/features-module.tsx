@@ -9,7 +9,6 @@ import Pencil from "lucide-solid/icons/pencil"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
 import Layers from "lucide-solid/icons/layers"
-import X from "lucide-solid/icons/x"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
@@ -18,6 +17,7 @@ import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
+import { ChipButton } from "@/components/ui/chip-button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -277,15 +277,12 @@ function ClosedListEditor(props: {
     <div class="space-y-1">
       <Label class="text-xs">{props.label}</Label>
       <Show when={props.values.length > 0}>
-        <div class="flex flex-wrap gap-2 mb-2">
+        <div class="flex flex-wrap gap-x-2 mb-2">
           <For each={props.values}>
             {(v) => (
-              <Badge variant="secondary" class="gap-1.5 pr-1">
+              <ChipButton data-test={`${props.testKey}-remove-${v}`} action="remove" aria-label={`Remove ${v}`} onClick={() => remove(v)}>
                 {v}
-                <ConfirmButton data-test={`${props.testKey}-remove-${v}`} verb="Remove" subject={v} variant="ghost" class="h-auto w-auto min-h-0 p-0 hover:bg-transparent" onConfirm={() => remove(v)}>
-                  <X class="h-3 w-3" aria-hidden="true" />
-                </ConfirmButton>
-              </Badge>
+              </ChipButton>
             )}
           </For>
         </div>
@@ -424,12 +421,20 @@ function LevelEffectRow(props: {
         <div class="space-y-1">
           <Label class="text-xs">Skill Proficiencies</Label>
           <Show when={(effects().skillProficiencies ?? []).length > 0}>
-            <div class="flex flex-wrap gap-2 mb-2">
+            <div class="flex flex-wrap gap-x-3 mb-2">
               <For each={effects().skillProficiencies ?? []}>
                 {(grant) => (
-                  <Badge variant="secondary" class="gap-1.5 pr-1">
-                    {SKILL_DISPLAY_NAMES[grant.skill]}
-                    <label class="flex items-center gap-1 text-xs font-normal cursor-pointer">
+                  // The chip removes the grant; Expertise is its own 44px control beside it.
+                  <div class="inline-flex items-center">
+                    <ChipButton
+                      data-test={`level-effect-${props.index}-skill-${grant.skill}-remove`}
+                      action="remove"
+                      aria-label={`Remove ${SKILL_DISPLAY_NAMES[grant.skill]}`}
+                      onClick={() => removeSkill(grant.skill)}
+                    >
+                      {SKILL_DISPLAY_NAMES[grant.skill]}
+                    </ChipButton>
+                    <label class={cn(TOUCH_TARGET_BOX, "gap-1 pr-1 text-xs font-normal cursor-pointer")}>
                       <input
                         type="checkbox"
                         data-test={`level-effect-${props.index}-skill-${grant.skill}-expertise`}
@@ -438,17 +443,7 @@ function LevelEffectRow(props: {
                       />
                       Exp
                     </label>
-                    <ConfirmButton
-                      data-test={`level-effect-${props.index}-skill-${grant.skill}-remove`}
-                      verb="Remove"
-                      subject={SKILL_DISPLAY_NAMES[grant.skill]}
-                      variant="ghost"
-                      class="h-auto w-auto min-h-0 p-0 hover:bg-transparent"
-                      onConfirm={() => removeSkill(grant.skill)}
-                    >
-                      <X class="h-3 w-3" aria-hidden="true" />
-                    </ConfirmButton>
-                  </Badge>
+                  </div>
                 )}
               </For>
             </div>

@@ -16,6 +16,8 @@ import { testCharacter } from "../visual/fixtures"
 const INTERACTIVE = [
   "button", "a[href]", "input:not([type=hidden])", "select", "textarea", "summary",
   "[role=button]", "[role=tab]", "[role=checkbox]", "[role=switch]", "[role=combobox]",
+  // Kobalte's Checkbox keeps its real <input> visually hidden; the clickable thing is the root.
+  "[data-sem=checkbox]",
 ].join(",")
 
 interface Violation { kind: "stolen" | "undersized"; element: string; other?: string }
@@ -42,7 +44,8 @@ async function auditTouchTargets(page: Page): Promise<Violation[]> {
       if (style.visibility === "hidden" || style.display === "none" || el.classList.contains("sr-only")) continue
       el.scrollIntoView({ block: "center", inline: "center" })
       const r = el.getBoundingClientRect()
-      if (r.width < 1 || r.height < 1) continue
+      // ≤1px boxes are visually-hidden inputs whose visible control is audited instead.
+      if (r.width <= 1 || r.height <= 1) continue
       const cx = r.left + r.width / 2
       const cy = r.top + r.height / 2
 

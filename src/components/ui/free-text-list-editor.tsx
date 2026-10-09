@@ -1,9 +1,7 @@
 import { createSignal, For, Show } from "solid-js"
-import X from "lucide-solid/icons/x"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ConfirmButton } from "@/components/ui/confirm-button"
+import { ChipButton } from "@/components/ui/chip-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -30,15 +28,12 @@ export function FreeTextListEditor(props: {
     <div class="space-y-1" data-sem="free-text-list-editor">
       <Label class="text-xs">{props.label}</Label>
       <Show when={props.values.length > 0}>
-        <div class="flex flex-wrap gap-2 mb-2">
+        <div class="flex flex-wrap gap-x-2 mb-2">
           <For each={props.values}>
             {(v) => (
-              <Badge variant="secondary" class="gap-1.5 pr-1">
+              <ChipButton data-test={`${props["data-test"]}-remove-${v}`} action="remove" aria-label={`Remove ${v}`} onClick={() => remove(v)}>
                 {v}
-                <ConfirmButton data-test={`${props["data-test"]}-remove-${v}`} verb="Remove" subject={v} variant="ghost" class="h-auto w-auto min-h-0 p-0 hover:bg-transparent" onConfirm={() => remove(v)}>
-                  <X class="h-3 w-3" aria-hidden="true" />
-                </ConfirmButton>
-              </Badge>
+              </ChipButton>
             )}
           </For>
         </div>

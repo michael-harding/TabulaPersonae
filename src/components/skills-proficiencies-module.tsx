@@ -1,14 +1,13 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
 import Plus from "lucide-solid/icons/plus"
-import X from "lucide-solid/icons/x"
 
 import type { Character } from "@/lib/character-types"
 import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
-import { ConfirmButton } from "@/components/ui/confirm-button"
+import { ChipButton } from "@/components/ui/chip-button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -67,19 +66,16 @@ function EditableTagList(props: {
   return (
     <div>
       <h2 class="font-semibold mb-3">{props.label}</h2>
-      <div class="flex flex-wrap gap-2 mb-3">
+      <div class={cn("flex flex-wrap items-center mb-3", props.editing ? "gap-x-2" : "gap-2")}>
         <For each={props.ownValues}>
           {(value) => (
-            <Badge variant="outline" class="gap-1">
-              {value}
-              <Show when={props.editing}>
-                <Tooltip content={`Remove ${props.itemLabel}`}>
-                  <ConfirmButton data-test={`${props.testKey}-remove-${value}`} verb="Remove" subject={props.itemLabel} variant="ghost" size="sm" class="h-auto w-auto min-h-0 p-0 hover:bg-transparent" onConfirm={() => props.onRemove(value)}>
-                    <X class="h-3 w-3" aria-hidden="true" />
-                  </ConfirmButton>
-                </Tooltip>
-              </Show>
-            </Badge>
+            <Show when={props.editing} fallback={<Badge variant="outline">{value}</Badge>}>
+              <Tooltip content={`Remove ${props.itemLabel}`}>
+                <ChipButton data-test={`${props.testKey}-remove-${value}`} action="remove" appearance="outline" aria-label={`Remove ${props.itemLabel} ${value}`} onClick={() => props.onRemove(value)}>
+                  {value}
+                </ChipButton>
+              </Tooltip>
+            </Show>
           )}
         </For>
         <For each={props.grantedValues}>

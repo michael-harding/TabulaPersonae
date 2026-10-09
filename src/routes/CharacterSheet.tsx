@@ -18,6 +18,7 @@ import { RestModal } from "@/components/rest-modal"
 import { HeaderMenu } from "@/components/header-menu"
 import { StatsBar } from "@/components/stats-bar"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 export default function CharacterSheet() {
   const params = useParams()
@@ -194,7 +195,7 @@ export default function CharacterSheet() {
                       type="button"
                       aria-label="Configure tabs"
                       onClick={() => navigate('/settings/tabs')}
-                      class="px-3 py-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      class={cn(TOUCH_TARGET_BOX, "text-muted-foreground hover:text-foreground transition-colors")}
                       data-test="configure-tabs-button"
                     >
                       <Settings class="h-4 w-4" aria-hidden="true" />

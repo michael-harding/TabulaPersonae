@@ -24,6 +24,7 @@ import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
+import { ChipButton } from "@/components/ui/chip-button"
 import { Input } from "@/components/ui/input"
 
 // Tell TypeScript about the `use:sortable` directive
@@ -241,18 +242,17 @@ function SortableTabRow(props: SortableTabRowProps) {
             <Show when={availableModules().length > 0}>
               <div class="space-y-2">
                 <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Add Module</p>
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-wrap gap-x-2">
                   <For each={availableModules()}>
                     {(moduleId) => (
-                      <button
-                        type="button"
-                        onClick={() => props.onAddModule(moduleId)}
-                        class="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-accent transition-colors"
+                      <ChipButton
                         data-test={`add-module-${props.tab.id}-${moduleId}`}
+                        action="add"
+                        appearance="square"
+                        onClick={() => props.onAddModule(moduleId)}
                       >
-                        <Plus class="h-3 w-3" aria-hidden="true" />
                         {MODULE_REGISTRY[moduleId].label}
-                      </button>
+                      </ChipButton>
                     )}
                   </For>
                 </div>

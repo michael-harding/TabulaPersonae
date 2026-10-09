@@ -32,7 +32,8 @@ export default function Layout(props: ParentProps) {
           href="https://github.com/michael-harding/TabulaPersonae"
           target="_blank"
           rel="noopener noreferrer"
-          class="underline-offset-4 hover:underline"
+          // 44px-tall hit area; the negative margin keeps the footer's height unchanged.
+          class="-my-3 inline-flex min-h-11 items-center underline-offset-4 hover:underline"
         >
           Source on GitHub
         </a>
