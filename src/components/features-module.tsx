@@ -1357,6 +1357,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                       max={maxUses}
                                       onChange={(v) => handleFeatureUsesChange(section.field, feature.id, spentFromRemaining(v, maxUses))}
                                       readOnly={isReadOnly}
+                                      aria-label={`${feature.name} uses remaining`}
                                     />
                                   }
                                 >
@@ -1384,6 +1385,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                     max={props.character.level ?? 1}
                                     onChange={handleSpentHitDiceChange}
                                     readOnly={isReadOnly}
+                                    aria-label="Spent hit dice"
                                   />
                                 }
                               >

@@ -1,4 +1,8 @@
 import { test, expect } from "@playwright/test"
+// Scoped to WCAG 2.1 A/AA tags, matching ACCESSIBILITY.md's stated target conformance level —
+// excludes axe's "best-practice" extras (e.g. the no-WCAG-tag "region" rule flagging
+// Kobalte portal content rendered outside <main>) that aren't part of that target.
+import AxeBuilder from "@axe-core/playwright"
 import { testCharacter, secondCharacter } from "./fixtures"
 
 test.describe("Home page", () => {
@@ -10,6 +14,8 @@ test.describe("Home page", () => {
     await page.goto("/")
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("home-empty.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("with characters", async ({ page }) => {
@@ -21,6 +27,8 @@ test.describe("Home page", () => {
     await page.goto("/")
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("home-with-characters.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -29,6 +37,8 @@ test.describe("Auth page", () => {
     await page.goto("/auth")
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("auth.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -41,6 +51,8 @@ test.describe("Character sheet page", () => {
     await page.goto(`/character/${testCharacter.id}`)
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("character-sheet.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("unconscious character with death saves", async ({ page }) => {
@@ -51,6 +63,8 @@ test.describe("Character sheet page", () => {
     await page.goto(`/character/${secondCharacter.id}`)
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("character-sheet-death-saves.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -70,30 +84,40 @@ test.describe("Character sheet tabs", () => {
   test("combat tab — actions expanded", async ({ page }) => {
     await page.getByRole("tab", { name: "Combat" }).click()
     await expect(page).toHaveScreenshot("character-sheet-tab-combat.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("spells tab", async ({ page }) => {
     await page.getByRole("tab", { name: "Spells" }).click()
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("character-sheet-tab-spells.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("features tab", async ({ page }) => {
     await page.getByRole("tab", { name: "Features" }).click()
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("character-sheet-tab-features.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("inventory tab", async ({ page }) => {
     await page.getByRole("tab", { name: "Inventory" }).click()
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("character-sheet-tab-inventory.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("character tab", async ({ page }) => {
     await page.getByRole("tab", { name: "Character" }).click()
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("character-sheet-tab-character.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -108,6 +132,8 @@ test.describe("Tab Settings page", () => {
     await page.goto("/settings/tabs")
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("tab-settings-default.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("add tab form", async ({ page }) => {
@@ -115,6 +141,8 @@ test.describe("Tab Settings page", () => {
     await page.waitForLoadState("networkidle")
     await page.getByRole("button", { name: /add tab/i }).click()
     await expect(page).toHaveScreenshot("tab-settings-add-tab-form.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -123,6 +151,8 @@ test.describe("418 page", () => {
     await page.goto("/418")
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("418.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -131,5 +161,7 @@ test.describe("404 page", () => {
     await page.goto("/nonexistent-route-xyz")
     await page.waitForLoadState("networkidle")
     await expect(page).toHaveScreenshot("not-found.png", { fullPage: true })
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })

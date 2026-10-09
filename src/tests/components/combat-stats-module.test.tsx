@@ -3,9 +3,10 @@ import userEvent from "@testing-library/user-event"
 import { render, screen, fireEvent, waitFor, cleanupPortals, within } from "../test-utils"
 import { CombatStatsModule } from "@/components/combat-stats-module"
 import { createDefaultCharacter } from "@/lib/character-types"
+import type { Character, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-function makeCharacter(overrides: Record<string, any> = {}) {
+function makeCharacter(overrides: Partial<Character> = {}) {
   return {
     ...createDefaultCharacter(),
     hitPoints: { current: 10, maximum: 20, temporary: 0 },
@@ -18,7 +19,7 @@ function makeCharacter(overrides: Record<string, any> = {}) {
   }
 }
 
-function makeMagicItem(overrides: Record<string, any> = {}) {
+function makeMagicItem(overrides: Partial<Equipment> = {}) {
   return {
     id: "item-1",
     name: "Test Item",
@@ -1309,7 +1310,7 @@ describe("CombatStatsModule", () => {
   })
 
   describe("readOnly mode", () => {
-    function renderReadOnly(overrides: Record<string, any> = {}) {
+    function renderReadOnly(overrides: Partial<Character> = {}) {
       return render(
         <ReadOnlyProvider value={true}>
           <CombatStatsModule character={makeCharacter(overrides)} onUpdate={vi.fn()} />

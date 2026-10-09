@@ -1,3 +1,4 @@
+import { axe } from "vitest-axe"
 import { render, screen, fireEvent, waitFor, cleanupPortals } from "../../test-utils"
 import { CalculatedValueSelect } from "@/components/ui/calculated-value-select"
 
@@ -125,6 +126,14 @@ describe("CalculatedValueSelect", () => {
       fireEvent.focus(input)
       fireEvent.click(screen.getByText("Small"))
       expect(onValueChange).toHaveBeenCalledWith("Small")
+    })
+  })
+
+  describe("accessibility", () => {
+    it("has no accessibility violations", async () => {
+      const { container } = render(<CalculatedValueSelect {...baseProps({ editable: true })} />)
+      const results = await axe(container)
+      expect(results.violations).toHaveLength(0)
     })
   })
 })

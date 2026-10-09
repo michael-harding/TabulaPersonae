@@ -12,6 +12,7 @@ vi.mock("@/lib/pdf-parser", () => ({
   mergeWithDefault: vi.fn(),
 }))
 
+import { axe } from "vitest-axe"
 import { cleanup, render, screen, waitFor } from "../test-utils"
 import { createDefaultCharacter } from "@/lib/character-types"
 import Home from "@/routes/Home"
@@ -65,5 +66,14 @@ describe("Home character list", () => {
     }
     await renderAndLoad([character])
     expect(screen.getByText("HP: 10/15")).toBeInTheDocument()
+  })
+})
+
+describe("Home page — accessibility", () => {
+  it("has no accessibility violations", async () => {
+    const { container } = render(<Home />)
+    await waitFor(() => expect(screen.getByText(/TabulaPersonae/i)).toBeInTheDocument())
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })

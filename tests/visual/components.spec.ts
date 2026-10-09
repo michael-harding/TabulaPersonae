@@ -1,4 +1,8 @@
 import { test, expect } from "@playwright/test"
+// Scoped to WCAG 2.1 A/AA tags, matching ACCESSIBILITY.md's stated target conformance level —
+// excludes axe's "best-practice" extras (e.g. the no-WCAG-tag "region" rule flagging
+// Kobalte portal content rendered outside <main>) that aren't part of that target.
+import AxeBuilder from "@axe-core/playwright"
 import { testCharacter, secondCharacter, publicCharacter } from "./fixtures"
 
 // All component screenshots are taken by navigating to the full character sheet
@@ -15,6 +19,8 @@ test.describe("CombatStatsModule component", () => {
 
     const card = page.locator("text=Combat Stats").locator("..").locator("..")
     await expect(card).toHaveScreenshot("combat-stats-normal-hp.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("death saves visible at 0 HP", async ({ page }) => {
@@ -27,6 +33,8 @@ test.describe("CombatStatsModule component", () => {
 
     const card = page.locator("text=Combat Stats").locator("..").locator("..")
     await expect(card).toHaveScreenshot("combat-stats-death-saves.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("edit mode", async ({ page }) => {
@@ -40,6 +48,8 @@ test.describe("CombatStatsModule component", () => {
     const card = page.locator('[data-test="combat-stats-module"]')
     await card.getByRole("button", { name: "Edit", exact: true }).click()
     await expect(card).toHaveScreenshot("combat-stats-edit.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -54,6 +64,8 @@ test.describe("AbilityScoresModule component", () => {
 
     const card = page.locator("text=Ability Scores").locator("..").locator("..")
     await expect(card).toHaveScreenshot("ability-scores-view.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("edit mode", async ({ page }) => {
@@ -68,6 +80,8 @@ test.describe("AbilityScoresModule component", () => {
     await page.getByRole("button", { name: "Edit", exact: true }).first().click()
     const card = page.locator("text=Ability Scores").locator("..").locator("..")
     await expect(card).toHaveScreenshot("ability-scores-edit.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -86,6 +100,8 @@ test.describe("HpProgressBar component", () => {
 
     const bar = page.locator(".sticky.top-0")
     await expect(bar).toHaveScreenshot("hp-bar-full.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("half HP", async ({ page }) => {
@@ -102,6 +118,8 @@ test.describe("HpProgressBar component", () => {
 
     const bar = page.locator(".sticky.top-0")
     await expect(bar).toHaveScreenshot("hp-bar-half.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("0 HP", async ({ page }) => {
@@ -114,6 +132,8 @@ test.describe("HpProgressBar component", () => {
 
     const bar = page.locator(".sticky.top-0")
     await expect(bar).toHaveScreenshot("hp-bar-zero.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -128,6 +148,8 @@ test.describe("SkillsProficienciesModule component", () => {
 
     const card = page.locator("text=Skills & Proficiencies").locator("..").locator("..")
     await expect(card).toHaveScreenshot("skills-with-proficiencies.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("edit mode", async ({ page }) => {
@@ -141,6 +163,8 @@ test.describe("SkillsProficienciesModule component", () => {
     const card = page.locator('[data-test="skills-proficiencies-module"]')
     await card.getByRole("button", { name: "Edit", exact: true }).click()
     await expect(card).toHaveScreenshot("skills-proficiencies-edit.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -158,6 +182,8 @@ test.describe("CharacterNotesModule component", () => {
 
     const card = page.locator("text=Character Background").locator("..").locator("..")
     await expect(card).toHaveScreenshot("character-notes-populated.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("empty notes", async ({ page }) => {
@@ -183,6 +209,8 @@ test.describe("CharacterNotesModule component", () => {
 
     const card = page.locator("text=Character Background").locator("..").locator("..")
     await expect(card).toHaveScreenshot("character-notes-empty.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("edit mode", async ({ page }) => {
@@ -199,6 +227,8 @@ test.describe("CharacterNotesModule component", () => {
     const card = page.locator('[data-test="character-notes-module"]')
     await card.getByRole("button", { name: "Edit", exact: true }).click()
     await expect(card).toHaveScreenshot("character-notes-edit.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -216,6 +246,8 @@ test.describe("CharacterBasicInfoModule component", () => {
 
     const card = page.locator('[data-test="character-basic-info-module"]')
     await expect(card).toHaveScreenshot("character-basic-info-view.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("edit mode", async ({ page }) => {
@@ -232,6 +264,8 @@ test.describe("CharacterBasicInfoModule component", () => {
     const card = page.locator('[data-test="character-basic-info-module"]')
     await card.getByRole("button", { name: "Edit", exact: true }).click()
     await expect(card).toHaveScreenshot("character-basic-info-edit.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })
 
@@ -249,6 +283,8 @@ test.describe("ActionCard uses tracker — interactive vs read-only", () => {
     await page.waitForLoadState("networkidle")
     const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Speak with Animals" })
     await expect(card).toHaveScreenshot("action-card-pip-tracker-interactive.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("pip tracker — read-only (public share page)", async ({ page }) => {
@@ -261,6 +297,8 @@ test.describe("ActionCard uses tracker — interactive vs read-only", () => {
     await page.waitForLoadState("networkidle")
     const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Dark One's Blessing" })
     await expect(card).toHaveScreenshot("action-card-pip-tracker-readonly.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 
   test("stepper — read-only (public share page)", async ({ page }) => {
@@ -273,5 +311,7 @@ test.describe("ActionCard uses tracker — interactive vs read-only", () => {
     await page.waitForLoadState("networkidle")
     const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Fiendish Resilience" })
     await expect(card).toHaveScreenshot("action-card-stepper-readonly.png")
+    const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+    expect(axeResults.violations).toEqual([])
   })
 })

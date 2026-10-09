@@ -54,66 +54,9 @@ afterEach(() => {
   cleanupPortals()
 })
 
-// ─── TermsOfUse page ────────────────────────────────────────────────────────
-
-describe("TermsOfUse page", () => {
-  it("renders the page heading", async () => {
-    const { default: TermsOfUse } = await import("@/routes/TermsOfUse")
-    render(<TermsOfUse />)
-    expect(screen.getByRole("heading", { name: /terms of use/i })).toBeInTheDocument()
-  })
-
-  it("shows an effective date", async () => {
-    const { default: TermsOfUse } = await import("@/routes/TermsOfUse")
-    render(<TermsOfUse />)
-    expect(screen.getByText(/effective date: may/i)).toBeInTheDocument()
-  })
-
-  it("renders a back link pointing to /auth", async () => {
-    const { default: TermsOfUse } = await import("@/routes/TermsOfUse")
-    render(<TermsOfUse />)
-    const back = screen.getByRole("link", { name: /back/i })
-    expect(back).toHaveAttribute("href", "/auth")
-  })
-
-  it("renders key section headings", async () => {
-    const { default: TermsOfUse } = await import("@/routes/TermsOfUse")
-    render(<TermsOfUse />)
-    expect(screen.getByRole("heading", { name: /use of the app/i })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: /^2\. accounts/i })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: /prohibited conduct/i })).toBeInTheDocument()
-  })
-})
-
-// ─── PrivacyPolicy page ──────────────────────────────────────────────────────
-
-describe("PrivacyPolicy page", () => {
-  it("renders the page heading", async () => {
-    const { default: PrivacyPolicy } = await import("@/routes/PrivacyPolicy")
-    render(<PrivacyPolicy />)
-    expect(screen.getByRole("heading", { name: /privacy policy/i })).toBeInTheDocument()
-  })
-
-  it("shows an effective date", async () => {
-    const { default: PrivacyPolicy } = await import("@/routes/PrivacyPolicy")
-    render(<PrivacyPolicy />)
-    expect(screen.getByText(/effective date: may/i)).toBeInTheDocument()
-  })
-
-  it("renders a back link pointing to /auth", async () => {
-    const { default: PrivacyPolicy } = await import("@/routes/PrivacyPolicy")
-    render(<PrivacyPolicy />)
-    const back = screen.getByRole("link", { name: /back/i })
-    expect(back).toHaveAttribute("href", "/auth")
-  })
-
-  it("renders key section headings", async () => {
-    const { default: PrivacyPolicy } = await import("@/routes/PrivacyPolicy")
-    render(<PrivacyPolicy />)
-    expect(screen.getByRole("heading", { name: /without an account/i })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: /information collected/i })).toBeInTheDocument()
-  })
-})
+// TermsOfUse and PrivacyPolicy pages have their own dedicated test files
+// (src/tests/routes/terms-of-use.test.tsx, privacy-policy.test.tsx) — see those
+// for heading/content/back-link/accessibility coverage.
 
 // ─── Auth page — sign-up legal notice ────────────────────────────────────────
 

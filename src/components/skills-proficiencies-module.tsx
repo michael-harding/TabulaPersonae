@@ -397,7 +397,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                   return formula
                 }
                 return (
-                  <div class="break-inside-avoid flex items-center justify-between p-1 rounded hover:bg-gray-500 [&:nth-child(3n)]:mb-3">
+                  <div class="break-inside-avoid flex items-center justify-between p-1 rounded hover:bg-foreground/5 [&:nth-child(3n)]:mb-3">
                     <div class="flex items-center gap-3 w-full transition-colors duration-150">
                       <Show when={isEditing()}>
                         <div class="flex gap-1">

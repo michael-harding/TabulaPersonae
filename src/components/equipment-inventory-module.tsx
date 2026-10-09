@@ -420,6 +420,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                                 max={effectiveEquipmentMaxUses(item)}
                                 onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
                                 readOnly={isReadOnly}
+                                aria-label={`${item.name} uses remaining`}
                               />
                             }
                           >
@@ -634,6 +635,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             max={effectiveEquipmentMaxUses(item)}
                             onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
                             readOnly={isReadOnly}
+                            aria-label={`${item.name} uses remaining`}
                           />
                         }
                       >

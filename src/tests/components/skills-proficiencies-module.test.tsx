@@ -3,8 +3,9 @@ import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../t
 import { SkillsProficienciesModule } from "@/components/skills-proficiencies-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { getSkillModifier, getSavingThrowModifier, formatModifier } from "@/lib/character-utils"
+import type { Character, Equipment, Feature } from "@/lib/character-types"
 
-function makeCharacter(overrides: Record<string, any> = {}) {
+function makeCharacter(overrides: Partial<Character> = {}) {
   const base = createDefaultCharacter()
   return {
     ...base,
@@ -37,7 +38,7 @@ function makeCharacter(overrides: Record<string, any> = {}) {
   }
 }
 
-function makeMagicItem(overrides: Record<string, any> = {}) {
+function makeMagicItem(overrides: Partial<Equipment> = {}) {
   return {
     id: "item-1",
     name: "Test Item",
@@ -579,7 +580,7 @@ describe("SkillsProficienciesModule", () => {
   describe("calculated passive values", () => {
     beforeEach(() => cleanupPortals())
 
-    function makeDistinctPassivesCharacter(overrides: Record<string, any> = {}) {
+    function makeDistinctPassivesCharacter(overrides: Partial<Character> = {}) {
       return makeCharacter({
         abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14, intelligence: 16 },
         skills: {
@@ -958,7 +959,7 @@ describe("SkillsProficienciesModule", () => {
   })
 
   describe("feature-granted saving throw and skill proficiencies", () => {
-    function makeFeature(overrides: Record<string, any> = {}) {
+    function makeFeature(overrides: Partial<Feature> = {}) {
       return {
         id: "feature-1",
         name: "Divine Sense",

@@ -194,6 +194,7 @@ function SortableTabRow(props: SortableTabRowProps) {
             <CollapsibleTrigger
               class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
               data-test={`tab-toggle-${props.tab.id}`}
+              aria-label={props.expanded ? "Collapse tab" : "Expand tab"}
             >
               <ChevronDown
                 class={cn("h-4 w-4 transition-transform duration-200", props.expanded && "rotate-180")}

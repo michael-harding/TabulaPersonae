@@ -36,9 +36,10 @@ export function CalculatedValue(props: CalculatedValueProps) {
   return (
     <div
       data-sem="calculated-value"
+      data-test="calculated-value"
       class={`flex ${left() ? "flex-row items-center" : "flex-col items-center"} gap-1 ${props.class ?? ""}`}
     >
-      <span class={`inline-flex items-center gap-1 ${props.labelClass ?? "text-sm text-muted-foreground"}`}>
+      <span data-test="calculated-value-label" class={`inline-flex items-center gap-1 ${props.labelClass ?? "text-sm text-muted-foreground"}`}>
         <Show when={props.icon}>{props.icon}</Show>
         {props.label}
       </span>
@@ -48,6 +49,7 @@ export function CalculatedValue(props: CalculatedValueProps) {
           fallback={
             <Tooltip content={tooltipContent()} triggerFocusable>
               <div
+                data-test="calculated-value-display"
                 class={
                   compact()
                     ? "text-sm font-semibold text-primary"

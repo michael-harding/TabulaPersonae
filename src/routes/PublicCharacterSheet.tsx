@@ -73,7 +73,7 @@ export default function PublicCharacterSheet() {
           <div data-sem="public-character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
             <div class="text-center space-y-2">
               <Scroll class="h-12 w-12 mx-auto text-muted-foreground" />
-              <p class="text-lg font-semibold">Character not found or not shared publicly.</p>
+              <h1 class="text-lg font-semibold">Character not found or not shared publicly.</h1>
               <A href="/" class="text-sm text-primary underline underline-offset-2" data-test="go-to-app-link">Go to TabulaPersonae</A>
             </div>
           </div>

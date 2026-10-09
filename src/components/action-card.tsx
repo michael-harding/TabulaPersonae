@@ -302,6 +302,7 @@ export function ActionCard(props: ActionCardProps) {
                   max={props.maxUses}
                   onChange={(v) => props.onUsesChange!(spentFromRemaining(v, props.maxUses))}
                   readOnly={isReadOnly}
+                  aria-label={`${props.name} uses remaining`}
                 />
               }
             >

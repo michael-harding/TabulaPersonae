@@ -2,8 +2,9 @@ import { axe } from "vitest-axe"
 import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 import { AbilityScoresModule } from "@/components/ability-scores-module"
 import { createDefaultCharacter } from "@/lib/character-types"
+import type { Character, Equipment } from "@/lib/character-types"
 
-function makeCharacter(overrides: Record<string, any> = {}) {
+function makeCharacter(overrides: Partial<Character> = {}) {
   return {
     ...createDefaultCharacter(),
     abilityScores: {
@@ -27,7 +28,7 @@ function makeCharacter(overrides: Record<string, any> = {}) {
   }
 }
 
-function makeMagicItem(overrides: Record<string, any> = {}) {
+function makeMagicItem(overrides: Partial<Equipment> = {}) {
   return {
     id: "item-1",
     name: "Test Item",

@@ -1,4 +1,8 @@
 import { test, expect } from "@playwright/test"
+// Scoped to WCAG 2.1 A/AA tags, matching ACCESSIBILITY.md's stated target conformance level —
+// excludes axe's "best-practice" extras (e.g. the no-WCAG-tag "region" rule flagging
+// Kobalte portal content rendered outside <main>) that aren't part of that target.
+import AxeBuilder from "@axe-core/playwright"
 import { testCharacter } from "./fixtures"
 
 // next-themes persists the chosen theme in localStorage under the key "theme".
@@ -22,18 +26,24 @@ for (const theme of ["light", "dark"] as const) {
       await page.goto("/")
       await page.waitForLoadState("networkidle")
       await expect(page).toHaveScreenshot(`home-${theme}.png`, { fullPage: true })
+      const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+      expect(axeResults.violations).toEqual([])
     })
 
     test(`character sheet — ${theme}`, async ({ page }) => {
       await page.goto(`/character/${testCharacter.id}`)
       await page.waitForLoadState("networkidle")
       await expect(page).toHaveScreenshot(`character-sheet-${theme}.png`, { fullPage: true })
+      const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+      expect(axeResults.violations).toEqual([])
     })
 
     test(`tab settings — ${theme}`, async ({ page }) => {
       await page.goto("/settings/tabs")
       await page.waitForLoadState("networkidle")
       await expect(page).toHaveScreenshot(`tab-settings-${theme}.png`, { fullPage: true })
+      const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
+      expect(axeResults.violations).toEqual([])
     })
   })
 }

@@ -194,6 +194,7 @@ export function RestModal(props: RestModalProps) {
                       min={0}
                       max={availableHitDice()}
                       onChange={setDicesToSpend}
+                      aria-label="Hit dice to spend"
                     />
                   }
                 >

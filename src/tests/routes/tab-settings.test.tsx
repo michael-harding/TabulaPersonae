@@ -34,6 +34,7 @@ vi.mock("@/lib/tab-config-context", () => ({
   TabConfigProvider: ({ children }: any) => children,
 }))
 
+import { axe } from "vitest-axe"
 import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
 import TabSettings from "@/routes/TabSettings"
 
@@ -211,5 +212,13 @@ describe("TabSettings page", () => {
     expect(deleteButton).toBeDisabled()
     fireEvent.click(deleteButton)
     expect(mockSaveTabConfig).not.toHaveBeenCalled()
+  })
+})
+
+describe("TabSettings page — accessibility", () => {
+  it("has no accessibility violations", async () => {
+    const { container } = render(<TabSettings />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
   })
 })
