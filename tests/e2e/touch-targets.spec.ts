@@ -8,7 +8,10 @@ import { testCharacter } from "../visual/fixtures"
 //   "stolen"     — a point inside an element's own visible box resolves to a *different*
 //                  interactive element: a neighbour's extended hit area sits on top of it, so a
 //                  click on what the user sees lands on something else. Always a failure.
-//   "undersized" — a point inside the 44×44 square centred on the element doesn't resolve to it.
+//   "undersized" — a point on the 44px-diameter circle centred on the element doesn't resolve to
+//                  it. A circle (as WCAG 2.5.8 measures targets) rather than a square, because
+//                  browsers don't hit-test the clipped corners of rounded controls — a 44×44
+//                  rounded button or 44px round swatch is a full-size target.
 //                  Reported as a test annotation, not a failure: many pre-existing controls
 //                  (tab triggers, text inputs, checkboxes, links) are below 44px and are tracked
 //                  separately from this overlap check.
@@ -45,6 +48,8 @@ async function auditTouchTargets(page: Page): Promise<Violation[]> {
     for (const el of Array.from(document.querySelectorAll(selector))) {
       // Visually-hidden native inputs (e.g. inside a styled <label>) delegate to their label.
       if (el.closest("[aria-hidden=true], [inert]")) continue
+      // Disabled controls aren't targets (and have pointer-events: none), so there's nothing to hit.
+      if ((el as HTMLButtonElement).disabled || el.getAttribute("aria-disabled") === "true") continue
       const style = getComputedStyle(el)
       if (style.visibility === "hidden" || style.display === "none" || el.classList.contains("sr-only")) continue
       el.scrollIntoView({ block: "center", inline: "center" })
@@ -72,10 +77,11 @@ async function auditTouchTargets(page: Page): Promise<Violation[]> {
           probe(r.left + 1 + ((r.width - 2) * i) / 4, r.top + 1 + ((r.height - 2) * j) / 4, "stolen")
         }
       }
-      // 2. Perimeter of the 44×44 square centred on the element's effective target (inset 1px).
-      const h = TARGET / 2 - 1
-      for (const [dx, dy] of [[-h, -h], [0, -h], [h, -h], [-h, 0], [h, 0], [-h, h], [0, h], [h, h]]) {
-        probe(cx + dx, cy + dy, "undersized")
+      // 2. Eight points on the 44px-diameter circle centred on the effective target (inset 1px).
+      const radius = TARGET / 2 - 1
+      for (let k = 0; k < 8; k++) {
+        const angle = (k * Math.PI) / 4
+        probe(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle), "undersized")
       }
     }
     return violations

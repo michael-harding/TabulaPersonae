@@ -128,8 +128,10 @@ export function Combobox(props: ComboboxProps) {
 
   return (
     <div data-sem="combobox" ref={containerRef} class={cn("relative", props.class)}>
+      {/* The input and chevron overhang the 1px top/bottom border (-my-px) so each is a full 44px
+          tall hit target rather than 42px inside the border (ACCESSIBILITY.md touch targets). */}
       <div
-        class="flex h-10 w-full items-center rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+        class="flex h-11 w-full items-center rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
       >
         <input
           ref={inputRef}
@@ -147,14 +149,14 @@ export function Combobox(props: ComboboxProps) {
           onKeyDown={handleKeyDown}
           placeholder={props.placeholder}
           disabled={props.disabled}
-          class="flex-1 h-full bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          class="-my-px h-[calc(100%+2px)] flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
           tabIndex={-1}
           disabled={props.disabled}
           onClick={() => { inputRef.focus(); setOpen(!open()) }}
-          class="px-2 flex items-center text-muted-foreground hover:text-foreground disabled:pointer-events-none"
+          class="-my-px flex h-[calc(100%+2px)] w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground disabled:pointer-events-none"
           aria-label="Toggle options"
         >
           <ChevronDown class="h-4 w-4 opacity-50" />

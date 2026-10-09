@@ -414,7 +414,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                         <div class="flex gap-1">
                           <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
                             <Checkbox
-                              aria-label="Proficient"
+                              aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} proficient`}
                               checked={effectiveSkill().proficient}
                               disabled={effectiveSkill().granted}
                               onChange={() => toggleSkillProf(skillKey)}
@@ -423,7 +423,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           </Tooltip>
                           <Tooltip content={effectiveSkill().expertiseGranted ? `Granted by ${effectiveSkill().grantedBy}` : "Expertise (doubles proficiency bonus)"}>
                             <Checkbox
-                              aria-label="Expertise"
+                              aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} expertise`}
                               checked={effectiveSkill().expertise}
                               disabled={effectiveSkill().expertiseGranted}
                               onChange={() => toggleSkillExp(skillKey)}
@@ -433,13 +433,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                       </Show>
                       <div class="flex-1">
                         <div class="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={!isEditing()}
-                            aria-pressed={isEditing() ? effectiveSkill().proficient : undefined}
-                            class={`font-medium text-left bg-transparent border-0 p-0 ${isEditing() ? "cursor-pointer" : "cursor-default"}`}
-                            onClick={() => isEditing() && toggleSkillProf(skillKey)}
-                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show></span></Show></button>
+                          <span data-test={`skill-name-${skillKey}`} class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show></span></Show></span>
                         </div>
                       </div>
                     </div>

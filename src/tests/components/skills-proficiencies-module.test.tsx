@@ -241,10 +241,18 @@ describe("SkillsProficienciesModule", () => {
   })
 
   describe("edit mode — skill proficiency/expertise", () => {
-    // In edit mode, checkboxes with title="Proficient" are one per skill (18 total, in skill order).
-    // Checkboxes with title="Expertise" are one per skill (18 total, in skill order).
+    // In edit mode, "<Skill> proficient" checkboxes are one per skill (18 total, in skill order).
+    // "<Skill> expertise" checkboxes are one per skill (18 total, in skill order).
     // Checkboxes with title="Disadvantage" are one per skill (18 total, in skill order).
     // The first 6 checkboxes (no title) are saving throw proficiency boxes.
+
+    it("shows skill names as plain text and names each checkbox after its skill", () => {
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByTestId("skill-name-perception").closest("button")).toBeNull()
+      expect(screen.getByRole("checkbox", { name: "Perception proficient" })).toBeInTheDocument()
+      expect(screen.getByRole("checkbox", { name: "Perception expertise" })).toBeInTheDocument()
+    })
 
     it("toggles skill proficiency ON for an unproficient skill", () => {
       const onUpdate = vi.fn()
@@ -252,7 +260,7 @@ describe("SkillsProficienciesModule", () => {
       clickEditButton()
 
       // perception is index 11 — currently not proficient
-      const profCheckboxes = screen.getAllByRole("checkbox", { name: "Proficient" })
+      const profCheckboxes = screen.getAllByRole("checkbox", { name: / proficient$/i })
       fireEvent.click(profCheckboxes[11]) // perception
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
 
@@ -271,7 +279,7 @@ describe("SkillsProficienciesModule", () => {
       clickEditButton()
 
       // stealth is index 16 — currently proficient + expert
-      const profCheckboxes = screen.getAllByRole("checkbox", { name: "Proficient" })
+      const profCheckboxes = screen.getAllByRole("checkbox", { name: / proficient$/i })
       expect(profCheckboxes[16]).toBeChecked()
 
       fireEvent.click(profCheckboxes[16]) // turn off proficiency
@@ -292,7 +300,7 @@ describe("SkillsProficienciesModule", () => {
       clickEditButton()
 
       // perception is index 11 — currently neither proficient nor expert
-      const expCheckboxes = screen.getAllByRole("checkbox", { name: "Expertise" })
+      const expCheckboxes = screen.getAllByRole("checkbox", { name: / expertise$/i })
       fireEvent.click(expCheckboxes[11]) // enable expertise → should also set proficient
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
 
@@ -506,7 +514,7 @@ describe("SkillsProficienciesModule", () => {
       const onUpdate = vi.fn()
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
-      const profCheckboxes = screen.getAllByRole("checkbox", { name: "Proficient" })
+      const profCheckboxes = screen.getAllByRole("checkbox", { name: / proficient$/i })
       fireEvent.click(profCheckboxes[11]) // perception
       fireEvent.keyDown(profCheckboxes[11], { key: "s", ctrlKey: true })
       expect(onUpdate).toHaveBeenCalledWith(
@@ -1000,7 +1008,7 @@ describe("SkillsProficienciesModule", () => {
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       clickEditButton()
 
-      const profCheckboxes = screen.getAllByRole("checkbox", { name: "Proficient" })
+      const profCheckboxes = screen.getAllByRole("checkbox", { name: / proficient$/i })
       expect(profCheckboxes[11]).toBeChecked() // perception is index 11
       expect(profCheckboxes[11]).toBeDisabled()
     })
