@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 function renderSelect(props: { disabled?: boolean; onValueChange?: (v: string) => void } = {}) {
   return render(

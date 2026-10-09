@@ -9,10 +9,12 @@ vi.mock("@/lib/theme", () => ({
 }))
 
 import { axe } from "vitest-axe"
-import { cleanup, render, screen, waitFor } from "../test-utils"
+
 import { createDefaultCharacter } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
 import PublicCharacterSheet from "@/routes/PublicCharacterSheet"
+
+import { cleanup, render, screen, waitFor } from "../test-utils"
 
 const mockGetPublic = vi.mocked(getPublicCharacterFromFirebase)
 

@@ -1,7 +1,8 @@
+import path from 'path'
+
 import { defineConfig, type Plugin } from 'vite'
 import solid from 'vite-plugin-solid'
 import { VitePWA } from 'vite-plugin-pwa'
-import path from 'path'
 
 // Strips data-test="literal" / data-sem="literal" attributes from JSX source.
 function stripLiteralDataAttrs(code: string): string {

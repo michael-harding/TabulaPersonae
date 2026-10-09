@@ -29,6 +29,7 @@ import {
   getDocFromCache,
   onSnapshot,
 } from 'firebase/firestore'
+
 import {
   getCharactersFromFirebase,
   getCharacterFromFirebase,

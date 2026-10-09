@@ -1,10 +1,12 @@
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
-import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
+
 import { EquipmentInventoryModule } from "@/components/equipment-inventory-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
 
 function makeItem(overrides: Partial<Equipment> = {}): Equipment {
   return {

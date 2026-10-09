@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 function baseProps(overrides: Partial<Parameters<typeof FreeTextListEditor>[0]> = {}) {
   return {

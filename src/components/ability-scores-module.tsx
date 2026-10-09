@@ -1,4 +1,6 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
+import Zap from "lucide-solid/icons/zap"
+
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, getAbilityScoreBaseMax, ABILITY_ABBREVIATIONS, ABILITY_TITLE_CASE } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -8,7 +10,6 @@ import { CalculatedValue } from "@/components/ui/calculated-value"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Checkbox } from "@/components/ui/checkbox"
-import Zap from "lucide-solid/icons/zap"
 
 interface AbilityScoresModuleProps {
   character: Character

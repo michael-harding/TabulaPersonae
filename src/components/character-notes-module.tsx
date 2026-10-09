@@ -1,4 +1,6 @@
-import { createSignal, createEffect, on, Show } from "solid-js"
+import { createSignal, createEffect, on, Show, For } from "solid-js"
+import FileText from "lucide-solid/icons/file-text"
+
 import type { Character } from "@/lib/character-types"
 import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
@@ -6,7 +8,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import FileText from "lucide-solid/icons/file-text"
 
 interface CharacterNotesModuleProps {
   character: Character
@@ -93,7 +94,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
             <div>
               <Label class="text-sm font-semibold">Physical Details</Label>
               <div class="grid grid-cols-3 gap-3 mt-2">
-                {PHYSICAL_FIELDS.map(({ field, label }) => (
+                <For each={PHYSICAL_FIELDS}>{({ field, label }) => (
                   <div>
                     <Label for={`phys-${field}`} class="text-xs">{label}</Label>
                     <Input
@@ -104,7 +105,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
                       class="mt-1 h-8 text-sm"
                     />
                   </div>
-                ))}
+                )}</For>
               </div>
             </div>
 
@@ -233,12 +234,12 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
             <div>
               <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Physical Details</h2>
               <div class="grid grid-cols-3 gap-2">
-                {PHYSICAL_FIELDS.map(({ field, label }) => (
+                <For each={PHYSICAL_FIELDS}>{({ field, label }) => (
                   <div>
                     <span class="text-xs text-muted-foreground">{label}: </span>
                     <span class="text-sm">{(current()[field] as string) || "—"}</span>
                   </div>
-                ))}
+                )}</For>
               </div>
             </div>
 
@@ -246,7 +247,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
 
             <Separator />
 
-            {PERSONALITY_FIELDS.map((f) => renderMarkdownField(f))}
+            <For each={PERSONALITY_FIELDS}>{(f) => renderMarkdownField(f)}</For>
 
             <Separator />
 
@@ -256,7 +257,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
 
             {/* 2014-only view */}
             <Show when={edition() === "2014"}>
-              {EDITION_2014_FIELDS.map((f) => renderMarkdownField(f))}
+              <For each={EDITION_2014_FIELDS}>{(f) => renderMarkdownField(f)}</For>
 
               <Separator />
             </Show>

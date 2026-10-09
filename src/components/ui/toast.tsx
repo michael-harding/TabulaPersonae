@@ -1,5 +1,6 @@
 import { ComponentProps, splitProps } from "solid-js"
 import X from "lucide-solid/icons/x"
+
 import { cn } from "@/lib/utils"
 import { toastVariants, type ToastVariant } from "@/hooks/use-toast"
 

@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen } from "../../test-utils"
+
 import { Badge } from "@/components/ui/badge"
+
+import { render, screen } from "../../test-utils"
 
 describe("Badge", () => {
   it("renders its children", () => {

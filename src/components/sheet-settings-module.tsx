@@ -1,13 +1,14 @@
 import { For, Show, createResource, createSignal } from "solid-js"
 import QRCode from "qrcode"
+import Settings2 from "lucide-solid/icons/settings-2"
+import Pipette from "lucide-solid/icons/pipette"
+import Share2 from "lucide-solid/icons/share-2"
+
 import type { Character } from "@/lib/character-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SwitchButton } from "@/components/ui/switch-button"
 import { useReadOnly } from "@/lib/read-only-context"
-import Settings2 from "lucide-solid/icons/settings-2"
-import Pipette from "lucide-solid/icons/pipette"
-import Share2 from "lucide-solid/icons/share-2"
 
 interface SheetSettingsModuleProps {
   character: Character

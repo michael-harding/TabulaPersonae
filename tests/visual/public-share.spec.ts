@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test"
 // excludes axe's "best-practice" extras (e.g. the no-WCAG-tag "region" rule flagging
 // Kobalte portal content rendered outside <main>) that aren't part of that target.
 import AxeBuilder from "@axe-core/playwright"
+
 import { publicCharacter } from "./fixtures"
 
 // Seeds the public character via the dev localStorage bypass in getPublicCharacterFromFirebase.

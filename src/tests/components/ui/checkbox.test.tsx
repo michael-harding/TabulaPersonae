@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("Checkbox", () => {
   it("toggles when clicked", () => {

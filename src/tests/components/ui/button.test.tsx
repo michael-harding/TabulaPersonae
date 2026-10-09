@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("Button", () => {
   it("renders its children", () => {

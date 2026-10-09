@@ -1,4 +1,5 @@
 import { For, Show } from "solid-js"
+
 import type { Character } from "@/lib/character-types"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { useReadOnly } from "@/lib/read-only-context"

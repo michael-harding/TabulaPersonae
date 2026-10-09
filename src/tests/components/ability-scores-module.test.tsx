@@ -1,8 +1,10 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
+
 import { AbilityScoresModule } from "@/components/ability-scores-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
+
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}) {
   return {

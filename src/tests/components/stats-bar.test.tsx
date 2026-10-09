@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
+
 import { StatsBar } from "@/components/stats-bar"
 import { createDefaultCharacter } from "@/lib/character-types"
+
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 
 function makeCharacter(current: number, maximum: number) {
   return {

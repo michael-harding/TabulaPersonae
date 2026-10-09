@@ -1,4 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
+import FlameKindling from "lucide-solid/icons/flame-kindling"
+
 import type { Character, Equipment } from "@/lib/character-types"
 import { getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
@@ -6,7 +8,6 @@ import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/com
 import { Button } from "@/components/ui/button"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import FlameKindling from "lucide-solid/icons/flame-kindling"
 
 interface RestModalProps {
   character: Character

@@ -14,6 +14,7 @@ import {
   orderBy,
   Timestamp
 } from 'firebase/firestore';
+
 import { db } from './firebase';
 import type { Character } from './character-types';
 import { migrateCharacter } from './character-migrations';

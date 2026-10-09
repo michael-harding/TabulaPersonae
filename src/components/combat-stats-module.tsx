@@ -1,4 +1,13 @@
 import { createSignal, createMemo, Show, For } from "solid-js"
+import ShieldIcon from "lucide-solid/icons/shield"
+import Heart from "lucide-solid/icons/heart"
+import Plus from "lucide-solid/icons/plus"
+import Minus from "lucide-solid/icons/minus"
+import Skull from "lucide-solid/icons/skull"
+import CheckCircle from "lucide-solid/icons/check-circle"
+import XCircle from "lucide-solid/icons/x-circle"
+import X from "lucide-solid/icons/x"
+
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
@@ -12,14 +21,6 @@ import { StepperInput } from "@/components/ui/stepper-input"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { CalculatedValueSelect } from "@/components/ui/calculated-value-select"
 import { useReadOnly } from "@/lib/read-only-context"
-import ShieldIcon from "lucide-solid/icons/shield"
-import Heart from "lucide-solid/icons/heart"
-import Plus from "lucide-solid/icons/plus"
-import Minus from "lucide-solid/icons/minus"
-import Skull from "lucide-solid/icons/skull"
-import CheckCircle from "lucide-solid/icons/check-circle"
-import XCircle from "lucide-solid/icons/x-circle"
-import X from "lucide-solid/icons/x"
 
 interface CombatStatsModuleProps {
   character: Character

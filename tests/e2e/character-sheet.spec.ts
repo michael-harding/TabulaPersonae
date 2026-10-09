@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
 import AxeBuilder from "@axe-core/playwright"
+
 import { testCharacter, secondCharacter } from "../visual/fixtures"
 
 function setup(page: Page, chars: unknown | unknown[]) {

@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, cleanup, cleanupPortals } from "../../test-utils"
+
 import { ModifierGroup } from "@/components/ui/modifier-group"
+
+import { render, screen, fireEvent, cleanup, cleanupPortals } from "../../test-utils"
 
 function baseProps(overrides: Partial<Parameters<typeof ModifierGroup>[0]> = {}) {
   return {

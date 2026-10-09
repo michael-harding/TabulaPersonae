@@ -14,6 +14,7 @@ vi.mock("@/lib/firebase-storage", () => ({
 
 import { cleanup, render } from "@solidjs/testing-library"
 import { onAuthStateChanged, signOut } from "firebase/auth"
+
 import { saveCharacterToFirebase } from "@/lib/firebase-storage"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { createDefaultCharacter } from "@/lib/character-types"

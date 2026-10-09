@@ -1,6 +1,7 @@
 import { Dialog as DialogPrimitive } from "@kobalte/core/dialog"
 import { ComponentProps, JSX, splitProps } from "solid-js"
 import X from "lucide-solid/icons/x"
+
 import { cn } from "@/lib/utils"
 
 export const Modal = DialogPrimitive

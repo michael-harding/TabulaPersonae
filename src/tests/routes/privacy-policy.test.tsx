@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { cleanup, render, screen } from "../test-utils"
+
 import PrivacyPolicy from "@/routes/PrivacyPolicy"
+
+import { cleanup, render, screen } from "../test-utils"
 
 afterEach(() => {
   cleanup()

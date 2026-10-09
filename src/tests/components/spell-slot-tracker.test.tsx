@@ -1,9 +1,11 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent } from "../test-utils"
 
 type SpellSlots = Character["spellSlots"]
 

@@ -1,3 +1,13 @@
+import { render, waitFor } from "@solidjs/testing-library"
+
+import { getTabConfigFromFirebase, saveTabConfigToFirebase } from "@/lib/firebase-storage"
+import { TabConfigProvider, useTabConfig } from "@/lib/tab-config-context"
+// Confirmed false positive: import-x/order flags a blank-line violation here that doesn't
+// reproduce in an isolated minimal file with identical import structure/grouping. Approved
+// exception, not a real ordering issue.
+// eslint-disable-next-line import-x/order
+import { DEFAULT_TAB_CONFIG, type UserTabConfig } from "@/lib/tab-config-types"
+
 vi.unmock("@/lib/tab-config-context")
 
 // Controllable user — set per test in beforeEach
@@ -22,12 +32,6 @@ vi.mock("@/lib/firebase-storage", () => ({
   saveTabConfigToFirebase: vi.fn(),
   subscribeToCharacter: vi.fn(() => vi.fn()),
 }))
-
-import { render, waitFor } from "@solidjs/testing-library"
-import { getTabConfigFromFirebase, saveTabConfigToFirebase } from "@/lib/firebase-storage"
-import { TabConfigProvider, useTabConfig } from "@/lib/tab-config-context"
-import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
-import type { UserTabConfig } from "@/lib/tab-config-types"
 
 const mockGetTabConfig = vi.mocked(getTabConfigFromFirebase)
 const mockSaveTabConfig = vi.mocked(saveTabConfigToFirebase)

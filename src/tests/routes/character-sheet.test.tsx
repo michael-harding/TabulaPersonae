@@ -13,11 +13,13 @@ vi.mock("@/lib/theme", () => ({
 }))
 
 import { axe } from "vitest-axe"
-import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
+
 import { createDefaultCharacter } from "@/lib/character-types"
 import { useTabConfig } from "@/lib/tab-config-context"
 import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
 import CharacterSheet from "@/routes/CharacterSheet"
+
+import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
 
 const mockUseTabConfig = vi.mocked(useTabConfig)
 

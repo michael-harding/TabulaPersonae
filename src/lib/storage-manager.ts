@@ -1,4 +1,5 @@
 import { createMemo } from 'solid-js'
+
 import { useAuth } from './auth-context'
 import {
   saveCharacterToFirebase,

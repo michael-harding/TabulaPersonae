@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { StepperInput } from "@/components/ui/stepper-input"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("StepperInput", () => {
   beforeEach(() => {

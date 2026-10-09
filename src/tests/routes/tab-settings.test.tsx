@@ -35,8 +35,10 @@ vi.mock("@/lib/tab-config-context", () => ({
 }))
 
 import { axe } from "vitest-axe"
-import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
+
 import TabSettings from "@/routes/TabSettings"
+
+import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
 
 beforeEach(() => {
   vi.clearAllMocks()

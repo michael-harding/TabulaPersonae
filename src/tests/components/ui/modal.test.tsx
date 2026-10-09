@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js"
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within, cleanupPortals } from "../../test-utils"
+
 import {
   Modal,
   ModalTrigger,
@@ -10,6 +10,8 @@ import {
   ModalTitle,
   ModalDescription,
 } from "@/components/ui/modal"
+
+import { render, screen, fireEvent, within, cleanupPortals } from "../../test-utils"
 
 // Wrap Modal with an external trigger so Kobalte's Portal initializes correctly — matches the
 // pattern used in src/tests/components/rest-modal.test.tsx for the same underlying primitive.

@@ -1,5 +1,6 @@
 import { DropdownMenu as DropdownMenuPrimitive } from "@kobalte/core/dropdown-menu"
 import { ComponentProps, splitProps } from "solid-js"
+
 import { cn } from "@/lib/utils"
 
 export const DropdownMenu = DropdownMenuPrimitive

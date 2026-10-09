@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+
 import { testCharacter } from "../visual/fixtures"
 
 function setup(page: Page) {

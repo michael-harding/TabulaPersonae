@@ -9,13 +9,6 @@ import {
   maybeTransformStyle,
 } from "@thisbeyond/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
-import { useTabConfig } from "@/lib/tab-config-context"
-import { MODULE_REGISTRY, ALL_MODULE_IDS } from "@/lib/module-registry"
-import type { TabConfig, ModuleId } from "@/lib/tab-config-types"
-import { cn } from "@/lib/utils"
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import ChevronLeft from "lucide-solid/icons/chevron-left"
 import GripVertical from "lucide-solid/icons/grip-vertical"
@@ -23,6 +16,14 @@ import Pencil from "lucide-solid/icons/pencil"
 import Plus from "lucide-solid/icons/plus"
 import Trash2 from "lucide-solid/icons/trash-2"
 import X from "lucide-solid/icons/x"
+
+import { useTabConfig } from "@/lib/tab-config-context"
+import { MODULE_REGISTRY, ALL_MODULE_IDS } from "@/lib/module-registry"
+import type { TabConfig, ModuleId } from "@/lib/tab-config-types"
+import { cn } from "@/lib/utils"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 // Tell TypeScript about the `use:sortable` directive
 declare module "solid-js" {

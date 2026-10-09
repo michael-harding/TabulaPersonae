@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen } from "../../test-utils"
+
 import { Progress } from "@/components/ui/progress"
+
+import { render, screen } from "../../test-utils"
 
 describe("Progress", () => {
   it("renders a progressbar at the root data-test node", () => {

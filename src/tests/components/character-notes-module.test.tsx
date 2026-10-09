@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+
 import { CharacterNotesModule } from "@/components/character-notes-module"
 import { createDefaultCharacter } from "@/lib/character-types"
+
+import { render, screen, fireEvent } from "../test-utils"
 
 const emptyCharacter = createDefaultCharacter()
 

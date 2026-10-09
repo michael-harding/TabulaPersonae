@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 function TestTabs(props: { defaultValue?: string }) {
   return (

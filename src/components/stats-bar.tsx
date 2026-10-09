@@ -1,12 +1,13 @@
 import { Show, For, createMemo } from "solid-js"
-import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
-import { Tooltip } from "@/components/ui/tooltip"
-import { useHpDisplay } from "@/hooks/use-hp-display"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Zap from "lucide-solid/icons/zap"
 import Sword from "lucide-solid/icons/sword"
 import Heart from "lucide-solid/icons/heart"
+
+import type { Character } from "@/lib/character-types"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
+import { Tooltip } from "@/components/ui/tooltip"
+import { useHpDisplay } from "@/hooks/use-hp-display"
 
 interface StatsBarProps {
   character: Character

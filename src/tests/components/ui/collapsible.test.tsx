@@ -5,8 +5,10 @@
 // src/components/ui/modifier-group.tsx for a real consumer of this exact composition.
 import { createSignal } from "solid-js"
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("Collapsible", () => {
   it("does not render the content when closed by default", () => {

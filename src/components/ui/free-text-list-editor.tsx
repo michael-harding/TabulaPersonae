@@ -1,9 +1,10 @@
 import { createSignal, For, Show } from "solid-js"
+import X from "lucide-solid/icons/x"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import X from "lucide-solid/icons/x"
 
 // Reusable picker for free-text string-list fields with no fixed enum (e.g. Language, Other
 // Proficiency) — an Add+Badge idiom, accepting any typed value rather than a closed list.

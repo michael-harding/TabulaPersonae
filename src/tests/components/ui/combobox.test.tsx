@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { Combobox } from "@/components/ui/combobox"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 const OPTIONS = ["Barbarian", "Bard", "Cleric", "Druid", "Fighter"]
 

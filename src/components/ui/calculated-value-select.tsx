@@ -1,9 +1,10 @@
 import { Show, type JSX } from "solid-js"
+import Pen from "lucide-solid/icons/pen"
+import PenOff from "lucide-solid/icons/pen-off"
+
 import { Combobox } from "@/components/ui/combobox"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
-import Pen from "lucide-solid/icons/pen"
-import PenOff from "lucide-solid/icons/pen-off"
 
 interface CalculatedValueSelectProps {
   label: string

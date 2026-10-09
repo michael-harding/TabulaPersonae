@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { cleanup, render, screen } from "../test-utils"
+
 import NotFound from "@/routes/NotFound"
+
+import { cleanup, render, screen } from "../test-utils"
 
 afterEach(() => {
   cleanup()

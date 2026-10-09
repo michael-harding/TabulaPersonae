@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { SwitchButton } from "@/components/ui/switch-button"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("SwitchButton", () => {
   it("renders both option labels", () => {

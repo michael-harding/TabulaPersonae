@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("Label", () => {
   it("renders its children", () => {

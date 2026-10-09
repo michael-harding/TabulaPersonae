@@ -13,9 +13,11 @@ vi.mock("@/lib/pdf-parser", () => ({
 }))
 
 import { axe } from "vitest-axe"
-import { cleanup, render, screen, waitFor } from "../test-utils"
+
 import { createDefaultCharacter } from "@/lib/character-types"
 import Home from "@/routes/Home"
+
+import { cleanup, render, screen, waitFor } from "../test-utils"
 
 beforeEach(() => {
   vi.clearAllMocks()

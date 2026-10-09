@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen } from "../../test-utils"
+
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
+
+import { render, screen } from "../../test-utils"
 
 function renderFullCard() {
   return render(

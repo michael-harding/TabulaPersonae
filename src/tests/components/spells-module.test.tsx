@@ -1,9 +1,11 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+
 import { SpellsModule } from "@/components/spells-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Spell, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
 function makeSpell(overrides: Partial<Spell> = {}): Spell {
   return {

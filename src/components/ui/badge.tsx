@@ -1,5 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority"
 import { ComponentProps, splitProps } from "solid-js"
+
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(

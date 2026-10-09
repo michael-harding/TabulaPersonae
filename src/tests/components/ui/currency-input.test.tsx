@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { CurrencyInput } from "@/components/ui/currency-input"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("CurrencyInput", () => {
   it("forwards value to the underlying stepper input", () => {

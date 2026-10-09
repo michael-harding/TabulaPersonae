@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
-import { render, screen, cleanupPortals } from "../test-utils"
+
 import Layout from "@/components/layout"
 import { useSyncState } from "@/lib/sync-context"
+
+import { render, screen, cleanupPortals } from "../test-utils"
 
 function SyncConsumer() {
   const ctx = useSyncState()

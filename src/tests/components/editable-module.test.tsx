@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+
 import { EditableModule } from "@/components/editable-module"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent } from "../test-utils"
 
 const icon = <span>icon</span>
 

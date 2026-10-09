@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js"
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
-import { render, screen, waitFor, cleanup, cleanupPortals } from "../../test-utils"
+
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -11,6 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
+
+import { render, screen, waitFor, cleanup, cleanupPortals } from "../../test-utils"
 
 function Harness(props: { onSelectA?: () => void; onSelectB?: () => void }) {
   const [open, setOpen] = createSignal(false)

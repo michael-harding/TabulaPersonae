@@ -1,9 +1,11 @@
 import { createSignal } from "solid-js"
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Feature, Equipment } from "@/lib/character-types"
+
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return {

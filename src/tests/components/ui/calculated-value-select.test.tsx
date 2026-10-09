@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, waitFor, cleanupPortals } from "../../test-utils"
+
 import { CalculatedValueSelect } from "@/components/ui/calculated-value-select"
+
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../../test-utils"
 
 const OPTIONS = ["Small", "Medium", "Large"]
 

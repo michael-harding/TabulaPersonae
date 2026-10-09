@@ -1,5 +1,6 @@
 import { Progress as ProgressPrimitive } from "@kobalte/core/progress"
 import { ComponentProps, splitProps } from "solid-js"
+
 import { cn } from "@/lib/utils"
 
 type ProgressProps = ComponentProps<typeof ProgressPrimitive> & { class?: string }

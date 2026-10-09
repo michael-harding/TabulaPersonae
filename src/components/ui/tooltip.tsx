@@ -1,5 +1,6 @@
 import { Tooltip as TooltipPrimitive } from "@kobalte/core/tooltip"
 import { ComponentProps, JSX, splitProps } from "solid-js"
+
 import { cn } from "@/lib/utils"
 
 type TooltipProps = {

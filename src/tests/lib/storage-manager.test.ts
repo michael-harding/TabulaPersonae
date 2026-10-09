@@ -13,6 +13,7 @@ vi.mock("@/lib/firebase-storage", () => ({
 }))
 
 import { createRoot } from "solid-js"
+
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import {

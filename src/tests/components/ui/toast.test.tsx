@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { Toast, ToastTitle, ToastDescription, ToastClose } from "@/components/ui/toast"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("Toast", () => {
   it("renders title and description text", () => {

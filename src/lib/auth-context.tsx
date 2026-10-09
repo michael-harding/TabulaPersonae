@@ -7,6 +7,7 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
 } from 'firebase/auth'
+
 import { auth } from './firebase'
 import { saveCharacterToFirebase } from './firebase-storage'
 import type { Character } from './character-types'

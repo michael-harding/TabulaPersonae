@@ -1,10 +1,12 @@
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
-import { render, screen, fireEvent, waitFor, cleanupPortals, within } from "../test-utils"
+
 import { CombatStatsModule } from "@/components/combat-stats-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent, waitFor, cleanupPortals, within } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}) {
   return {

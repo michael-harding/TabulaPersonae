@@ -1,5 +1,6 @@
 import { createSignal, createEffect, splitProps } from "solid-js"
 import type { ComponentProps } from "solid-js"
+
 import { Input } from "@/components/ui/input"
 
 type NumericInputProps = Omit<ComponentProps<"input">, "value" | "onChange" | "onInput" | "onBlur" | "min" | "max"> & {

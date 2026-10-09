@@ -1,12 +1,13 @@
 import type { JSX, ParentProps } from "solid-js"
 import { Show } from "solid-js"
+import Edit from "lucide-solid/icons/edit"
+import Check from "lucide-solid/icons/check"
+import X from "lucide-solid/icons/x"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useReadOnly } from "@/lib/read-only-context"
-import Edit from "lucide-solid/icons/edit"
-import Check from "lucide-solid/icons/check"
-import X from "lucide-solid/icons/x"
 
 interface EditableModuleProps extends ParentProps {
   icon: JSX.Element

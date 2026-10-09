@@ -1,8 +1,9 @@
 import { Show } from "solid-js"
-import { NumericInput } from "@/components/ui/numeric-input"
-import { Button } from "@/components/ui/button"
 import Minus from "lucide-solid/icons/minus"
 import Plus from "lucide-solid/icons/plus"
+
+import { NumericInput } from "@/components/ui/numeric-input"
+import { Button } from "@/components/ui/button"
 
 interface StepperInputProps {
   value: number

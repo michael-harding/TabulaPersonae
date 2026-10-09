@@ -23,11 +23,13 @@ vi.mock('@/lib/auth-context', () => ({
 
 import { axe } from "vitest-axe"
 import { createSignal } from 'solid-js'
-import { render, screen, fireEvent } from '../test-utils'
+
 import { OfflineIndicator, formatAge } from '@/components/offline-indicator'
 import { createNetworkStatus } from '@/lib/network-status'
 import { useAuth } from '@/lib/auth-context'
 import { useSyncState } from '@/lib/sync-context'
+
+import { render, screen, fireEvent } from '../test-utils'
 
 const mockCreateNetworkStatus = vi.mocked(createNetworkStatus)
 const mockUseAuth = vi.mocked(useAuth)

@@ -1,4 +1,8 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
+import BookOpen from "lucide-solid/icons/book-open"
+import Plus from "lucide-solid/icons/plus"
+import X from "lucide-solid/icons/x"
+
 import type { Character } from "@/lib/character-types"
 import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import type { SkillAdvantageState } from "@/lib/character-utils"
@@ -11,9 +15,6 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip } from "@/components/ui/tooltip"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
-import BookOpen from "lucide-solid/icons/book-open"
-import Plus from "lucide-solid/icons/plus"
-import X from "lucide-solid/icons/x"
 
 const SKILL_ABILITY_MAP: Record<keyof Character["skills"], keyof Character["abilityScores"]> = {
   acrobatics: "dexterity", animalHandling: "wisdom", arcana: "intelligence",
@@ -386,7 +387,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
         {/* Skills */}
         <div>
           <h2 class="font-semibold mb-3">Skills</h2>
-          <div class="columns-1 sm:columns-2 md:columns-3" style="column-gap: 1rem; column-rule: 1px solid var(--border)">
+          <div class="columns-1 sm:columns-2 md:columns-3" style={{"column-gap":"1rem","column-rule":"1px solid var(--border)"}}>
             <For each={Object.keys(SKILL_DISPLAY_NAMES) as SkillKey[]}>
               {(skillKey) => {
                 const ability = SKILL_ABILITY_MAP[skillKey]

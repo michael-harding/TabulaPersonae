@@ -1,7 +1,9 @@
 import { createSignal, createEffect, on } from 'solid-js'
 import type { ParentProps } from 'solid-js'
 import { useLocation } from '@solidjs/router'
+
 import { SyncContext, type CharacterSyncState } from '@/lib/sync-context'
+
 import { OfflineIndicator } from './offline-indicator'
 
 export default function Layout(props: ParentProps) {

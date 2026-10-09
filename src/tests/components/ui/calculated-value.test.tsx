@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, waitFor, cleanupPortals } from "../../test-utils"
+
 import { CalculatedValue } from "@/components/ui/calculated-value"
+
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../../test-utils"
 
 function baseProps(overrides: Partial<Parameters<typeof CalculatedValue>[0]> = {}) {
   return {

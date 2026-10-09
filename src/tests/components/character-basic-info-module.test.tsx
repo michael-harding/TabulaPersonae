@@ -1,8 +1,10 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+
 import { CharacterBasicInfoModule } from "@/components/character-basic-info-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent } from "../test-utils"
 
 const emptyCharacter = createDefaultCharacter()
 

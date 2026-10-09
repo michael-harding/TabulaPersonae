@@ -1,6 +1,7 @@
 import { A } from "@solidjs/router"
-import { Button } from "@/components/ui/button"
 import Ghost from "lucide-solid/icons/ghost"
+
+import { Button } from "@/components/ui/button"
 
 export default function NotFound() {
   return (

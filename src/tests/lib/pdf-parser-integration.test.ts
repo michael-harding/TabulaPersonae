@@ -4,9 +4,11 @@
  *
  * Ground truth is Urush Greenshield, Paladin 2, as exported from D&D Beyond.
  */
-import { describe, it, expect } from "vitest"
 import { readFileSync } from "fs"
 import { resolve } from "path"
+
+import { describe, it, expect } from "vitest"
+
 import { parsePdfBuffer, mergeWithDefault } from "@/lib/pdf-parser"
 
 const PDF_PATH = resolve(__dirname, "../test-for-import.pdf")

@@ -1,4 +1,5 @@
 import type { JSXElement } from 'solid-js'
+
 import type { Character } from '@/lib/character-types'
 import type { ModuleId } from '@/lib/tab-config-types'
 import { ActionsModule } from '@/components/actions-module'

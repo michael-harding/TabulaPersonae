@@ -1,8 +1,18 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
+import Sparkles from "lucide-solid/icons/sparkles"
+import Plus from "lucide-solid/icons/plus"
+import Edit from "lucide-solid/icons/edit"
+import Trash2 from "lucide-solid/icons/trash-2"
+import Save from "lucide-solid/icons/save"
+import Search from "lucide-solid/icons/search"
+import ChevronDown from "lucide-solid/icons/chevron-down"
+import Zap from "lucide-solid/icons/zap"
+import Target from "lucide-solid/icons/target"
+import Circle from "lucide-solid/icons/circle"
+import Settings from "lucide-solid/icons/settings"
+
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Spell, Equipment } from "@/lib/character-types"
-
-const EMPTY_SPELLS: Spell[] = []
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier, isItemModifierActive } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,19 +28,10 @@ import { Combobox } from "@/components/ui/combobox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import Sparkles from "lucide-solid/icons/sparkles"
-import Plus from "lucide-solid/icons/plus"
-import Edit from "lucide-solid/icons/edit"
-import Trash2 from "lucide-solid/icons/trash-2"
-import Save from "lucide-solid/icons/save"
-import Search from "lucide-solid/icons/search"
-import ChevronDown from "lucide-solid/icons/chevron-down"
-import Zap from "lucide-solid/icons/zap"
-import Target from "lucide-solid/icons/target"
-import Circle from "lucide-solid/icons/circle"
-import Settings from "lucide-solid/icons/settings"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { useReadOnly } from "@/lib/read-only-context"
+
+const EMPTY_SPELLS: Spell[] = []
 
 interface SpellFormData {
   name: string

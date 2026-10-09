@@ -1,9 +1,11 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+
 import { FeaturesModule } from "@/components/features-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Feature } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
   return {

@@ -1,8 +1,10 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+
 import { SheetSettingsModule } from "@/components/sheet-settings-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent } from "../test-utils"
 
 const baseCharacter = createDefaultCharacter()
 const char2014 = { ...baseCharacter, edition: "2014" as const }

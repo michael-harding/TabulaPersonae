@@ -5,9 +5,11 @@ vi.mock("@/lib/auth-context", () => ({
 }))
 
 import { axe } from "vitest-axe"
-import { cleanup, render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
+
 import { useAuth } from "@/lib/auth-context"
 import Auth from "@/routes/Auth"
+
+import { cleanup, render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 
 const mockUseAuth = vi.mocked(useAuth)
 

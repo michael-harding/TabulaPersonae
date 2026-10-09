@@ -1,9 +1,10 @@
 import { createSignal, createEffect, Show } from "solid-js"
 import { useNavigate, A } from "@solidjs/router"
 import { Dialog as DialogPrimitive } from "@kobalte/core/dialog"
+import Scroll from "lucide-solid/icons/scroll"
+
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
-import Scroll from "lucide-solid/icons/scroll"
 
 const TERMS_KEY = "dnd-terms-accepted"
 

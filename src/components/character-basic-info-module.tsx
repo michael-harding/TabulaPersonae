@@ -1,4 +1,6 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
+import User from "lucide-solid/icons/user"
+
 import type { Character } from "@/lib/character-types"
 import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
@@ -6,7 +8,6 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
-import User from "lucide-solid/icons/user"
 import { useReadOnly } from "@/lib/read-only-context"
 
 interface CharacterBasicInfoModuleProps {

@@ -28,6 +28,10 @@ const FEATURE_LIST_FIELDS = ["classFeatures", "speciesTraits", "feats", "backgro
  * its effects (spellcastingAbility is checked before hitDiceSize) — combining them risks the edit
  * form silently dropping one on save.
  */
+// `raw` is persisted character JSON from any prior schema version, by definition not
+// conforming to the current `Character` type — that's the reason this migration exists.
+// `unknown` would require type-narrowing every property access below; `any` is the honest
+// representation of "arbitrary, possibly-malformed legacy shape."
 function importLegacyFeatureGrants(raw: any): Feature[] | undefined {
   const activeEffects = getActiveFeatureEffects(raw)
   const additions: Feature[] = []
@@ -111,6 +115,10 @@ function backfillEquipmentUses(equipment: Equipment[]): Equipment[] | undefined 
  * Features without featureType too). Genuinely legacy JSON-imported/stored characters still hit
  * this gate correctly, since they lack the flags.
  */
+// `raw` is persisted character JSON from any prior schema version (localStorage/Firebase),
+// by definition not conforming to the current `Character` type — same reasoning as
+// importLegacyFeatureGrants above: `any` over `unknown` to avoid narrowing every property
+// access in a function whose entire job is tolerating arbitrary legacy shapes.
 export function migrateCharacter(raw: any): Character {
   if (!raw || typeof raw !== "object") return raw as Character
 

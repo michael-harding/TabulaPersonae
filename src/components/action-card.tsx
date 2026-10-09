@@ -1,16 +1,17 @@
 import { createSignal, Show, For } from "solid-js"
+import Pencil from "lucide-solid/icons/pencil"
+import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
+import CircleHelp from "lucide-solid/icons/circle-help"
+
 import { useReadOnly } from "@/lib/read-only-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
-import { Popover } from "@kobalte/core/popover"
+import { Popover, PopoverTrigger, PopoverContent, PopoverArrow } from "@/components/ui/popover"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import Pencil from "lucide-solid/icons/pencil"
-import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
-import CircleHelp from "lucide-solid/icons/circle-help"
+import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
 
 function getOrdinalSuffix(num: number): string {
   const suffixes = ["th", "st", "nd", "rd"]
@@ -127,16 +128,15 @@ export function ActionCard(props: ActionCardProps) {
           <div class="font-medium flex items-center gap-1">
             {props.name}
             <Popover gutter={8}>
-              <Popover.Trigger
+              <PopoverTrigger
                 class="inline-flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={`Details for ${props.name}`}
                 data-test={`action-details-trigger-${props.name}`}
               >
                 <CircleHelp class="w-4 h-4" aria-hidden="true" />
-              </Popover.Trigger>
-              <Popover.Portal>
-                <Popover.Content class="z-50 w-72 rounded-lg border bg-popover p-4 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95">
-                  <Popover.Arrow />
+              </PopoverTrigger>
+              <PopoverContent>
+                  <PopoverArrow />
                   <div class="space-y-2">
                     <div class="font-semibold text-sm">{props.name}</div>
                     <Show when={spellSubtitle()}>
@@ -195,8 +195,7 @@ export function ActionCard(props: ActionCardProps) {
                       </div>
                     </Show>
                   </div>
-                </Popover.Content>
-              </Popover.Portal>
+              </PopoverContent>
             </Popover>
           </div>
           <Show when={spellSubtitle()}>

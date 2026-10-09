@@ -1,4 +1,11 @@
 import { axe } from "vitest-axe"
+import userEvent from "@testing-library/user-event"
+
+import { HeaderMenu } from "@/components/header-menu"
+import { createDefaultCharacter } from "@/lib/character-types"
+import type { Character } from "@/lib/character-types"
+
+import { cleanup, render, screen, waitFor, cleanupPortals } from "../test-utils"
 
 vi.mock("@/lib/theme", () => ({
   theme: () => "system",
@@ -13,12 +20,6 @@ vi.mock("@/lib/pdf-parser", () => ({
   parsePdfCharacterSheet: vi.fn(),
   mergeWithDefault: vi.fn(),
 }))
-
-import userEvent from "@testing-library/user-event"
-import { cleanup, render, screen, waitFor, cleanupPortals } from "../test-utils"
-import { HeaderMenu } from "@/components/header-menu"
-import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character } from "@/lib/character-types"
 
 const char1: Character = { ...createDefaultCharacter(), id: "id-1", name: "Gandalf" }
 const char2: Character = { ...createDefaultCharacter(), id: "id-2", name: "Aragorn" }

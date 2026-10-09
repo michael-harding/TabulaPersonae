@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { NumericInput } from "@/components/ui/numeric-input"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("NumericInput", () => {
   beforeEach(() => {

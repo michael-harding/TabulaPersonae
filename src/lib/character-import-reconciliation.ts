@@ -27,6 +27,10 @@ function withSpellcastingAbilityKey(character: Character): Character {
   return { ...character, spellcastingAbility: character.spellcastingAbility ?? "" }
 }
 
+// `character` here is a raw import (JSON re-import, PDF scrape) that may be partial or not
+// yet conform to `Character` — same reasoning as character-migrations.ts's `raw: any`
+// params: `unknown` would require narrowing every property read below, for a function whose
+// job is specifically to tolerate arbitrary/partial shapes before they're reconciled.
 function reconcileAbilityScoreOverrides(character: any): any {
   const overrides = character.abilityScoreOverrides
   if (!overrides || typeof overrides !== "object") return character
@@ -103,6 +107,8 @@ const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
   { valueKey: "spellModifier", toggleKey: "useCalculatedSpellModifier", compute: (c) => computeSpellModifier(c), defaultCalculated: true },
 ]
 
+// Same reasoning as reconcileAbilityScoreOverrides above: `character` is a raw, possibly
+// partial import being incrementally reconciled field-by-field, not yet a valid `Character`.
 function reconcileScalarField(character: any, spec: ScalarFieldSpec): any {
   const value = character[spec.valueKey]
   if (!isFiniteNumber(value)) return character
@@ -142,9 +148,13 @@ export function freshenCalculatedFields(character: Character): Character {
  * currently calculate. Runs once, at import time only — never on normal load,
  * so it can't fight a user's later deliberate toggle changes.
  */
+// `raw` is an externally-sourced character (JSON re-import, PDF scrape) of unknown shape —
+// same `any`-over-`unknown` reasoning as character-migrations.ts's migration functions.
 export function reconcileImportedCharacter(raw: any): Character {
   if (!raw || typeof raw !== "object") return raw as Character
   try {
+    // `character` is progressively reconciled field-by-field below and isn't a valid
+    // `Character` until the loop completes — see reconcileScalarField above.
     let character: any = reconcileAbilityScoreOverrides({ ...raw })
     for (const spec of SCALAR_FIELD_SPECS) {
       character = reconcileScalarField(character, spec)

@@ -1,6 +1,7 @@
 import { createSignal, createMemo, onCleanup, Match, Switch, Show } from 'solid-js'
 import RefreshCw from 'lucide-solid/icons/refresh-cw'
 import RefreshCwOff from 'lucide-solid/icons/refresh-cw-off'
+
 import { useAuth } from '@/lib/auth-context'
 import { createNetworkStatus, type SyncStatus } from '@/lib/network-status'
 import { useSyncState } from '@/lib/sync-context'

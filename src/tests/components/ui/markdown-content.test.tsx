@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen } from "../../test-utils"
+
 import { MarkdownContent } from "@/components/ui/markdown-content"
+
+import { render, screen } from "../../test-utils"
 
 describe("MarkdownContent", () => {
   it("renders plain text", () => {

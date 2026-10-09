@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen } from "../../test-utils"
+
 import { Separator } from "@/components/ui/separator"
+
+import { render, screen } from "../../test-utils"
 
 describe("Separator", () => {
   it("renders with the default horizontal orientation classes", () => {

@@ -1,5 +1,6 @@
 import { createSignal, onCleanup } from 'solid-js'
 import { waitForPendingWrites } from 'firebase/firestore'
+
 import { db } from './firebase'
 
 export type SyncStatus = 'online' | 'offline' | 'syncing' | 'synced'

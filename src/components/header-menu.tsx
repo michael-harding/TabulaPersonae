@@ -1,13 +1,4 @@
 import { createSignal } from "solid-js"
-import { buttonVariants } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import Menu from "lucide-solid/icons/menu"
 import Users from "lucide-solid/icons/users"
 import Upload from "lucide-solid/icons/upload"
@@ -19,6 +10,16 @@ import User from "lucide-solid/icons/user"
 import LogOut from "lucide-solid/icons/log-out"
 import LogIn from "lucide-solid/icons/log-in"
 import FileText from "lucide-solid/icons/file-text"
+
+import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { buttonVariants } from "@/components/ui/button"
 import { theme, setTheme } from "@/lib/theme"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"

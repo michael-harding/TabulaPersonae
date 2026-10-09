@@ -4,7 +4,6 @@ import { Router, Route } from '@solidjs/router'
 import { AuthProvider } from './lib/auth-context'
 import { TabConfigProvider } from './lib/tab-config-context'
 import './lib/theme' // activate module-level createEffect for dark mode
-
 import { Toaster } from './components/ui/toaster'
 import Layout from './components/layout'
 

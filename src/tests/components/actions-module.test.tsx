@@ -1,9 +1,11 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+
 import { ActionsModule } from "@/components/actions-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }

@@ -1,15 +1,16 @@
 import { createSignal, createEffect, createMemo, For, Show } from "solid-js"
 import { useNavigate, A } from "@solidjs/router"
+import Plus from "lucide-solid/icons/plus"
+import Scroll from "lucide-solid/icons/scroll"
+import Sword from "lucide-solid/icons/sword"
+import Trash2 from "lucide-solid/icons/trash-2"
+
 import { type Character, createDefaultCharacter } from "@/lib/character-types"
 import { calculateEquippedAC, getEffectiveMaxHp } from "@/lib/character-utils"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import Plus from "lucide-solid/icons/plus"
-import Scroll from "lucide-solid/icons/scroll"
-import Sword from "lucide-solid/icons/sword"
-import Trash2 from "lucide-solid/icons/trash-2"
 import { HeaderMenu } from "@/components/header-menu"
 
 export default function Home() {

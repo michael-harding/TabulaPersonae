@@ -8,6 +8,7 @@ vi.unmock('@/lib/network-status')
 
 import { createRoot } from 'solid-js'
 import { waitForPendingWrites } from 'firebase/firestore'
+
 import { createNetworkStatus } from '@/lib/network-status'
 
 const mockWaitForPendingWrites = vi.mocked(waitForPendingWrites)

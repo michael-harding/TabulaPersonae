@@ -1,5 +1,6 @@
 import { Tabs as TabsPrimitive } from "@kobalte/core/tabs"
 import { ComponentProps, splitProps } from "solid-js"
+
 import { cn } from "@/lib/utils"
 
 export const TabsRoot = TabsPrimitive

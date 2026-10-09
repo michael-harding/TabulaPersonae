@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("Textarea", () => {
   it("renders with the given value", () => {

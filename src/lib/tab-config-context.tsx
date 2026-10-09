@@ -1,4 +1,5 @@
 import { createContext, useContext, createSignal, createEffect, onCleanup, ParentComponent } from 'solid-js'
+
 import { useAuth } from '@/lib/auth-context'
 import { DEFAULT_TAB_CONFIG, isValidTabConfig } from '@/lib/tab-config-types'
 import type { UserTabConfig } from '@/lib/tab-config-types'

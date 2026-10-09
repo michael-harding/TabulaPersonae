@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test"
 // excludes axe's "best-practice" extras (e.g. the no-WCAG-tag "region" rule flagging
 // Kobalte portal content rendered outside <main>) that aren't part of that target.
 import AxeBuilder from "@axe-core/playwright"
+
 import { testCharacter } from "./fixtures"
 
 // next-themes persists the chosen theme in localStorage under the key "theme".

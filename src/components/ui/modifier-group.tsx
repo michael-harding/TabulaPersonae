@@ -1,6 +1,7 @@
 import type { ParentProps } from "solid-js"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import ChevronDown from "lucide-solid/icons/chevron-down"
+
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 export function ModifierGroup(props: ParentProps<{ label: string; open: boolean; onOpenChange: (open: boolean) => void; "data-test"?: string }>) {
   return (

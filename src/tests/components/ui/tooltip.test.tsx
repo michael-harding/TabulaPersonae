@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, waitFor, cleanupPortals } from "../../test-utils"
+
 import { Tooltip } from "@/components/ui/tooltip"
+
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../../test-utils"
 
 describe("Tooltip", () => {
   beforeEach(() => {

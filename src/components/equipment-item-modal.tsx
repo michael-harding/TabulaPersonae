@@ -1,5 +1,10 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
 import { createStore, reconcile, unwrap } from "solid-js/store"
+import Plus from "lucide-solid/icons/plus"
+import Save from "lucide-solid/icons/save"
+import Gem from "lucide-solid/icons/gem"
+import X from "lucide-solid/icons/x"
+
 import type { AbilityScores, ActionKind, Equipment, ItemModifiers, ItemRarity, SenseType, Skills } from "@/lib/character-types"
 import {
   DAMAGE_TYPE_OPTIONS,
@@ -24,10 +29,6 @@ import { Combobox } from "@/components/ui/combobox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ModifierGroup } from "@/components/ui/modifier-group"
 import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
-import Plus from "lucide-solid/icons/plus"
-import Save from "lucide-solid/icons/save"
-import Gem from "lucide-solid/icons/gem"
-import X from "lucide-solid/icons/x"
 
 export const RARITY_OPTIONS: { value: ItemRarity; label: string }[] = [
   { value: "common", label: "Common" },

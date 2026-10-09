@@ -1,5 +1,8 @@
 import { createSignal, createEffect, onCleanup, Show, For } from "solid-js"
 import { useParams, useSearchParams, A } from "@solidjs/router"
+import Scroll from "lucide-solid/icons/scroll"
+import Lock from "lucide-solid/icons/lock"
+
 import { type Character } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -8,8 +11,6 @@ import { MODULE_REGISTRY, PUBLIC_SAFE_MODULE_IDS } from "@/lib/module-registry"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { StatsBar } from "@/components/stats-bar"
-import Scroll from "lucide-solid/icons/scroll"
-import Lock from "lucide-solid/icons/lock"
 
 const PUBLIC_TAB_CONFIG = {
   tabs: DEFAULT_TAB_CONFIG.tabs

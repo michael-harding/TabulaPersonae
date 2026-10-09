@@ -1,4 +1,15 @@
 import { createSignal, For, Show } from "solid-js"
+import Package from "lucide-solid/icons/package"
+import Plus from "lucide-solid/icons/plus"
+import Edit from "lucide-solid/icons/edit"
+import Trash2 from "lucide-solid/icons/trash-2"
+import Search from "lucide-solid/icons/search"
+import Scale from "lucide-solid/icons/scale"
+import Gem from "lucide-solid/icons/gem"
+import Coins from "lucide-solid/icons/coins"
+import TriangleAlert from "lucide-solid/icons/triangle-alert"
+import Zap from "lucide-solid/icons/zap"
+
 import type { AbilityScores, Character, Equipment, SenseType } from "@/lib/character-types"
 import {
   SENSE_LABELS,
@@ -29,16 +40,6 @@ import { Tooltip } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import Package from "lucide-solid/icons/package"
-import Plus from "lucide-solid/icons/plus"
-import Edit from "lucide-solid/icons/edit"
-import Trash2 from "lucide-solid/icons/trash-2"
-import Search from "lucide-solid/icons/search"
-import Scale from "lucide-solid/icons/scale"
-import Gem from "lucide-solid/icons/gem"
-import Coins from "lucide-solid/icons/coins"
-import TriangleAlert from "lucide-solid/icons/triangle-alert"
-import Zap from "lucide-solid/icons/zap"
 import { useReadOnly } from "@/lib/read-only-context"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { EquipmentItemModal, ACTION_KIND_OPTIONS, hasOtherModifierFields } from "@/components/equipment-item-modal"
@@ -213,7 +214,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
             Currency
           </h2>
           <div class="flex flex-wrap gap-2">
-            {(["cp", "sp", "ep", "gp", "pp"] as const).map((denom) => (
+            <For each={["cp", "sp", "ep", "gp", "pp"] as const}>{(denom) => (
               <div class="text-center space-y-1">
                 <Label class="text-xs font-medium text-muted-foreground">{denom.toUpperCase()}</Label>
                 <Show
@@ -243,7 +244,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                   />
                 </Show>
               </div>
-            ))}
+            )}</For>
           </div>
         </div>
 

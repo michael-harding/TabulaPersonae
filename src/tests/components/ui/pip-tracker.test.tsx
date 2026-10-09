@@ -1,6 +1,8 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../../test-utils"
+
 import { PipTracker } from "@/components/ui/pip-tracker"
+
+import { render, screen, fireEvent } from "../../test-utils"
 
 describe("PipTracker", () => {
   beforeEach(() => {

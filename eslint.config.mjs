@@ -1,5 +1,6 @@
 import tseslint from 'typescript-eslint'
 import solid from 'eslint-plugin-solid'
+import importX from 'eslint-plugin-import-x'
 
 export default tseslint.config(
   {
@@ -72,6 +73,20 @@ export default tseslint.config(
       // behavior-sensitive rendering refactor, not lint-infra setup — downgraded to warn
       // and tracked as a follow-up rather than rewritten here.
       'solid/prefer-for': 'warn',
+    },
+  },
+  {
+    // CONSTITUTION.md §6.18: external packages, then internal `@/` absolute imports, then
+    // relative imports, each group separated by a blank line.
+    files: ['**/*.{ts,tsx,js,jsx}'],
+    plugins: { 'import-x': importX },
+    rules: {
+      'import-x/order': ['error', {
+        groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index']],
+        pathGroups: [{ pattern: '@/**', group: 'internal', position: 'before' }],
+        pathGroupsExcludedImportTypes: ['builtin'],
+        'newlines-between': 'always',
+      }],
     },
   },
 )

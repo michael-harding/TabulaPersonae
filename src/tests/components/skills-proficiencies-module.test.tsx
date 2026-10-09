@@ -1,9 +1,11 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
+
 import { SkillsProficienciesModule } from "@/components/skills-proficiencies-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { getSkillModifier, getSavingThrowModifier, formatModifier } from "@/lib/character-utils"
 import type { Character, Equipment, Feature } from "@/lib/character-types"
+
+import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}) {
   const base = createDefaultCharacter()

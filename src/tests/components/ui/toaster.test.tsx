@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within } from "../../test-utils"
+
 import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/hooks/use-toast"
+
+import { render, screen, fireEvent, within } from "../../test-utils"
 
 // useToast's toasts list is a module-level signal (shared across the whole process, not scoped
 // to a component instance), so leftover toasts from one test would otherwise leak into the
