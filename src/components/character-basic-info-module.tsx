@@ -59,7 +59,6 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
   const edition = () => props.character.edition ?? "2024"
   const raceLabel = () => edition() === "2014" ? "Race" : "Species"
   const raceList = () => edition() === "2014" ? RACES : SPECIES
-  const inspirationLabel = () => edition() === "2014" ? "Inspiration" : "Heroic Inspiration"
 
   const updateField = (field: keyof Character, value: any) => { // Character fields are heterogeneous; a union of all field types is not usable as an assignment target
     setEdited((prev) => ({ ...prev, [field]: value }))
@@ -81,25 +80,6 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
       onSave={handleSave}
       onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}
-      headerExtra={
-        <Show when={!isReadOnly}>
-          <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2">
-              <Label for="heroic-inspiration-toggle" class="text-xs font-medium">{inspirationLabel()}</Label>
-              <label class={TOUCH_TARGET_BOX}>
-              <input
-                id="heroic-inspiration-toggle"
-                type="checkbox"
-                checked={!!props.character.heroicInspiration}
-                onChange={(e) => props.onUpdate({ ...props.character, heroicInspiration: e.currentTarget.checked })}
-                class="accent-primary h-4 w-4"
-                style={{ "accent-color": "#eab308" }}
-              />
-              </label>
-            </div>
-          </div>
-        </Show>
-      }
       contentClass="space-y-4"
     >
         {isEditing() ? (

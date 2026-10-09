@@ -53,15 +53,6 @@ describe("CharacterBasicInfoModule", () => {
       expect(screen.getAllByText("Not specified").length).toBeGreaterThan(0)
     })
 
-    it("calls onUpdate when heroic inspiration checkbox is toggled", () => {
-      const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
-      const checkbox = screen.getByLabelText(/heroic inspiration/i)
-      fireEvent.click(checkbox)
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ heroicInspiration: true })
-      )
-    })
   })
 
   describe("edit mode", () => {
@@ -162,18 +153,6 @@ describe("CharacterBasicInfoModule", () => {
     it("shows 'Species' label in 2024 mode", () => {
       render(<CharacterBasicInfoModule character={char2024} onUpdate={vi.fn()} />)
       expect(screen.getByText("Species")).toBeInTheDocument()
-    })
-  })
-
-  describe("inspiration label", () => {
-    it("shows 'Inspiration' label in 2014 mode", () => {
-      render(<CharacterBasicInfoModule character={char2014} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Inspiration")).toBeInTheDocument()
-    })
-
-    it("shows 'Heroic Inspiration' label in 2024 mode", () => {
-      render(<CharacterBasicInfoModule character={char2024} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Heroic Inspiration")).toBeInTheDocument()
     })
   })
 
@@ -291,15 +270,6 @@ describe("CharacterBasicInfoModule", () => {
   })
 
   describe("readOnly mode", () => {
-    it("does not render the heroic inspiration checkbox", () => {
-      render(
-        <ReadOnlyProvider value={true}>
-          <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />
-        </ReadOnlyProvider>
-      )
-      expect(screen.queryByLabelText(/heroic inspiration/i)).not.toBeInTheDocument()
-      expect(screen.queryByLabelText(/^inspiration$/i)).not.toBeInTheDocument()
-    })
 
     it("still renders the character name display", () => {
       render(
