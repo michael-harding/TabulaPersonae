@@ -129,9 +129,9 @@ export function HeaderMenu(props: HeaderMenuProps) {
 
   const ThemeIcon = () => {
     switch (theme()) {
-      case "dark": return <Moon class="h-4 w-4" />
-      case "light": return <Sun class="h-4 w-4" />
-      default: return <Monitor class="h-4 w-4" />
+      case "dark": return <Moon class="h-4 w-4" aria-hidden="true" />
+      case "light": return <Sun class="h-4 w-4" aria-hidden="true" />
+      default: return <Monitor class="h-4 w-4" aria-hidden="true" />
     }
   }
 
@@ -151,27 +151,27 @@ export function HeaderMenu(props: HeaderMenuProps) {
     <div data-sem="header-menu" class="flex items-center gap-2">
       {user() && (
         <div class="flex items-center gap-2 text-sm text-muted-foreground">
-          <User class="h-4 w-4" />
+          <User class="h-4 w-4" aria-hidden="true" />
           <span class="hidden sm:inline">{user()!.email}</span>
         </div>
       )}
 
       <DropdownMenu open={isOpen()} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger data-test="header-menu-trigger" aria-label="Open menu" class={buttonVariants({ variant: "outline", size: "sm" })}>
-          <Menu class="h-4 w-4" />
+          <Menu class="h-4 w-4" aria-hidden="true" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="w-56">
           <DropdownMenuItem onSelect={props.onAllCharacters}>
-            <Users class="h-4 w-4 mr-2" />
+            <Users class="h-4 w-4 mr-2" aria-hidden="true" />
             All Characters
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => { setIsOpen(false); setIsImportOpen(true) }}>
-            <Upload class="h-4 w-4 mr-2" />
+            <Upload class="h-4 w-4 mr-2" aria-hidden="true" />
             Import Character
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={handleExport}>
-            <Download class="h-4 w-4 mr-2 shrink-0" />
+            <Download class="h-4 w-4 mr-2 shrink-0" aria-hidden="true" />
             <span class="truncate">{exportLabel()}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -183,7 +183,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={logout}>
-                <LogOut class="h-4 w-4 mr-2" />
+                <LogOut class="h-4 w-4 mr-2" aria-hidden="true" />
                 Sign Out
               </DropdownMenuItem>
             </>
@@ -191,7 +191,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={handleBackToLogin}>
-                <LogIn class="h-4 w-4 mr-2" />
+                <LogIn class="h-4 w-4 mr-2" aria-hidden="true" />
                 Back to Login
               </DropdownMenuItem>
             </>
@@ -218,7 +218,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
                 id="header-character-import"
               />
               <label for="header-character-import" class={buttonVariants({ class: "w-full gap-2 cursor-pointer" })}>
-                <FileText class="h-4 w-4" />
+                <FileText class="h-4 w-4" aria-hidden="true" />
                 Choose JSON File
               </label>
               <div class="relative my-1">
@@ -241,7 +241,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
                 for="header-character-pdf-import"
                 class={buttonVariants({ variant: "outline", class: `w-full gap-2 cursor-pointer ${isPdfParsing() ? "opacity-50 pointer-events-none" : ""}` })}
               >
-                <FileText class="h-4 w-4" />
+                <FileText class="h-4 w-4" aria-hidden="true" />
                 {isPdfParsing() ? "Parsing PDF…" : "Choose PDF File (D&D Beyond)"}
               </label>
             </div>

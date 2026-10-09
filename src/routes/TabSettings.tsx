@@ -55,23 +55,23 @@ function SortableModuleRow(props: SortableModuleRowProps) {
     >
       <button
         type="button"
-        class="cursor-grab touch-none text-muted-foreground"
+        class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] cursor-grab touch-none text-muted-foreground"
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {...(sortable.dragActivators as any)}
         aria-label="Drag to reorder"
         data-test={`module-drag-handle-${props.moduleId}`}
       >
-        <GripVertical class="h-4 w-4" />
+        <GripVertical class="h-4 w-4" aria-hidden="true" />
       </button>
       <span class="flex-1 text-sm">{MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}</span>
       <button
         type="button"
         onClick={props.onRemove}
-        class="text-muted-foreground hover:text-destructive transition-colors"
+        class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-destructive transition-colors"
         aria-label={`Remove ${MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}`}
         data-test={`remove-module-${props.moduleId}`}
       >
-        <X class="h-4 w-4" />
+        <X class="h-4 w-4" aria-hidden="true" />
       </button>
     </div>
   )
@@ -135,7 +135,7 @@ function SortableTabRow(props: SortableTabRowProps) {
             aria-label="Drag to reorder tab"
             data-test={`tab-drag-handle-${props.tab.id}`}
           >
-            <GripVertical class="h-4 w-4" />
+            <GripVertical class="h-4 w-4" aria-hidden="true" />
           </button>
 
           {/* Tab label or rename form */}
@@ -172,34 +172,37 @@ function SortableTabRow(props: SortableTabRowProps) {
 
           {/* Action buttons — hidden while renaming */}
           <Show when={!renaming()}>
-            <button
-              type="button"
-              onClick={() => { setRenameValue(props.tab.label); setRenaming(true) }}
-              class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              aria-label="Rename tab"
-              data-test={`tab-rename-${props.tab.id}`}
-            >
-              <Pencil class="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={props.onDelete}
-              disabled={props.disableDelete}
-              class="text-muted-foreground hover:text-destructive transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
-              aria-label="Delete tab"
-              data-test={`tab-delete-${props.tab.id}`}
-            >
-              <Trash2 class="h-4 w-4" />
-            </button>
-            <CollapsibleTrigger
-              class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              data-test={`tab-toggle-${props.tab.id}`}
-              aria-label={props.expanded ? "Collapse tab" : "Expand tab"}
-            >
-              <ChevronDown
-                class={cn("h-4 w-4 transition-transform duration-200", props.expanded && "rotate-180")}
-              />
-            </CollapsibleTrigger>
+            <div class="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => { setRenameValue(props.tab.label); setRenaming(true) }}
+                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Rename tab"
+                data-test={`tab-rename-${props.tab.id}`}
+              >
+                <Pencil class="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={props.onDelete}
+                disabled={props.disableDelete}
+                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
+                aria-label="Delete tab"
+                data-test={`tab-delete-${props.tab.id}`}
+              >
+                <Trash2 class="h-4 w-4" aria-hidden="true" />
+              </button>
+              <CollapsibleTrigger
+                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-foreground transition-colors"
+                data-test={`tab-toggle-${props.tab.id}`}
+                aria-label={props.expanded ? "Collapse tab" : "Expand tab"}
+              >
+                <ChevronDown
+                  class={cn("h-4 w-4 transition-transform duration-200", props.expanded && "rotate-180")}
+                  aria-hidden="true"
+                />
+              </CollapsibleTrigger>
+            </div>
           </Show>
         </div>
 
@@ -243,7 +246,7 @@ function SortableTabRow(props: SortableTabRowProps) {
                         class="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-accent transition-colors"
                         data-test={`add-module-${props.tab.id}-${moduleId}`}
                       >
-                        <Plus class="h-3 w-3" />
+                        <Plus class="h-3 w-3" aria-hidden="true" />
                         {MODULE_REGISTRY[moduleId].label}
                       </button>
                     )}
@@ -349,7 +352,7 @@ export default function TabSettings() {
           class="flex items-center gap-1 text-sm text-primary hover:underline"
           data-test="back-button"
         >
-          <ChevronLeft class="h-4 w-4" />
+          <ChevronLeft class="h-4 w-4" aria-hidden="true" />
           Back
         </button>
       </div>
@@ -390,7 +393,7 @@ export default function TabSettings() {
         when={addingTab()}
         fallback={
           <Button variant="outline" onClick={() => setAddingTab(true)} data-test="add-tab-button">
-            <Plus class="h-4 w-4 mr-2" />
+            <Plus class="h-4 w-4 mr-2" aria-hidden="true" />
             Add Tab
           </Button>
         }

@@ -312,7 +312,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     <EditableModule
       data-sem="combat-stats-module"
       data-test="combat-stats-module"
-      icon={<ShieldIcon class="h-5 w-5 text-primary" />}
+      icon={<ShieldIcon class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Combat Stats"
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
@@ -325,16 +325,16 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <Label class="flex items-center gap-2">
-              <Heart class="h-4 w-4 text-destructive" />
+              <Heart class="h-4 w-4 text-destructive" aria-hidden="true" />
               Hit Points
             </Label>
             <Show when={!isEditing() && !isReadOnly}>
               <div class="flex gap-1">
                 <Button data-test="hp-decrease-button" size="sm" variant="outline" aria-label="Decrease HP" onClick={() => adjustHitPoints(-1)} disabled={currentHP() <= 0}>
-                  <Minus class="h-3 w-3" />
+                  <Minus class="h-3 w-3" aria-hidden="true" />
                 </Button>
                 <Button data-test="hp-increase-button" size="sm" variant="outline" aria-label="Increase HP" onClick={() => adjustHitPoints(1)} disabled={currentHP() >= maxHP()}>
-                  <Plus class="h-3 w-3" />
+                  <Plus class="h-3 w-3" aria-hidden="true" />
                 </Button>
               </div>
             </Show>
@@ -400,13 +400,13 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
         <Show when={currentHP() === 0}>
           <div class="space-y-3">
             <Label class="flex items-center gap-2">
-              <Skull class="h-4 w-4 text-destructive" />
+              <Skull class="h-4 w-4 text-destructive" aria-hidden="true" />
               Death Saves
             </Label>
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
                 <div class="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-1">
-                  <CheckCircle class="h-3 w-3" /> Successes
+                  <CheckCircle class="h-3 w-3" aria-hidden="true" /> Successes
                 </div>
                 <PipTracker
                   total={3}
@@ -414,7 +414,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   onToggle={(n) => toggleDeathSave("successes", n)}
                   filledClass="bg-green-500 border-green-500 hover:bg-green-400"
                   emptyClass="bg-background border-green-500 hover:bg-green-100"
-                  filledIcon={<CheckCircle class="h-4 w-4 text-white" />}
+                  filledIcon={<CheckCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Success (click to remove)"
                   availableTitle="Click to add success"
                   readOnly={isReadOnly}
@@ -422,7 +422,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               </div>
               <div class="space-y-2">
                 <div class="text-sm font-medium text-red-600 dark:text-red-400 flex items-center gap-1">
-                  <XCircle class="h-3 w-3" /> Failures
+                  <XCircle class="h-3 w-3" aria-hidden="true" /> Failures
                 </div>
                 <PipTracker
                   total={3}
@@ -430,7 +430,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   onToggle={(n) => toggleDeathSave("failures", n)}
                   filledClass="bg-red-500 border-red-500 hover:bg-red-400"
                   emptyClass="bg-background border-red-500 hover:bg-red-100"
-                  filledIcon={<XCircle class="h-4 w-4 text-white" />}
+                  filledIcon={<XCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Failure (click to remove)"
                   availableTitle="Click to add failure"
                   readOnly={isReadOnly}
@@ -458,7 +458,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
                   title="Add condition"
                 >
-                  <Plus class="h-3 w-3" />
+                  <Plus class="h-3 w-3" aria-hidden="true" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <For each={CONDITIONS}>
@@ -501,7 +501,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                       title="Click to remove"
                     >
                       {condition}
-                      <X class="h-2.5 w-2.5" />
+                      <X class="h-2.5 w-2.5" aria-hidden="true" />
                     </button>
                   </Show>
                 )}
@@ -522,7 +522,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
                   title="Add condition immunity"
                 >
-                  <Plus class="h-3 w-3" />
+                  <Plus class="h-3 w-3" aria-hidden="true" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <For each={CONDITIONS}>
@@ -574,7 +574,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                         title="Click to remove"
                       >
                         {condition}
-                        <X class="h-2.5 w-2.5" />
+                        <X class="h-2.5 w-2.5" aria-hidden="true" />
                       </button>
                     </Show>
                   )

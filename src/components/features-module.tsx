@@ -280,7 +280,7 @@ function ClosedListEditor(props: {
               <Badge variant="secondary" class="gap-1.5 pr-1">
                 {v}
                 <button type="button" data-test={`${props.testKey}-remove-${v}`} aria-label={`Remove ${v}`} onClick={() => remove(v)}>
-                  <X class="h-3 w-3" />
+                  <X class="h-3 w-3" aria-hidden="true" />
                 </button>
               </Badge>
             )}
@@ -326,7 +326,7 @@ function EffectGroup(props: ParentProps<{ label: string; testId: string; open: b
     <Collapsible open={props.open} onOpenChange={props.onOpenChange}>
       <CollapsibleTrigger data-test={props.testId} class="flex w-full items-center justify-between text-xs font-medium text-muted-foreground">
         <span>{props.label}</span>
-        <ChevronDown class="h-3.5 w-3.5 transition-transform ui-expanded:rotate-180" />
+        <ChevronDown class="h-3.5 w-3.5 transition-transform ui-expanded:rotate-180" aria-hidden="true" />
       </CollapsibleTrigger>
       <CollapsibleContent class="pt-2">{props.children}</CollapsibleContent>
     </Collapsible>
@@ -392,7 +392,7 @@ function LevelEffectRow(props: {
           onClick={props.onRemove}
           class="text-muted-foreground hover:text-destructive"
         >
-          <Trash2 class="h-4 w-4" />
+          <Trash2 class="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
 
@@ -440,7 +440,7 @@ function LevelEffectRow(props: {
                       aria-label={`Remove ${SKILL_DISPLAY_NAMES[grant.skill]}`}
                       onClick={() => removeSkill(grant.skill)}
                     >
-                      <X class="h-3 w-3" />
+                      <X class="h-3 w-3" aria-hidden="true" />
                     </button>
                   </Badge>
                 )}
@@ -1049,14 +1049,14 @@ function FeatureForm(props: FeatureFormProps) {
                         onClick={() => removeRolledLevel(index)}
                         class="text-muted-foreground hover:text-destructive"
                       >
-                        <Trash2 class="h-4 w-4" />
+                        <Trash2 class="h-4 w-4" aria-hidden="true" />
                       </button>
                     </Show>
                   </div>
                 )}
               </Index>
               <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addRolledLevel}>
-                <Plus class="h-3 w-3" />
+                <Plus class="h-3 w-3" aria-hidden="true" />
                 Add Level Roll
               </Button>
             </div>
@@ -1112,7 +1112,7 @@ function FeatureForm(props: FeatureFormProps) {
             )}
           </Index>
           <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addLevelEffect}>
-            <Plus class="h-3 w-3" />
+            <Plus class="h-3 w-3" aria-hidden="true" />
             Add Level
           </Button>
         </div>
@@ -1225,7 +1225,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
     <Card data-sem="features-module">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
-          <Layers class="h-5 w-5 text-primary" />
+          <Layers class="h-5 w-5 text-primary" aria-hidden="true" />
           Class Features, Species Traits, Background &amp; Feats
         </CardTitle>
       </CardHeader>
@@ -1240,10 +1240,10 @@ export function FeaturesModule(props: FeaturesModuleProps) {
               >
                 <div class="flex items-center justify-between pr-1">
                   <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
-                    <section.icon class="h-4 w-4 text-primary" />
+                    <section.icon class="h-4 w-4 text-primary" aria-hidden="true" />
                     <span class="font-semibold">{section.title}</span>
                     <Badge variant="secondary">{features().length}</Badge>
-                    <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+                    <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
                   </CollapsibleTrigger>
                   <Show when={!isReadOnly}>
                     <Button
@@ -1252,7 +1252,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                       class="gap-1 h-7 ml-2"
                       onClick={() => setIsAddOpen(section.kind)}
                     >
-                      <Plus class="h-3 w-3" />
+                      <Plus class="h-3 w-3" aria-hidden="true" />
                       Add {section.singular}
                     </Button>
                   </Show>
@@ -1277,7 +1277,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                               </Show>
                               <Show when={feature.actionKind}>
                                 <Badge variant="outline" class="text-xs flex items-center gap-1">
-                                  <Zap class="h-3 w-3" />
+                                  <Zap class="h-3 w-3" aria-hidden="true" />
                                   {ACTION_KIND_LABELS[feature.actionKind!]}
                                 </Badge>
                               </Show>
@@ -1295,15 +1295,15 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                               </Show>
                             </div>
                             <Show when={!isReadOnly}>
-                              <div class="flex items-center gap-1 shrink-0">
+                              <div class="flex items-center gap-2 shrink-0">
                                 <Tooltip content={`Edit ${section.singular}`}>
                                   <button
                                     type="button"
                                     aria-label={`Edit ${feature.name}`}
                                     onClick={() => setEditingFeature(feature)}
-                                    class="text-muted-foreground hover:text-foreground"
+                                    class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-foreground"
                                   >
-                                    <Pencil class="h-4 w-4" />
+                                    <Pencil class="h-4 w-4" aria-hidden="true" />
                                   </button>
                                 </Tooltip>
                                 <Tooltip content={`Delete ${section.singular}`}>
@@ -1311,9 +1311,9 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                     type="button"
                                     aria-label={`Delete ${feature.name}`}
                                     onClick={() => handleDelete(section.field, feature.id)}
-                                    class="text-muted-foreground hover:text-destructive"
+                                    class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-destructive"
                                   >
-                                    <Trash2 class="h-4 w-4" />
+                                    <Trash2 class="h-4 w-4" aria-hidden="true" />
                                   </button>
                                 </Tooltip>
                               </div>

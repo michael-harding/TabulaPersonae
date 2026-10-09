@@ -78,7 +78,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
     <EditableModule
       data-sem="character-notes-module"
       data-test="character-notes-module"
-      icon={<FileText class="h-5 w-5 text-primary" />}
+      icon={<FileText class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Character Background & Notes"
       isEditing={isEditing()}
       onEdit={() => { setEditedCharacter(props.character); setIsEditing(true) }}

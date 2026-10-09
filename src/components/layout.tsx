@@ -1,14 +1,26 @@
-import { createSignal } from 'solid-js'
+import { createSignal, createEffect, on } from 'solid-js'
 import type { ParentProps } from 'solid-js'
+import { useLocation } from '@solidjs/router'
 import { SyncContext, type CharacterSyncState } from '@/lib/sync-context'
 import { OfflineIndicator } from './offline-indicator'
 
 export default function Layout(props: ParentProps) {
   const [syncState, setSyncState] = createSignal<CharacterSyncState>(null)
+  const location = useLocation()
+  let mainRef: HTMLElement | undefined
+
+  // ACCESSIBILITY.md §7: move focus to <main> on route change so screen reader users are
+  // notified of the new page. `on` receives `undefined` as the previous value on its first
+  // run (initial mount), which we use to skip stealing focus from the page's natural initial
+  // focus — only subsequent, real navigations move focus.
+  createEffect(on(() => location.pathname, (_path, prevPath) => {
+    if (prevPath !== undefined) mainRef?.focus()
+  }))
+
   return (
     <SyncContext.Provider value={{ syncState, setSyncState }}>
     <div data-sem="page-layout" class="flex min-h-dvh flex-col">
-      <main class="flex flex-1 flex-col">{props.children}</main>
+      <main ref={mainRef} tabIndex={-1} class="flex flex-1 flex-col">{props.children}</main>
       <OfflineIndicator />
       <footer class="border-t bg-card px-6 py-3 text-center text-sm text-muted-foreground">
         <span>© 2026 Michael Harding</span>

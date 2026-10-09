@@ -224,7 +224,7 @@ function TagPickerField(props: { label: string; options: string[]; selected: str
             class="inline-flex items-center justify-center h-5 w-5 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
             title={`Add ${props.label}`}
           >
-            <Plus class="h-3 w-3" />
+            <Plus class="h-3 w-3" aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <For each={props.options}>
@@ -254,7 +254,7 @@ function TagPickerField(props: { label: string; options: string[]; selected: str
                 title="Click to remove"
               >
                 {tag}
-                <X class="h-2.5 w-2.5" />
+                <X class="h-2.5 w-2.5" aria-hidden="true" />
               </button>
             )}
           </For>
@@ -513,7 +513,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       <Show when={formData.magic}>
         <div class="space-y-3 border rounded-md p-3 bg-muted/30">
           <p class="text-sm font-medium flex items-center gap-1">
-            <Gem class="h-3.5 w-3.5" />
+            <Gem class="h-3.5 w-3.5" aria-hidden="true" />
             Magic Item Details
           </p>
           <div>
@@ -848,7 +848,7 @@ function EquipmentForm(props: EquipmentFormProps) {
 
       <div class="flex gap-2 pt-4">
         <Button data-test="equipment-modal-submit" onClick={() => props.onSubmit(unwrap(formData))} class="gap-2">
-          <Save class="h-4 w-4" />
+          <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Item" : "Add Item"}
         </Button>
         <Button data-test="equipment-modal-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>

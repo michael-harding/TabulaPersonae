@@ -61,7 +61,7 @@ export default function PublicCharacterSheet() {
       fallback={
         <div data-sem="public-character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
-            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" aria-hidden="true" />
             <p class="text-muted-foreground">Loading character...</p>
           </div>
         </div>
@@ -72,7 +72,7 @@ export default function PublicCharacterSheet() {
         fallback={
           <div data-sem="public-character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
             <div class="text-center space-y-2">
-              <Scroll class="h-12 w-12 mx-auto text-muted-foreground" />
+              <Scroll class="h-12 w-12 mx-auto text-muted-foreground" aria-hidden="true" />
               <h1 class="text-lg font-semibold">Character not found or not shared publicly.</h1>
               <A href="/" class="text-sm text-primary underline underline-offset-2" data-test="go-to-app-link">Go to TabulaPersonae</A>
             </div>
@@ -88,12 +88,12 @@ export default function PublicCharacterSheet() {
                 <div class="max-w-7xl mx-auto px-4 py-4">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                      <Scroll class="h-8 w-8 text-primary" />
+                      <Scroll class="h-8 w-8 text-primary" aria-hidden="true" />
                       <div>
                         <div class="flex items-center gap-2">
                           <h1 class="text-2xl font-bold text-foreground">{getChar().name || "Unnamed Character"}</h1>
                           <Badge variant="secondary" class="flex items-center gap-1 text-xs">
-                            <Lock class="h-3 w-3" />
+                            <Lock class="h-3 w-3" aria-hidden="true" />
                             Read-only
                           </Badge>
                         </div>

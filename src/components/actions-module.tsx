@@ -565,7 +565,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   return (
     <EditableModule
       data-sem="actions-module"
-      icon={<Sword class="h-5 w-5 text-primary" />}
+      icon={<Sword class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Actions & Attacks"
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
@@ -579,7 +579,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CalculatedValue
               label="Spell Attack"
               labelClass="text-sm font-medium"
-              icon={<Zap class="h-4 w-4 text-primary" />}
+              icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
               editable={isEditing()}
               {...spellAttackField.binding()}
               format={formatModifier}
@@ -589,7 +589,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CalculatedValue
               label="Spell Modifier"
               labelClass="text-sm font-medium"
-              icon={<Zap class="h-4 w-4 text-primary" />}
+              icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
               editable={isEditing()}
               {...spellModifierField.binding()}
               format={formatModifier}
@@ -599,7 +599,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CalculatedValue
               label="Spell Save DC"
               labelClass="text-sm font-medium"
-              icon={<Shield class="h-4 w-4 text-primary" />}
+              icon={<Shield class="h-4 w-4 text-primary" aria-hidden="true" />}
               editable={isEditing()}
               {...spellSaveDCField.binding()}
             />
@@ -614,14 +614,14 @@ export function ActionsModule(props: ActionsModuleProps) {
         <Collapsible open={expandedSections().has('actions')} onOpenChange={(open: boolean) => toggleSection('actions', open)}>
           <div class="flex items-center justify-between pr-1">
             <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
-              <Target class="h-5 w-5 text-primary" />
+              <Target class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Actions</span>
               <Badge variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featuresByKind().actions.length + equipmentByKind().actions.length}</Badge>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddAction}>
-                <Plus class="h-3 w-3" />
+                <Plus class="h-3 w-3" aria-hidden="true" />
                 Add Action
               </Button>
             </Show>
@@ -675,14 +675,14 @@ export function ActionsModule(props: ActionsModuleProps) {
         <Collapsible open={expandedSections().has('bonus-actions')} onOpenChange={(open: boolean) => toggleSection('bonus-actions', open)}>
           <div class="flex items-center justify-between pr-1">
             <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
-              <Clock class="h-5 w-5 text-primary" />
+              <Clock class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Bonus Actions</span>
               <Badge variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featuresByKind().bonuses.length + equipmentByKind().bonuses.length}</Badge>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-bonus-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddBonusAction}>
-                <Plus class="h-3 w-3" />
+                <Plus class="h-3 w-3" aria-hidden="true" />
                 Add Bonus Action
               </Button>
             </Show>
@@ -723,14 +723,14 @@ export function ActionsModule(props: ActionsModuleProps) {
         <Collapsible open={expandedSections().has('reactions')} onOpenChange={(open: boolean) => toggleSection('reactions', open)}>
           <div class="flex items-center justify-between pr-1">
             <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
-              <Shield class="h-5 w-5 text-primary" />
+              <Shield class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Reactions</span>
               <Badge variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featuresByKind().reactions.length + equipmentByKind().reactions.length}</Badge>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-reaction-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddReaction}>
-                <Plus class="h-3 w-3" />
+                <Plus class="h-3 w-3" aria-hidden="true" />
                 Add Reaction
               </Button>
             </Show>
@@ -772,14 +772,14 @@ export function ActionsModule(props: ActionsModuleProps) {
         <Collapsible open={expandedSections().has('other')} onOpenChange={(open: boolean) => toggleSection('other', open)}>
           <div class="flex items-center justify-between pr-1">
             <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
-              <Sparkles class="h-5 w-5 text-primary" />
+              <Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Other</span>
               <Badge variant="secondary">{featuresByKind().others.length + (props.character.otherActions?.length ?? 0) + equipmentByKind().others.length}</Badge>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-other-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddOther}>
-                <Plus class="h-3 w-3" />
+                <Plus class="h-3 w-3" aria-hidden="true" />
                 Add Other
               </Button>
             </Show>

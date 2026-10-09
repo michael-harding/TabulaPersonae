@@ -119,7 +119,7 @@ export default function CharacterSheet() {
       fallback={
         <div data-sem="character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
-            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" aria-hidden="true" />
             <p class="text-muted-foreground">Loading character...</p>
           </div>
         </div>
@@ -134,7 +134,7 @@ export default function CharacterSheet() {
               <div class="max-w-7xl mx-auto px-4 py-4">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-4">
-                    <Scroll class="h-8 w-8 text-primary" />
+                    <Scroll class="h-8 w-8 text-primary" aria-hidden="true" />
                     <div class="flex items-center gap-3">
                       <div>
                         <h1 class="text-2xl font-bold text-foreground">{getChar().name || "Unnamed Character"}</h1>
@@ -151,7 +151,7 @@ export default function CharacterSheet() {
                           style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}
                           data-test="toggle-heroic-inspiration"
                         >
-                          <Sunrise class={`h-11 w-11 ${getChar().heroicInspiration ? "fill-yellow-400" : "fill-none"}`} stroke-width={2} />
+                          <Sunrise class={`h-11 w-11 ${getChar().heroicInspiration ? "fill-yellow-400" : "fill-none"}`} stroke-width={2} aria-hidden="true" />
                         </button>
                       </Tooltip>
                       <Tooltip content="Take a Rest">
@@ -163,7 +163,7 @@ export default function CharacterSheet() {
                           style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}
                           data-test="take-a-rest-button"
                         >
-                          <FlameKindling class="h-11 w-11" stroke-width={2} />
+                          <FlameKindling class="h-11 w-11" stroke-width={2} aria-hidden="true" />
                         </button>
                       </Tooltip>
                     </div>
@@ -196,7 +196,7 @@ export default function CharacterSheet() {
                       class="px-3 py-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                       data-test="configure-tabs-button"
                     >
-                      <Settings class="h-4 w-4" />
+                      <Settings class="h-4 w-4" aria-hidden="true" />
                     </button>
                   </Tooltip>
                 </div>

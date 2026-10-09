@@ -251,7 +251,7 @@ function SpellForm(props: SpellFormProps) {
 
       <div class="flex gap-2 pt-4">
         <Button data-test="spell-form-submit" onClick={() => props.onSubmit(formData())} class="gap-2">
-          <Save class="h-4 w-4" />
+          <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Spell" : "Add Spell"}
         </Button>
         <Button data-test="spell-form-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
@@ -448,12 +448,12 @@ export function SpellsModule(props: SpellsModuleProps) {
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <Sparkles class="h-5 w-5 text-primary" />
+            <Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />
             Spells
           </div>
           <Show when={!isReadOnly}>
             <Button data-test="add-spell-button" size="sm" class="gap-2" onClick={() => setIsAddModalOpen(true)}>
-              <Plus class="h-4 w-4" />
+              <Plus class="h-4 w-4" aria-hidden="true" />
               Add Spell
             </Button>
           </Show>
@@ -485,14 +485,14 @@ export function SpellsModule(props: SpellsModuleProps) {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
               <div class="text-center">
                 <div class="flex items-center justify-center gap-1 mb-1">
-                  <Target class="h-4 w-4 text-primary" />
+                  <Target class="h-4 w-4 text-primary" aria-hidden="true" />
                   <span class="text-sm font-medium">Spell Save DC</span>
                 </div>
                 <div class="text-2xl font-bold text-primary">{spellSaveDC()}</div>
               </div>
               <div class="text-center">
                 <div class="flex items-center justify-center gap-1 mb-1">
-                  <Zap class="h-4 w-4 text-primary" />
+                  <Zap class="h-4 w-4 text-primary" aria-hidden="true" />
                   <span class="text-sm font-medium">Spell Attack</span>
                 </div>
                 <div class="text-2xl font-bold text-primary">{formatModifier(spellAttackBonus())}</div>
@@ -509,12 +509,12 @@ export function SpellsModule(props: SpellsModuleProps) {
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold flex items-center gap-2">
-              <Circle class="h-5 w-5 text-primary" />
+              <Circle class="h-5 w-5 text-primary" aria-hidden="true" />
               Spell Slots
             </h2>
             <Show when={!isReadOnly}>
               <Button data-test="edit-spell-slots-button" variant="outline" size="sm" class="gap-1" onClick={() => setIsSpellSlotsModalOpen(true)}>
-                <Settings class="h-3 w-3" />
+                <Settings class="h-3 w-3" aria-hidden="true" />
                 Edit Slots
               </Button>
             </Show>
@@ -533,7 +533,7 @@ export function SpellsModule(props: SpellsModuleProps) {
         </div>
 
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
             data-test="spell-search-input"
             placeholder="Search spells..."
@@ -568,7 +568,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                             </Badge>
                           </Show>
                         </div>
-                        <ChevronDown class="h-4 w-4" />
+                        <ChevronDown class="h-4 w-4" aria-hidden="true" />
                       </CollapsibleTrigger>
                       <CollapsibleContent class="space-y-2 mt-2">
                         <Show
@@ -604,17 +604,21 @@ export function SpellsModule(props: SpellsModuleProps) {
                                           </Tooltip>
                                         </Show>
                                       </Show>
-                                      <h3
-                                        data-test={`spell-name-${spell.id}`}
-                                        class={`font-medium ${isReadOnly ? "" : "cursor-pointer"}`}
-                                        onClick={() => {
-                                          if (isReadOnly) return
-                                          if (spell.level === 0) toggleKnown(spell.id)
-                                          else if (!(spell.known ?? true)) return
-                                          else togglePrepared(spell.id)
-                                        }}
-                                      >
-                                        {spell.name}
+                                      <h3 class="font-medium">
+                                        <button
+                                          type="button"
+                                          data-test={`spell-name-${spell.id}`}
+                                          disabled={isReadOnly}
+                                          class={`bg-transparent border-0 p-0 font-medium text-left ${isReadOnly ? "cursor-default" : "cursor-pointer"}`}
+                                          onClick={() => {
+                                            if (isReadOnly) return
+                                            if (spell.level === 0) toggleKnown(spell.id)
+                                            else if (!(spell.known ?? true)) return
+                                            else togglePrepared(spell.id)
+                                          }}
+                                        >
+                                          {spell.name}
+                                        </button>
                                       </h3>
                                       <Badge variant="outline" class="text-xs">{spell.school}</Badge>
                                       <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>
@@ -659,12 +663,12 @@ export function SpellsModule(props: SpellsModuleProps) {
                                     <div class="flex items-center gap-2 ml-4">
                                       <Tooltip content="Edit spell">
                                         <Button data-test={`edit-spell-${spell.id}`} variant="ghost" size="sm" aria-label="Edit spell" onClick={() => setEditingSpell(spell)}>
-                                          <Edit class="h-4 w-4" />
+                                          <Edit class="h-4 w-4" aria-hidden="true" />
                                         </Button>
                                       </Tooltip>
                                       <Tooltip content="Delete spell">
                                         <Button data-test={`delete-spell-${spell.id}`} variant="ghost" size="sm" aria-label="Delete spell" onClick={() => handleDeleteSpell(spell.id)}>
-                                          <Trash2 class="h-4 w-4" />
+                                          <Trash2 class="h-4 w-4" aria-hidden="true" />
                                         </Button>
                                       </Tooltip>
                                     </div>

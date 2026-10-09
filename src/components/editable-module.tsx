@@ -51,19 +51,19 @@ export function EditableModule(props: EditableModuleProps) {
               <div class="flex gap-1">
                 <Tooltip content="Cancel">
                   <Button data-test="editable-module-cancel" variant="outline" size="sm" aria-label="Cancel" onClick={props.onCancel} class="hover:!border-red-500 hover:!text-red-500 hover:!bg-red-500/30">
-                    <X class="h-4 w-4" />
+                    <X class="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </Tooltip>
                 <Tooltip content="Save changes">
                   <Button data-test="editable-module-save" variant="outline" size="sm" aria-label="Save changes" onClick={props.onSave} class="border-green-500 text-green-500 hover:!bg-green-500/30 hover:!text-green-500">
-                    <Check class="h-4 w-4" />
+                    <Check class="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </Tooltip>
               </div>
             ) : (
               <Tooltip content="Edit">
                 <Button data-test="editable-module-edit" variant="outline" size="sm" aria-label="Edit" onClick={props.onEdit}>
-                  <Edit class="h-4 w-4" />
+                  <Edit class="h-4 w-4" aria-hidden="true" />
                 </Button>
               </Tooltip>
             )}

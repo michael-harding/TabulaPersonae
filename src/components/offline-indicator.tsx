@@ -58,9 +58,11 @@ export function OfflineIndicator() {
   // with no sync needed — indicator is only meaningful for Firebase-backed sessions
   return (
     <Show when={!!user() && status() !== 'online'}>
-      <div
+      <button
+        type="button"
         data-sem="offline-indicator"
         data-test="offline-indicator"
+        aria-expanded={expanded()}
         class={`fixed bottom-6 right-6 z-50 flex h-11 w-auto cursor-pointer flex-row items-center justify-end overflow-hidden rounded-full shadow-lg transition-[max-width] duration-300 ${BG[status()]} ${expanded() ? 'max-w-xs' : 'max-w-[44px]'}`}
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}
@@ -80,17 +82,17 @@ export function OfflineIndicator() {
         <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center">
           <Switch>
             <Match when={status() === 'offline'}>
-              <RefreshCwOff class={`h-5 w-5 ${TEXT_COLOR[status()]}`} />
+              <RefreshCwOff class={`h-5 w-5 ${TEXT_COLOR[status()]}`} aria-hidden="true" />
             </Match>
             <Match when={status() === 'syncing'}>
-              <RefreshCw data-test="offline-indicator-spinner" class="h-5 w-5 animate-spin text-white" />
+              <RefreshCw data-test="offline-indicator-spinner" class="h-5 w-5 animate-spin text-white" aria-hidden="true" />
             </Match>
             <Match when={status() === 'synced'}>
-              <RefreshCw class="h-5 w-5 text-white" />
+              <RefreshCw class="h-5 w-5 text-white" aria-hidden="true" />
             </Match>
           </Switch>
         </div>
-      </div>
+      </button>
     </Show>
   )
 }

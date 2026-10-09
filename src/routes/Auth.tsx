@@ -21,6 +21,10 @@ function ConsentModal(props: { open: boolean; onAgree: () => void; onDecline: ()
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay class="fixed inset-0 z-50 bg-black/80 data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 duration-200" />
         <DialogPrimitive.Content
+          // ACCESSIBILITY.md §4: intentional focus trap — the user must explicitly accept or
+          // decline the legal terms before continuing, so dismissing via outside-click/Escape
+          // is suppressed. The visible "Decline" button below is the required explicit escape
+          // mechanism.
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
           class="fixed left-[50%] top-[50%] z-50 w-full max-w-md grid gap-4 border bg-background p-6 shadow-lg sm:rounded-lg data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[expanded]:slide-in-from-left-1/2 data-[expanded]:slide-in-from-top-1/2 data-[closed]:slide-out-to-left-1/2 data-[closed]:slide-out-to-top-1/2 duration-200">
@@ -181,7 +185,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           </p>
         </Show>
         <Show when={error()}>
-          <div class="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">{error()}</div>
+          <div role="alert" class="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">{error()}</div>
         </Show>
         <button
           data-test="auth-submit-button"
@@ -197,7 +201,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           </button>
         </Show>
         <Show when={resetEmailSent()}>
-          <div class="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+          <div role="status" aria-live="polite" class="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
             Password reset email sent! Check your inbox.
           </div>
         </Show>
@@ -253,7 +257,7 @@ export default function Auth() {
       <ConsentModal open={consentOpen()} onAgree={handleAgree} onDecline={handleDecline} />
       <div data-sem="auth-route" class="flex flex-1 items-center justify-center bg-background p-4">
         <div class="max-w-md mx-auto text-center w-full">
-          <Scroll class="h-16 w-16 mx-auto mb-6 text-primary" />
+          <Scroll class="h-16 w-16 mx-auto mb-6 text-primary" aria-hidden="true" />
           <h1 class="text-4xl font-bold mb-4 text-foreground">TabulaPersonae</h1>
           <div class="space-y-4">
             <Button data-test="auth-skip-button" onClick={handleSkipAuth} variant="outline" class="w-full">

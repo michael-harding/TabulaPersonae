@@ -170,17 +170,17 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <Package class="h-5 w-5 text-primary" />
+            <Package class="h-5 w-5 text-primary" aria-hidden="true" />
             Equipment & Inventory
           </div>
           <div class="flex items-center gap-2">
             <Badge variant="outline" class="gap-1">
-              <Scale class="h-3 w-3" />
+              <Scale class="h-3 w-3" aria-hidden="true" />
               {totalWeight()} lbs
             </Badge>
             <Show when={!isReadOnly}>
               <Button data-test="add-equipment-button" size="sm" class="gap-2" onClick={openAdd}>
-                <Plus class="h-4 w-4" />
+                <Plus class="h-4 w-4" aria-hidden="true" />
                 Add Item
               </Button>
             </Show>
@@ -209,7 +209,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         {/* Coins */}
         <div>
           <h2 class="font-semibold mb-2 text-sm flex items-center gap-2">
-            <Coins class="h-4 w-4 text-primary" />
+            <Coins class="h-4 w-4 text-primary" aria-hidden="true" />
             Currency
           </h2>
           <div class="flex flex-wrap gap-2">
@@ -252,7 +252,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         {/* Magic Items */}
         <div data-sem="magic-items-section" data-test="magic-items-section">
           <h2 class="font-semibold text-sm flex items-center gap-2 mb-2">
-            <Gem class="h-4 w-4 text-primary" />
+            <Gem class="h-4 w-4 text-primary" aria-hidden="true" />
             Magic Items
           </h2>
           <div data-test="attunement-limit-row" class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
@@ -294,7 +294,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </Show>
                         <Show when={item.actionKind}>
                           <Badge variant="outline" class="text-xs flex items-center gap-1">
-                            <Zap class="h-3 w-3" />
+                            <Zap class="h-3 w-3" aria-hidden="true" />
                             {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
                           </Badge>
                         </Show>
@@ -437,15 +437,15 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       </Show>
                     </div>
                     <Show when={!isReadOnly}>
-                      <div class="flex items-center gap-1 shrink-0 ml-2">
+                      <div class="flex items-center gap-2 shrink-0 ml-2">
                         <Tooltip content={`Edit ${item.name}`}>
                           <Button data-test={`magic-item-edit-${item.id}`} variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
-                            <Edit class="h-4 w-4" />
+                            <Edit class="h-4 w-4" aria-hidden="true" />
                           </Button>
                         </Tooltip>
                         <Tooltip content={`Delete ${item.name}`}>
                           <Button data-test={`magic-item-delete-${item.id}`} variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
-                            <Trash2 class="h-4 w-4" />
+                            <Trash2 class="h-4 w-4" aria-hidden="true" />
                           </Button>
                         </Tooltip>
                       </div>
@@ -460,7 +460,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         <Separator />
 
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
             data-test="equipment-search-input"
             placeholder="Search equipment..."
@@ -511,12 +511,17 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                               aria-label={`Toggle equipped: ${item.name}`}
                             />
                           </Show>
-                          <h3
-                            data-test={`equipment-item-name-${item.id}`}
-                            class={`font-medium ${isReadOnly ? "" : "cursor-pointer"}`}
-                            onClick={() => !isReadOnly && toggleEquipped(item.id)}
-                          >
-                            {item.name}
+                          <h3 class="font-medium">
+                            <button
+                              type="button"
+                              data-test={`equipment-item-name-${item.id}`}
+                              disabled={isReadOnly}
+                              aria-pressed={!isReadOnly ? item.equipped : undefined}
+                              class={`bg-transparent border-0 p-0 font-medium text-left ${isReadOnly ? "cursor-default" : "cursor-pointer"}`}
+                              onClick={() => !isReadOnly && toggleEquipped(item.id)}
+                            >
+                              {item.name}
+                            </button>
                           </h3>
                         </div>
                         <Show when={item.type && item.type !== "other"}>
@@ -524,13 +529,13 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </Show>
                         <Show when={item.actionKind}>
                           <Badge variant="outline" class="text-xs flex items-center gap-1">
-                            <Zap class="h-3 w-3" />
+                            <Zap class="h-3 w-3" aria-hidden="true" />
                             {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
                           </Badge>
                         </Show>
                         <Show when={item.magic}>
                           <Badge variant="outline" class="text-xs gap-1">
-                            <Gem class="h-3 w-3" />
+                            <Gem class="h-3 w-3" aria-hidden="true" />
                             Magic
                           </Badge>
                         </Show>
@@ -572,12 +577,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       <div class="flex items-center gap-2">
                         <Tooltip content={`Edit ${item.name}`}>
                           <Button data-test={`equipment-edit-${item.id}`} variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
-                            <Edit class="h-4 w-4" />
+                            <Edit class="h-4 w-4" aria-hidden="true" />
                           </Button>
                         </Tooltip>
                         <Tooltip content={`Delete ${item.name}`}>
                           <Button data-test={`equipment-delete-${item.id}`} variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
-                            <Trash2 class="h-4 w-4" />
+                            <Trash2 class="h-4 w-4" aria-hidden="true" />
                           </Button>
                         </Tooltip>
                       </div>

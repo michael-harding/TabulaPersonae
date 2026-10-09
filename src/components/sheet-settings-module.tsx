@@ -42,7 +42,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
     <Card data-sem="sheet-settings-module">
       <CardHeader class="pb-3">
         <CardTitle class="flex items-center gap-2 text-base">
-          <Settings2 class="h-5 w-5 text-primary" />
+          <Settings2 class="h-5 w-5 text-primary" aria-hidden="true" />
           Sheet Settings
         </CardTitle>
       </CardHeader>
@@ -97,7 +97,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                     onInput={(e) => props.onUpdate({ ...props.character, sheetColor: e.currentTarget.value })}
                     class="absolute inset-0 w-full h-full cursor-pointer border-none p-0 opacity-0"
                   />
-                  <Pipette class="h-3 w-3 text-white drop-shadow pointer-events-none" />
+                  <Pipette class="h-3 w-3 text-white drop-shadow pointer-events-none" aria-hidden="true" />
                 </span>
               </label>
             </div>
@@ -107,7 +107,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                 type="button"
                 data-test="sheet-color-reset-button"
                 aria-label="Reset sheet color"
-                class="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
+                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
                 onClick={() => props.onUpdate({ ...props.character, sheetColor: undefined })}
               >
                 Reset
@@ -118,7 +118,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
 
         <div class="border-t pt-4 mt-1">
           <div class="flex items-center gap-2 mb-3">
-            <Share2 class="h-4 w-4 text-primary" />
+            <Share2 class="h-4 w-4 text-primary" aria-hidden="true" />
             <Label class="text-sm font-medium">Public Sharing</Label>
           </div>
           <div class="flex items-center gap-3 mb-3">
@@ -148,7 +148,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                     type="button"
                     data-test="share-url-copy-button"
                     aria-label="Copy share link"
-                    class="h-9 px-3 rounded-md border text-xs hover:bg-accent transition-colors whitespace-nowrap"
+                    class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] h-9 px-3 rounded-md border text-xs hover:bg-accent transition-colors whitespace-nowrap"
                     onClick={() => {
                       navigator.clipboard.writeText(getUrl())
                         .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
@@ -159,7 +159,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                   </button>
                 </div>
                 <Show when={qrDataUrl.error}>
-                  <p class="text-xs text-destructive">Failed to generate QR code.</p>
+                  <p role="alert" class="text-xs text-destructive">Failed to generate QR code.</p>
                 </Show>
                 <Show when={qrDataUrl()}>
                   <img

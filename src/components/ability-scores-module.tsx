@@ -69,7 +69,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
   return (
     <EditableModule
       data-sem="ability-scores-module"
-      icon={<Zap class="h-5 w-5 text-primary" />}
+      icon={<Zap class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Ability Scores"
       isEditing={isEditing()}
       onEdit={() => {

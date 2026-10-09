@@ -72,7 +72,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
     <EditableModule
       data-sem="character-basic-info-module"
       data-test="character-basic-info-module"
-      icon={<User class="h-5 w-5 text-primary" />}
+      icon={<User class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Character Information"
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}

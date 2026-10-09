@@ -132,7 +132,7 @@ export function ActionCard(props: ActionCardProps) {
                 aria-label={`Details for ${props.name}`}
                 data-test={`action-details-trigger-${props.name}`}
               >
-                <CircleHelp class="w-4 h-4" />
+                <CircleHelp class="w-4 h-4" aria-hidden="true" />
               </Popover.Trigger>
               <Popover.Portal>
                 <Popover.Content class="z-50 w-72 rounded-lg border bg-popover p-4 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95">
@@ -210,12 +210,12 @@ export function ActionCard(props: ActionCardProps) {
             <Tooltip content={`Edit ${props.name}`}>
               <button
                 type="button"
-                class="text-muted-foreground hover:text-foreground transition-colors"
+                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={`Edit ${props.name}`}
                 data-test={`action-edit-button-${props.name}`}
                 onClick={props.onEdit}
               >
-                <Pencil class="h-4 w-4" />
+                <Pencil class="h-4 w-4" aria-hidden="true" />
               </button>
             </Tooltip>
           </Show>
@@ -357,7 +357,7 @@ export function ActionCard(props: ActionCardProps) {
                     props.upcastSpellId?.() === props.spellId ? null : (props.spellId ?? null)
                   )}
                 >
-                  <ArrowBigUp class="h-4 w-4" />
+                  <ArrowBigUp class="h-4 w-4" aria-hidden="true" />
                 </Button>
               </Show>
             </div>

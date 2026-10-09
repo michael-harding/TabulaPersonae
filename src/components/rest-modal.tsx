@@ -118,7 +118,7 @@ export function RestModal(props: RestModalProps) {
       <ModalContent data-sem="rest-modal" class="max-w-md">
         <ModalHeader>
           <ModalTitle class="flex items-center gap-2">
-            <FlameKindling class="h-5 w-5 text-orange-500" />
+            <FlameKindling class="h-5 w-5 text-orange-500" aria-hidden="true" />
             Take a Rest
           </ModalTitle>
         </ModalHeader>

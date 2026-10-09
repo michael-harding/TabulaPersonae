@@ -71,7 +71,7 @@ function EditableTagList(props: {
               <Show when={props.editing}>
                 <Tooltip content={`Remove ${props.itemLabel}`}>
                   <Button variant="ghost" size="sm" aria-label={`Remove ${props.itemLabel}`} class="h-auto p-0 hover:bg-transparent" onClick={() => props.onRemove(value)}>
-                    <X class="h-3 w-3" />
+                    <X class="h-3 w-3" aria-hidden="true" />
                   </Button>
                 </Tooltip>
               </Show>
@@ -100,7 +100,7 @@ function EditableTagList(props: {
           />
           <Tooltip content={`Add ${props.itemLabel}`}>
             <Button onClick={add} size="sm" aria-label={`Add ${props.itemLabel}`} disabled={!newValue().trim()}>
-              <Plus class="h-4 w-4" />
+              <Plus class="h-4 w-4" aria-hidden="true" />
             </Button>
           </Tooltip>
         </div>
@@ -130,24 +130,28 @@ function SkillAdvantagePips(props: {
   return (
     <>
       <Show when={props.editable}>
-        <Tooltip content={tooltip("advantage")}>
-          <button
-            type="button"
-            title="Advantage"
-            aria-label="Advantage"
-            onClick={props.onToggleAdvantage}
-            class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-white text-white"}`}
-          >A</button>
-        </Tooltip>
-        <Tooltip content={tooltip("disadvantage")}>
-          <button
-            type="button"
-            title="Disadvantage"
-            aria-label="Disadvantage"
-            onClick={props.onToggleDisadvantage}
-            class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-white text-white"}`}
-          >D</button>
-        </Tooltip>
+        <div class="flex items-center gap-2">
+          <Tooltip content={tooltip("advantage")}>
+            <button
+              type="button"
+              title="Advantage"
+              aria-label="Advantage"
+              aria-pressed={props.state === "advantage"}
+              onClick={props.onToggleAdvantage}
+              class={`relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-white text-white"}`}
+            >A</button>
+          </Tooltip>
+          <Tooltip content={tooltip("disadvantage")}>
+            <button
+              type="button"
+              title="Disadvantage"
+              aria-label="Disadvantage"
+              aria-pressed={props.state === "disadvantage"}
+              onClick={props.onToggleDisadvantage}
+              class={`relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-white text-white"}`}
+            >D</button>
+          </Tooltip>
+        </div>
       </Show>
       <Show when={!props.editable && props.state === "advantage"}>
         <Tooltip content={tooltip("advantage")}>
@@ -304,7 +308,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
     <EditableModule
       data-sem="skills-proficiencies-module"
       data-test="skills-proficiencies-module"
-      icon={<BookOpen class="h-5 w-5 text-primary" />}
+      icon={<BookOpen class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Skills & Proficiencies"
       isEditing={isEditing()}
       onEdit={() => { setEdited(props.character); setIsEditing(true) }}
@@ -422,10 +426,13 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                       </Show>
                       <div class="flex-1">
                         <div class="flex items-center gap-2">
-                          <span
-                            class={`font-medium ${isEditing() ? "cursor-pointer" : ""}`}
+                          <button
+                            type="button"
+                            disabled={!isEditing()}
+                            aria-pressed={isEditing() ? effectiveSkill().proficient : undefined}
+                            class={`font-medium text-left bg-transparent border-0 p-0 ${isEditing() ? "cursor-pointer" : "cursor-default"}`}
                             onClick={() => isEditing() && toggleSkillProf(skillKey)}
-                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show></span></Show></span>
+                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show></span></Show></button>
                         </div>
                       </div>
                     </div>

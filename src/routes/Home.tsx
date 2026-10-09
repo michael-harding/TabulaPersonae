@@ -74,7 +74,7 @@ export default function Home() {
       fallback={
         <div data-sem="home-route" class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
-            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" aria-hidden="true" />
             <p class="text-muted-foreground">Loading your characters...</p>
           </div>
         </div>
@@ -92,7 +92,7 @@ export default function Home() {
           </div>
 
           <div class="text-center py-12">
-            <Scroll class="h-16 w-16 mx-auto mb-6 text-primary" />
+            <Scroll class="h-16 w-16 mx-auto mb-6 text-primary" aria-hidden="true" />
             <h1 class="text-4xl font-bold mb-4 text-foreground">TabulaPersonae</h1>
             <p class="text-xl text-muted-foreground mb-8">Create and manage your characters</p>
 
@@ -104,7 +104,7 @@ export default function Home() {
                     You don't have any characters yet. Create your first character to get started!
                   </p>
                   <Button data-test="create-first-character-button" onClick={createNewCharacter} size="lg" class="gap-2">
-                    <Plus class="h-5 w-5" />
+                    <Plus class="h-5 w-5" aria-hidden="true" />
                     Create Your First Character
                   </Button>
                 </div>
@@ -128,13 +128,13 @@ export default function Home() {
                             handleDeleteCharacter(character.id, character.name)
                           }}
                         >
-                          <Trash2 class="h-4 w-4" />
+                          <Trash2 class="h-4 w-4" aria-hidden="true" />
                         </Button>
 
                         <A href={`/character/${character.id}`} class="block">
                           <CardHeader>
                             <CardTitle class="flex items-center gap-2 pr-8">
-                              <Sword class="h-5 w-5 text-primary" />
+                              <Sword class="h-5 w-5 text-primary" aria-hidden="true" />
                               {character.name || "Unnamed Character"}
                             </CardTitle>
                           </CardHeader>
@@ -153,7 +153,7 @@ export default function Home() {
                 </div>
 
                 <Button data-test="create-new-character-button" onClick={createNewCharacter} variant="outline" class="gap-2 bg-transparent">
-                  <Plus class="h-4 w-4" />
+                  <Plus class="h-4 w-4" aria-hidden="true" />
                   Create New Character
                 </Button>
               </div>
