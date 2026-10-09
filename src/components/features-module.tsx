@@ -17,6 +17,7 @@ import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABIL
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -33,6 +34,7 @@ import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
 import { useReadOnly } from "@/lib/read-only-context"
+import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 interface FeaturesModuleProps {
   character: Character
@@ -280,9 +282,9 @@ function ClosedListEditor(props: {
             {(v) => (
               <Badge variant="secondary" class="gap-1.5 pr-1">
                 {v}
-                <button type="button" data-test={`${props.testKey}-remove-${v}`} aria-label={`Remove ${v}`} onClick={() => remove(v)}>
+                <ConfirmButton data-test={`${props.testKey}-remove-${v}`} verb="Remove" subject={v} variant="ghost" class="h-auto w-auto min-h-0 p-0 hover:bg-transparent" onConfirm={() => remove(v)}>
                   <X class="h-3 w-3" aria-hidden="true" />
-                </button>
+                </ConfirmButton>
               </Badge>
             )}
           </For>
@@ -386,15 +388,16 @@ function LevelEffectRow(props: {
           <Label class="text-xs whitespace-nowrap">At Level</Label>
           <NumericInput data-test={`level-effect-${props.index}-level-input`} aria-label="At Level" class="w-20" min={1} max={20} value={props.tier.level} onChange={props.onLevelChange} />
         </div>
-        <button
-          type="button"
+        <ConfirmButton
           data-test={`level-effect-${props.index}-remove-button`}
-          aria-label={`Remove level ${props.tier.level} entry`}
-          onClick={props.onRemove}
-          class="text-muted-foreground hover:text-destructive"
+          verb="Remove"
+          subject={`level ${props.tier.level} entry`}
+          variant="ghost"
+          onConfirm={props.onRemove}
+          class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive")}
         >
           <Trash2 class="h-4 w-4" aria-hidden="true" />
-        </button>
+        </ConfirmButton>
       </div>
 
       <Show when={props.featureType === 'Saving Throw Proficiency'}>
@@ -435,14 +438,16 @@ function LevelEffectRow(props: {
                       />
                       Exp
                     </label>
-                    <button
-                      type="button"
+                    <ConfirmButton
                       data-test={`level-effect-${props.index}-skill-${grant.skill}-remove`}
-                      aria-label={`Remove ${SKILL_DISPLAY_NAMES[grant.skill]}`}
-                      onClick={() => removeSkill(grant.skill)}
+                      verb="Remove"
+                      subject={SKILL_DISPLAY_NAMES[grant.skill]}
+                      variant="ghost"
+                      class="h-auto w-auto min-h-0 p-0 hover:bg-transparent"
+                      onConfirm={() => removeSkill(grant.skill)}
                     >
                       <X class="h-3 w-3" aria-hidden="true" />
-                    </button>
+                    </ConfirmButton>
                   </Badge>
                 )}
               </For>
@@ -1044,14 +1049,16 @@ function FeatureForm(props: FeatureFormProps) {
                     <NumericInput aria-label={`Rolled amount for level ${index + 1}`} class="w-16" min={0}
                       value={rolledAmountAt(index)} onChange={(v) => updateRolledLevel(index, v)} />
                     <Show when={index >= props.characterLevel}>
-                      <button
-                        type="button"
-                        aria-label={`Remove level ${index + 1} roll`}
-                        onClick={() => removeRolledLevel(index)}
-                        class="text-muted-foreground hover:text-destructive"
+                      <ConfirmButton
+                        data-test={`rolled-hp-level-${index + 1}-remove`}
+                        verb="Remove"
+                        subject={`level ${index + 1} roll`}
+                        variant="ghost"
+                        onConfirm={() => removeRolledLevel(index)}
+                        class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive")}
                       >
                         <Trash2 class="h-4 w-4" aria-hidden="true" />
-                      </button>
+                      </ConfirmButton>
                     </Show>
                   </div>
                 )}
@@ -1296,26 +1303,29 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                               </Show>
                             </div>
                             <Show when={!isReadOnly}>
-                              <div class="flex items-center gap-2 shrink-0">
+                              <div class="flex items-center shrink-0">
                                 <Tooltip content={`Edit ${section.singular}`}>
                                   <button
                                     type="button"
+                                    data-test={`feature-edit-${feature.id}`}
                                     aria-label={`Edit ${feature.name}`}
                                     onClick={() => setEditingFeature(feature)}
-                                    class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-foreground"
+                                    class={cn(TOUCH_TARGET_BOX, "text-muted-foreground hover:text-foreground")}
                                   >
                                     <Pencil class="h-4 w-4" aria-hidden="true" />
                                   </button>
                                 </Tooltip>
                                 <Tooltip content={`Delete ${section.singular}`}>
-                                  <button
-                                    type="button"
-                                    aria-label={`Delete ${feature.name}`}
-                                    onClick={() => handleDelete(section.field, feature.id)}
-                                    class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-destructive"
+                                  <ConfirmButton
+                                    data-test={`feature-delete-${feature.id}`}
+                                    verb="Delete"
+                                    subject={feature.name}
+                                    variant="ghost"
+                                    onConfirm={() => handleDelete(section.field, feature.id)}
+                                    class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive")}
                                   >
                                     <Trash2 class="h-4 w-4" aria-hidden="true" />
-                                  </button>
+                                  </ConfirmButton>
                                 </Tooltip>
                               </div>
                             </Show>
@@ -1352,7 +1362,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                   when={maxUses <= 5}
                                   fallback={
                                     // value/onChange are inverted: display shows remaining uses, storage tracks used count
-                                    <StepperInput
+                                    <StepperInput data-test={`feature-uses-stepper-${feature.id}`}
                                       value={remainingUses(feature.uses, maxUses)}
                                       min={0}
                                       max={maxUses}
@@ -1380,7 +1390,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                               <Show
                                 when={(props.character.level ?? 1) <= 5}
                                 fallback={
-                                  <StepperInput
+                                  <StepperInput data-test="spent-hit-dice-stepper"
                                     value={props.character.spentHitDice ?? 0}
                                     min={0}
                                     max={props.character.level ?? 1}

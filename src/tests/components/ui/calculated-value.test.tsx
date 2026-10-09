@@ -6,6 +6,7 @@ import { render, screen, fireEvent, waitFor, cleanupPortals } from "../../test-u
 
 function baseProps(overrides: Partial<Parameters<typeof CalculatedValue>[0]> = {}) {
   return {
+    "data-test": "strength",
     label: "Strength",
     editable: false,
     custom: false,
@@ -35,27 +36,27 @@ describe("CalculatedValue", () => {
 
   it("defaults to a top/column layout", () => {
     render(<CalculatedValue {...baseProps()} />)
-    const root = screen.getByTestId("calculated-value")
+    const root = screen.getByTestId("strength")
     expect(root).toHaveClass("flex-col")
     expect(root).not.toHaveClass("flex-row")
   })
 
   it("applies a left/row layout when labelPosition is 'left'", () => {
     render(<CalculatedValue {...baseProps({ labelPosition: "left" })} />)
-    const root = screen.getByTestId("calculated-value")
+    const root = screen.getByTestId("strength")
     expect(root).toHaveClass("flex-row")
     expect(root).not.toHaveClass("flex-col")
   })
 
   it("uses the default label class when labelClass is not provided", () => {
     render(<CalculatedValue {...baseProps()} />)
-    const label = screen.getByTestId("calculated-value-label")
+    const label = screen.getByTestId("strength-label")
     expect(label).toHaveClass("text-sm", "text-muted-foreground")
   })
 
   it("overrides the label class when labelClass is provided", () => {
     render(<CalculatedValue {...baseProps({ labelClass: "text-lg font-bold" })} />)
-    const label = screen.getByTestId("calculated-value-label")
+    const label = screen.getByTestId("strength-label")
     expect(label).toHaveClass("text-lg", "font-bold")
     expect(label).not.toHaveClass("text-sm", "text-muted-foreground")
   })
@@ -72,18 +73,18 @@ describe("CalculatedValue", () => {
 
   it("uses a smaller text size in compact variant", () => {
     render(<CalculatedValue {...baseProps({ variant: "compact" })} />)
-    expect(screen.getByTestId("calculated-value-display")).toHaveClass("text-sm")
+    expect(screen.getByTestId("strength-display")).toHaveClass("text-sm")
   })
 
   it("uses the larger default text size when not compact and not editable", () => {
     render(<CalculatedValue {...baseProps()} />)
-    expect(screen.getByTestId("calculated-value-display")).toHaveClass("text-2xl")
+    expect(screen.getByTestId("strength-display")).toHaveClass("text-2xl")
   })
 
   describe("tooltip", () => {
     it("shows the calculated tooltip when not custom", async () => {
       render(<CalculatedValue {...baseProps()} />)
-      const trigger = screen.getByTestId("calculated-value-display").closest('[data-sem="tooltip-trigger"]')!
+      const trigger = screen.getByTestId("strength-display").closest('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("(Ability Score)")
@@ -91,7 +92,7 @@ describe("CalculatedValue", () => {
 
     it("shows 'Custom' instead of the calculated tooltip when custom", async () => {
       render(<CalculatedValue {...baseProps({ custom: true, value: 16 })} />)
-      const trigger = screen.getByTestId("calculated-value-display").closest('[data-sem="tooltip-trigger"]')!
+      const trigger = screen.getByTestId("strength-display").closest('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
@@ -125,7 +126,7 @@ describe("CalculatedValue", () => {
     it("shows a numeric input instead of the static value", () => {
       render(<CalculatedValue {...baseProps({ editable: true, custom: true, value: 16 })} />)
       expect(screen.getByRole("spinbutton")).toHaveValue(16)
-      expect(screen.queryByTestId("calculated-value-display")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("strength-display")).not.toBeInTheDocument()
     })
 
     it("calls onValueChange with the parsed value on blur", () => {

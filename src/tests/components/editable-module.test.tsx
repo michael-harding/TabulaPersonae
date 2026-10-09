@@ -9,7 +9,7 @@ const icon = <span>icon</span>
 
 function renderView(overrides: Record<string, any> = {}) {
   return render(
-    <EditableModule
+    <EditableModule data-test="test-module"
       icon={icon}
       title="Test Section"
       isEditing={false}
@@ -35,7 +35,7 @@ describe("EditableModule", () => {
 
     it("renders children", () => {
       render(
-        <EditableModule icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
+        <EditableModule data-test="test-module" icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
           <span>child content</span>
         </EditableModule>
       )
@@ -63,7 +63,7 @@ describe("EditableModule", () => {
 
     it("does not render headerExtra when editing", () => {
       render(
-        <EditableModule
+        <EditableModule data-test="test-module"
           icon={icon}
           title="S"
           isEditing={true}
@@ -82,7 +82,7 @@ describe("EditableModule", () => {
   describe("edit mode (isEditing=true)", () => {
     function renderEdit(overrides: Record<string, any> = {}) {
       return render(
-        <EditableModule
+        <EditableModule data-test="test-module"
           icon={icon}
           title="Test Section"
           isEditing={true}
@@ -122,14 +122,14 @@ describe("EditableModule", () => {
 
     it("applies contentClass to the card content", () => {
       renderEdit({ contentClass: "my-custom-class" })
-      expect(screen.getByTestId("editable-module-content")).toHaveClass("my-custom-class")
+      expect(screen.getByTestId("test-module-content")).toHaveClass("my-custom-class")
     })
 
     it("calls onSaveKeepEditing (not onSave) on Ctrl+S", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
       renderEdit({ onSave, onSaveKeepEditing })
-      fireEvent.keyDown(screen.getByTestId("editable-module"), { key: "s", ctrlKey: true })
+      fireEvent.keyDown(screen.getByTestId("test-module"), { key: "s", ctrlKey: true })
       expect(onSaveKeepEditing).toHaveBeenCalledTimes(1)
       expect(onSave).not.toHaveBeenCalled()
     })
@@ -138,7 +138,7 @@ describe("EditableModule", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
       renderEdit({ onSave, onSaveKeepEditing })
-      fireEvent.keyDown(screen.getByTestId("editable-module"), { key: "s", metaKey: true })
+      fireEvent.keyDown(screen.getByTestId("test-module"), { key: "s", metaKey: true })
       expect(onSaveKeepEditing).toHaveBeenCalledTimes(1)
       expect(onSave).not.toHaveBeenCalled()
     })
@@ -147,7 +147,7 @@ describe("EditableModule", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
       renderEdit({ onSave, onSaveKeepEditing })
-      fireEvent.keyDown(screen.getByTestId("editable-module"), { key: "Enter", ctrlKey: true })
+      fireEvent.keyDown(screen.getByTestId("test-module"), { key: "Enter", ctrlKey: true })
       expect(onSave).toHaveBeenCalledTimes(1)
       expect(onSaveKeepEditing).not.toHaveBeenCalled()
     })
@@ -156,7 +156,7 @@ describe("EditableModule", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
       renderEdit({ onSave, onSaveKeepEditing })
-      const card = screen.getByTestId("editable-module")
+      const card = screen.getByTestId("test-module")
       fireEvent.keyDown(card, { key: "s" })
       fireEvent.keyDown(card, { key: "Enter" })
       expect(onSave).not.toHaveBeenCalled()
@@ -167,7 +167,7 @@ describe("EditableModule", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
       renderView({ onSave, onSaveKeepEditing })
-      const card = screen.getByTestId("editable-module")
+      const card = screen.getByTestId("test-module")
       fireEvent.keyDown(card, { key: "s", ctrlKey: true })
       fireEvent.keyDown(card, { key: "Enter", ctrlKey: true })
       expect(onSave).not.toHaveBeenCalled()
@@ -177,7 +177,7 @@ describe("EditableModule", () => {
 
   it("has no accessibility violations", async () => {
     const { container } = render(
-      <EditableModule icon={icon} title="Test Section" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()} />
+      <EditableModule data-test="test-module" icon={icon} title="Test Section" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()} />
     )
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
@@ -187,7 +187,7 @@ describe("EditableModule", () => {
     function renderReadOnly(overrides: Record<string, any> = {}) {
       return render(
         <ReadOnlyProvider value={true}>
-          <EditableModule
+          <EditableModule data-test="test-module"
             icon={icon}
             title="Test Section"
             isEditing={false}
@@ -214,7 +214,7 @@ describe("EditableModule", () => {
     it("still renders children content", () => {
       render(
         <ReadOnlyProvider value={true}>
-          <EditableModule icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
+          <EditableModule data-test="test-module" icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
             <span>display content</span>
           </EditableModule>
         </ReadOnlyProvider>

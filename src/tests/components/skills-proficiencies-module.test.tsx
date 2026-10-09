@@ -5,7 +5,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import { getSkillModifier, getSavingThrowModifier, formatModifier } from "@/lib/character-utils"
 import type { Character, Equipment, Feature } from "@/lib/character-types"
 
-import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}) {
   const base = createDefaultCharacter()
@@ -447,7 +447,7 @@ describe("SkillsProficienciesModule", () => {
 
       // Remove language buttons have aria-label="Remove language"; first one removes "Common"
       const removeLangButtons = screen.getAllByRole("button", { name: /remove language/i })
-      fireEvent.click(removeLangButtons[0])
+      confirmClick(removeLangButtons[0])
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
 
       const updatedLanguages = onUpdate.mock.calls[0][0].languages

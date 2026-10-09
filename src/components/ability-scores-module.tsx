@@ -68,7 +68,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
   }
 
   return (
-    <EditableModule
+    <EditableModule data-test="ability-scores-module"
       data-sem="ability-scores-module"
       icon={<Zap class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Ability Scores"
@@ -155,7 +155,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                         onChange={(v) => setEditedScores((prev) => ({ ...prev, [ability]: v }))}
                         class="text-center text-2xl font-bold h-16"
                       />
-                      <CalculatedValue
+                      <CalculatedValue data-test={`${ability}-effective-score`}
                         label={`${ABILITY_NAMES[ability]} Effective`}
                         labelPosition="left"
                         labelClass="text-xs text-muted-foreground"

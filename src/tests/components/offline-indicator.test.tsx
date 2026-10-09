@@ -106,6 +106,13 @@ describe('OfflineIndicator', () => {
       expect(pill.classList.contains('max-w-xs')).toBe(false)
     })
 
+    it('contains only phrasing content (no block <div>) inside the button', () => {
+      render(<OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
+      expect(pill.tagName).toBe('BUTTON')
+      expect(pill.querySelector('div')).toBeNull()
+    })
+
     it('expands on mouseenter', () => {
       render(<OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')

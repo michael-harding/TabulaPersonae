@@ -190,7 +190,7 @@ export function RestModal(props: RestModalProps) {
                 <Show
                   when={availableHitDice() <= 5}
                   fallback={
-                    <StepperInput
+                    <StepperInput data-test="rest-hit-dice-stepper"
                       value={dicesToSpend()}
                       min={0}
                       max={availableHitDice()}

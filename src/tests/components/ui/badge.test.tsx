@@ -6,32 +6,32 @@ import { render, screen } from "../../test-utils"
 
 describe("Badge", () => {
   it("renders its children", () => {
-    render(<Badge>New</Badge>)
+    render(<Badge data-test="badge">New</Badge>)
     expect(screen.getByText("New")).toBeInTheDocument()
   })
 
   it("applies the default variant classes when no variant is given", () => {
-    render(<Badge>Default</Badge>)
+    render(<Badge data-test="badge">Default</Badge>)
     const badge = screen.getByTestId("badge")
     expect(badge).toHaveClass("bg-primary", "text-primary-foreground")
   })
 
   it("applies secondary variant classes", () => {
-    render(<Badge variant="secondary">Secondary</Badge>)
+    render(<Badge data-test="badge" variant="secondary">Secondary</Badge>)
     const badge = screen.getByTestId("badge")
     expect(badge).toHaveClass("bg-secondary", "text-secondary-foreground")
     expect(badge).not.toHaveClass("bg-primary")
   })
 
   it("applies destructive variant classes", () => {
-    render(<Badge variant="destructive">Destructive</Badge>)
+    render(<Badge data-test="badge" variant="destructive">Destructive</Badge>)
     const badge = screen.getByTestId("badge")
     expect(badge).toHaveClass("bg-destructive", "text-destructive-foreground")
     expect(badge).not.toHaveClass("bg-primary")
   })
 
   it("applies outline variant classes", () => {
-    render(<Badge variant="outline">Outline</Badge>)
+    render(<Badge data-test="badge" variant="outline">Outline</Badge>)
     const badge = screen.getByTestId("badge")
     expect(badge).toHaveClass("text-foreground")
     expect(badge).not.toHaveClass("bg-primary")
@@ -39,7 +39,7 @@ describe("Badge", () => {
   })
 
   it("forwards a custom class alongside variant classes", () => {
-    render(<Badge class="my-custom-class">Custom</Badge>)
+    render(<Badge data-test="badge" class="my-custom-class">Custom</Badge>)
     const badge = screen.getByTestId("badge")
     expect(badge).toHaveClass("my-custom-class")
     expect(badge).toHaveClass("bg-primary")
@@ -47,7 +47,7 @@ describe("Badge", () => {
 
   it("forwards arbitrary DOM attributes to the root element", () => {
     render(
-      <Badge aria-label="status badge" id="badge-1">
+      <Badge data-test="badge" aria-label="status badge" id="badge-1">
         Status
       </Badge>
     )
@@ -57,8 +57,13 @@ describe("Badge", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<Badge>Accessible</Badge>)
+    const { container } = render(<Badge data-test="badge">Accessible</Badge>)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  it("sets no data-test of its own, so repeated instances never share a selector", () => {
+    const { container } = render(<Badge>New</Badge>)
+    expect(container.querySelector("[data-test]")).toBeNull()
   })
 })

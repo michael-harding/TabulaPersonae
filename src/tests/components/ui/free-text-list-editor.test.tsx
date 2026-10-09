@@ -2,7 +2,7 @@ import { axe } from "vitest-axe"
 
 import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
 
-import { render, screen, fireEvent } from "../../test-utils"
+import { render, screen, fireEvent, confirmClick } from "../../test-utils"
 
 function baseProps(overrides: Partial<Parameters<typeof FreeTextListEditor>[0]> = {}) {
   return {
@@ -105,7 +105,7 @@ describe("FreeTextListEditor", () => {
   it("calls onChange with the value removed when its Remove button is clicked", () => {
     const onChange = vi.fn()
     render(<FreeTextListEditor {...baseProps({ values: ["Common", "Elvish"], onChange })} />)
-    fireEvent.click(screen.getByRole("button", { name: "Remove Common" }))
+    confirmClick(screen.getByRole("button", { name: "Remove Common" }))
     expect(onChange).toHaveBeenCalledWith(["Elvish"])
   })
 

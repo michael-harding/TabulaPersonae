@@ -75,11 +75,6 @@ export default tseslint.config(
     plugins: { solid },
     rules: {
       ...solid.configs.recommended.rules,
-      // 5 existing call sites (character-notes-module.tsx, equipment-inventory-module.tsx)
-      // render lists via Array#map instead of Solid's <For>. Converting is a real,
-      // behavior-sensitive rendering refactor, not lint-infra setup — downgraded to warn
-      // and tracked as a follow-up rather than rewritten here.
-      'solid/prefer-for': 'warn',
     },
   },
   {

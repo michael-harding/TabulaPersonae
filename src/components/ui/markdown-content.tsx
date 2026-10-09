@@ -7,6 +7,7 @@ marked.setOptions({ breaks: true, gfm: true })
 interface MarkdownContentProps {
   text: string
   class?: string
+  "data-test"?: string
 }
 
 export const MarkdownContent: Component<MarkdownContentProps> = (props) => {
@@ -18,7 +19,7 @@ export const MarkdownContent: Component<MarkdownContentProps> = (props) => {
   return (
     <div
       data-sem="markdown-content"
-      data-test="markdown-content"
+      data-test={props["data-test"]}
       class={`markdown-content text-sm${props.class ? ` ${props.class}` : ""}`}
       // eslint-disable-next-line solid/no-innerhtml -- sanitized via DOMPurify.sanitize() above; approved exception per CONSTITUTION.md §10.3
       innerHTML={html()}

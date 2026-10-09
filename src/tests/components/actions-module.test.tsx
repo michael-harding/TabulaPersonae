@@ -5,7 +5,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals, confirmClick } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -145,7 +145,9 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     it("shows a custom-value toggle for spell attack, spell modifier, and spell save DC in edit mode", () => {
       render(<ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(screen.queryAllByTestId("calculated-value-toggle")).toHaveLength(3)
+      for (const id of ["spell-attack", "spell-modifier", "spell-save-dc"]) {
+        expect(screen.getByTestId(`${id}-toggle`)).toBeInTheDocument()
+      }
     })
 
     it("shows the ability-derived spell attack and save DC in view mode", () => {
@@ -339,7 +341,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       )
       fireEvent.click(screen.getByRole("button", { name: /edit longsword/i }))
       const modal = screen.getByRole("dialog")
-      fireEvent.click(within(modal).getByRole("button", { name: /^delete$/i }))
+      confirmClick(within(modal).getByRole("button", { name: /^delete$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ attacks: [] })
       )

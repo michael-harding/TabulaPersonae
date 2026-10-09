@@ -5,7 +5,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Spell, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals, confirmClick } from "../test-utils"
 
 function makeSpell(overrides: Partial<Spell> = {}): Spell {
   return {
@@ -207,7 +207,7 @@ describe("SpellsModule", () => {
       // In view with one cantrip (expanded), buttons: Add Spell, Edit Slots, Edit (ghost), Delete (ghost)
       const buttons = screen.getAllByRole("button")
       const deleteButton = buttons[buttons.length - 1]
-      fireEvent.click(deleteButton)
+      confirmClick(deleteButton)
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ spells: [] })
       )

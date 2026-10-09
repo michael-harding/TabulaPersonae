@@ -3,6 +3,7 @@ import X from "lucide-solid/icons/x"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -14,7 +15,8 @@ export function FreeTextListEditor(props: {
   placeholder: string
   values: string[]
   onChange: (next: string[]) => void
-  "data-test"?: string
+  /** Page-unique; set on the text input and prefixes the remove/add button ids. */
+  "data-test": string
 }) {
   const [newValue, setNewValue] = createSignal('')
   const add = () => {
@@ -33,9 +35,9 @@ export function FreeTextListEditor(props: {
             {(v) => (
               <Badge variant="secondary" class="gap-1.5 pr-1">
                 {v}
-                <button type="button" aria-label={`Remove ${v}`} onClick={() => remove(v)}>
-                  <X class="h-3 w-3" />
-                </button>
+                <ConfirmButton data-test={`${props["data-test"]}-remove-${v}`} verb="Remove" subject={v} variant="ghost" class="h-auto w-auto min-h-0 p-0 hover:bg-transparent" onConfirm={() => remove(v)}>
+                  <X class="h-3 w-3" aria-hidden="true" />
+                </ConfirmButton>
               </Badge>
             )}
           </For>
@@ -50,7 +52,7 @@ export function FreeTextListEditor(props: {
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add() } }}
           placeholder={props.placeholder}
         />
-        <Button type="button" size="sm" variant="outline" onClick={add}>Add</Button>
+        <Button type="button" data-test={`${props["data-test"]}-add`} size="sm" variant="outline" onClick={add}>Add</Button>
       </div>
     </div>
   )

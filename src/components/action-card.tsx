@@ -12,6 +12,7 @@ import { StepperInput } from "@/components/ui/stepper-input"
 import { Popover, PopoverTrigger, PopoverContent, PopoverArrow } from "@/components/ui/popover"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
+import { cn, TOUCH_TARGET } from "@/lib/utils"
 
 function getOrdinalSuffix(num: number): string {
   const suffixes = ["th", "st", "nd", "rd"]
@@ -209,7 +210,7 @@ export function ActionCard(props: ActionCardProps) {
             <Tooltip content={`Edit ${props.name}`}>
               <button
                 type="button"
-                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-foreground transition-colors"
+                class={cn(TOUCH_TARGET, "text-muted-foreground hover:text-foreground transition-colors")}
                 aria-label={`Edit ${props.name}`}
                 data-test={`action-edit-button-${props.name}`}
                 onClick={props.onEdit}
@@ -295,7 +296,7 @@ export function ActionCard(props: ActionCardProps) {
               when={(props.maxUses ?? 0) <= 5}
               fallback={
                 // value/onChange are inverted: display shows remaining uses, storage tracks used count
-                <StepperInput
+                <StepperInput data-test={`action-uses-stepper-${props.name}`}
                   value={remainingUses(props.uses, props.maxUses)}
                   min={0}
                   max={props.maxUses}

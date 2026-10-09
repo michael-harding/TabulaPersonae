@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SwitchButton } from "@/components/ui/switch-button"
 import { useReadOnly } from "@/lib/read-only-context"
+import { cn, TOUCH_TARGET } from "@/lib/utils"
 
 interface SheetSettingsModuleProps {
   character: Character
@@ -108,7 +109,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                 type="button"
                 data-test="sheet-color-reset-button"
                 aria-label="Reset sheet color"
-                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
+                class={cn(TOUCH_TARGET, "text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline")}
                 onClick={() => props.onUpdate({ ...props.character, sheetColor: undefined })}
               >
                 Reset
@@ -149,7 +150,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                     type="button"
                     data-test="share-url-copy-button"
                     aria-label="Copy share link"
-                    class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] h-9 px-3 rounded-md border text-xs hover:bg-accent transition-colors whitespace-nowrap"
+                    class={cn(TOUCH_TARGET, "h-9 px-3 rounded-md border text-xs hover:bg-accent transition-colors whitespace-nowrap")}
                     onClick={() => {
                       navigator.clipboard.writeText(getUrl())
                         .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })

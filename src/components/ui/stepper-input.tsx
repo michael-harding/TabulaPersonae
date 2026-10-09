@@ -13,6 +13,8 @@ interface StepperInputProps {
   onAtMin?: () => void
   "aria-label"?: string
   readOnly?: boolean
+  /** Page-unique; prefixes the decrease/increase button ids. */
+  "data-test": string
 }
 
 export function StepperInput(props: StepperInputProps) {
@@ -23,14 +25,16 @@ export function StepperInput(props: StepperInputProps) {
     return v
   }
 
+  // The −/+ buttons are already a full 44×44, so Button's centred ::after hit-area extension is
+  // switched off: with one side's border removed it would sit off-centre and overlap the input.
   return (
-    <div data-sem="stepper-input" class="flex items-stretch">
+    <div data-sem="stepper-input" data-test={props["data-test"]} class="flex items-stretch">
       <Show when={!props.readOnly}>
         <Button
-          data-test="stepper-decrease"
+          data-test={`${props["data-test"]}-decrease`}
           variant="outline"
           size="icon"
-          class="h-11 w-11 shrink-0 rounded-r-none border-r-0"
+          class="h-11 w-11 shrink-0 rounded-r-none border-r-0 after:hidden"
           onClick={() => {
             if (props.min != null && props.value <= props.min) {
               props.onAtMin?.()
@@ -54,10 +58,10 @@ export function StepperInput(props: StepperInputProps) {
       />
       <Show when={!props.readOnly}>
         <Button
-          data-test="stepper-increase"
+          data-test={`${props["data-test"]}-increase`}
           variant="outline"
           size="icon"
-          class="h-11 w-11 shrink-0 rounded-l-none border-l-0"
+          class="h-11 w-11 shrink-0 rounded-l-none border-l-0 after:hidden"
           onClick={() => props.onChange(clamp(props.value + 1))}
           aria-label="Increase"
         >

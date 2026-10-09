@@ -7,11 +7,12 @@ interface CurrencyInputProps {
   min?: number
   max?: number
   "aria-label"?: string
+  "data-test": string
 }
 
 export function CurrencyInput(props: CurrencyInputProps) {
   return (
-    <StepperInput
+    <StepperInput data-test={props["data-test"]}
       value={props.value}
       onChange={props.onChange}
       onAtMin={props.onAtMin}

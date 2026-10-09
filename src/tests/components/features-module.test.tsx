@@ -5,7 +5,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Feature } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals, confirmClick } from "../test-utils"
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
   return {
@@ -91,7 +91,7 @@ describe("FeaturesModule", () => {
       const onUpdate = vi.fn()
       const feature = makeFeature({ name: "Acolyte", source: "background" })
       render(<FeaturesModule character={makeCharacter({ backgroundFeatures: [feature] })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /delete acolyte/i }))
+      confirmClick(screen.getByRole("button", { name: /delete acolyte/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ backgroundFeatures: [] }))
     })
   })
@@ -818,7 +818,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("option", { name: "Rolled Values" }))
         fireEvent.click(within(modal).getByRole("button", { name: /add level roll/i }))
         expect(within(modal).getByRole("button", { name: /remove level 2 roll/i })).toBeInTheDocument()
-        fireEvent.click(within(modal).getByRole("button", { name: /remove level 2 roll/i }))
+        confirmClick(within(modal).getByRole("button", { name: /remove level 2 roll/i }))
         expect(within(modal).queryByLabelText(/rolled amount for level 2/i)).not.toBeInTheDocument()
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(onUpdate).toHaveBeenCalledWith(
@@ -991,7 +991,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Saving Throw Proficiency" }))
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Test" } })
-        fireEvent.click(within(modal).getByRole("button", { name: /remove level 1 entry/i }))
+        confirmClick(within(modal).getByRole("button", { name: /remove level 1 entry/i }))
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1105,7 +1105,7 @@ describe("FeaturesModule", () => {
         fireEvent.keyDown(atLevelInputs[1], { key: "Enter" })
         fireEvent.click(within(modal).getAllByRole("checkbox", { name: "CON" })[1])
         // remove the first tier — only the level-3 tier should survive
-        fireEvent.click(within(modal).getByRole("button", { name: /remove level 1 entry/i }))
+        confirmClick(within(modal).getByRole("button", { name: /remove level 1 entry/i }))
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1611,7 +1611,7 @@ describe("FeaturesModule", () => {
         expect(capTriggers[1]).toHaveAttribute("aria-expanded", "true")
         // remove the FIRST tier — without re-indexing, the surviving row (now array index 0)
         // would incorrectly pick up the first tier's (collapsed) open state
-        fireEvent.click(within(modal).getAllByRole("button", { name: /remove level 1 entry/i })[0])
+        confirmClick(within(modal).getAllByRole("button", { name: /remove level 1 entry/i })[0])
         expect(within(modal).getByRole("button", { name: /Ability Score Max Cap/i })).toHaveAttribute("aria-expanded", "true")
       })
 
@@ -2063,10 +2063,24 @@ describe("FeaturesModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByRole("button", { name: /delete action surge/i }))
+      confirmClick(screen.getByRole("button", { name: /delete action surge/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ classFeatures: [] })
       )
+    })
+
+    it("does not delete on a single click — the button arms and asks to confirm", () => {
+      const onUpdate = vi.fn()
+      render(
+        <FeaturesModule
+          character={makeCharacter({ classFeatures: [makeFeature({ name: "Action Surge" })] })}
+          onUpdate={onUpdate}
+        />
+      )
+      const button = screen.getByRole("button", { name: /delete action surge/i })
+      fireEvent.click(button, { detail: 1 })
+      expect(onUpdate).not.toHaveBeenCalled()
+      expect(button).toHaveTextContent("Confirm Delete")
     })
 
     it("removes only the targeted feature, leaving others intact", () => {
@@ -2082,7 +2096,7 @@ describe("FeaturesModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByRole("button", { name: /delete action surge/i }))
+      confirmClick(screen.getByRole("button", { name: /delete action surge/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           classFeatures: expect.arrayContaining([

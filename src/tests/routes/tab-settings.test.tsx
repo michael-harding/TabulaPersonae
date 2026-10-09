@@ -38,7 +38,7 @@ import { axe } from "vitest-axe"
 
 import TabSettings from "@/routes/TabSettings"
 
-import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
+import { cleanup, render, screen, fireEvent, waitFor, confirmClick } from "../test-utils"
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -105,7 +105,7 @@ describe("TabSettings page", () => {
   it("clicking the remove button on a module calls saveTabConfig without that module", async () => {
     render(<TabSettings />)
     const removeButtons = screen.getAllByRole("button", { name: /remove actions & attacks/i })
-    fireEvent.click(removeButtons[0])
+    confirmClick(removeButtons[0])
     await waitFor(() => {
       expect(mockSaveTabConfig).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -156,10 +156,18 @@ describe("TabSettings page", () => {
     expect(mockSaveTabConfig).not.toHaveBeenCalled()
   })
 
+  it("a single click on delete tab only arms it — nothing is saved", () => {
+    render(<TabSettings />)
+    const button = screen.getAllByRole("button", { name: /delete tab/i })[0]
+    fireEvent.click(button, { detail: 1 })
+    expect(button).toHaveTextContent("Confirm Delete")
+    expect(mockSaveTabConfig).not.toHaveBeenCalled()
+  })
+
   it("clicking delete on a tab calls saveTabConfig without that tab", async () => {
     render(<TabSettings />)
     const deleteButtons = screen.getAllByRole("button", { name: /delete tab/i })
-    fireEvent.click(deleteButtons[0]) // delete Combat
+    confirmClick(deleteButtons[0]) // delete Combat
     await waitFor(() => {
       expect(mockSaveTabConfig).toHaveBeenCalledWith(
         expect.objectContaining({

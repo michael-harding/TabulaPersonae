@@ -30,6 +30,7 @@ import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { cascadeDecrement } from "@/lib/currency-utils"
@@ -192,7 +193,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         {/* Carrying Capacity */}
         <div data-test="carrying-capacity-row" class="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span>Carrying Capacity: {totalWeight()} /</span>
-          <CalculatedValue
+          <CalculatedValue data-test="carrying-capacity"
             label="Carrying Capacity"
             labelClass="sr-only"
             editable={!isReadOnly}
@@ -226,6 +227,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                   }
                 >
                   <CurrencyInput
+                    data-test={`currency-${denom}`}
                     aria-label={`${denom.toUpperCase()} currency`}
                     min={0}
                     value={props.character.coins?.[denom] ?? 0}
@@ -258,7 +260,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
           </h2>
           <div data-test="attunement-limit-row" class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
             <span>{attunedCount()}/</span>
-            <CalculatedValue
+            <CalculatedValue data-test="attunement-limit"
               label="Attunement Limit"
               labelClass="sr-only"
               editable={!isReadOnly}
@@ -415,7 +417,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           <Show
                             when={effectiveEquipmentMaxUses(item) <= 5}
                             fallback={
-                              <StepperInput
+                              <StepperInput data-test={`magic-item-uses-stepper-${item.id}`}
                                 value={remainingUses(effectiveEquipmentUses(item), effectiveEquipmentMaxUses(item))}
                                 min={0}
                                 max={effectiveEquipmentMaxUses(item)}
@@ -445,9 +447,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           </Button>
                         </Tooltip>
                         <Tooltip content={`Delete ${item.name}`}>
-                          <Button data-test={`magic-item-delete-${item.id}`} variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
+                          <ConfirmButton data-test={`magic-item-delete-${item.id}`} variant="ghost" size="sm" verb="Delete" subject={item.name} onConfirm={() => handleDeleteItem(item.id)}>
                             <Trash2 class="h-4 w-4" aria-hidden="true" />
-                          </Button>
+                          </ConfirmButton>
                         </Tooltip>
                       </div>
                     </Show>
@@ -582,9 +584,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           </Button>
                         </Tooltip>
                         <Tooltip content={`Delete ${item.name}`}>
-                          <Button data-test={`equipment-delete-${item.id}`} variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
+                          <ConfirmButton data-test={`equipment-delete-${item.id}`} variant="ghost" size="sm" verb="Delete" subject={item.name} onConfirm={() => handleDeleteItem(item.id)}>
                             <Trash2 class="h-4 w-4" aria-hidden="true" />
-                          </Button>
+                          </ConfirmButton>
                         </Tooltip>
                       </div>
                     </Show>
@@ -635,7 +637,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       <Show
                         when={effectiveEquipmentMaxUses(item) <= 5}
                         fallback={
-                          <StepperInput
+                          <StepperInput data-test={`equipment-uses-stepper-${item.id}`}
                             value={remainingUses(effectiveEquipmentUses(item), effectiveEquipmentMaxUses(item))}
                             min={0}
                             max={effectiveEquipmentMaxUses(item)}

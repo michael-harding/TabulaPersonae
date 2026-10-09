@@ -15,6 +15,7 @@ import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -192,7 +193,7 @@ function ActionForm(props: ActionFormProps) {
 
       <div class="flex gap-2 justify-end">
         <Show when={props.onDelete}>
-          <Button variant="destructive" onClick={props.onDelete} class="mr-auto">Delete</Button>
+          <ConfirmButton data-test="action-form-delete" variant="destructive" verb="Delete" onConfirm={() => props.onDelete?.()} class="mr-auto">Delete</ConfirmButton>
         </Show>
         <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
         <Button onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel}</Button>
@@ -564,7 +565,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   )
 
   return (
-    <EditableModule
+    <EditableModule data-test="actions-module"
       data-sem="actions-module"
       icon={<Sword class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Actions & Attacks"
@@ -577,7 +578,7 @@ export function ActionsModule(props: ActionsModuleProps) {
     >
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="spell-attack"
               label="Spell Attack"
               labelClass="text-sm font-medium"
               icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
@@ -587,7 +588,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             />
           </div>
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="spell-modifier"
               label="Spell Modifier"
               labelClass="text-sm font-medium"
               icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
@@ -597,7 +598,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             />
           </div>
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="spell-save-dc"
               label="Spell Save DC"
               labelClass="text-sm font-medium"
               icon={<Shield class="h-4 w-4 text-primary" aria-hidden="true" />}

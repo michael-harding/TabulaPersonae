@@ -11,6 +11,7 @@ import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
 import { HeaderMenu } from "@/components/header-menu"
 
 export default function Home() {
@@ -61,8 +62,7 @@ export default function Home() {
     if (withNewIds.length > 0) navigate(`/character/${withNewIds[0].id}`)
   }
 
-  const handleDeleteCharacter = async (characterId: string, characterName: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${characterName || "Unnamed Character"}"? This action cannot be undone.`)) return
+  const handleDeleteCharacter = async (characterId: string) => {
     setCharacters((prev) => prev.filter((c) => c.id !== characterId))
     storageManager().deleteCharacter(characterId).catch((error) => {
       console.error("Failed to delete character:", error)
@@ -118,19 +118,18 @@ export default function Home() {
                       const ac = createMemo(() => calculateEquippedAC(character).ac)
                       return (
                       <Card class="cursor-pointer hover:shadow-lg transition-shadow relative group">
-                        <Button
+                        <ConfirmButton
                           data-test={`delete-character-button-${character.id}`}
                           variant="ghost"
                           size="sm"
-                          aria-label={`Delete ${character.name || "character"}`}
+                          verb="Delete"
+                          subject={character.name || "character"}
                           class="absolute top-2 right-2 z-10"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteCharacter(character.id, character.name)
-                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onConfirm={() => handleDeleteCharacter(character.id)}
                         >
                           <Trash2 class="h-4 w-4" aria-hidden="true" />
-                        </Button>
+                        </ConfirmButton>
 
                         <A href={`/character/${character.id}`} class="block">
                           <CardHeader>

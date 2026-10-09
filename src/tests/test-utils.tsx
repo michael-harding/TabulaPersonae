@@ -1,5 +1,7 @@
-import { render } from "@solidjs/testing-library"
+import { render, fireEvent } from "@solidjs/testing-library"
 import type { JSX } from "solid-js"
+
+import { CONFIRM_GUARD_MS } from "@/components/ui/confirm-button"
 
 type RenderOptions = NonNullable<Parameters<typeof render>[1]>
 
@@ -26,6 +28,19 @@ export function cleanupPortals() {
   Array.from(document.body.children).forEach((child) => {
     ;(child as HTMLElement).removeAttribute("aria-hidden")
   })
+}
+
+// Performs the deliberate two-click confirmation a ConfirmButton requires: arm, wait out the
+// accidental-double-click guard, confirm.
+export function confirmClick(el: Element) {
+  fireEvent.click(el, { detail: 1 })
+  const armedAt = performance.now()
+  const now = vi.spyOn(performance, "now").mockReturnValue(armedAt + CONFIRM_GUARD_MS + 1)
+  try {
+    fireEvent.click(el, { detail: 1 })
+  } finally {
+    now.mockRestore()
+  }
 }
 
 export * from "@solidjs/testing-library"

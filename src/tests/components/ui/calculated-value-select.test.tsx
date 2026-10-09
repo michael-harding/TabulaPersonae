@@ -8,6 +8,7 @@ const OPTIONS = ["Small", "Medium", "Large"]
 
 function baseProps(overrides: Partial<Parameters<typeof CalculatedValueSelect>[0]> = {}) {
   return {
+    "data-test": "size",
     label: "Size",
     editable: false,
     custom: false,
@@ -38,27 +39,27 @@ describe("CalculatedValueSelect", () => {
 
   it("defaults to a top/column layout", () => {
     render(<CalculatedValueSelect {...baseProps()} />)
-    const root = screen.getByTestId("calculated-value-select")
+    const root = screen.getByTestId("size")
     expect(root).toHaveClass("flex-col")
     expect(root).not.toHaveClass("flex-row")
   })
 
   it("applies a left/row layout when labelPosition is 'left'", () => {
     render(<CalculatedValueSelect {...baseProps({ labelPosition: "left" })} />)
-    const root = screen.getByTestId("calculated-value-select")
+    const root = screen.getByTestId("size")
     expect(root).toHaveClass("flex-row")
     expect(root).not.toHaveClass("flex-col")
   })
 
   it("uses the default label class when labelClass is not provided", () => {
     render(<CalculatedValueSelect {...baseProps()} />)
-    const label = screen.getByTestId("calculated-value-select-label")
+    const label = screen.getByTestId("size-label")
     expect(label).toHaveClass("text-sm", "text-muted-foreground")
   })
 
   it("overrides the label class when labelClass is provided", () => {
     render(<CalculatedValueSelect {...baseProps({ labelClass: "text-lg font-bold" })} />)
-    const label = screen.getByTestId("calculated-value-select-label")
+    const label = screen.getByTestId("size-label")
     expect(label).toHaveClass("text-lg", "font-bold")
     expect(label).not.toHaveClass("text-sm", "text-muted-foreground")
   })
@@ -76,7 +77,7 @@ describe("CalculatedValueSelect", () => {
   describe("tooltip", () => {
     it("shows the calculated tooltip when not custom", async () => {
       render(<CalculatedValueSelect {...baseProps()} />)
-      const trigger = screen.getByTestId("calculated-value-select-display").closest('[data-sem="tooltip-trigger"]')!
+      const trigger = screen.getByTestId("size-display").closest('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("(Species Trait)")
@@ -84,7 +85,7 @@ describe("CalculatedValueSelect", () => {
 
     it("shows 'Custom' instead of the calculated tooltip when custom", async () => {
       render(<CalculatedValueSelect {...baseProps({ custom: true, value: "Large" })} />)
-      const trigger = screen.getByTestId("calculated-value-select-display").closest('[data-sem="tooltip-trigger"]')!
+      const trigger = screen.getByTestId("size-display").closest('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(trigger)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")

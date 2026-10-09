@@ -366,7 +366,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               <Show when={!isReadOnly}>
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-muted-foreground">Temp HP:</span>
-                  <StepperInput
+                  <StepperInput data-test="temp-hp-quick-stepper"
                     min={0}
                     value={props.character.hitPoints?.temporary ?? 0}
                     onChange={(v) => {
@@ -382,16 +382,16 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             <div class="flex flex-wrap items-end justify-center gap-4">
               <div class="space-y-1">
                 <Label class="text-xs">Current</Label>
-                <StepperInput min={0} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} aria-label="Current hit points" />
+                <StepperInput data-test="current-hp-stepper" min={0} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} aria-label="Current hit points" />
               </div>
-              <CalculatedValue label="Maximum" editable={isEditing()} min={1} {...maximumHpField.binding()} />
+              <CalculatedValue data-test="max-hp" label="Maximum" editable={isEditing()} min={1} {...maximumHpField.binding()} />
               <div class="space-y-1">
                 <Label class="text-xs">Temporary</Label>
-                <StepperInput min={0} value={edited().hitPoints?.temporary ?? 0} onChange={(v) => updateHP("temporary", v)} aria-label="Temporary hit points" />
+                <StepperInput data-test="temp-hp-stepper" min={0} value={edited().hitPoints?.temporary ?? 0} onChange={(v) => updateHP("temporary", v)} aria-label="Temporary hit points" />
               </div>
               <div class="space-y-1">
                 <Label class="text-xs">Temp Max HP</Label>
-                <StepperInput min={-999} value={edited().hitPoints?.temporaryMaximum ?? 0} onChange={(v) => updateHP("temporaryMaximum", v)} aria-label="Temporary maximum hit points" />
+                <StepperInput data-test="temp-max-hp-stepper" min={-999} value={edited().hitPoints?.temporaryMaximum ?? 0} onChange={(v) => updateHP("temporaryMaximum", v)} aria-label="Temporary maximum hit points" />
               </div>
             </div>
           </Show>
@@ -589,7 +589,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
         <div class="grid grid-cols-2 gap-4">
           {/* AC */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="armor-class"
               label="Armor Class"
               editable={isEditing()}
               {...acField.binding()}
@@ -598,7 +598,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
           {/* Initiative */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="initiative"
               label="Initiative"
               editable={isEditing()}
               {...initiativeField.binding()}
@@ -608,7 +608,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
           {/* Speed */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="speed"
               label="Speed"
               editable={isEditing()}
               {...speedField.binding()}
@@ -626,17 +626,17 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               }
             >
               <div class="grid grid-cols-2 gap-1 mt-2">
-                <CalculatedValue variant="compact" label="Fly" editable={isEditing()} min={0} {...flySpeedField.binding()} format={(n) => `${n} ft`} />
-                <CalculatedValue variant="compact" label="Swim" editable={isEditing()} min={0} {...swimSpeedField.binding()} format={(n) => `${n} ft`} />
-                <CalculatedValue variant="compact" label="Climb" editable={isEditing()} min={0} {...climbSpeedField.binding()} format={(n) => `${n} ft`} />
-                <CalculatedValue variant="compact" label="Burrow" editable={isEditing()} min={0} {...burrowSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="fly-speed" variant="compact" label="Fly" editable={isEditing()} min={0} {...flySpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="swim-speed" variant="compact" label="Swim" editable={isEditing()} min={0} {...swimSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="climb-speed" variant="compact" label="Climb" editable={isEditing()} min={0} {...climbSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="burrow-speed" variant="compact" label="Burrow" editable={isEditing()} min={0} {...burrowSpeedField.binding()} format={(n) => `${n} ft`} />
               </div>
             </Show>
           </div>
 
           {/* Proficiency Bonus */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="proficiency-bonus"
               label="Proficiency Bonus"
               editable={isEditing()}
               {...profBonusField.binding()}
@@ -646,7 +646,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
           {/* Passive Perception — both editions */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="passive-perception"
               label={passivePerceptionLabel()}
               editable={isEditing()}
               {...passivePerceptionField.binding()}
@@ -656,7 +656,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           {/* Size — 2024 only */}
           <Show when={edition() === "2024"}>
             <div class="text-center">
-              <CalculatedValueSelect label="Size" editable={isEditing()} options={SIZES} {...sizeField.binding()} />
+              <CalculatedValueSelect data-test="size" label="Size" editable={isEditing()} options={SIZES} {...sizeField.binding()} />
             </div>
           </Show>
         </div>

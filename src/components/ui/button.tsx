@@ -1,14 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority"
 import { ComponentProps, splitProps } from "solid-js"
 
-import { cn } from "@/lib/utils"
+import { cn, TOUCH_TARGET } from "@/lib/utils"
 
-// `after:` pseudo-element centers an invisible 44×44px (WCAG 2.5.5 minimum) hit area over
-// the button without affecting its visual size — needed because the `sm`/`default`/`icon`
-// size variants below are visually smaller than 44px. Harmless no-op on `lg`, which is
-// already 44px tall (the pseudo-element never shrinks the real element's own hit box).
+// TOUCH_TARGET extends the hit area to 44×44 without changing visual size — the `sm`/`default`/
+// `icon` sizes below are visually smaller than 44px. Harmless on `lg`, which is already 44px tall.
 const buttonVariants = cva(
-  "relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  `${TOUCH_TARGET} inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0`,
   {
     variants: {
       variant: {

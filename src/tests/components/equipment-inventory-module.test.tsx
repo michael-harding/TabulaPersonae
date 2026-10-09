@@ -6,7 +6,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick } from "../test-utils"
 
 function makeItem(overrides: Partial<Equipment> = {}): Equipment {
   return {
@@ -428,7 +428,7 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByRole("button", { name: /delete rope/i }))
+      confirmClick(screen.getByRole("button", { name: /delete rope/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ equipment: [] })
       )
@@ -646,7 +646,7 @@ describe("EquipmentInventoryModule", () => {
     it("calls onUpdate when deleting a magic item", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring" })] })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getAllByRole("button", { name: /delete ring/i })[0])
+      confirmClick(screen.getAllByRole("button", { name: /delete ring/i })[0])
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ equipment: [] }))
     })
 

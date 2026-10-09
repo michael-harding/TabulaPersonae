@@ -17,7 +17,7 @@ import { axe } from "vitest-axe"
 import { createDefaultCharacter } from "@/lib/character-types"
 import Home from "@/routes/Home"
 
-import { cleanup, render, screen, waitFor } from "../test-utils"
+import { cleanup, render, screen, waitFor, fireEvent, confirmClick } from "../test-utils"
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -77,5 +77,25 @@ describe("Home page — accessibility", () => {
     await waitFor(() => expect(screen.getByText(/TabulaPersonae/i)).toBeInTheDocument())
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  describe("deleting a character", () => {
+    const character = () => ({ ...createDefaultCharacter(), id: "char-1", name: "Testy" })
+    const deleteButton = () => screen.getByTestId("delete-character-button-char-1")
+
+    it("does not delete on a single click — it asks to confirm instead", async () => {
+      await renderAndLoad([character()])
+      fireEvent.click(deleteButton(), { detail: 1 })
+      expect(deleteButton()).toHaveTextContent("Confirm Delete")
+      expect((globalThis as any).mockStorageManager.deleteCharacter).not.toHaveBeenCalled()
+      expect(screen.getByText("Testy")).toBeInTheDocument()
+    })
+
+    it("deletes after a deliberate second click", async () => {
+      await renderAndLoad([character()])
+      confirmClick(deleteButton())
+      expect((globalThis as any).mockStorageManager.deleteCharacter).toHaveBeenCalledWith("char-1")
+      await waitFor(() => expect(screen.queryByText("Testy")).not.toBeInTheDocument())
+    })
   })
 })

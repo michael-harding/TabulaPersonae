@@ -16,6 +16,7 @@ import type { Character, Spell, Equipment } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier, isItemModifierActive } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -668,9 +669,9 @@ export function SpellsModule(props: SpellsModuleProps) {
                                         </Button>
                                       </Tooltip>
                                       <Tooltip content="Delete spell">
-                                        <Button data-test={`delete-spell-${spell.id}`} variant="ghost" size="sm" aria-label="Delete spell" onClick={() => handleDeleteSpell(spell.id)}>
+                                        <ConfirmButton data-test={`delete-spell-${spell.id}`} variant="ghost" size="sm" verb="Delete" subject="spell" onConfirm={() => handleDeleteSpell(spell.id)}>
                                           <Trash2 class="h-4 w-4" aria-hidden="true" />
-                                        </Button>
+                                        </ConfirmButton>
                                       </Tooltip>
                                     </div>
                                   </Show>

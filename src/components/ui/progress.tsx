@@ -7,17 +7,17 @@ type ProgressProps = ComponentProps<typeof ProgressPrimitive> & { class?: string
 
 export function Progress(props: ProgressProps) {
   const [local, others] = splitProps(props, ["class", "value"])
+  const testId = () => (others as { "data-test"?: string })["data-test"]
   return (
     <ProgressPrimitive
       data-sem="progress"
-      data-test="progress"
       value={local.value as number}
       class={cn("relative h-4 w-full overflow-hidden rounded-full bg-secondary", local.class)}
       {...others}
     >
       <ProgressPrimitive.Track class="h-full w-full">
         <ProgressPrimitive.Fill
-          data-test="progress-fill"
+          data-test={testId() == null ? undefined : `${testId()}-fill`}
           class="h-full flex-1 transition-all bg-red-700"
           style={{ transform: `translateX(-${100 - (Number(local.value) || 0)}%)` }}
         />

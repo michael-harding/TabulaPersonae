@@ -27,6 +27,15 @@ describe("Layout", () => {
     expect(main).toContainElement(screen.getByTestId("child-content"))
   })
 
+  it("makes main a programmatic focus target without a visible focus ring", () => {
+    render(<Layout>{null}</Layout>)
+    const main = screen.getByRole("main")
+    // Route changes move focus here; without focus:outline-none keyboard users would see
+    // an outline drawn around the entire page content after every navigation.
+    expect(main).toHaveAttribute("tabindex", "-1")
+    expect(main).toHaveClass("focus:outline-none")
+  })
+
   it("renders the footer copyright and license text", () => {
     render(<Layout>{null}</Layout>)
     expect(screen.getByText("© 2026 Michael Harding")).toBeInTheDocument()

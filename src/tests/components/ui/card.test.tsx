@@ -6,13 +6,13 @@ import { render, screen } from "../../test-utils"
 
 function renderFullCard() {
   return render(
-    <Card>
-      <CardHeader>
-        <CardTitle>Title</CardTitle>
-        <CardDescription>Description</CardDescription>
+    <Card data-test="card">
+      <CardHeader data-test="card-header">
+        <CardTitle data-test="card-title">Title</CardTitle>
+        <CardDescription data-test="card-description">Description</CardDescription>
       </CardHeader>
-      <CardContent>Body content</CardContent>
-      <CardFooter>Footer content</CardFooter>
+      <CardContent data-test="card-content">Body content</CardContent>
+      <CardFooter data-test="card-footer">Footer content</CardFooter>
     </Card>
   )
 }
@@ -26,7 +26,7 @@ describe("Card", () => {
     expect(screen.getByText("Footer content")).toBeInTheDocument()
   })
 
-  it("renders each part at its expected data-test node", () => {
+  it("forwards a caller-supplied data-test to each part", () => {
     renderFullCard()
     expect(screen.getByTestId("card")).toBeInTheDocument()
     expect(screen.getByTestId("card-header")).toBeInTheDocument()
@@ -38,8 +38,8 @@ describe("Card", () => {
 
   it("forwards a custom class to the root and nested parts", () => {
     render(
-      <Card class="card-class">
-        <CardHeader class="header-class">Header</CardHeader>
+      <Card data-test="card" class="card-class">
+        <CardHeader data-test="card-header" class="header-class">Header</CardHeader>
       </Card>
     )
     expect(screen.getByTestId("card")).toHaveClass("card-class", "rounded-lg")
@@ -48,7 +48,7 @@ describe("Card", () => {
 
   it("forwards arbitrary DOM attributes to the root element", () => {
     render(
-      <Card aria-label="character summary" id="card-1">
+      <Card data-test="card" aria-label="character summary" id="card-1">
         Content
       </Card>
     )
@@ -61,5 +61,16 @@ describe("Card", () => {
     const { container } = renderFullCard()
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+
+  it("sets no data-test of its own, so repeated cards never share a selector", () => {
+    const { container } = render(
+      <Card>
+        <CardHeader><CardTitle>T</CardTitle><CardDescription>D</CardDescription></CardHeader>
+        <CardContent>C</CardContent>
+        <CardFooter>F</CardFooter>
+      </Card>
+    )
+    expect(container.querySelector("[data-test]")).toBeNull()
   })
 })

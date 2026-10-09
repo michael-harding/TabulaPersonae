@@ -13,7 +13,6 @@ export function Separator(props: SeparatorProps) {
   return (
     <div
       data-sem="separator"
-      data-test="separator"
       role={local.decorative ?? true ? "none" : "separator"}
       aria-orientation={!(local.decorative ?? true) ? orientation() : undefined}
       class={cn(

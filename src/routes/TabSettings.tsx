@@ -20,9 +20,10 @@ import X from "lucide-solid/icons/x"
 import { useTabConfig } from "@/lib/tab-config-context"
 import { MODULE_REGISTRY, ALL_MODULE_IDS } from "@/lib/module-registry"
 import type { TabConfig, ModuleId } from "@/lib/tab-config-types"
-import { cn } from "@/lib/utils"
+import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 
 // Tell TypeScript about the `use:sortable` directive
@@ -50,13 +51,13 @@ function SortableModuleRow(props: SortableModuleRowProps) {
       ref={sortable.ref}
       style={maybeTransformStyle(sortable.transform)}
       class={cn(
-        "flex items-center gap-2 py-1.5 px-2 rounded transition-colors",
+        "flex items-center gap-2 px-2 rounded transition-colors",
         sortable.isActiveDraggable ? "opacity-25" : "hover:bg-accent",
       )}
     >
       <button
         type="button"
-        class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] cursor-grab touch-none text-muted-foreground"
+        class={cn(TOUCH_TARGET_BOX, "cursor-grab touch-none text-muted-foreground")}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {...(sortable.dragActivators as any)}
         aria-label="Drag to reorder"
@@ -65,15 +66,16 @@ function SortableModuleRow(props: SortableModuleRowProps) {
         <GripVertical class="h-4 w-4" aria-hidden="true" />
       </button>
       <span class="flex-1 text-sm">{MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}</span>
-      <button
-        type="button"
-        onClick={props.onRemove}
-        class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-destructive transition-colors"
-        aria-label={`Remove ${MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}`}
+      <ConfirmButton
         data-test={`remove-module-${props.moduleId}`}
+        verb="Remove"
+        subject={MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}
+        variant="ghost"
+        onConfirm={props.onRemove}
+        class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive")}
       >
         <X class="h-4 w-4" aria-hidden="true" />
-      </button>
+      </ConfirmButton>
     </div>
   )
 }
@@ -126,11 +128,11 @@ function SortableTabRow(props: SortableTabRowProps) {
       class={cn("border rounded-md bg-card transition-opacity", sortable.isActiveDraggable && "opacity-25")}
     >
       <Collapsible open={props.expanded} onOpenChange={props.onToggle}>
-        <div class="flex items-center gap-2 p-3">
+        <div class="flex items-center gap-2 px-3 py-1">
           {/* Drag handle for tab reordering */}
           <button
             type="button"
-            class="cursor-grab touch-none text-muted-foreground shrink-0"
+            class={cn(TOUCH_TARGET_BOX, "cursor-grab touch-none text-muted-foreground")}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {...(sortable.dragActivators as any)}
             aria-label="Drag to reorder tab"
@@ -173,28 +175,29 @@ function SortableTabRow(props: SortableTabRowProps) {
 
           {/* Action buttons — hidden while renaming */}
           <Show when={!renaming()}>
-            <div class="flex items-center gap-3 shrink-0">
+            <div class="flex items-center shrink-0">
               <button
                 type="button"
                 onClick={() => { setRenameValue(props.tab.label); setRenaming(true) }}
-                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-foreground transition-colors"
+                class={cn(TOUCH_TARGET_BOX, "text-muted-foreground hover:text-foreground transition-colors")}
                 aria-label="Rename tab"
                 data-test={`tab-rename-${props.tab.id}`}
               >
                 <Pencil class="h-4 w-4" aria-hidden="true" />
               </button>
-              <button
-                type="button"
-                onClick={props.onDelete}
-                disabled={props.disableDelete}
-                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
-                aria-label="Delete tab"
+              <ConfirmButton
                 data-test={`tab-delete-${props.tab.id}`}
+                verb="Delete"
+                subject="tab"
+                variant="ghost"
+                onConfirm={props.onDelete}
+                disabled={props.disableDelete}
+                class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive transition-colors disabled:pointer-events-auto disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground")}
               >
                 <Trash2 class="h-4 w-4" aria-hidden="true" />
-              </button>
+              </ConfirmButton>
               <CollapsibleTrigger
-                class="relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] text-muted-foreground hover:text-foreground transition-colors"
+                class={cn(TOUCH_TARGET_BOX, "text-muted-foreground hover:text-foreground transition-colors")}
                 data-test={`tab-toggle-${props.tab.id}`}
                 aria-label={props.expanded ? "Collapse tab" : "Expand tab"}
               >

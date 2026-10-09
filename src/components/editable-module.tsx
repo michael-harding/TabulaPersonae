@@ -20,7 +20,8 @@ interface EditableModuleProps extends ParentProps {
   headerExtra?: JSX.Element
   contentClass?: string
   "data-sem"?: string
-  "data-test"?: string
+  /** Page-unique; also prefixes the edit/save/cancel/content ids. */
+  "data-test": string
 }
 
 export function EditableModule(props: EditableModuleProps) {
@@ -39,7 +40,7 @@ export function EditableModule(props: EditableModuleProps) {
   }
 
   return (
-    <Card data-sem={props["data-sem"]} data-test={props["data-test"] ?? "editable-module"} onKeyDown={handleKeyDown}>
+    <Card data-sem={props["data-sem"]} data-test={props["data-test"]} onKeyDown={handleKeyDown}>
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -51,19 +52,19 @@ export function EditableModule(props: EditableModuleProps) {
             {props.isEditing ? (
               <div class="flex gap-1">
                 <Tooltip content="Cancel">
-                  <Button data-test="editable-module-cancel" variant="outline" size="sm" aria-label="Cancel" onClick={props.onCancel} class="hover:!border-red-500 hover:!text-red-500 hover:!bg-red-500/30">
+                  <Button data-test={`${props["data-test"]}-cancel`} variant="outline" size="sm" aria-label="Cancel" onClick={props.onCancel} class="hover:!border-red-500 hover:!text-red-500 hover:!bg-red-500/30">
                     <X class="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </Tooltip>
                 <Tooltip content="Save changes">
-                  <Button data-test="editable-module-save" variant="outline" size="sm" aria-label="Save changes" onClick={props.onSave} class="border-green-500 text-green-500 hover:!bg-green-500/30 hover:!text-green-500">
+                  <Button data-test={`${props["data-test"]}-save`} variant="outline" size="sm" aria-label="Save changes" onClick={props.onSave} class="border-green-500 text-green-500 hover:!bg-green-500/30 hover:!text-green-500">
                     <Check class="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </Tooltip>
               </div>
             ) : (
               <Tooltip content="Edit">
-                <Button data-test="editable-module-edit" variant="outline" size="sm" aria-label="Edit" onClick={props.onEdit}>
+                <Button data-test={`${props["data-test"]}-edit`} variant="outline" size="sm" aria-label="Edit" onClick={props.onEdit}>
                   <Edit class="h-4 w-4" aria-hidden="true" />
                 </Button>
               </Tooltip>
@@ -71,7 +72,7 @@ export function EditableModule(props: EditableModuleProps) {
           </Show>
         </CardTitle>
       </CardHeader>
-      <CardContent data-test="editable-module-content" class={props.contentClass}>
+      <CardContent data-test={`${props["data-test"]}-content`} class={props.contentClass}>
         {props.children}
       </CardContent>
     </Card>

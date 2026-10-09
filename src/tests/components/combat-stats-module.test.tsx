@@ -1027,7 +1027,10 @@ describe("CombatStatsModule", () => {
     it("shows a custom-value toggle button for every calculated field in edit mode (AC, initiative, speed x5, proficiency bonus, passive perception, size, maximum HP)", () => {
       render(<CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(screen.getAllByTestId("calculated-value-toggle")).toHaveLength(11)
+      const ids = ["armor-class", "initiative", "speed", "fly-speed", "swim-speed", "climb-speed", "burrow-speed", "proficiency-bonus", "passive-perception", "size", "max-hp"]
+      for (const id of ids) {
+        expect(screen.getByTestId(`${id}-toggle`)).toBeInTheDocument()
+      }
     })
 
     it("shows a tooltip on the AC value in edit mode when not custom", async () => {

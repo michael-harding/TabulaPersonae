@@ -8,6 +8,7 @@ import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, 
 import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -15,6 +16,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip } from "@/components/ui/tooltip"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
+import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 const SKILL_ABILITY_MAP: Record<keyof Character["skills"], keyof Character["abilityScores"]> = {
   acrobatics: "dexterity", animalHandling: "wisdom", arcana: "intelligence",
@@ -43,6 +45,7 @@ interface SkillsProficienciesModuleProps {
 }
 
 function EditableTagList(props: {
+  testKey: string
   label: string
   itemLabel: string
   placeholder: string
@@ -71,9 +74,9 @@ function EditableTagList(props: {
               {value}
               <Show when={props.editing}>
                 <Tooltip content={`Remove ${props.itemLabel}`}>
-                  <Button variant="ghost" size="sm" aria-label={`Remove ${props.itemLabel}`} class="h-auto p-0 hover:bg-transparent" onClick={() => props.onRemove(value)}>
+                  <ConfirmButton data-test={`${props.testKey}-remove-${value}`} verb="Remove" subject={props.itemLabel} variant="ghost" size="sm" class="h-auto w-auto min-h-0 p-0 hover:bg-transparent" onConfirm={() => props.onRemove(value)}>
                     <X class="h-3 w-3" aria-hidden="true" />
-                  </Button>
+                  </ConfirmButton>
                 </Tooltip>
               </Show>
             </Badge>
@@ -113,6 +116,7 @@ function EditableTagList(props: {
 // The A/D pip pair for a skill's effective advantage/disadvantage state — used for both the
 // edit-mode toggle buttons and the read-mode badge, so the two never drift out of sync.
 function SkillAdvantagePips(props: {
+  testKey: string
   state: SkillAdvantageState
   isManualOverride: boolean
   advantageSources: string[]
@@ -131,16 +135,19 @@ function SkillAdvantagePips(props: {
   return (
     <>
       <Show when={props.editable}>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center">
           <Tooltip content={tooltip("advantage")}>
             <button
               type="button"
               title="Advantage"
               aria-label="Advantage"
               aria-pressed={props.state === "advantage"}
+              data-test={`skill-advantage-${props.testKey}`}
               onClick={props.onToggleAdvantage}
-              class={`relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-white text-white"}`}
-            >A</button>
+              class={cn(TOUCH_TARGET_BOX, "cursor-pointer")}
+            >
+              <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-white text-white"}`}>A</span>
+            </button>
           </Tooltip>
           <Tooltip content={tooltip("disadvantage")}>
             <button
@@ -148,9 +155,12 @@ function SkillAdvantagePips(props: {
               title="Disadvantage"
               aria-label="Disadvantage"
               aria-pressed={props.state === "disadvantage"}
+              data-test={`skill-disadvantage-${props.testKey}`}
               onClick={props.onToggleDisadvantage}
-              class={`relative after:absolute after:inset-1/2 after:h-11 after:w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-white text-white"}`}
-            >D</button>
+              class={cn(TOUCH_TARGET_BOX, "cursor-pointer")}
+            >
+              <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-white text-white"}`}>D</span>
+            </button>
           </Tooltip>
         </div>
       </Show>
@@ -439,6 +449,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                     </div>
                     <div class="flex items-center gap-1 justify-end min-w-[3rem]">
                       <SkillAdvantagePips
+                        testKey={skillKey}
                         state={effectiveAdvantage().state}
                         isManualOverride={effectiveAdvantage().isManualOverride}
                         advantageSources={effectiveAdvantage().advantageSources}
@@ -467,7 +478,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             <For each={passiveStats}>
               {(stat) => (
                 <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                  <CalculatedValue
+                  <CalculatedValue data-test={`passive-${stat.skillKey}`}
                     label={stat.label}
                     labelClass="text-xs text-muted-foreground"
                     editable={isEditing()}
@@ -496,7 +507,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 return (
                   <Show when={isEditing() || senseField.resolvedValue() !== 0}>
                     <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                      <CalculatedValue
+                      <CalculatedValue data-test={`sense-${sense}`}
                         label={SENSE_LABELS[sense]}
                         labelClass="text-xs text-muted-foreground"
                         editable={isEditing()}
@@ -517,6 +528,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
         {/* Damage Resistances / Immunities / Vulnerabilities */}
         <div class="space-y-4">
           <EditableTagList
+            testKey="damage-resistances"
             label="Damage Resistances"
             itemLabel="resistance"
             placeholder="Add resistance (e.g. Fire)"
@@ -532,6 +544,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             onRemove={(v) => removeTag("damageResistances", v)}
           />
           <EditableTagList
+            testKey="damage-immunities"
             label="Damage Immunities"
             itemLabel="immunity"
             placeholder="Add immunity (e.g. Poison)"
@@ -547,6 +560,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             onRemove={(v) => removeTag("damageImmunities", v)}
           />
           <EditableTagList
+            testKey="damage-vulnerabilities"
             label="Damage Vulnerabilities"
             itemLabel="vulnerability"
             placeholder="Add vulnerability (e.g. Cold)"
@@ -567,6 +581,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
 
         {/* Languages */}
         <EditableTagList
+          testKey="languages"
           label="Languages"
           itemLabel="language"
           placeholder="Add language"
@@ -585,6 +600,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
 
         {/* Other Proficiencies */}
         <EditableTagList
+          testKey="other-proficiencies"
           label="Other Proficiencies"
           itemLabel="proficiency"
           placeholder="Add proficiency (weapons, tools, etc.)"
