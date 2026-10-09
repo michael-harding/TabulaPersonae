@@ -186,6 +186,20 @@ describe("HeaderMenu import reconciliation", () => {
     expect(imported[1].useCalculatedArmorClass).toBe(false)
   })
 
+  it("drops characters with a null name from a multi-character JSON import", async () => {
+    const user = await openImportModal()
+    const raw = [
+      { ...createDefaultCharacter(), id: "c1" },
+      { ...createDefaultCharacter(), id: "c2", name: null },
+    ]
+    const file = new File([JSON.stringify(raw)], "chars.json", { type: "application/json" })
+    const input = screen.getByLabelText(/Choose JSON File/i)
+    await user.upload(input, file)
+    await waitFor(() => expect(defaultProps.onImportMultiple).toHaveBeenCalled())
+    const imported = defaultProps.onImportMultiple.mock.calls[0][0]
+    expect(imported.map((c: Character) => c.id)).toEqual(["c1"])
+  })
+
   it("reconciles a PDF import before calling onImportCharacter", async () => {
     const { parsePdfCharacterSheet, mergeWithDefault } = await import("@/lib/pdf-parser")
     vi.mocked(parsePdfCharacterSheet).mockResolvedValueOnce({} as any)

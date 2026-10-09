@@ -17,8 +17,8 @@ export function NumericInput(props: NumericInputProps) {
   const parse = (s: string) => (local.parser ?? parseInt)(s)
   const clamp = (n: number) => {
     let v = n
-    if (local.min !== undefined) v = Math.max(local.min, v)
-    if (local.max !== undefined) v = Math.min(local.max, v)
+    if (local.min != null) v = Math.max(local.min, v)
+    if (local.max != null) v = Math.min(local.max, v)
     return v
   }
 

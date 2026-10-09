@@ -79,13 +79,13 @@ export function ActionCard(props: ActionCardProps) {
   const [concentrationActive, setConcentrationActive] = createSignal(false)
 
   const spellLevelLabel = () => {
-    if (props.spellLevel === undefined) return null
+    if (props.spellLevel == null) return null
     return props.spellLevel === 0 ? "Cantrip" : getOrdinalSuffix(props.spellLevel)
   }
 
   const spellSubtitle = () => {
     const level = spellLevelLabel()
-    if (level === null) return null
+    if (level == null) return null
     const levelText = props.spellLevel === 0 ? level : `${level} level`
     return props.spellSchool ? `${levelText} • ${props.spellSchool}` : levelText
   }
@@ -106,15 +106,15 @@ export function ActionCard(props: ActionCardProps) {
   }
 
   const hasAnyStats = () =>
-    props.trigger !== undefined ||
-    props.attackBonus !== undefined ||
-    props.range !== undefined ||
-    props.attackSave !== undefined ||
-    props.components !== undefined ||
-    props.atHigherLevel !== undefined ||
-    pill() !== null ||
+    props.trigger != null ||
+    props.attackBonus != null ||
+    props.range != null ||
+    props.attackSave != null ||
+    props.components != null ||
+    props.atHigherLevel != null ||
+    pill() != null ||
     !!props.concentration ||
-    durationLabel() !== null
+    durationLabel() != null
 
   const hasCastButtons = () => !!props.onCast
   const hasUsesTracker = () => (props.maxUses ?? 0) > 0 && !hasCastButtons()
@@ -162,7 +162,7 @@ export function ActionCard(props: ActionCardProps) {
                       <Show when={props.attackSave}>
                         <div><span class="font-medium">Attack/Save:</span> {props.attackSave}</div>
                       </Show>
-                      <Show when={props.attackBonus !== undefined}>
+                      <Show when={props.attackBonus != null}>
                         <div><span class="font-medium">Attack Bonus:</span> {formatModifier(props.attackBonus!)}</div>
                       </Show>
                       <Show when={props.damage}>
@@ -229,7 +229,7 @@ export function ActionCard(props: ActionCardProps) {
             <Show when={props.trigger}>
               <div><strong>Trigger:</strong> {props.trigger}</div>
             </Show>
-            <Show when={props.attackBonus !== undefined}>
+            <Show when={props.attackBonus != null}>
               <div><strong>Attack:</strong> {formatModifier(props.attackBonus!)} to hit</div>
             </Show>
             <Show when={props.range}>

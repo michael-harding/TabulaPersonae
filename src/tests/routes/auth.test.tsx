@@ -39,7 +39,7 @@ function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
 // it is only "open" when data-expanded is present.
 function dialogIsOpen() {
   const dialog = screen.queryByRole("dialog")
-  return dialog !== null && dialog.hasAttribute("data-expanded")
+  return dialog != null && dialog.hasAttribute("data-expanded")
 }
 
 beforeEach(() => {

@@ -25,7 +25,7 @@ export function RestModal(props: RestModalProps) {
   // hit die to speak of, so the whole "spend hit dice" section stays hidden rather than falling
   // back to a base/legacy value the user has no way to see or control.
   const activeHitDiceSize = () => getEffectiveHitDiceSize(props.character)
-  const hasHitDieFeature = () => activeHitDiceSize() !== undefined
+  const hasHitDieFeature = () => activeHitDiceSize() != null
   const dieSize = () => activeHitDiceSize() as DieSize
   const totalHitDice = () => props.character.level ?? 1
   const spentHitDice = () => props.character.spentHitDice ?? 0

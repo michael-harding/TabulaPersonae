@@ -54,6 +54,26 @@ describe("migrateCharacter", () => {
     expect(migrated.useCalculatedSize).toBe(true)
   })
 
+  it("treats null speed/size values from external JSON the same as absent ones", () => {
+    // Imported JSON can carry `null` where the model expects an absent key; a strict
+    // `=== undefined` check would treat null as a stored custom value and backfill `false`.
+    // `any`: null is deliberately outside the Character type, simulating external JSON
+    const raw: any = { ...createDefaultCharacter(), speed: null, flySpeed: null, swimSpeed: null, climbSpeed: null, burrowSpeed: null, size: null }
+    delete raw.useCalculatedSpeed
+    delete raw.useCalculatedFlySpeed
+    delete raw.useCalculatedSwimSpeed
+    delete raw.useCalculatedClimbSpeed
+    delete raw.useCalculatedBurrowSpeed
+    delete raw.useCalculatedSize
+    const migrated = migrateCharacter(raw)
+    expect(migrated.useCalculatedSpeed).toBe(true)
+    expect(migrated.useCalculatedFlySpeed).toBe(true)
+    expect(migrated.useCalculatedSwimSpeed).toBe(true)
+    expect(migrated.useCalculatedClimbSpeed).toBe(true)
+    expect(migrated.useCalculatedBurrowSpeed).toBe(true)
+    expect(migrated.useCalculatedSize).toBe(true)
+  })
+
   it("defaults the speed/size calculated-value flags to false when the stored values differ from the calculated ones, preserving them", () => {
     // A pre-existing character has no concept of a species-trait-derived speed/size — it just has
     // whatever number/string the player typed in, which (with no Species Trait effects configured)
@@ -288,6 +308,14 @@ describe("migrateCharacter", () => {
       const migrated = migrateCharacter(raw)
       expect(migrated.useCalculatedSenses?.darkvision).toBe(false)
       expect(migrated.senses?.darkvision).toBe(60)
+    })
+
+    it("treats a null sense value from external JSON the same as an absent one", () => {
+      // `any`: null is deliberately outside the Character type, simulating external JSON
+      const raw: any = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: null } }
+      delete raw.useCalculatedSenses
+      const migrated = migrateCharacter(raw)
+      expect(migrated.useCalculatedSenses?.darkvision).toBe(true)
     })
 
     it("leaves an already-present useCalculatedSenses untouched", () => {

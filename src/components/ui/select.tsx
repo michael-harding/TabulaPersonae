@@ -71,9 +71,9 @@ export function Select(props: SelectRootProps) {
     const list = items()
     if (list.length === 0) return undefined
     const explicit = explicitActive()
-    if (explicit !== undefined && list.includes(explicit)) return explicit
+    if (explicit != null && list.includes(explicit)) return explicit
     const current = value()
-    return current !== undefined && list.includes(current) ? current : list[0]
+    return current != null && list.includes(current) ? current : list[0]
   })
 
   // Closing the popup by any path (select, outside click, Escape, Tab) also drops the explicit
@@ -138,7 +138,7 @@ export function SelectTrigger(props: ComponentProps<"button">) {
     } else if (e.key === "Enter" || e.key === " ") {
       // Only intercept once something is highlighted — otherwise let the native button click
       // (fired on Enter/Space by default) open/close the popup as usual.
-      if (ctx.open() && ctx.activeValue() !== undefined) {
+      if (ctx.open() && ctx.activeValue() != null) {
         e.preventDefault()
         ctx.onValueChange(ctx.activeValue()!)
       }
@@ -162,7 +162,7 @@ export function SelectTrigger(props: ComponentProps<"button">) {
       type="button"
       aria-expanded={ctx.open()}
       aria-haspopup="listbox"
-      aria-activedescendant={ctx.activeValue() !== undefined ? optionId(ctx.activeValue()!) : undefined}
+      aria-activedescendant={ctx.activeValue() != null ? optionId(ctx.activeValue()!) : undefined}
       disabled={ctx.disabled()}
       onClick={() => !ctx.disabled() && ctx.setOpen(!ctx.open())}
       onKeyDown={handleKeyDown}

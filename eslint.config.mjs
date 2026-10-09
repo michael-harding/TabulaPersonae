@@ -61,6 +61,13 @@ export default tseslint.config(
       // augment Solid's JSX.Directives for a custom directive (see TabSettings.tsx) —
       // not a stray namespace that should be ES modules.
       '@typescript-eslint/no-namespace': ['error', { allowDeclarations: true }],
+      // CONSTITUTION.md §6.7: strict equality against only one of null/undefined lets the
+      // other slip through (e.g. `null` from imported JSON passing a `!== undefined` check).
+      // `== null` / `!= null` / `??` cover both.
+      'no-restricted-syntax': ['error', {
+        selector: "BinaryExpression:matches([operator='==='], [operator='!==']) > :matches(Literal[raw='null'], Identifier[name='undefined'])",
+        message: 'Use `== null` / `!= null` (or `??`) to check for nullish values; strict equality misses either null or undefined.',
+      }],
     },
   },
   {

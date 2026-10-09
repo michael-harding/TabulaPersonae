@@ -33,7 +33,10 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
 
     if (character.id) {
       const characterRef = doc(db, CHARACTERS_COLLECTION, character.id);
-      await setDoc(characterRef, characterData, { merge: true });
+      // Whole-document overwrite, not `merge`: the JSON round-trip above drops cleared
+      // (undefined) fields, and a merge would leave their stale values in Firestore —
+      // including keys removed from nested maps, which merge deep-merges.
+      await setDoc(characterRef, characterData);
     } else {
       const newCharacterData = {
         ...characterData,
@@ -157,7 +160,7 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
   // Set to JSON.stringify(character) to return a character, or "null" to simulate not-found.
   if (import.meta.env.DEV) {
     const seed = localStorage.getItem(`dnd-public-char-${id}`)
-    if (seed !== null) {
+    if (seed != null) {
       try {
         const parsed = JSON.parse(seed) as Character | null
         if (parsed && !parsed.isPublic) return null

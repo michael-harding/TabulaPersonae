@@ -93,13 +93,13 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
               const floor = () => {
                 const itemFloor = modifierTotals().abilityScoreFloors[ability]
                 const featureFloor = featureTotals().abilityScoreFloors[ability]
-                if (itemFloor === undefined && featureFloor === undefined) return undefined
+                if (itemFloor == null && featureFloor == null) return undefined
                 return Math.max(itemFloor ?? -Infinity, featureFloor ?? -Infinity)
               }
               const cap = () => {
                 const itemCap = modifierTotals().abilityScoreMaxCaps[ability]
                 const featureCap = featureTotals().abilityScoreMaxCaps[ability]
-                if (itemCap === undefined && featureCap === undefined) return undefined
+                if (itemCap == null && featureCap == null) return undefined
                 return Math.min(itemCap ?? Infinity, featureCap ?? Infinity)
               }
               const baseMax = () => getAbilityScoreBaseMax(props.character, ability)
@@ -121,8 +121,8 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                   const withBonus = score() + bonusTotal
                   const effective = abilityCalculated()
                   const mod = getAbilityModifier(effective)
-                  const flooredNote = floor() !== undefined && effective > withBonus ? `, floor ${floor()}` : ""
-                  const cappedNote = cap() !== undefined && effective < withBonus ? `, cap ${cap()}` : ""
+                  const flooredNote = floor() != null && effective > withBonus ? `, floor ${floor()}` : ""
+                  const cappedNote = cap() != null && effective < withBonus ? `, cap ${cap()}` : ""
                   const terms = grants.map((g) => formatTerm(g.amount, g.source)).join("")
                   const base = (grants.length > 0 || flooredNote || cappedNote) ? `${score()} base${terms}${flooredNote}${cappedNote} = ${effective}; ` : ""
                   return `${base}(${effective} − 10) / 2 = ${formatModifier(mod)}`

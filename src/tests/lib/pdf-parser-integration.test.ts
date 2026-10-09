@@ -270,8 +270,9 @@ describe("PDF parser integration — Urush Greenshield (D&D Beyond export)", () 
       expect(serialized).not.toContain('"undefined"')
       const reparsed = JSON.parse(serialized)
       function hasUndefined(obj: unknown, path = ""): string | null {
-        if (obj === undefined) return path
-        if (obj === null || typeof obj !== "object") return null
+        // Deliberately distinguishes undefined (the thing being hunted) from null (a valid JSON value)
+        if (typeof obj === "undefined") return path
+        if (obj == null || typeof obj !== "object") return null
         for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
           const found = hasUndefined(v, `${path}.${k}`)
           if (found) return found

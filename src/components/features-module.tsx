@@ -172,7 +172,7 @@ function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: Featur
     }
     case 'Ability Scores': {
       const fmtGroup = (label: string, record: Partial<Record<keyof AbilityScores, number>> | undefined, fmt: (v: number) => string) => {
-        const entries = SAVE_ABILITIES.filter((a) => record?.[a] !== undefined)
+        const entries = SAVE_ABILITIES.filter((a) => record?.[a] != null)
         if (entries.length === 0) return
         parts.push(`${label}: ${entries.map((a) => `${ABILITY_ABBREVIATIONS[a]} ${fmt(record![a]!)}`).join(', ')}`)
       }
@@ -308,7 +308,7 @@ function ClosedListEditor(props: {
 type EffectGroupKey = 'bonus' | 'floor' | 'cap' | 'baseMax'
 
 function anyAbilitySet(record: Partial<Record<keyof AbilityScores, number>> | undefined): boolean {
-  return Object.values(record ?? {}).some((v) => v !== undefined)
+  return Object.values(record ?? {}).some((v) => v != null)
 }
 
 // Whether each Ability Scores subsection should start expanded — true if it already carries
@@ -1437,7 +1437,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
 
       {/* Edit modal — always in DOM, open prop controls visibility */}
       <Modal
-        open={editingFeature() !== null}
+        open={editingFeature() != null}
         onOpenChange={(open) => { if (!open) setEditingFeature(null) }}
       >
         <ModalContent class="max-w-md">

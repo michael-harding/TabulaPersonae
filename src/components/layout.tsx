@@ -16,7 +16,7 @@ export default function Layout(props: ParentProps) {
   // run (initial mount), which we use to skip stealing focus from the page's natural initial
   // focus — only subsequent, real navigations move focus.
   createEffect(on(() => location.pathname, (_path, prevPath) => {
-    if (prevPath !== undefined) mainRef?.focus()
+    if (prevPath != null) mainRef?.focus()
   }))
 
   return (

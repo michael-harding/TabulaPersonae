@@ -1571,6 +1571,16 @@ describe("getActiveFeatureEffects", () => {
     expect(totals.otherProficiencies).toEqual({ "Calligrapher's Supplies": "Acolyte Background" })
   })
 
+  it("ignores null scalar effects from external JSON instead of recording them as a grant", () => {
+    // `any`: null is deliberately outside the FeatureEffects type, simulating external JSON
+    const effects: any = { speed: null, flySpeed: null, carryingCapacityMultiplier: null }
+    const feature = makeFeature({ name: "Imported", levelEffects: [{ level: 1, effects }] })
+    const totals = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 1 })
+    expect(totals.speed).toBeUndefined()
+    expect(totals.speedSource).toBeUndefined()
+    expect(totals.flySpeedSource).toBeUndefined()
+  })
+
   it("only applies effects from features whose level threshold has been reached", () => {
     const feature = makeFeature({ levelEffects: [{ level: 4, effects: { skillProficiencies: [{ skill: "perception" }] } }] })
     const below = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 3 })
@@ -1829,6 +1839,12 @@ describe("inferFeatureType", () => {
 
   it("infers 'Ability Scores' from an explicit floor of 0", () => {
     expect(inferFeatureType(undefined, [{ level: 1, effects: { abilityScoreFloors: { strength: 0 } } }])).toBe("Ability Scores")
+  })
+
+  it("treats null effect values from external JSON as unset rather than as a grant", () => {
+    // `any`: null is deliberately outside the FeatureEffects type, simulating external JSON
+    const effects: any = { speed: null, hpBonusPerLevel: null, carryingCapacityBonus: null, senses: { darkvision: null }, abilityScoreFloors: { strength: null } }
+    expect(inferFeatureType(undefined, [{ level: 1, effects }])).toBe("")
   })
 
   it("checks spellcastingAbility before hitDiceSize when both are somehow present", () => {

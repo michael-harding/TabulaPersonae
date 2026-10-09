@@ -28,6 +28,7 @@ import {
   getDoc,
   getDocFromCache,
   onSnapshot,
+  setDoc,
 } from 'firebase/firestore'
 
 import {
@@ -36,13 +37,16 @@ import {
   subscribeToCharacter,
   getTabConfigFromFirebase,
   getPublicCharacterFromFirebase,
+  saveCharacterToFirebase,
 } from '@/lib/firebase-storage'
+import { createDefaultCharacter } from '@/lib/character-types'
 
 const mockGetDocs = vi.mocked(getDocs)
 const mockGetDocsFromCache = vi.mocked(getDocsFromCache)
 const mockGetDoc = vi.mocked(getDoc)
 const mockGetDocFromCache = vi.mocked(getDocFromCache)
 const mockOnSnapshot = vi.mocked(onSnapshot)
+const mockSetDoc = vi.mocked(setDoc)
 
 const userId = 'user-123'
 const charData = { name: 'Thorin', userId, updatedAt: null }
@@ -60,6 +64,26 @@ function makeDocSnap(exists: boolean, data?: object) {
     data: () => data ?? {},
   } as any
 }
+
+describe('saveCharacterToFirebase', () => {
+  beforeEach(() => {
+    mockSetDoc.mockReset()
+  })
+
+  it('overwrites the whole document rather than merging, so stale fields cannot survive', async () => {
+    await saveCharacterToFirebase({ ...createDefaultCharacter(), id: 'char-1' }, userId)
+    expect(mockSetDoc).toHaveBeenCalledTimes(1)
+    expect(mockSetDoc.mock.calls[0]).toHaveLength(2)
+  })
+
+  it('omits a cleared field from the written document', async () => {
+    await saveCharacterToFirebase({ ...createDefaultCharacter(), id: 'char-1', sheetColor: undefined }, userId)
+    const written = mockSetDoc.mock.calls[0][1] as Record<string, unknown>
+    expect('sheetColor' in written).toBe(false)
+    expect(written.userId).toBe(userId)
+    expect(written.updatedAt).toBeDefined()
+  })
+})
 
 describe('getPublicCharacterFromFirebase', () => {
   beforeEach(() => {
@@ -290,7 +314,7 @@ function makeFirestoreSnap(hasPendingWrites: boolean, updatedAtMs: number | null
     id: 'char-1',
     data: () => ({
       userId,
-      updatedAt: updatedAtMs !== null ? { seconds: updatedAtMs / 1000, nanoseconds: 0 } : null,
+      updatedAt: updatedAtMs != null ? { seconds: updatedAtMs / 1000, nanoseconds: 0 } : null,
     }),
     metadata: { hasPendingWrites },
   }

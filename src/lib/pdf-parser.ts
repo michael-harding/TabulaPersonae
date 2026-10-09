@@ -135,7 +135,7 @@ export function parseFeaturesTraitsText(text: string): {
   let pendingActionKind: ActionKind | undefined = undefined
 
   function flush() {
-    if (pendingName === null || currentKind === null) return
+    if (pendingName == null || currentKind == null) return
     const key = kindToKey[currentKind]
     if (!key) return
     const name = pendingName
@@ -149,21 +149,21 @@ export function parseFeaturesTraitsText(text: string): {
   }
 
   for (const { heading, content } of splitIntoSections(text)) {
-    if (heading === null) continue // discard preamble before first ===
+    if (heading == null) continue // discard preamble before first ===
     const kind = classifyFeatureSection(heading)
-    if (kind !== null) {
+    if (kind != null) {
       flush()
       currentKind = kind
     }
-    if (currentKind === null) continue
+    if (currentKind == null) continue
 
     for (const line of content.split("\n")) {
       if (/^\s*\*\s+\S/.test(line)) {
         flush()
         pendingName = extractStarItemName(line)
         pendingLines = []
-      } else if (pendingName !== null) {
-        if (/^\s*\|/.test(line) && pendingActionKind === undefined) {
+      } else if (pendingName != null) {
+        if (/^\s*\|/.test(line) && pendingActionKind == null) {
           const kind = extractActionKind(line)
           if (kind) pendingActionKind = kind
         }
@@ -199,7 +199,7 @@ export function parseActionsText(text: string): Feature[] {
   const features: Feature[] = []
 
   for (const { heading, content } of splitIntoSections(text)) {
-    if (heading === null) continue
+    if (heading == null) continue
     const actionKind = classifyActionSection(heading)
     if (actionKind === "skip") continue
 
@@ -366,7 +366,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
   const savingThrows: Partial<Record<keyof AbilityScores, boolean>> = {}
   for (const [key, ability] of stProfMap) {
     const raw = fields[key] as string | undefined
-    if (raw !== undefined) savingThrows[ability] = isProficient(raw)
+    if (raw != null) savingThrows[ability] = isProficient(raw)
   }
   if (Object.keys(savingThrows).length > 0) result.savingThrows = savingThrows as Character["savingThrows"]
 
@@ -404,7 +404,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
   let hasAnySkill = false
   for (const [pdfKey, skillKey] of Object.entries(PDF_SKILL_PROF_MAP)) {
     const raw = fields[pdfKey] as string | undefined
-    if (raw !== undefined) {
+    if (raw != null) {
       skills[skillKey] = { proficient: isProficient(raw), expertise: isExpertise(raw) }
       hasAnySkill = true
     }
@@ -429,7 +429,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
   if (maxHP) hp.maximum = parseIntField(maxHP)
   const currentHP = f("CurrentHP")
   if (currentHP) hp.current = parseIntField(currentHP)
-  else if (hp.maximum !== undefined) hp.current = hp.maximum
+  else if (hp.maximum != null) hp.current = hp.maximum
   const tempHP = f("TempHP")
   if (tempHP && tempHP !== "--") hp.temporary = parseIntField(tempHP)
   if (Object.keys(hp).length > 0) result.hitPoints = hp as Character["hitPoints"]
@@ -473,7 +473,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
   const coins: Partial<NonNullable<Character["coins"]>> = {}
   for (const [key, coinKey] of coinEntries) {
     const raw = f(key)
-    if (raw !== undefined && raw !== "") coins[coinKey] = parseIntField(raw)
+    if (raw != null && raw !== "") coins[coinKey] = parseIntField(raw)
   }
   if (Object.keys(coins).length > 0) result.coins = coins as NonNullable<Character["coins"]>
 
@@ -597,7 +597,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
 
   // --- Heroic Inspiration ---
   const inspirationRaw = fields["Inspiration"] as string | undefined
-  if (inspirationRaw !== undefined) result.heroicInspiration = isProficient(inspirationRaw)
+  if (inspirationRaw != null) result.heroicInspiration = isProficient(inspirationRaw)
 
   return result
 }

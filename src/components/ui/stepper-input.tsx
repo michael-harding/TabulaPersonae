@@ -18,8 +18,8 @@ interface StepperInputProps {
 export function StepperInput(props: StepperInputProps) {
   const clamp = (n: number) => {
     let v = n
-    if (props.min !== undefined) v = Math.max(props.min, v)
-    if (props.max !== undefined) v = Math.min(props.max, v)
+    if (props.min != null) v = Math.max(props.min, v)
+    if (props.max != null) v = Math.min(props.max, v)
     return v
   }
 
@@ -32,7 +32,7 @@ export function StepperInput(props: StepperInputProps) {
           size="icon"
           class="h-11 w-11 shrink-0 rounded-r-none border-r-0"
           onClick={() => {
-            if (props.min !== undefined && props.value <= props.min) {
+            if (props.min != null && props.value <= props.min) {
               props.onAtMin?.()
             } else {
               props.onChange(clamp(props.value - 1))

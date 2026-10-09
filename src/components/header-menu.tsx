@@ -84,7 +84,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
       try {
         const data = JSON.parse(e.target?.result as string)
         if (Array.isArray(data)) {
-          const valid = data.filter((c) => c && typeof c === "object" && c.id && c.name !== undefined)
+          const valid = data.filter((c) => c && typeof c === "object" && c.id && c.name != null)
           if (valid.length === 0) {
             toast({ title: "Import Failed", description: "No valid characters found in file", variant: "destructive" })
             return

@@ -127,7 +127,7 @@ export function migrateCharacter(raw: any): Character {
   if (!CALCULATED_VALUE_FLAGS.every((flag) => flag in raw)) {
     const backfill = (flag: (typeof CALCULATED_VALUE_FLAGS)[number], storedValue: unknown, calculatedValue: unknown) => {
       if (flag in raw) return
-      patch[flag] = storedValue === undefined || storedValue === calculatedValue
+      patch[flag] = storedValue == null || storedValue === calculatedValue
     }
 
     backfill("useCalculatedArmorClass", raw.armorClass, calculateEquippedAC(raw).ac)
@@ -144,7 +144,7 @@ export function migrateCharacter(raw: any): Character {
       const useCalculatedSenses: Partial<Record<SenseType, boolean>> = {}
       for (const sense of SENSE_TYPES) {
         const stored = raw.senses?.[sense]
-        useCalculatedSenses[sense] = stored === undefined || stored === senseTotals[sense]
+        useCalculatedSenses[sense] = stored == null || stored === senseTotals[sense]
       }
       patch.useCalculatedSenses = useCalculatedSenses
     }
