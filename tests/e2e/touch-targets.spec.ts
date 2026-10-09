@@ -27,7 +27,12 @@ async function auditTouchTargets(page: Page): Promise<Violation[]> {
     const TARGET = 44
     const describe = (el: Element) =>
       el.getAttribute("data-test") ?? el.getAttribute("aria-label") ?? `${el.tagName.toLowerCase()}:${(el.textContent ?? "").trim().slice(0, 30)}`
-    const owner = (el: Element | null) => el?.closest(selector) ?? null
+    // A click on a <label> activates its form control, so the label's box counts as the control's.
+    const owner = (el: Element | null) => {
+      const label = el?.closest("label")
+      if (label != null && el?.closest(selector) == null && label.control != null) return label.control
+      return el?.closest(selector) ?? null
+    }
     const related = (a: Element, b: Element) => a === b || a.contains(b) || b.contains(a)
     // Several of an element's probe points can fail; report each element/kind/other once.
     const seen = new Set<string>()
@@ -46,8 +51,11 @@ async function auditTouchTargets(page: Page): Promise<Violation[]> {
       const r = el.getBoundingClientRect()
       // ≤1px boxes are visually-hidden inputs whose visible control is audited instead.
       if (r.width <= 1 || r.height <= 1) continue
-      const cx = r.left + r.width / 2
-      const cy = r.top + r.height / 2
+      // A labelled input's effective target is its wrapping <label>, so centre the 44px square there.
+      const wrappingLabel = el instanceof HTMLInputElement ? el.closest("label") : null
+      const t = wrappingLabel?.getBoundingClientRect() ?? r
+      const cx = t.left + t.width / 2
+      const cy = t.top + t.height / 2
 
       const probe = (x: number, y: number, kind: Violation["kind"]) => {
         const hit = owner(document.elementFromPoint(x, y))
@@ -64,7 +72,7 @@ async function auditTouchTargets(page: Page): Promise<Violation[]> {
           probe(r.left + 1 + ((r.width - 2) * i) / 4, r.top + 1 + ((r.height - 2) * j) / 4, "stolen")
         }
       }
-      // 2. Perimeter of the 44×44 square centred on the element (inset 1px).
+      // 2. Perimeter of the 44×44 square centred on the element's effective target (inset 1px).
       const h = TARGET / 2 - 1
       for (const [dx, dy] of [[-h, -h], [0, -h], [h, -h], [-h, 0], [h, 0], [-h, h], [0, h], [h, h]]) {
         probe(cx + dx, cy + dy, "undersized")
@@ -112,6 +120,24 @@ test.describe("Touch targets", () => {
       expectNoStolenClicks([...view, ...editing])
     })
   }
+
+  test("feature editor with a granted-skill chip", async ({ page }) => {
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+    await page.getByRole("tab", { name: "Features" }).click()
+    await page.getByRole("button", { name: /add class feature/i }).click()
+    const modal = page.getByRole("dialog")
+    await modal.getByRole("button", { name: /feature type/i }).click()
+    await page.getByRole("option", { name: "Skill Proficiency" }).click()
+    const addSkill = modal.getByLabel(/add skill/i)
+    await addSkill.fill("Perception")
+    await addSkill.press("Enter")
+    await expect(modal.getByRole("checkbox", { name: "Expertise for Perception" })).toBeVisible()
+    expectNoStolenClicks(await auditTouchTargets(page))
+    // Both halves of the divided pill must meet the 44px target.
+    const undersized = test.info().annotations.find((a) => a.type === "undersized touch targets")?.description ?? ""
+    expect(undersized).not.toMatch(/level-effect-0-skill-perception-(remove|check)/)
+  })
 
   test("tab settings page", async ({ page }) => {
     await page.goto("/settings/tabs")

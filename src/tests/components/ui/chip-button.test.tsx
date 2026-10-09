@@ -1,6 +1,6 @@
 import { axe } from "vitest-axe"
 
-import { ChipButton } from "@/components/ui/chip-button"
+import { ChipButton, CheckableChip } from "@/components/ui/chip-button"
 
 import { render, screen, fireEvent } from "../../test-utils"
 
@@ -40,6 +40,69 @@ describe("ChipButton", () => {
 
   it("has no accessibility violations", async () => {
     const { container } = render(<ChipButton data-test="chip" action="remove" aria-label="Remove Common" onClick={vi.fn()}>Common</ChipButton>)
+    expect((await axe(container)).violations).toHaveLength(0)
+  })
+})
+
+describe("CheckableChip", () => {
+  function renderChip(overrides: { checked?: boolean } = {}) {
+    const onRemove = vi.fn()
+    const onCheckedChange = vi.fn()
+    const { container } = render(
+      <CheckableChip
+        data-test="skill-athletics"
+        removeLabel="Remove Athletics"
+        onRemove={onRemove}
+        checkLabel="Exp"
+        checkAriaLabel="Expertise for Athletics"
+        checked={overrides.checked ?? false}
+        onCheckedChange={onCheckedChange}
+      >
+        Athletics
+      </CheckableChip>
+    )
+    return { onRemove, onCheckedChange, container }
+  }
+
+  it("removes on a single click of the left half, without touching the option", () => {
+    const { onRemove, onCheckedChange } = renderChip()
+    fireEvent.click(screen.getByRole("button", { name: "Remove Athletics" }))
+    expect(onRemove).toHaveBeenCalledTimes(1)
+    expect(onCheckedChange).not.toHaveBeenCalled()
+  })
+
+  it("toggles the option from the right half's checkbox, without removing", () => {
+    const { onRemove, onCheckedChange } = renderChip()
+    fireEvent.click(screen.getByRole("checkbox", { name: "Expertise for Athletics" }))
+    expect(onCheckedChange).toHaveBeenCalledWith(true)
+    expect(onRemove).not.toHaveBeenCalled()
+  })
+
+  it("toggles when the right half's visible label is clicked", () => {
+    const { onCheckedChange } = renderChip({ checked: true })
+    fireEvent.click(screen.getByText("Exp"))
+    expect(onCheckedChange).toHaveBeenCalledWith(false)
+  })
+
+  it("reflects the checked state", () => {
+    renderChip({ checked: true })
+    expect(screen.getByRole("checkbox", { name: "Expertise for Athletics" })).toBeChecked()
+  })
+
+  it("derives page-unique ids for both halves", () => {
+    renderChip()
+    expect(screen.getByTestId("skill-athletics-remove")).toHaveAccessibleName("Remove Athletics")
+    expect(screen.getByTestId("skill-athletics-check")).toHaveAttribute("type", "checkbox")
+  })
+
+  it("gives each half its own ≥44px-tall box", () => {
+    renderChip()
+    expect(screen.getByTestId("skill-athletics-remove")).toHaveClass("min-h-11", "min-w-11")
+    expect(screen.getByTestId("skill-athletics-check").closest("label")).toHaveClass("min-h-11", "min-w-11")
+  })
+
+  it("has no accessibility violations", async () => {
+    const { container } = renderChip()
     expect((await axe(container)).violations).toHaveLength(0)
   })
 })

@@ -17,7 +17,7 @@ import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
-import { ChipButton } from "@/components/ui/chip-button"
+import { ChipButton, CheckableChip } from "@/components/ui/chip-button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -421,29 +421,20 @@ function LevelEffectRow(props: {
         <div class="space-y-1">
           <Label class="text-xs">Skill Proficiencies</Label>
           <Show when={(effects().skillProficiencies ?? []).length > 0}>
-            <div class="flex flex-wrap gap-x-3 mb-2">
+            <div class="flex flex-wrap gap-x-2 mb-2">
               <For each={effects().skillProficiencies ?? []}>
                 {(grant) => (
-                  // The chip removes the grant; Expertise is its own 44px control beside it.
-                  <div class="inline-flex items-center">
-                    <ChipButton
-                      data-test={`level-effect-${props.index}-skill-${grant.skill}-remove`}
-                      action="remove"
-                      aria-label={`Remove ${SKILL_DISPLAY_NAMES[grant.skill]}`}
-                      onClick={() => removeSkill(grant.skill)}
-                    >
-                      {SKILL_DISPLAY_NAMES[grant.skill]}
-                    </ChipButton>
-                    <label class={cn(TOUCH_TARGET_BOX, "gap-1 pr-1 text-xs font-normal cursor-pointer")}>
-                      <input
-                        type="checkbox"
-                        data-test={`level-effect-${props.index}-skill-${grant.skill}-expertise`}
-                        checked={grant.expertise ?? false}
-                        onChange={() => toggleSkillExpertise(grant.skill)}
-                      />
-                      Exp
-                    </label>
-                  </div>
+                  <CheckableChip
+                    data-test={`level-effect-${props.index}-skill-${grant.skill}`}
+                    removeLabel={`Remove ${SKILL_DISPLAY_NAMES[grant.skill]}`}
+                    onRemove={() => removeSkill(grant.skill)}
+                    checkLabel="Exp"
+                    checkAriaLabel={`Expertise for ${SKILL_DISPLAY_NAMES[grant.skill]}`}
+                    checked={grant.expertise ?? false}
+                    onCheckedChange={() => toggleSkillExpertise(grant.skill)}
+                  >
+                    {SKILL_DISPLAY_NAMES[grant.skill]}
+                  </CheckableChip>
                 )}
               </For>
             </div>

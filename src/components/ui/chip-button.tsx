@@ -54,3 +54,59 @@ export function ChipButton(props: ChipButtonProps) {
     </button>
   )
 }
+
+type CheckableChipProps = {
+  /** Page-unique; the halves get `${id}-remove` and `${id}-check`. */
+  "data-test": string
+  /** The chip's value, shown on the remove half. */
+  children: JSX.Element
+  /** Accessible name for the remove half, e.g. "Remove Athletics". */
+  removeLabel: string
+  onRemove: () => void
+  /** Short visible label for the checkable half, e.g. "Exp". */
+  checkLabel: string
+  /** Accessible name for the checkbox, e.g. "Athletics expertise". */
+  checkAriaLabel: string
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+}
+
+/**
+ * A divided pill for a chip value that also carries an on/off option (e.g. a granted skill with
+ * an Expertise flag). The left half behaves exactly like a remove ChipButton; the right half is a
+ * checkbox + label that toggles the option. Each half is its own ≥44px-tall control, and the two
+ * boxes are pushed together at the seam so the halves read as one pill.
+ */
+export function CheckableChip(props: CheckableChipProps) {
+  const half = "inline-flex items-center gap-1.5 border text-xs font-semibold transition-colors"
+  const focusRing = "group-focus-visible:ring-2 group-focus-visible:ring-ring group-focus-visible:ring-offset-2"
+  return (
+    <span class="inline-flex items-center" data-sem="checkable-chip">
+      <button
+        type="button"
+        data-test={`${props["data-test"]}-remove`}
+        aria-label={props.removeLabel}
+        class={cn(TOUCH_TARGET_BOX, "group justify-end focus-visible:outline-none")}
+        onClick={() => props.onRemove()}
+      >
+        <span class={cn(half, focusRing, "rounded-l-full border-transparent bg-secondary py-0.5 pl-2.5 pr-1.5 text-secondary-foreground group-hover:bg-secondary/80 group-hover:border-destructive")}>
+          {props.children}
+          <X class="h-3 w-3" aria-hidden="true" />
+        </span>
+      </button>
+      <label class={cn(TOUCH_TARGET_BOX, "group justify-start cursor-pointer")}>
+        <span class={cn(half, "rounded-r-full border-secondary py-0.5 pl-1.5 pr-2.5 font-normal group-hover:bg-accent group-hover:text-accent-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2")}>
+          <input
+            type="checkbox"
+            data-test={`${props["data-test"]}-check`}
+            aria-label={props.checkAriaLabel}
+            checked={props.checked}
+            onChange={(e) => props.onCheckedChange(e.currentTarget.checked)}
+            class="h-3 w-3 cursor-pointer accent-primary focus-visible:outline-none"
+          />
+          {props.checkLabel}
+        </span>
+      </label>
+    </span>
+  )
+}

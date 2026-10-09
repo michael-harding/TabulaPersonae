@@ -1070,6 +1070,28 @@ describe("FeaturesModule", () => {
         expect(onUpdate).not.toHaveBeenCalled()
       })
 
+      it("a granted skill chip toggles Expertise from its right half and removes from its left half", () => {
+        render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Skill Proficiency" }))
+        const input = within(modal).getByLabelText(/add skill/i)
+        fireEvent.input(input, { target: { value: "Perception" } })
+        fireEvent.keyDown(input, { key: "Enter" })
+
+        const expertise = within(modal).getByRole("checkbox", { name: "Expertise for Perception" })
+        expect(expertise).not.toBeChecked()
+        fireEvent.click(expertise)
+        expect(within(modal).getByRole("checkbox", { name: "Expertise for Perception" })).toBeChecked()
+        // toggling Expertise must not remove the grant
+        expect(within(modal).getByRole("button", { name: "Remove Perception" })).toBeInTheDocument()
+
+        // the chip is a single-click remove — no confirm step
+        fireEvent.click(within(modal).getByRole("button", { name: "Remove Perception" }))
+        expect(within(modal).queryByRole("button", { name: "Remove Perception" })).not.toBeInTheDocument()
+      })
+
       it("clicking Add Level a second time adds an independent tier at level 1", () => {
         render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
         fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
