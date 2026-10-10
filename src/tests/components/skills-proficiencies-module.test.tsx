@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event"
 import { axe } from "vitest-axe"
 
 import { SkillsProficienciesModule } from "@/components/skills-proficiencies-module"
@@ -902,17 +903,36 @@ describe("SkillsProficienciesModule", () => {
       expect(screen.getByText("Fire")).toBeInTheDocument()
     })
 
-    it("adds a resistance via the add button", () => {
+    it("adds a resistance by picking a damage type from the Add menu", async () => {
+      const user = userEvent.setup()
       const onUpdate = vi.fn()
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
-      const input = screen.getByPlaceholderText("Add resistance (e.g. Fire)")
-      fireEvent.input(input, { target: { value: "Necrotic" } })
-      fireEvent.click(within(input.parentElement!).getByRole("button"))
+      await user.click(screen.getByRole("button", { name: "Add resistance" }))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Necrotic" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Necrotic" }))
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ damageResistances: expect.arrayContaining(["Necrotic"]) })
       )
+    })
+
+    it("restricts damage types to the rules list — there is no free-text input", () => {
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.queryByRole("textbox", { name: "New resistance" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("textbox", { name: "New immunity" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("textbox", { name: "New vulnerability" })).not.toBeInTheDocument()
+    })
+
+    it("keeps a previously typed off-list resistance, still removable", () => {
+      const onUpdate = vi.fn()
+      render(<SkillsProficienciesModule character={makeCharacter({ damageResistances: ["Homebrew Ooze"] })} onUpdate={onUpdate} />)
+      expect(screen.getByText("Homebrew Ooze")).toBeInTheDocument()
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: "Remove resistance Homebrew Ooze" }))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ damageResistances: [] }))
     })
 
     it("shows a feature-granted resistance, tooltipped with the granting feature", () => {

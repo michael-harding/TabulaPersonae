@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event"
 import { axe } from "vitest-axe"
 
 import { FeaturesModule } from "@/components/features-module"
@@ -5,7 +6,14 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Feature } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, cleanupPortals, confirmClick } from "../test-utils"
+import { render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick } from "../test-utils"
+
+// Opens a ChipListEditor's "+ Add" menu and picks one option (the menu renders in a portal).
+async function pickFromAddMenu(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, option: string) {
+  await user.click(trigger)
+  await waitFor(() => expect(screen.getByRole("menuitem", { name: option })).toBeInTheDocument())
+  await user.click(screen.getByRole("menuitem", { name: option }))
+}
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
   return {
@@ -640,7 +648,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("option", { name: "Spellcasting Ability" }))
         expect(within(modal).getByRole("button", { name: /^spellcasting ability$/i })).toBeInTheDocument()
         expect(within(modal).queryByRole("button", { name: /add level/i })).not.toBeInTheDocument()
-        expect(within(modal).queryByLabelText("Add skill")).not.toBeInTheDocument()
+        expect(within(modal).queryByLabelText("Add skill proficiency")).not.toBeInTheDocument()
         expect(within(modal).queryByRole("checkbox", { name: "WIS" })).not.toBeInTheDocument()
         // the action-only fields must not appear for a mechanical Feature Type
         expect(within(modal).queryByLabelText(/^range$/i)).not.toBeInTheDocument()
@@ -1035,7 +1043,7 @@ describe("FeaturesModule", () => {
         )
       })
 
-      it("pressing Enter in the Add other proficiency input adds it without submitting the form", () => {
+      it("pressing Enter in the other proficiency input adds it without submitting the form", () => {
         const onUpdate = vi.fn()
         render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
@@ -1043,17 +1051,18 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Other Proficiency" }))
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Test" } })
-        const input = within(modal).getByLabelText(/add other proficiency/i)
+        const input = within(modal).getByLabelText(/new other proficiency/i)
         fireEvent.input(input, { target: { value: "Light Armor" } })
         fireEvent.keyDown(input, { key: "Enter" })
         expect(within(modal).getByText("Light Armor")).toBeInTheDocument()
-        expect(within(modal).getByLabelText(/add other proficiency/i)).toHaveValue("")
+        expect(within(modal).getByLabelText(/new other proficiency/i)).toHaveValue("")
         // the modal must still be open — Enter should not have submitted the form
         expect(screen.getByRole("dialog")).toBeInTheDocument()
         expect(onUpdate).not.toHaveBeenCalled()
       })
 
-      it("pressing Enter in the Add skill input adds the selected skill without submitting the form", () => {
+      it("picking a skill from the Add menu adds it without submitting the form", async () => {
+        const user = userEvent.setup()
         const onUpdate = vi.fn()
         render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
@@ -1061,24 +1070,21 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Skill Proficiency" }))
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Test" } })
-        const input = within(modal).getByLabelText(/add skill/i)
-        fireEvent.input(input, { target: { value: "Perception" } })
-        fireEvent.keyDown(input, { key: "Enter" })
+        await pickFromAddMenu(user, within(modal).getByRole("button", { name: "Add skill proficiency" }), "Perception")
         expect(within(modal).getByText("Perception")).toBeInTheDocument()
         // the modal must still be open — Enter should not have submitted the form
         expect(screen.getByRole("dialog")).toBeInTheDocument()
         expect(onUpdate).not.toHaveBeenCalled()
       })
 
-      it("a granted skill chip toggles Expertise from its right half and removes from its left half", () => {
+      it("a granted skill chip toggles Expertise from its right half and removes from its left half", async () => {
+        const user = userEvent.setup()
         render(<FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
         fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
         const modal = screen.getByRole("dialog")
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Skill Proficiency" }))
-        const input = within(modal).getByLabelText(/add skill/i)
-        fireEvent.input(input, { target: { value: "Perception" } })
-        fireEvent.keyDown(input, { key: "Enter" })
+        await pickFromAddMenu(user, within(modal).getByRole("button", { name: "Add skill proficiency" }), "Perception")
 
         const expertise = within(modal).getByRole("checkbox", { name: "Expertise for Perception" })
         expect(expertise).not.toBeChecked()
@@ -1301,7 +1307,8 @@ describe("FeaturesModule", () => {
     })
 
     describe("Damage Resistance/Immunity/Vulnerability (level-tiered)", () => {
-      it("persists a granted damage resistance", () => {
+      it("persists a granted damage resistance", async () => {
+        const user = userEvent.setup()
         const onUpdate = vi.fn()
         render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
@@ -1309,9 +1316,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Damage Resistance/Immunity/Vulnerability" }))
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Dwarven Resilience" } })
-        const input = within(modal).getByLabelText(/^damage resistance$/i)
-        fireEvent.input(input, { target: { value: "Poison" } })
-        fireEvent.keyDown(input, { key: "Enter" })
+        await pickFromAddMenu(user, within(modal).getByRole("button", { name: "Add damage resistance" }), "Poison")
         expect(within(modal).getByText("Poison")).toBeInTheDocument()
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(onUpdate).toHaveBeenCalledWith(
@@ -1328,7 +1333,8 @@ describe("FeaturesModule", () => {
     })
 
     describe("Condition Immunity (level-tiered)", () => {
-      it("persists a granted condition immunity", () => {
+      it("persists a granted condition immunity", async () => {
+        const user = userEvent.setup()
         const onUpdate = vi.fn()
         render(<FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
@@ -1336,9 +1342,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Condition Immunity" }))
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Fey Ancestry" } })
-        const input = within(modal).getByLabelText(/^condition immunity$/i)
-        fireEvent.input(input, { target: { value: "Charmed" } })
-        fireEvent.keyDown(input, { key: "Enter" })
+        await pickFromAddMenu(user, within(modal).getByRole("button", { name: "Add condition immunity" }), "Charmed")
         expect(within(modal).getByText("Charmed")).toBeInTheDocument()
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(onUpdate).toHaveBeenCalledWith(
@@ -1363,7 +1367,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("button", { name: /feature type/i }))
         fireEvent.click(within(modal).getByRole("option", { name: "Language" }))
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Draconic Ancestry" } })
-        const input = within(modal).getByLabelText(/add language/i)
+        const input = within(modal).getByLabelText(/new language/i)
         fireEvent.input(input, { target: { value: "Draconic" } })
         fireEvent.keyDown(input, { key: "Enter" })
         expect(within(modal).getByText("Draconic")).toBeInTheDocument()

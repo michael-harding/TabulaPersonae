@@ -17,7 +17,8 @@ import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
-import { ChipButton, CheckableChip } from "@/components/ui/chip-button"
+import { CheckableChip } from "@/components/ui/chip-button"
+import { ChipListEditor } from "@/components/ui/chip-list-editor"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -32,7 +33,6 @@ import { MarkdownContent } from "@/components/ui/markdown-content"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
 import { useReadOnly } from "@/lib/read-only-context"
 import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
@@ -254,55 +254,7 @@ interface FeatureFormProps {
   onCancel: () => void
 }
 
-// Reusable picker for string-list effect fields (resistances/immunities/vulnerabilities/condition
-// immunities) drawn from a closed 5e rules enum — mirrors the Skill Proficiency picker's
-// Combobox+Add+Chip idiom, but for a plain string list instead of skill-keyed grants.
-function ClosedListEditor(props: {
-  label: string
-  ariaLabel: string
-  testKey: string
-  options: string[]
-  values: string[]
-  onChange: (next: string[]) => void
-}) {
-  const [newValue, setNewValue] = createSignal('')
-  const available = () => props.options.filter((o) => !props.values.includes(o))
-  const add = () => {
-    if (!available().includes(newValue())) return
-    props.onChange([...props.values, newValue()])
-    setNewValue('')
-  }
-  const remove = (v: string) => props.onChange(props.values.filter((x) => x !== v))
-  return (
-    <div class="space-y-1">
-      <Label class="text-xs">{props.label}</Label>
-      <Show when={props.values.length > 0}>
-        <div class="flex flex-wrap gap-x-2 mb-2">
-          <For each={props.values}>
-            {(v) => (
-              <ChipButton data-test={`${props.testKey}-remove-${v}`} action="remove" aria-label={`Remove ${v}`} onClick={() => remove(v)}>
-                {v}
-              </ChipButton>
-            )}
-          </For>
-        </div>
-      </Show>
-      <Show when={available().length > 0}>
-        <div class="flex gap-2" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add() } }}>
-          <Combobox
-            data-test={`${props.testKey}-combobox`}
-            value={newValue()}
-            onValueChange={setNewValue}
-            options={available()}
-            placeholder={`Add ${props.ariaLabel.toLowerCase()}...`}
-            aria-label={props.ariaLabel}
-          />
-          <Button type="button" data-test={`${props.testKey}-add-button`} size="sm" variant="outline" onClick={add}>Add</Button>
-        </div>
-      </Show>
-    </div>
-  )
-}
+type StringListEffectKey = 'resistances' | 'immunities' | 'vulnerabilities' | 'conditionImmunities' | 'languages' | 'otherProficiencies'
 
 type EffectGroupKey = 'bonus' | 'floor' | 'cap' | 'baseMax'
 
@@ -346,10 +298,14 @@ function LevelEffectRow(props: {
   onEffectsChange: (effects: FeatureEffects) => void
   onRemove: () => void
 }) {
-  const [newSkillLabel, setNewSkillLabel] = createSignal('')
-
   const effects = () => props.tier.effects
   const update = (patch: Partial<FeatureEffects>) => props.onEffectsChange({ ...effects(), ...patch })
+
+  const addTo = (key: StringListEffectKey, value: string) => update({ [key]: [...(effects()[key] ?? []), value] })
+  const removeFrom = (key: StringListEffectKey, value: string) => {
+    const next = (effects()[key] ?? []).filter((v) => v !== value)
+    update({ [key]: next.length > 0 ? next : undefined })
+  }
 
   const toggleSave = (ability: keyof AbilityScores) => {
     const current = effects().savingThrowProficiencies ?? []
@@ -357,17 +313,9 @@ function LevelEffectRow(props: {
     update({ savingThrowProficiencies: next.length > 0 ? next : undefined })
   }
 
-  const availableSkills = () => {
-    const granted = effects().skillProficiencies ?? []
-    return SKILL_KEYS.filter((skill) => !granted.some((g) => g.skill === skill))
-  }
-
-  const addSkill = () => {
-    const skill = SKILL_KEYS.find((s) => SKILL_DISPLAY_NAMES[s] === newSkillLabel())
-    if (!skill) return
+  const addSkill = (skill: keyof Skills) => {
     const current = effects().skillProficiencies ?? []
     update({ skillProficiencies: [...current, { skill, expertise: false }] })
-    setNewSkillLabel('')
   }
   const removeSkill = (skill: keyof Skills) => {
     const next = (effects().skillProficiencies ?? []).filter((g) => g.skill !== skill)
@@ -418,51 +366,40 @@ function LevelEffectRow(props: {
       </Show>
 
       <Show when={props.featureType === 'Skill Proficiency'}>
-        <div class="space-y-1">
-          <Label class="text-xs">Skill Proficiencies</Label>
-          <Show when={(effects().skillProficiencies ?? []).length > 0}>
-            <div class="flex flex-wrap gap-x-2 mb-2">
-              <For each={effects().skillProficiencies ?? []}>
-                {(grant) => (
-                  <CheckableChip
-                    data-test={`level-effect-${props.index}-skill-${grant.skill}`}
-                    removeLabel={`Remove ${SKILL_DISPLAY_NAMES[grant.skill]}`}
-                    onRemove={() => removeSkill(grant.skill)}
-                    checkLabel="Exp"
-                    checkAriaLabel={`Expertise for ${SKILL_DISPLAY_NAMES[grant.skill]}`}
-                    checked={grant.expertise ?? false}
-                    onCheckedChange={() => toggleSkillExpertise(grant.skill)}
-                  >
-                    {SKILL_DISPLAY_NAMES[grant.skill]}
-                  </CheckableChip>
-                )}
-              </For>
-            </div>
-          </Show>
-          <Show when={availableSkills().length > 0}>
-            <div class="flex gap-2" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill() } }}>
-              <Combobox
-                data-test={`level-effect-${props.index}-skill-combobox`}
-                value={newSkillLabel()}
-                onValueChange={setNewSkillLabel}
-                options={availableSkills().map((s) => SKILL_DISPLAY_NAMES[s])}
-                placeholder="Add skill..."
-                aria-label="Add skill"
-              />
-              <Button type="button" data-test={`level-effect-${props.index}-skill-add-button`} size="sm" variant="outline" onClick={addSkill}>Add</Button>
-            </div>
-          </Show>
-        </div>
+        <ChipListEditor
+          label="Skill Proficiencies"
+          itemLabel="skill proficiency"
+          data-test={`level-effect-${props.index}-skill`}
+          options={SKILL_KEYS}
+          optionLabel={(skill) => SKILL_DISPLAY_NAMES[skill]}
+          values={(effects().skillProficiencies ?? []).map((g) => g.skill)}
+          onAdd={addSkill}
+          onRemove={removeSkill}
+          renderChip={(skill) => (
+            <CheckableChip
+              data-test={`level-effect-${props.index}-skill-${skill}`}
+              removeLabel={`Remove ${SKILL_DISPLAY_NAMES[skill]}`}
+              onRemove={() => removeSkill(skill)}
+              checkLabel="Exp"
+              checkAriaLabel={`Expertise for ${SKILL_DISPLAY_NAMES[skill]}`}
+              checked={(effects().skillProficiencies ?? []).find((g) => g.skill === skill)?.expertise ?? false}
+              onCheckedChange={() => toggleSkillExpertise(skill)}
+            >
+              {SKILL_DISPLAY_NAMES[skill]}
+            </CheckableChip>
+          )}
+        />
       </Show>
 
       <Show when={props.featureType === 'Other Proficiency'}>
-        <FreeTextListEditor
+        <ChipListEditor
           label="Other Proficiencies (armor/weapon/tool)"
-          ariaLabel="Add other proficiency"
-          data-test={`level-effect-${props.index}-other-proficiency-input`}
+          itemLabel="other proficiency"
+          data-test={`level-effect-${props.index}-other-proficiency`}
           placeholder="e.g. Light Armor"
           values={effects().otherProficiencies ?? []}
-          onChange={(next) => update({ otherProficiencies: next.length > 0 ? next : undefined })}
+          onAdd={(v) => addTo('otherProficiencies', v)}
+          onRemove={(v) => removeFrom('otherProficiencies', v)}
         />
       </Show>
 
@@ -518,52 +455,57 @@ function LevelEffectRow(props: {
 
       <Show when={props.featureType === 'Damage Resistance/Immunity/Vulnerability'}>
         <div class="space-y-3">
-          <ClosedListEditor
+          <ChipListEditor
             label="Damage Resistances"
-            ariaLabel="Damage resistance"
-            testKey={`level-effect-${props.index}-resistance`}
+            itemLabel="damage resistance"
+            data-test={`level-effect-${props.index}-resistance`}
             options={DAMAGE_TYPE_OPTIONS}
             values={effects().resistances ?? []}
-            onChange={(next) => update({ resistances: next.length > 0 ? next : undefined })}
+            onAdd={(v) => addTo('resistances', v)}
+            onRemove={(v) => removeFrom('resistances', v)}
           />
-          <ClosedListEditor
+          <ChipListEditor
             label="Damage Immunities"
-            ariaLabel="Damage immunity"
-            testKey={`level-effect-${props.index}-immunity`}
+            itemLabel="damage immunity"
+            data-test={`level-effect-${props.index}-immunity`}
             options={DAMAGE_TYPE_OPTIONS}
             values={effects().immunities ?? []}
-            onChange={(next) => update({ immunities: next.length > 0 ? next : undefined })}
+            onAdd={(v) => addTo('immunities', v)}
+            onRemove={(v) => removeFrom('immunities', v)}
           />
-          <ClosedListEditor
+          <ChipListEditor
             label="Damage Vulnerabilities"
-            ariaLabel="Damage vulnerability"
-            testKey={`level-effect-${props.index}-vulnerability`}
+            itemLabel="damage vulnerability"
+            data-test={`level-effect-${props.index}-vulnerability`}
             options={DAMAGE_TYPE_OPTIONS}
             values={effects().vulnerabilities ?? []}
-            onChange={(next) => update({ vulnerabilities: next.length > 0 ? next : undefined })}
+            onAdd={(v) => addTo('vulnerabilities', v)}
+            onRemove={(v) => removeFrom('vulnerabilities', v)}
           />
         </div>
       </Show>
 
       <Show when={props.featureType === 'Condition Immunity'}>
-        <ClosedListEditor
-          label="Condition Immunities"
-          ariaLabel="Condition immunity"
-          testKey={`level-effect-${props.index}-condition-immunity`}
-          options={CONDITIONS}
-          values={effects().conditionImmunities ?? []}
-          onChange={(next) => update({ conditionImmunities: next.length > 0 ? next : undefined })}
-        />
+        <ChipListEditor
+            label="Condition Immunities"
+            itemLabel="condition immunity"
+            data-test={`level-effect-${props.index}-condition-immunity`}
+            options={CONDITIONS}
+            values={effects().conditionImmunities ?? []}
+            onAdd={(v) => addTo('conditionImmunities', v)}
+            onRemove={(v) => removeFrom('conditionImmunities', v)}
+          />
       </Show>
 
       <Show when={props.featureType === 'Language'}>
-        <FreeTextListEditor
+        <ChipListEditor
           label="Languages"
-          ariaLabel="Add language"
-          data-test={`level-effect-${props.index}-language-input`}
+          itemLabel="language"
+          data-test={`level-effect-${props.index}-language`}
           placeholder="e.g. Elvish"
           values={effects().languages ?? []}
-          onChange={(next) => update({ languages: next.length > 0 ? next : undefined })}
+          onAdd={(v) => addTo('languages', v)}
+          onRemove={(v) => removeFrom('languages', v)}
         />
       </Show>
 

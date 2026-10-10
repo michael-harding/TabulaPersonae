@@ -11,8 +11,9 @@ import { cn } from "@/lib/utils"
 // because the control is the ≥44px box around the pill (see ChipButton), not the pill itself; a
 // display Chip leaves `interactive` unset and so has no hover state.
 //
-// `removable` and `removableSecondary` look like `default` and `secondary` at rest, but hover with
-// a destructive border — use them for a chip whose click removes its value.
+// `removable`, `removableSecondary` and `removableOutline` look like `default`, `secondary` and
+// `outline` at rest, but hover with a destructive border — use them for a chip whose click
+// removes its value.
 const chipVariants = cva(
   "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors",
   {
@@ -24,6 +25,7 @@ const chipVariants = cva(
         outline: "text-foreground",
         removable: "border-transparent bg-primary text-primary-foreground",
         removableSecondary: "border-transparent bg-secondary text-secondary-foreground",
+        removableOutline: "text-foreground",
       },
       interactive: {
         true: "",
@@ -36,6 +38,7 @@ const chipVariants = cva(
       { variant: "destructive", interactive: true, class: "group-hover:border-destructive group-hover:bg-destructive/80" },
       { variant: "removable", interactive: true, class: "group-hover:border-destructive group-hover:bg-primary/80" },
       { variant: "removableSecondary", interactive: true, class: "group-hover:border-destructive group-hover:bg-secondary/80" },
+      { variant: "removableOutline", interactive: true, class: "group-hover:border-destructive group-hover:bg-accent group-hover:text-accent-foreground" },
       { variant: "outline", interactive: true, class: "group-hover:border-accent-foreground group-hover:bg-accent group-hover:text-accent-foreground" },
     ],
     defaultVariants: {

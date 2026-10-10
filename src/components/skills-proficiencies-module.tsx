@@ -1,16 +1,13 @@
 import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
-import Plus from "lucide-solid/icons/plus"
 
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
-import { Button } from "@/components/ui/button"
-import { ChipButton } from "@/components/ui/chip-button"
+import { ChipListEditor } from "@/components/ui/chip-list-editor"
 import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip } from "@/components/ui/tooltip"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -41,74 +38,6 @@ type SkillKey = keyof Character["skills"]
 interface SkillsProficienciesModuleProps {
   character: Character
   onUpdate: (character: Character) => void
-}
-
-function EditableTagList(props: {
-  testKey: string
-  label: string
-  itemLabel: string
-  placeholder: string
-  emptyText?: string
-  ownValues: string[]
-  grantedValues: string[]
-  grantedTooltip?: (value: string) => string
-  editing: boolean
-  onAdd: (value: string) => void
-  onRemove: (value: string) => void
-}) {
-  const [newValue, setNewValue] = createSignal("")
-  const add = () => {
-    const trimmed = newValue().trim()
-    if (!trimmed) return
-    props.onAdd(trimmed)
-    setNewValue("")
-  }
-  return (
-    <div>
-      <h2 class="font-semibold mb-3">{props.label}</h2>
-      <div class={cn("flex flex-wrap items-center mb-3", props.editing ? "gap-x-2" : "gap-2")}>
-        <For each={props.ownValues}>
-          {(value) => (
-            <Show when={props.editing} fallback={<Chip variant="outline">{value}</Chip>}>
-              <Tooltip content={`Remove ${props.itemLabel}`}>
-                <ChipButton data-test={`${props.testKey}-remove-${value}`} action="remove" variant="outline" aria-label={`Remove ${props.itemLabel} ${value}`} onClick={() => props.onRemove(value)}>
-                  {value}
-                </ChipButton>
-              </Tooltip>
-            </Show>
-          )}
-        </For>
-        <For each={props.grantedValues}>
-          {(value) => (
-            <Chip variant="secondary" class="gap-1" title={props.grantedTooltip?.(value) ?? "Granted automatically"}>
-              {value}
-            </Chip>
-          )}
-        </For>
-        <Show when={props.emptyText && props.ownValues.length === 0 && props.grantedValues.length === 0}>
-          <span class="text-muted-foreground text-sm">{props.emptyText}</span>
-        </Show>
-      </div>
-      <Show when={props.editing}>
-        <div class="flex gap-2">
-          <Input
-            data-test={`${props.testKey}-input`}
-            aria-label={`New ${props.itemLabel}`}
-            placeholder={props.placeholder}
-            value={newValue()}
-            onInput={(e) => setNewValue(e.currentTarget.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-            class="flex-1"
-          />
-          <Tooltip content={`Add ${props.itemLabel}`}>
-            <Button data-test={`${props.testKey}-add`} onClick={add} size="sm" aria-label={`Add ${props.itemLabel}`} disabled={!newValue().trim()}>
-              <Plus class="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </Tooltip>
-        </div>
-      </Show>
-    </div>
-  )
 }
 
 // The A/D pip pair for a skill's effective advantage/disadvantage state — used for both the
@@ -521,13 +450,15 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
 
         {/* Damage Resistances / Immunities / Vulnerabilities */}
         <div class="space-y-4">
-          <EditableTagList
-            testKey="damage-resistances"
+          <ChipListEditor
+            heading
+            variant="outline"
+            data-test="damage-resistances"
             label="Damage Resistances"
             itemLabel="resistance"
-            placeholder="Add resistance (e.g. Fire)"
+            options={DAMAGE_TYPE_OPTIONS}
             emptyText="No resistances"
-            ownValues={effectiveDamageResistances().own}
+            values={effectiveDamageResistances().own}
             grantedValues={effectiveDamageResistances().granted}
             grantedTooltip={(v) => {
               const source = effectiveDamageResistances().grantedBy[v]
@@ -537,13 +468,15 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             onAdd={(v) => addTag("damageResistances", v)}
             onRemove={(v) => removeTag("damageResistances", v)}
           />
-          <EditableTagList
-            testKey="damage-immunities"
+          <ChipListEditor
+            heading
+            variant="outline"
+            data-test="damage-immunities"
             label="Damage Immunities"
             itemLabel="immunity"
-            placeholder="Add immunity (e.g. Poison)"
+            options={DAMAGE_TYPE_OPTIONS}
             emptyText="No immunities"
-            ownValues={effectiveDamageImmunities().own}
+            values={effectiveDamageImmunities().own}
             grantedValues={effectiveDamageImmunities().granted}
             grantedTooltip={(v) => {
               const source = effectiveDamageImmunities().grantedBy[v]
@@ -553,13 +486,15 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             onAdd={(v) => addTag("damageImmunities", v)}
             onRemove={(v) => removeTag("damageImmunities", v)}
           />
-          <EditableTagList
-            testKey="damage-vulnerabilities"
+          <ChipListEditor
+            heading
+            variant="outline"
+            data-test="damage-vulnerabilities"
             label="Damage Vulnerabilities"
             itemLabel="vulnerability"
-            placeholder="Add vulnerability (e.g. Cold)"
+            options={DAMAGE_TYPE_OPTIONS}
             emptyText="No vulnerabilities"
-            ownValues={effectiveDamageVulnerabilities().own}
+            values={effectiveDamageVulnerabilities().own}
             grantedValues={effectiveDamageVulnerabilities().granted}
             grantedTooltip={(v) => {
               const source = effectiveDamageVulnerabilities().grantedBy[v]
@@ -574,12 +509,14 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
         <Separator />
 
         {/* Languages */}
-        <EditableTagList
-          testKey="languages"
+        <ChipListEditor
+            heading
+            variant="outline"
+          data-test="languages"
           label="Languages"
           itemLabel="language"
           placeholder="Add language"
-          ownValues={effectiveLanguages().own}
+          values={effectiveLanguages().own}
           grantedValues={effectiveLanguages().granted}
           grantedTooltip={(v) => {
             const source = effectiveLanguages().grantedBy[v]
@@ -593,13 +530,15 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
         <Separator />
 
         {/* Other Proficiencies */}
-        <EditableTagList
-          testKey="other-proficiencies"
+        <ChipListEditor
+            heading
+            variant="outline"
+          data-test="other-proficiencies"
           label="Other Proficiencies"
           itemLabel="proficiency"
           placeholder="Add proficiency (weapons, tools, etc.)"
           emptyText="No additional proficiencies"
-          ownValues={effectiveProficiencies().own}
+          values={effectiveProficiencies().own}
           grantedValues={effectiveProficiencies().granted}
           grantedTooltip={(v) => {
             const source = effectiveProficiencies().grantedBy[v]

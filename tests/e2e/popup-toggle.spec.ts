@@ -32,7 +32,7 @@ test.describe("Popups close on a second click", () => {
   })
 
   test("DropdownMenu trigger", async ({ page }) => {
-    await expectOpenCloseOpen(page, page.locator('[data-test="add-condition-button"]'))
+    await expectOpenCloseOpen(page, page.locator('[data-test="condition-add"]'))
   })
 
   test.describe("in Character Info edit mode", () => {

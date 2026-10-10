@@ -135,9 +135,11 @@ test.describe("Touch targets", () => {
     const modal = page.getByRole("dialog")
     await modal.getByRole("button", { name: /feature type/i }).click()
     await page.getByRole("option", { name: "Skill Proficiency" }).click()
-    const addSkill = modal.getByLabel(/add skill/i)
-    await addSkill.fill("Perception")
-    await addSkill.press("Enter")
+    await modal.getByRole("button", { name: "Add skill proficiency" }).click()
+    await page.getByRole("menuitem", { name: "Perception" }).click()
+    // Close the picker if it is still open so it doesn't cover the chip under audit.
+    await page.keyboard.press("Escape")
+    await expect(page.getByRole("menu")).toHaveCount(0)
     await expect(modal.getByRole("checkbox", { name: "Expertise for Perception" })).toBeVisible()
     expectNoStolenClicks(await auditTouchTargets(page))
     // Both halves of the divided pill must meet the 44px target.
@@ -164,7 +166,7 @@ test.describe("Touch targets", () => {
     await expect(page.locator('[data-test="item-name"]')).toHaveValue("Longbow")
     const modal = page.getByRole("dialog")
     await modal.locator('[data-test="modifier-group-skill-effects"]').click()
-    await modal.getByRole("button", { name: "Add Grants Advantage On" }).click()
+    await modal.getByRole("button", { name: "Add skill advantage" }).click()
     await page.getByRole("menuitem").first().click()
     // The picker stays open for multi-select; close it so it doesn't cover the controls below.
     await page.keyboard.press("Escape")

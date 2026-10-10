@@ -356,7 +356,7 @@ describe("EquipmentItemModal", () => {
       render(<EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Cloak of Elvenkind" } })
       fireEvent.click(screen.getByTestId("modifier-group-skill-effects"))
-      await user.click(screen.getByTestId("tag-picker-grants-advantage-on"))
+      await user.click(screen.getByTestId("modifier-skill-advantage-add"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))

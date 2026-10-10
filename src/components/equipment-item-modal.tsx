@@ -15,7 +15,6 @@ import {
   ZERO_ABILITY_SCORES,
   ZERO_SENSES,
 } from "@/lib/character-utils"
-import { ChipButton } from "@/components/ui/chip-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -25,9 +24,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ModifierGroup } from "@/components/ui/modifier-group"
-import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
+import { ChipListEditor } from "@/components/ui/chip-list-editor"
 
 export const RARITY_OPTIONS: { value: ItemRarity; label: string }[] = [
   { value: "common", label: "Common" },
@@ -201,69 +199,6 @@ function hasACInitiativeValues(d: EquipmentFormData): boolean {
 }
 function hasChargesValues(d: EquipmentFormData): boolean {
   return d.charges !== 0 || d.maxUses !== 0 || d.rechargeOn !== ""
-}
-
-function tagPickerTestId(label: string): string {
-  return `tag-picker-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`
-}
-
-function TagPickerField(props: { label: string; options: string[]; selected: string[]; onChange: (next: string[]) => void }) {
-  const toggle = (tag: string) => {
-    props.onChange(
-      props.selected.includes(tag) ? props.selected.filter((t) => t !== tag) : [...props.selected, tag]
-    )
-  }
-  return (
-    <div data-sem="tag-picker-field">
-      <div class="flex items-center justify-between">
-        <Label class="text-xs">{props.label}</Label>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            as={ChipButton}
-            data-test={tagPickerTestId(props.label)}
-            action="add"
-            variant="outline"
-            aria-label={`Add ${props.label}`}
-            title={`Add ${props.label}`}
-          >
-            Add
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <For each={props.options}>
-              {(option) => (
-                <DropdownMenuItem
-                  onSelect={() => toggle(option)}
-                  class={props.selected.includes(option) ? "text-primary font-medium" : ""}
-                >
-                  {option}
-                  <Show when={props.selected.includes(option)}>
-                    <span class="ml-auto text-primary">✓</span>
-                  </Show>
-                </DropdownMenuItem>
-              )}
-            </For>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div class="flex flex-wrap items-center gap-x-1 mt-1 min-h-[1.25rem]">
-        <Show when={props.selected.length > 0} fallback={<span class="text-xs text-muted-foreground italic">None</span>}>
-          <For each={props.selected}>
-            {(tag) => (
-              <ChipButton
-                data-test={`${tagPickerTestId(props.label)}-remove-${tag}`}
-                action="remove"
-                aria-label={`Remove ${tag}`}
-                title="Click to remove"
-                onClick={() => toggle(tag)}
-              >
-                {tag}
-              </ChipButton>
-            )}
-          </For>
-        </Show>
-      </div>
-    </div>
-  )
 }
 
 const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
@@ -496,17 +431,27 @@ function EquipmentForm(props: EquipmentFormProps) {
 
       <ModifierGroup label="Advantage/Disadvantage" data-test="modifier-group-skill-effects" open={openSkillEffects()} onOpenChange={setOpenSkillEffects}>
         <div class="grid grid-cols-1 gap-3">
-          <TagPickerField
+          <ChipListEditor
             label="Grants Advantage On"
-            options={SKILL_KEYS.filter((k) => !formData.modifierSkillDisadvantage.includes(k)).map((k) => SKILL_DISPLAY_NAMES[k])}
-            selected={formData.modifierSkillAdvantage.map((k) => SKILL_DISPLAY_NAMES[k])}
-            onChange={(labels) => setFormData("modifierSkillAdvantage", SKILL_KEYS.filter((k) => labels.includes(SKILL_DISPLAY_NAMES[k])))}
+            itemLabel="skill advantage"
+            data-test="modifier-skill-advantage"
+            emptyText="None"
+            options={SKILL_KEYS.filter((k) => !formData.modifierSkillDisadvantage.includes(k))}
+            optionLabel={(k) => SKILL_DISPLAY_NAMES[k]}
+            values={formData.modifierSkillAdvantage}
+            onAdd={(k) => setFormData("modifierSkillAdvantage", SKILL_KEYS.filter((s) => s === k || formData.modifierSkillAdvantage.includes(s)))}
+            onRemove={(k) => setFormData("modifierSkillAdvantage", formData.modifierSkillAdvantage.filter((s) => s !== k))}
           />
-          <TagPickerField
+          <ChipListEditor
             label="Grants Disadvantage On"
-            options={SKILL_KEYS.filter((k) => !formData.modifierSkillAdvantage.includes(k)).map((k) => SKILL_DISPLAY_NAMES[k])}
-            selected={formData.modifierSkillDisadvantage.map((k) => SKILL_DISPLAY_NAMES[k])}
-            onChange={(labels) => setFormData("modifierSkillDisadvantage", SKILL_KEYS.filter((k) => labels.includes(SKILL_DISPLAY_NAMES[k])))}
+            itemLabel="skill disadvantage"
+            data-test="modifier-skill-disadvantage"
+            emptyText="None"
+            options={SKILL_KEYS.filter((k) => !formData.modifierSkillAdvantage.includes(k))}
+            optionLabel={(k) => SKILL_DISPLAY_NAMES[k]}
+            values={formData.modifierSkillDisadvantage}
+            onAdd={(k) => setFormData("modifierSkillDisadvantage", SKILL_KEYS.filter((s) => s === k || formData.modifierSkillDisadvantage.includes(s)))}
+            onRemove={(k) => setFormData("modifierSkillDisadvantage", formData.modifierSkillDisadvantage.filter((s) => s !== k))}
           />
         </div>
       </ModifierGroup>
@@ -682,20 +627,22 @@ function EquipmentForm(props: EquipmentFormProps) {
             </ModifierGroup>
 
             <ModifierGroup label="Languages & Proficiencies" data-test="modifier-group-languages" open={openLanguages()} onOpenChange={setOpenLanguages}>
-              <FreeTextListEditor
+              <ChipListEditor
                 label="Languages Granted"
-                ariaLabel="Add language"
+                itemLabel="language"
                 placeholder="Add language"
                 values={formData.modifierLanguages}
-                onChange={(v) => setFormData("modifierLanguages", v)}
+                onAdd={(v) => setFormData("modifierLanguages", [...formData.modifierLanguages, v])}
+                onRemove={(v) => setFormData("modifierLanguages", formData.modifierLanguages.filter((x) => x !== v))}
                 data-test="modifier-languages"
               />
-              <FreeTextListEditor
+              <ChipListEditor
                 label="Proficiencies Granted"
-                ariaLabel="Add proficiency"
+                itemLabel="proficiency"
                 placeholder="Add proficiency (weapons, tools, etc.)"
                 values={formData.modifierProficiencies}
-                onChange={(v) => setFormData("modifierProficiencies", v)}
+                onAdd={(v) => setFormData("modifierProficiencies", [...formData.modifierProficiencies, v])}
+                onRemove={(v) => setFormData("modifierProficiencies", formData.modifierProficiencies.filter((x) => x !== v))}
                 data-test="modifier-proficiencies"
               />
             </ModifierGroup>
@@ -743,29 +690,45 @@ function EquipmentForm(props: EquipmentFormProps) {
 
             <ModifierGroup label="Resistances & Immunities" data-test="modifier-group-resistances" open={openResistances()} onOpenChange={setOpenResistances}>
               <div class="grid grid-cols-1 gap-3">
-                <TagPickerField
+                <ChipListEditor
                   label="Damage Resistances"
+                  itemLabel="damage resistance"
+                  data-test="modifier-damage-resistances"
+                  emptyText="None"
                   options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData.modifierResistances}
-                  onChange={(v) => setFormData("modifierResistances", v)}
+                  values={formData.modifierResistances}
+                  onAdd={(v) => setFormData("modifierResistances", [...formData.modifierResistances, v])}
+                  onRemove={(v) => setFormData("modifierResistances", formData.modifierResistances.filter((x) => x !== v))}
                 />
-                <TagPickerField
+                <ChipListEditor
                   label="Damage Immunities"
+                  itemLabel="damage immunity"
+                  data-test="modifier-damage-immunities"
+                  emptyText="None"
                   options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData.modifierImmunities}
-                  onChange={(v) => setFormData("modifierImmunities", v)}
+                  values={formData.modifierImmunities}
+                  onAdd={(v) => setFormData("modifierImmunities", [...formData.modifierImmunities, v])}
+                  onRemove={(v) => setFormData("modifierImmunities", formData.modifierImmunities.filter((x) => x !== v))}
                 />
-                <TagPickerField
+                <ChipListEditor
                   label="Damage Vulnerabilities"
+                  itemLabel="damage vulnerability"
+                  data-test="modifier-damage-vulnerabilities"
+                  emptyText="None"
                   options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData.modifierVulnerabilities}
-                  onChange={(v) => setFormData("modifierVulnerabilities", v)}
+                  values={formData.modifierVulnerabilities}
+                  onAdd={(v) => setFormData("modifierVulnerabilities", [...formData.modifierVulnerabilities, v])}
+                  onRemove={(v) => setFormData("modifierVulnerabilities", formData.modifierVulnerabilities.filter((x) => x !== v))}
                 />
-                <TagPickerField
+                <ChipListEditor
                   label="Condition Immunities"
+                  itemLabel="condition immunity"
+                  data-test="modifier-condition-immunities"
+                  emptyText="None"
                   options={CONDITIONS}
-                  selected={formData.modifierConditionImmunities}
-                  onChange={(v) => setFormData("modifierConditionImmunities", v)}
+                  values={formData.modifierConditionImmunities}
+                  onAdd={(v) => setFormData("modifierConditionImmunities", [...formData.modifierConditionImmunities, v])}
+                  onRemove={(v) => setFormData("modifierConditionImmunities", formData.modifierConditionImmunities.filter((x) => x !== v))}
                 />
               </div>
             </ModifierGroup>

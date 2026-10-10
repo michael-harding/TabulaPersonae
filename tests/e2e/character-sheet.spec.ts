@@ -99,27 +99,27 @@ test.describe("Conditions", () => {
   })
 
   test("adding Poisoned condition shows badge", async ({ page }) => {
-    await page.locator('[data-test="add-condition-button"]').click()
+    await page.locator('[data-test="condition-add"]').click()
     await page.getByRole("menuitem", { name: "Poisoned" }).click()
     // Use data-test attr to target the badge specifically (avoids matching the still-open menu)
-    await expect(page.locator('[data-test="remove-condition-Poisoned"]')).toBeVisible()
+    await expect(page.locator('[data-test="condition-remove-Poisoned"]')).toBeVisible()
   })
 
   test("removing a condition hides the badge", async ({ page }) => {
-    await page.locator('[data-test="add-condition-button"]').click()
+    await page.locator('[data-test="condition-add"]').click()
     await page.getByRole("menuitem", { name: "Poisoned" }).click()
-    await expect(page.locator('[data-test="remove-condition-Poisoned"]')).toBeVisible()
-    await page.locator('[data-test="remove-condition-Poisoned"]').click()
-    await expect(page.locator('[data-test="remove-condition-Poisoned"]')).not.toBeVisible()
+    await expect(page.locator('[data-test="condition-remove-Poisoned"]')).toBeVisible()
+    await page.locator('[data-test="condition-remove-Poisoned"]').click()
+    await expect(page.locator('[data-test="condition-remove-Poisoned"]')).not.toBeVisible()
   })
 
   test("has no accessibility violations after adding a condition", async ({ page }) => {
-    await page.locator('[data-test="add-condition-button"]').click()
+    await page.locator('[data-test="condition-add"]').click()
     await page.getByRole("menuitem", { name: "Charmed" }).click()
     // Wait for badge to confirm click landed, then wait for menu portal to be detached.
     // Kobalte's DropdownMenu sets aria-hidden on the rest of the page while open, which
     // causes axe to report "no headings" (RGAA-9.2.1). Must wait for portal removal.
-    await page.locator('[data-test="remove-condition-Charmed"]').waitFor({ state: "visible" })
+    await page.locator('[data-test="condition-remove-Charmed"]').waitFor({ state: "visible" })
     await page.locator('[role="menu"]').waitFor({ state: "detached" })
     // Disable color-contrast: condition badge has a known contrast gap in dark mode
     const results = await new AxeBuilder({ page }).disableRules(["color-contrast"]).analyze()

@@ -992,13 +992,13 @@ describe("EquipmentInventoryModule", () => {
 
       // Damage resistance picker (fixed-vocabulary dropdown)
       fireEvent.click(within(modal).getByText("Resistances & Immunities"))
-      await user.click(within(modal).getByTitle("Add Damage Resistances"))
+      await user.click(within(modal).getByTitle("Add damage resistance"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Fire" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Fire" }))
 
       // Languages granted (free-text add)
       fireEvent.click(within(modal).getByText("Languages & Proficiencies"))
-      const languageInput = within(modal).getByLabelText(/add language/i)
+      const languageInput = within(modal).getByLabelText(/new language/i)
       fireEvent.input(languageInput, { target: { value: "Auran" } })
       fireEvent.keyDown(languageInput, { key: "Enter" })
 
@@ -1061,7 +1061,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chainmail" } })
       fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
 
-      await user.click(within(modal).getByTitle("Add Grants Disadvantage On"))
+      await user.click(within(modal).getByTitle("Add skill disadvantage"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
 
@@ -1089,7 +1089,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
       fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
 
-      await user.click(within(modal).getByTitle("Add Grants Advantage On"))
+      await user.click(within(modal).getByTitle("Add skill advantage"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
 
@@ -1114,11 +1114,11 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
 
-      await user.click(within(modal).getByTitle("Add Grants Advantage On"))
+      await user.click(within(modal).getByTitle("Add skill advantage"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
 
-      await user.click(within(modal).getByTitle("Add Grants Disadvantage On"))
+      await user.click(within(modal).getByTitle("Add skill disadvantage"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Perception" })).toBeInTheDocument())
       expect(screen.queryByRole("menuitem", { name: "Stealth" })).not.toBeInTheDocument()
     })

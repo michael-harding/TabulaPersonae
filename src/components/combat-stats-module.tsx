@@ -1,4 +1,4 @@
-import { createSignal, createMemo, Show, For } from "solid-js"
+import { createSignal, createMemo, Show } from "solid-js"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
 import Plus from "lucide-solid/icons/plus"
@@ -12,11 +12,9 @@ import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEqui
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
-import { Chip } from "@/components/ui/chip"
-import { ChipButton } from "@/components/ui/chip-button"
+import { ChipListEditor } from "@/components/ui/chip-list-editor"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -449,140 +447,38 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
         </Show>
 
         {/* Conditions */}
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <Label class="text-sm text-muted-foreground">Conditions</Label>
-            <Show when={!isReadOnly}>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  as={ChipButton}
-                  data-test="add-condition-button"
-                  action="add"
-                  variant="outline"
-                  aria-label="Add condition"
-                  title="Add condition"
-                >
-                  Add
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <For each={CONDITIONS}>
-                    {(condition) => (
-                      <DropdownMenuItem
-                        onSelect={() => toggleCondition(condition)}
-                        class={(props.character.conditions ?? []).includes(condition) ? "text-primary font-medium" : ""}
-                      >
-                        {condition}
-                        <Show when={(props.character.conditions ?? []).includes(condition)}>
-                          <span class="ml-auto text-primary">✓</span>
-                        </Show>
-                      </DropdownMenuItem>
-                    )}
-                  </For>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </Show>
-          </div>
-          <div class="flex flex-wrap items-center gap-x-1.5 min-h-[1.5rem]">
-            <Show
-              when={(props.character.conditions ?? []).length > 0}
-              fallback={<span class="text-xs text-muted-foreground italic">None</span>}
-            >
-              <For each={props.character.conditions ?? []}>
-                {(condition) => (
-                  <Show
-                    when={!isReadOnly}
-                    fallback={
-                      <Chip variant="destructive">{condition}</Chip>
-                    }
-                  >
-                    <ChipButton
-                      data-test={`remove-condition-${condition}`}
-                      action="remove"
-                      variant="destructive"
-                      aria-label={`Remove ${condition}`}
-                      title="Click to remove"
-                      onClick={() => toggleCondition(condition)}
-                    >
-                      {condition}
-                    </ChipButton>
-                  </Show>
-                )}
-              </For>
-            </Show>
-          </div>
-        </div>
+        <ChipListEditor
+          label="Conditions"
+          labelClass="text-sm text-muted-foreground"
+          itemLabel="condition"
+          data-test="condition"
+          variant="destructive"
+          emptyText="None"
+          editing={!isReadOnly}
+          options={CONDITIONS}
+          values={props.character.conditions ?? []}
+          onAdd={toggleCondition}
+          onRemove={toggleCondition}
+        />
 
         {/* Condition Immunities */}
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <Label class="text-sm text-muted-foreground">Condition Immunities</Label>
-            <Show when={!isReadOnly}>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  as={ChipButton}
-                  data-test="add-condition-immunity-button"
-                  action="add"
-                  variant="outline"
-                  aria-label="Add condition immunity"
-                  title="Add condition immunity"
-                >
-                  Add
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <For each={CONDITIONS}>
-                    {(condition) => (
-                      <DropdownMenuItem
-                        onSelect={() => toggleConditionImmunity(condition)}
-                        class={(props.character.conditionImmunities ?? []).includes(condition) ? "text-primary font-medium" : ""}
-                      >
-                        {condition}
-                        <Show when={(props.character.conditionImmunities ?? []).includes(condition)}>
-                          <span class="ml-auto text-primary">✓</span>
-                        </Show>
-                      </DropdownMenuItem>
-                    )}
-                  </For>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </Show>
-          </div>
-          <div class="flex flex-wrap items-center gap-x-1.5 min-h-[1.5rem]">
-            <Show
-              when={effectiveConditionImmunities().own.length + effectiveConditionImmunities().granted.length > 0}
-              fallback={<span class="text-xs text-muted-foreground italic">None</span>}
-            >
-              <For each={[...effectiveConditionImmunities().own, ...effectiveConditionImmunities().granted]}>
-                {(condition) => {
-                  const isOwn = () => effectiveConditionImmunities().own.includes(condition)
-                  const grantedTooltip = () => {
-                    const source = effectiveConditionImmunities().grantedBy[condition]
-                    return source === "equipment" ? "Granted by an equipped item" : `Granted by ${source} — edit in Features`
-                  }
-                  return (
-                    <Show
-                      when={!isReadOnly && isOwn()}
-                      fallback={
-                        <Chip variant="secondary" title={isOwn() ? undefined : grantedTooltip()}>
-                          {condition}
-                        </Chip>
-                      }
-                    >
-                      <ChipButton
-                        data-test={`remove-condition-immunity-${condition}`}
-                        action="remove"
-                        aria-label={`Remove ${condition} immunity`}
-                        title="Click to remove"
-                        onClick={() => toggleConditionImmunity(condition)}
-                      >
-                        {condition}
-                      </ChipButton>
-                    </Show>
-                  )
-                }}
-              </For>
-            </Show>
-          </div>
-        </div>
+        <ChipListEditor
+          label="Condition Immunities"
+          labelClass="text-sm text-muted-foreground"
+          itemLabel="condition immunity"
+          data-test="condition-immunity"
+          emptyText="None"
+          editing={!isReadOnly}
+          options={CONDITIONS}
+          values={effectiveConditionImmunities().own}
+          grantedValues={effectiveConditionImmunities().granted}
+          grantedTooltip={(condition) => {
+            const source = effectiveConditionImmunities().grantedBy[condition]
+            return source === "equipment" ? "Granted by an equipped item" : `Granted by ${source} — edit in Features`
+          }}
+          onAdd={toggleConditionImmunity}
+          onRemove={toggleConditionImmunity}
+        />
 
         {/* Other Combat Stats */}
         <div class="grid grid-cols-2 gap-4">

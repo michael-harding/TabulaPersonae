@@ -528,7 +528,7 @@ describe("CombatStatsModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByTitle("Click to remove"))
+      fireEvent.click(screen.getByTestId("condition-remove-Poisoned"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ conditions: [] })
       )
@@ -553,8 +553,8 @@ describe("CombatStatsModule", () => {
           onUpdate={onUpdate}
         />
       )
-      // Condition badges each have title="Click to remove"; first one is "Blinded"
-      fireEvent.click(screen.getAllByTitle("Click to remove")[0])
+      // Each condition chip removes its own value
+      fireEvent.click(screen.getByTestId("condition-remove-Blinded"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ conditions: ["Prone"] })
       )
@@ -578,13 +578,13 @@ describe("CombatStatsModule", () => {
       const item = makeMagicItem({ modifiers: { conditionImmunities: ["Charmed"] } })
       const { container } = render(<CombatStatsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Charmed")).toBeInTheDocument()
-      expect(within(container).queryByTestId("remove-condition-immunity-Charmed")).not.toBeInTheDocument()
+      expect(within(container).queryByTestId("condition-immunity-remove-Charmed")).not.toBeInTheDocument()
     })
 
     it("shows an own condition immunity as removable", () => {
       const onUpdate = vi.fn()
       const { container } = render(<CombatStatsModule character={makeCharacter({ conditionImmunities: ["Poisoned"] })} onUpdate={onUpdate} />)
-      fireEvent.click(within(container).getByTestId("remove-condition-immunity-Poisoned"))
+      fireEvent.click(within(container).getByTestId("condition-immunity-remove-Poisoned"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ conditionImmunities: [] })
       )
@@ -597,7 +597,7 @@ describe("CombatStatsModule", () => {
       }
       const { container } = render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Charmed")).toHaveAttribute("title", "Granted by Fey Ancestry Species Trait — edit in Features")
-      expect(within(container).queryByTestId("remove-condition-immunity-Charmed")).not.toBeInTheDocument()
+      expect(within(container).queryByTestId("condition-immunity-remove-Charmed")).not.toBeInTheDocument()
     })
   })
 
