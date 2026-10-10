@@ -26,6 +26,27 @@ describe("Select", () => {
     expect(screen.getByRole("listbox")).toBeInTheDocument()
   })
 
+  // A real click is mousedown then click. Mousedown on the trigger used to count as an outside
+  // click, closing the list, and the click then reopened it, so a second click never closed it.
+  it("closes on a second click of the trigger, and reopens on a third", () => {
+    renderSelect()
+    const trigger = screen.getByRole("button", { name: "Class" })
+    const realClick = () => { fireEvent.mouseDown(trigger); fireEvent.click(trigger) }
+    realClick()
+    expect(screen.getByRole("listbox")).toBeInTheDocument()
+    realClick()
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+    realClick()
+    expect(screen.getByRole("listbox")).toBeInTheDocument()
+  })
+
+  it("still closes on a mousedown outside the select", () => {
+    renderSelect()
+    fireEvent.click(screen.getByRole("button", { name: "Class" }))
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+  })
+
   it("calls onValueChange when an option is clicked", () => {
     const onValueChange = vi.fn()
     renderSelect({ onValueChange })

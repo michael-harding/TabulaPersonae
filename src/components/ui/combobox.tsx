@@ -117,6 +117,27 @@ export function Combobox(props: ComboboxProps) {
     }
   }
 
+  // A second click on the input (or chevron) closes the list, so it can be dismissed without
+  // moving the pointer off the control it covers. The first click on an unfocused input opens the
+  // list via onFocus, so only clicks that start on the already-focused input toggle it.
+  let toggleOnClick: boolean | null = null
+  const handleInputMouseDown = () => {
+    toggleOnClick = document.activeElement === inputRef ? !open() : null
+  }
+  const handleInputClick = () => {
+    if (toggleOnClick == null) return
+    setOpen(toggleOnClick)
+    if (!toggleOnClick) { setFiltering(false); setActiveIndex(-1) }
+    toggleOnClick = null
+  }
+  const handleChevronClick = () => {
+    // Read the state before focusing, because focusing an unfocused input opens the list.
+    const wasOpen = open()
+    inputRef.focus()
+    setOpen(!wasOpen)
+    if (wasOpen) { setFiltering(false); setActiveIndex(-1) }
+  }
+
   const handleOutsideClick = (e: MouseEvent) => {
     if (!containerRef?.contains(e.target as Node)) {
       setOpen(false)
@@ -148,6 +169,8 @@ export function Combobox(props: ComboboxProps) {
           value={inputValue()}
           onInput={handleInput}
           onFocus={() => { syncValue(); setFiltering(false); setOpen(true) }}
+          onMouseDown={handleInputMouseDown}
+          onClick={handleInputClick}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           placeholder={props.placeholder}
@@ -158,7 +181,9 @@ export function Combobox(props: ComboboxProps) {
           type="button"
           tabIndex={-1}
           disabled={props.disabled}
-          onClick={() => { inputRef.focus(); setOpen(!open()) }}
+          // preventDefault keeps focus in the input instead of moving it to this (unfocusable-by-Tab) button.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={handleChevronClick}
           class="-my-px flex h-[calc(100%+2px)] w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground disabled:pointer-events-none"
           aria-label="Toggle options"
         >

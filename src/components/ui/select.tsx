@@ -195,8 +195,11 @@ export function SelectContent(props: ComponentProps<"ul">) {
   const ctx = useSelect()
   let ref!: HTMLDivElement
 
+  // "Outside" means outside the whole select, trigger included. Counting the trigger as outside
+  // made a second click on it close the list on mousedown, then reopen it on click.
   const handleOutsideClick = (e: MouseEvent) => {
-    if (!ref?.contains(e.target as Node)) {
+    const root = ref?.closest('[data-sem="select"]') ?? ref
+    if (!root?.contains(e.target as Node)) {
       ctx.setOpen(false)
     }
   }

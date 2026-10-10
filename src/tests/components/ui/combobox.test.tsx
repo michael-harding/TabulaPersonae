@@ -17,6 +17,38 @@ describe("Combobox", () => {
     expect(screen.getByRole("combobox", { name: "Class" })).toBeInTheDocument()
   })
 
+  describe("second click closes the list", () => {
+    // A real click on the input: mousedown, focus (only if not already focused), click.
+    const realClick = (el: HTMLElement) => {
+      fireEvent.mouseDown(el)
+      if (document.activeElement !== el) el.focus()
+      fireEvent.click(el)
+    }
+
+    it("on the input: opens, closes, reopens", () => {
+      render(<Combobox options={OPTIONS} aria-label="Class" />)
+      const input = screen.getByRole("combobox")
+      realClick(input)
+      expect(screen.getByRole("listbox")).toBeInTheDocument()
+      realClick(input)
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+      realClick(input)
+      expect(screen.getByRole("listbox")).toBeInTheDocument()
+    })
+
+    it("on the chevron: the first click opens it (it used to open and immediately re-close), the second closes it", () => {
+      render(<Combobox options={OPTIONS} aria-label="Class" />)
+      const chevron = screen.getByRole("button", { name: "Toggle options" })
+      fireEvent.mouseDown(chevron)
+      fireEvent.click(chevron)
+      expect(screen.getByRole("listbox")).toBeInTheDocument()
+      expect(screen.getByRole("combobox")).toHaveFocus()
+      fireEvent.mouseDown(chevron)
+      fireEvent.click(chevron)
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+    })
+  })
+
   it("renders an input with the current value", () => {
     render(<Combobox value="Bard" options={OPTIONS} />)
     expect(screen.getByRole("combobox")).toHaveValue("Bard")
