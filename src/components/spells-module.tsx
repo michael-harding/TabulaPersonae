@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -563,11 +563,11 @@ export function SpellsModule(props: SpellsModuleProps) {
                       <CollapsibleTrigger data-test={`spell-level-${level.value}-toggle`} class="flex w-full items-center justify-between p-3 rounded-md hover:bg-accent transition-colors">
                         <div class="flex items-center gap-2">
                           <span class="font-semibold">{level.label}</span>
-                          <Badge variant="secondary">{levelSpells().length}</Badge>
+                          <Chip variant="secondary">{levelSpells().length}</Chip>
                           <Show when={level.value > 0}>
-                            <Badge variant="outline" class="text-xs">
+                            <Chip variant="outline" class="text-xs">
                               {levelSpells().filter((s) => s.prepared).length} prepared
-                            </Badge>
+                            </Chip>
                           </Show>
                         </div>
                         <ChevronDown class="h-4 w-4" aria-hidden="true" />
@@ -616,24 +616,24 @@ export function SpellsModule(props: SpellsModuleProps) {
                                           </Tooltip>
                                         </Show>
                                       </Show>
-                                      <Badge variant="outline" class="text-xs">{spell.school}</Badge>
-                                      <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>
+                                      <Chip variant="outline" class="text-xs">{spell.school}</Chip>
+                                      <Chip variant="outline" class="text-xs">Level: {spell.level}</Chip>
                                       <Show when={spell.ritual}>
-                                        <Badge variant="secondary" class="text-xs" title="Ritual">R</Badge>
+                                        <Chip variant="secondary" class="text-xs" title="Ritual">R</Chip>
                                       </Show>
                                       <Show when={magicItemById(spell.grantedBy)}>
                                         {(item) => (
-                                          <Badge
+                                          <Chip
                                             variant="outline"
                                             class={`text-xs ${isItemModifierActive(item()) ? "" : "text-muted-foreground italic"}`}
                                             title={isItemModifierActive(item()) ? undefined : "Item not currently equipped/attuned"}
                                           >
                                             Granted: {item().name}
-                                          </Badge>
+                                          </Chip>
                                         )}
                                       </Show>
                                       <Show when={spell.grantedBy && spell.freeCast}>
-                                        <Badge variant="secondary" class="text-xs">Free Cast</Badge>
+                                        <Chip variant="secondary" class="text-xs">Free Cast</Chip>
                                       </Show>
 
                                     </div>

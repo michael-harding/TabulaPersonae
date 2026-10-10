@@ -8,7 +8,7 @@ import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { Button } from "@/components/ui/button"
 import { ChipButton } from "@/components/ui/chip-button"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -69,9 +69,9 @@ function EditableTagList(props: {
       <div class={cn("flex flex-wrap items-center mb-3", props.editing ? "gap-x-2" : "gap-2")}>
         <For each={props.ownValues}>
           {(value) => (
-            <Show when={props.editing} fallback={<Badge variant="outline">{value}</Badge>}>
+            <Show when={props.editing} fallback={<Chip variant="outline">{value}</Chip>}>
               <Tooltip content={`Remove ${props.itemLabel}`}>
-                <ChipButton data-test={`${props.testKey}-remove-${value}`} action="remove" appearance="outline" aria-label={`Remove ${props.itemLabel} ${value}`} onClick={() => props.onRemove(value)}>
+                <ChipButton data-test={`${props.testKey}-remove-${value}`} action="remove" variant="outline" aria-label={`Remove ${props.itemLabel} ${value}`} onClick={() => props.onRemove(value)}>
                   {value}
                 </ChipButton>
               </Tooltip>
@@ -80,9 +80,9 @@ function EditableTagList(props: {
         </For>
         <For each={props.grantedValues}>
           {(value) => (
-            <Badge variant="secondary" class="gap-1" title={props.grantedTooltip?.(value) ?? "Granted automatically"}>
+            <Chip variant="secondary" class="gap-1" title={props.grantedTooltip?.(value) ?? "Granted automatically"}>
               {value}
-            </Badge>
+            </Chip>
           )}
         </For>
         <Show when={props.emptyText && props.ownValues.length === 0 && props.grantedValues.length === 0}>
@@ -351,7 +351,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                         <div class="flex items-center gap-2">
                           <span class="text-sm font-medium">{ABILITY_ABBREVIATIONS[ability]}</span>
                           <Show when={isProficient()}>
-                            <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
+                            <Chip variant="secondary" class="text-xs px-1 py-0">Prof</Chip>
                           </Show>
                         </div>
                       }
@@ -437,7 +437,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                       </Show>
                       <div class="flex-1">
                         <div class="flex items-center gap-2">
-                          <span data-test={`skill-name-${skillKey}`} class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show></span></Show></span>
+                          <span data-test={`skill-name-${skillKey}`} class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Chip variant="secondary" class="text-xs px-1 py-0">Prof</Chip></Show><Show when={effectiveSkill().expertise}><Chip variant="default" class="text-xs px-1 py-0">Exp</Chip></Show></span></Show></span>
                         </div>
                       </div>
                     </div>

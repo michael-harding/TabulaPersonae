@@ -12,6 +12,7 @@ import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEqui
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
+import { Chip } from "@/components/ui/chip"
 import { ChipButton } from "@/components/ui/chip-button"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -457,10 +458,12 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   as={ChipButton}
                   data-test="add-condition-button"
                   action="add"
-                  appearance="dashed"
+                  variant="outline"
                   aria-label="Add condition"
                   title="Add condition"
-                />
+                >
+                  Add
+                </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <For each={CONDITIONS}>
                     {(condition) => (
@@ -489,15 +492,13 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   <Show
                     when={!isReadOnly}
                     fallback={
-                      <span class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-destructive text-destructive-foreground">
-                        {condition}
-                      </span>
+                      <Chip variant="destructive">{condition}</Chip>
                     }
                   >
                     <ChipButton
                       data-test={`remove-condition-${condition}`}
                       action="remove"
-                      appearance="destructive"
+                      variant="destructive"
                       aria-label={`Remove ${condition}`}
                       title="Click to remove"
                       onClick={() => toggleCondition(condition)}
@@ -521,10 +522,12 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   as={ChipButton}
                   data-test="add-condition-immunity-button"
                   action="add"
-                  appearance="dashed"
+                  variant="outline"
                   aria-label="Add condition immunity"
                   title="Add condition immunity"
-                />
+                >
+                  Add
+                </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <For each={CONDITIONS}>
                     {(condition) => (
@@ -559,12 +562,9 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                     <Show
                       when={!isReadOnly && isOwn()}
                       fallback={
-                        <span
-                          class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground"
-                          title={isOwn() ? undefined : grantedTooltip()}
-                        >
+                        <Chip variant="secondary" title={isOwn() ? undefined : grantedTooltip()}>
                           {condition}
-                        </span>
+                        </Chip>
                       }
                     >
                       <ChipButton

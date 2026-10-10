@@ -36,7 +36,7 @@ import { CurrencyInput } from "@/components/ui/currency-input"
 import { InlineStepper } from "@/components/ui/inline-stepper"
 import { cascadeDecrement } from "@/lib/currency-utils"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
@@ -177,10 +177,10 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
             Equipment & Inventory
           </div>
           <div class="flex items-center gap-2">
-            <Badge variant="outline" class="gap-1">
+            <Chip variant="outline" class="gap-1">
               <Scale class="h-3 w-3" aria-hidden="true" />
               {totalWeight()} lbs
-            </Badge>
+            </Chip>
             <Show when={!isReadOnly}>
               <Button data-test="add-equipment-button" size="sm" class="gap-2" onClick={openAdd}>
                 <Plus class="h-4 w-4" aria-hidden="true" />
@@ -294,27 +294,27 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           />
                         </Show>
                         <Show when={item.type && item.type !== "other"}>
-                          <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
+                          <Chip variant="outline" class="text-xs capitalize">{item.type}</Chip>
                         </Show>
                         <Show when={item.actionKind}>
-                          <Badge variant="outline" class="text-xs flex items-center gap-1">
+                          <Chip variant="outline" class="text-xs flex items-center gap-1">
                             <Zap class="h-3 w-3" aria-hidden="true" />
                             {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
-                          </Badge>
+                          </Chip>
                         </Show>
                         <Show when={item.rarity}>
-                          <Badge variant="outline" class="text-xs capitalize">{item.rarity?.replace("-", " ")}</Badge>
+                          <Chip variant="outline" class="text-xs capitalize">{item.rarity?.replace("-", " ")}</Chip>
                         </Show>
                         <Show when={item.requiresAttunement}>
                           <Show when={!isReadOnly}>
                             <Checkbox data-test={`magic-item-toggle-attuned-${item.id}`} checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} title="Toggle attuned" aria-label="Toggle attuned" />
                           </Show>
                           <Show when={item.attuned}>
-                            <Badge variant="secondary" class="text-xs">Attuned</Badge>
+                            <Chip variant="secondary" class="text-xs">Attuned</Chip>
                           </Show>
                         </Show>
                         <Show when={item.equipped}>
-                          <Badge variant="secondary" class="text-xs">Equipped</Badge>
+                          <Chip variant="secondary" class="text-xs">Equipped</Chip>
                         </Show>
                       </div>
                       <Show when={item.weaponStats}>
@@ -480,9 +480,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
             <div class="flex flex-wrap gap-1 mb-4">
               <For each={equippedItems()}>
                 {(item) => (
-                  <Badge variant="secondary" class="text-xs">
+                  <Chip variant="secondary" class="text-xs">
                     {item.name}{item.quantity > 1 && ` (${item.quantity})`}
-                  </Badge>
+                  </Chip>
                 )}
               </For>
             </div>
@@ -522,22 +522,22 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           </Show>
                         </div>
                         <Show when={item.type && item.type !== "other"}>
-                          <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
+                          <Chip variant="outline" class="text-xs capitalize">{item.type}</Chip>
                         </Show>
                         <Show when={item.actionKind}>
-                          <Badge variant="outline" class="text-xs flex items-center gap-1">
+                          <Chip variant="outline" class="text-xs flex items-center gap-1">
                             <Zap class="h-3 w-3" aria-hidden="true" />
                             {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
-                          </Badge>
+                          </Chip>
                         </Show>
                         <Show when={item.magic}>
-                          <Badge variant="outline" class="text-xs gap-1">
+                          <Chip variant="outline" class="text-xs gap-1">
                             <Gem class="h-3 w-3" aria-hidden="true" />
                             Magic
-                          </Badge>
+                          </Chip>
                         </Show>
                         <Show when={item.equipped}>
-                          <Badge variant="secondary" class="text-xs">Equipped</Badge>
+                          <Chip variant="secondary" class="text-xs">Equipped</Chip>
                         </Show>
                       </div>
                       <Show when={item.weaponStats}>

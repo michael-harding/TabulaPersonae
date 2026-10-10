@@ -248,7 +248,7 @@ function SortableTabRow(props: SortableTabRowProps) {
                       <ChipButton
                         data-test={`add-module-${props.tab.id}-${moduleId}`}
                         action="add"
-                        appearance="square"
+                        variant="outline"
                         onClick={() => props.onAddModule(moduleId)}
                       >
                         {MODULE_REGISTRY[moduleId].label}

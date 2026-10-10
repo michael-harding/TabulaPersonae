@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 // Reusable picker for free-text string-list fields with no fixed enum (e.g. Language, Other
-// Proficiency) — an Add+Badge idiom, accepting any typed value rather than a closed list.
+// Proficiency) — an Add+Chip idiom, accepting any typed value rather than a closed list.
 export function FreeTextListEditor(props: {
   label: string
   ariaLabel: string

@@ -9,7 +9,7 @@ import { ReadOnlyProvider } from "@/lib/read-only-context"
 import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
 import { MODULE_REGISTRY, PUBLIC_SAFE_MODULE_IDS } from "@/lib/module-registry"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { StatsBar } from "@/components/stats-bar"
 
 const PUBLIC_TAB_CONFIG = {
@@ -93,10 +93,10 @@ export default function PublicCharacterSheet() {
                       <div>
                         <div class="flex items-center gap-2">
                           <h1 class="text-2xl font-bold text-foreground">{getChar().name || "Unnamed Character"}</h1>
-                          <Badge variant="secondary" class="flex items-center gap-1 text-xs">
+                          <Chip variant="secondary" class="flex items-center gap-1 text-xs">
                             <Lock class="h-3 w-3" aria-hidden="true" />
                             Read-only
-                          </Badge>
+                          </Chip>
                         </div>
                         <p class="text-sm text-muted-foreground">
                           Level {getChar().level} {getChar().race} {getChar().class}

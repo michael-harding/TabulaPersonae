@@ -222,10 +222,12 @@ function TagPickerField(props: { label: string; options: string[]; selected: str
             as={ChipButton}
             data-test={tagPickerTestId(props.label)}
             action="add"
-            appearance="dashed"
+            variant="outline"
             aria-label={`Add ${props.label}`}
             title={`Add ${props.label}`}
-          />
+          >
+            Add
+          </DropdownMenuTrigger>
           <DropdownMenuContent>
             <For each={props.options}>
               {(option) => (

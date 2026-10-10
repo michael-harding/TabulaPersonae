@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Tooltip } from "@/components/ui/tooltip"
@@ -256,7 +256,7 @@ interface FeatureFormProps {
 
 // Reusable picker for string-list effect fields (resistances/immunities/vulnerabilities/condition
 // immunities) drawn from a closed 5e rules enum — mirrors the Skill Proficiency picker's
-// Combobox+Add+Badge idiom, but for a plain string list instead of skill-keyed grants.
+// Combobox+Add+Chip idiom, but for a plain string list instead of skill-keyed grants.
 function ClosedListEditor(props: {
   label: string
   ariaLabel: string
@@ -1236,7 +1236,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                   <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
                     <section.icon class="h-4 w-4 text-primary" aria-hidden="true" />
                     <span class="font-semibold">{section.title}</span>
-                    <Badge variant="secondary">{features().length}</Badge>
+                    <Chip variant="secondary">{features().length}</Chip>
                     <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
                   </CollapsibleTrigger>
                   <Show when={!isReadOnly}>
@@ -1267,25 +1267,25 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                             <div class="flex items-center gap-2 flex-wrap">
                               <span class="font-medium">{feature.name}</span>
                               <Show when={feature.featureType && feature.featureType !== 'Action'}>
-                                <Badge variant="outline" class="text-xs">{feature.featureType}</Badge>
+                                <Chip variant="outline" class="text-xs">{feature.featureType}</Chip>
                               </Show>
                               <Show when={feature.actionKind}>
-                                <Badge variant="outline" class="text-xs flex items-center gap-1">
+                                <Chip variant="outline" class="text-xs flex items-center gap-1">
                                   <Zap class="h-3 w-3" aria-hidden="true" />
                                   {ACTION_KIND_LABELS[feature.actionKind!]}
-                                </Badge>
+                                </Chip>
                               </Show>
                               <Show when={feature.level}>
-                                <Badge variant="outline" class="text-xs">At Level {feature.level}</Badge>
+                                <Chip variant="outline" class="text-xs">At Level {feature.level}</Chip>
                               </Show>
                               <Show when={feature.type}>
-                                <Badge variant="outline" class="text-xs">{feature.type}</Badge>
+                                <Chip variant="outline" class="text-xs">{feature.type}</Chip>
                               </Show>
                               <Show when={feature.range}>
-                                <Badge variant="outline" class="text-xs">Range: {feature.range}</Badge>
+                                <Chip variant="outline" class="text-xs">Range: {feature.range}</Chip>
                               </Show>
                               <Show when={feature.rechargeOn}>
-                                <Badge variant="outline" class="text-xs">{RECHARGE_ON_LABELS[feature.rechargeOn!]}</Badge>
+                                <Chip variant="outline" class="text-xs">{RECHARGE_ON_LABELS[feature.rechargeOn!]}</Chip>
                               </Show>
                             </div>
                             <Show when={!isReadOnly}>

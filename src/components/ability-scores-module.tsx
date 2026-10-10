@@ -7,7 +7,7 @@ import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { CalculatedValue } from "@/components/ui/calculated-value"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Checkbox } from "@/components/ui/checkbox"
 
@@ -214,7 +214,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                           <span class="font-medium">
                             {formatModifier(savingThrowMod())}
                           </span>
-                          <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
+                          <Chip variant="secondary" class="text-xs px-1 py-0">Prof</Chip>
                         </div>
                       </div>
                     </Tooltip>

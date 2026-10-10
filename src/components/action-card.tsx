@@ -4,7 +4,7 @@ import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
 import CircleHelp from "lucide-solid/icons/circle-help"
 
 import { useReadOnly } from "@/lib/read-only-context"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
 import { PipTracker } from "@/components/ui/pip-tracker"
@@ -205,7 +205,7 @@ export function ActionCard(props: ActionCardProps) {
         </div>
 
         <div class="flex items-center gap-1 shrink-0">
-          <Badge variant="secondary" class="text-xs">{badgeText()}</Badge>
+          <Chip variant="secondary" class="text-xs">{badgeText()}</Chip>
           <Show when={props.onEdit && !isReadOnly}>
             <Tooltip content={`Edit ${props.name}`}>
               <button
@@ -248,19 +248,19 @@ export function ActionCard(props: ActionCardProps) {
           </div>
           <div class="flex flex-col items-end gap-1 shrink-0">
             <Show when={props.concentration}>
-              <Badge
+              <Chip
                 variant={concentrationActive() ? "default" : "outline"}
                 class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground border-muted-foreground/40"}${!isReadOnly ? " cursor-pointer" : ""}`}
                 data-test={`concentration-badge-${props.name}-${concentrationActive() ? "active" : "inactive"}`}
                 onClick={isReadOnly ? undefined : () => setConcentrationActive(v => !v)}
               >
                 Concentration
-              </Badge>
+              </Chip>
             </Show>
             <Show when={durationLabel()}>
-              <Badge variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">
+              <Chip variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">
                 {durationLabel()}
-              </Badge>
+              </Chip>
             </Show>
             <Show when={pill()}>
               {(p) => {
