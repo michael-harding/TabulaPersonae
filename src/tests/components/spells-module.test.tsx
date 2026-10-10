@@ -213,6 +213,21 @@ describe("SpellsModule", () => {
       )
     })
 
+    it("toggles prepared when a level 1 spell's name (the checkbox's label) is clicked", () => {
+      const onUpdate = vi.fn()
+      const spell = makeSpell({ id: "s1", name: "Fireball", level: 1, prepared: false, known: true })
+      render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      const name = screen.getByTestId("spell-name-s1")
+      expect(name.tagName).toBe("LABEL")
+      expect(screen.getByRole("heading", { name: "Fireball" })).toContainElement(name)
+      fireEvent.click(name)
+      expect(onUpdate).toHaveBeenCalledTimes(1)
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ spells: expect.arrayContaining([expect.objectContaining({ prepared: true })]) })
+      )
+    })
+
     it("toggles prepared state when the prepared checkbox is clicked for a level 1 spell", () => {
       const onUpdate = vi.fn()
       const spell = makeSpell({ id: "s1", name: "Fireball", level: 1, prepared: true, known: true })
@@ -309,7 +324,7 @@ describe("SpellsModule", () => {
       render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
       const modal = screen.getByRole("dialog")
-      // First spinbutton is Level 1 total (title="Total slots")
+      // First spinbutton is the Level 1 total
       const spinbutton = within(modal).getAllByRole("spinbutton")[0]
       fireEvent.input(spinbutton, { target: { value: "3" } })
       fireEvent.blur(spinbutton)
@@ -318,6 +333,19 @@ describe("SpellsModule", () => {
           spellSlots: expect.objectContaining({ 1: expect.objectContaining({ total: 3 }) }),
         })
       )
+    })
+
+    it("uses the shared stepper: + raises a level's slot total by one", () => {
+      const onUpdate = vi.fn()
+      render(<SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
+      fireEvent.click(screen.getByTestId("spell-slot-level-1-total-increase"))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spellSlots: expect.objectContaining({ 1: expect.objectContaining({ total: 1 }) }),
+        })
+      )
+      expect(screen.getByRole("spinbutton", { name: "Level 1 total slots" })).toBeInTheDocument()
     })
   })
 

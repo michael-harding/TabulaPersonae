@@ -1,9 +1,7 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
 import { createStore, reconcile, unwrap } from "solid-js/store"
-import Plus from "lucide-solid/icons/plus"
 import Save from "lucide-solid/icons/save"
 import Gem from "lucide-solid/icons/gem"
-import X from "lucide-solid/icons/x"
 
 import type { AbilityScores, ActionKind, Equipment, ItemModifiers, ItemRarity, SenseType, Skills } from "@/lib/character-types"
 import {
@@ -17,6 +15,7 @@ import {
   ZERO_ABILITY_SCORES,
   ZERO_SENSES,
 } from "@/lib/character-utils"
+import { ChipButton } from "@/components/ui/chip-button"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -220,13 +219,13 @@ function TagPickerField(props: { label: string; options: string[]; selected: str
         <Label class="text-xs">{props.label}</Label>
         <DropdownMenu>
           <DropdownMenuTrigger
-            as="button"
+            as={ChipButton}
             data-test={tagPickerTestId(props.label)}
-            class="inline-flex items-center justify-center h-5 w-5 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+            action="add"
+            appearance="dashed"
+            aria-label={`Add ${props.label}`}
             title={`Add ${props.label}`}
-          >
-            <Plus class="h-3 w-3" aria-hidden="true" />
-          </DropdownMenuTrigger>
+          />
           <DropdownMenuContent>
             <For each={props.options}>
               {(option) => (
@@ -244,19 +243,19 @@ function TagPickerField(props: { label: string; options: string[]; selected: str
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div class="flex flex-wrap gap-1 mt-1 min-h-[1.25rem]">
+      <div class="flex flex-wrap items-center gap-x-1 mt-1 min-h-[1.25rem]">
         <Show when={props.selected.length > 0} fallback={<span class="text-xs text-muted-foreground italic">None</span>}>
           <For each={props.selected}>
             {(tag) => (
-              <button
-                type="button"
-                onClick={() => toggle(tag)}
-                class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              <ChipButton
+                data-test={`${tagPickerTestId(props.label)}-remove-${tag}`}
+                action="remove"
+                aria-label={`Remove ${tag}`}
                 title="Click to remove"
+                onClick={() => toggle(tag)}
               >
                 {tag}
-                <X class="h-2.5 w-2.5" aria-hidden="true" />
-              </button>
+              </ChipButton>
             )}
           </For>
         </Show>
@@ -289,8 +288,16 @@ const ARMOR_TYPE_OPTIONS: { value: "light" | "medium" | "heavy" | "shield"; labe
   { value: "shield", label: "Shield (+2 stacks with armor)" },
 ]
 
+// formDataFromItem copies some fields by reference (weaponStats, armorStats, modifier lists).
+// When the item comes from the character's Solid store, those are reactive proxies, and
+// structuredClone throws on a proxy. Unwrap to the raw data first, then deep-copy so form edits
+// never write through to the store.
+function cloneFormData(data: EquipmentFormData): EquipmentFormData {
+  return structuredClone(unwrap(data))
+}
+
 function EquipmentForm(props: EquipmentFormProps) {
-  const [formData, setFormData] = createStore<EquipmentFormData>(structuredClone(props.initialData))
+  const [formData, setFormData] = createStore<EquipmentFormData>(cloneFormData(props.initialData))
   const [openAbilityScores, setOpenAbilityScores] = createSignal(hasAbilityScoreValues(props.initialData))
   const [openSavingThrows, setOpenSavingThrows] = createSignal(hasSavingThrowValues(props.initialData))
   const [openResistances, setOpenResistances] = createSignal(hasResistanceValues(props.initialData))
@@ -304,7 +311,7 @@ function EquipmentForm(props: EquipmentFormProps) {
     on(
       () => props.initialData,
       (init) => {
-        setFormData(reconcile(structuredClone(init)))
+        setFormData(reconcile(cloneFormData(init)))
         setOpenAbilityScores(hasAbilityScoreValues(init))
         setOpenSavingThrows(hasSavingThrowValues(init))
         setOpenResistances(hasResistanceValues(init))

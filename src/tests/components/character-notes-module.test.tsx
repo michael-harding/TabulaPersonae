@@ -45,6 +45,16 @@ describe("CharacterNotesModule", () => {
   })
 
   describe("edit mode", () => {
+    it("gives the physical description fields the standard 44px input height", () => {
+      render(<CharacterNotesModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      enterEditMode()
+      for (const field of ["age", "height", "weight", "eyes", "skin", "hair"]) {
+        const input = screen.getByTestId(`physical-${field}-input`)
+        expect(input).toHaveClass("h-11")
+        expect(input).not.toHaveClass("h-8")
+      }
+    })
+
     it("enters edit mode when edit button is clicked", () => {
       render(<CharacterNotesModule character={emptyCharacter} onUpdate={vi.fn()} />)
       enterEditMode()

@@ -1,5 +1,6 @@
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
+import { createStore } from "solid-js/store"
 
 import { EquipmentItemModal, hasOtherModifierFields } from "@/components/equipment-item-modal"
 import type { Equipment, ItemModifiers } from "@/lib/character-types"
@@ -28,6 +29,24 @@ describe("EquipmentItemModal", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     cleanupPortals()
+  })
+
+  // The app keeps the character in a Solid store, so an item handed to the editor is a reactive
+  // proxy, and so are its nested objects and arrays. structuredClone can't copy a proxy, so the
+  // editor must unwrap before cloning. Plain-object fixtures elsewhere in this file can't catch
+  // that, which is how editing any weapon, armour or item with list modifiers shipped broken.
+  describe("editing an item held in a Solid store (as the app does)", () => {
+    beforeEach(() => cleanupPortals())
+
+    it.each([
+      ["a weapon", { type: "weapon" as const, weaponStats: { damage: "1d8", damageType: "piercing", weaponRange: "150/600 ft", attackAbility: "dex" as const, proficient: true } }],
+      ["armour", { type: "armor" as const, armorStats: { baseAC: 11, armorType: "light" as const } }],
+      ["an item with list modifiers", { magic: true, modifiers: { languages: ["Elvish"], skillAdvantage: ["stealth" as const] } }],
+    ])("opens the editor for %s", (_label, overrides) => {
+      const [store] = createStore({ equipment: [makeItem({ name: "Proxied", ...overrides } as Partial<Equipment>)] })
+      render(<EquipmentItemModal open={true} editingItem={store.equipment[0]} onSave={vi.fn()} onCancel={vi.fn()} />)
+      expect(screen.getByTestId("item-name")).toHaveValue("Proxied")
+    })
   })
 
   describe("open/closed rendering", () => {

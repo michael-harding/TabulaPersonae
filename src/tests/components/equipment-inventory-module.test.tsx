@@ -220,7 +220,7 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByRole("button", { name: "+" }))
+      fireEvent.click(screen.getByRole("button", { name: /^increase .* quantity$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ quantity: 3 })]),
@@ -236,7 +236,7 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByRole("button", { name: "-" }))
+      fireEvent.click(screen.getByRole("button", { name: /^decrease .* quantity$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ quantity: 2 })]),
@@ -251,7 +251,7 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={vi.fn()}
         />
       )
-      expect(screen.getByRole("button", { name: "-" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: /^decrease .* quantity$/i })).toBeDisabled()
     })
   })
 
@@ -277,9 +277,9 @@ describe("EquipmentInventoryModule", () => {
     // browser's native label→control click forwarding (since the square is a plain <div>, not
     // the labelable element itself), and the two toggles canceled out — the checkbox looked
     // unresponsive to real clicks even though synthetic fireEvent.click on the input worked fine.
-    // Fixed by giving the checkbox its own aria-label and a separate onClick on the name text,
-    // instead of relying on native <label> wrapping. This test locks in that clicking the name
-    // still toggles equipped, now via that explicit handler.
+    // Fixed by giving the checkbox its own aria-label instead of relying on hand-rolled <label>
+    // wrapping. The name is now the shared Checkbox's own `label` (inside the card's heading),
+    // which toggles exactly once. This test locks in that clicking the name still toggles equipped.
     it("also toggles equipped when the item name is clicked", () => {
       const onUpdate = vi.fn()
       render(
@@ -289,11 +289,20 @@ describe("EquipmentInventoryModule", () => {
         />
       )
       fireEvent.click(screen.getByText("Torch"))
+      expect(onUpdate).toHaveBeenCalledTimes(1)
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ equipped: true })]),
         })
       )
+    })
+
+    it("shows the item name as the card's heading and the checkbox's label, not a button", () => {
+      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })} onUpdate={vi.fn()} />)
+      const name = screen.getByText("Torch")
+      expect(name.tagName).toBe("LABEL")
+      expect(screen.getByRole("heading", { name: "Torch" })).toContainElement(name)
+      expect(screen.queryByRole("button", { name: "Torch" })).not.toBeInTheDocument()
     })
   })
 
@@ -1296,7 +1305,7 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByRole("button", { name: "-" }))
+      fireEvent.click(screen.getByRole("button", { name: /^decrease .* quantity$/i }))
       const updated = onUpdate.mock.calls[0][0]
       expect(updated.equipment[0].quantity).toBe(1)
       expect(updated.equipment[0].consumedUses).toBe(1)
@@ -1439,8 +1448,8 @@ describe("EquipmentInventoryModule", () => {
 
     it("does not render quantity ± buttons", () => {
       renderReadOnly({ equipment: [item] })
-      expect(screen.queryByRole("button", { name: "+" })).not.toBeInTheDocument()
-      expect(screen.queryByRole("button", { name: "-" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /^increase .* quantity$/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /^decrease .* quantity$/i })).not.toBeInTheDocument()
     })
 
     it("still renders the item name", () => {

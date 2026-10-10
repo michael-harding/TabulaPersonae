@@ -448,6 +448,13 @@ describe("SkillsProficienciesModule", () => {
       )
     })
 
+    it("names the new-language field, separately from its Add button", () => {
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByRole("textbox", { name: "New language" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Add language" })).toBeInTheDocument()
+    })
+
     it("removes a language when its X button is clicked", () => {
       const onUpdate = vi.fn()
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)

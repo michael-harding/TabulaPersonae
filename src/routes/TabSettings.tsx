@@ -353,7 +353,8 @@ export default function TabSettings() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          class="flex items-center gap-1 text-sm text-primary hover:underline"
+          // 44px tall; the negative margin offsets the padding so "‹ Back" stays where it was.
+          class="-mx-2 -my-3 flex min-h-11 items-center gap-1 px-2 text-sm text-primary hover:underline"
           data-test="back-button"
         >
           <ChevronLeft class="h-4 w-4" aria-hidden="true" />

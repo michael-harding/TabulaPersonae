@@ -6,13 +6,13 @@ import Minus from "lucide-solid/icons/minus"
 import Skull from "lucide-solid/icons/skull"
 import CheckCircle from "lucide-solid/icons/check-circle"
 import XCircle from "lucide-solid/icons/x-circle"
-import X from "lucide-solid/icons/x"
 
 import type { Character } from "@/lib/character-types"
 import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
+import { ChipButton } from "@/components/ui/chip-button"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -454,13 +454,13 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             <Show when={!isReadOnly}>
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  as="button"
+                  as={ChipButton}
                   data-test="add-condition-button"
-                  class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+                  action="add"
+                  appearance="dashed"
+                  aria-label="Add condition"
                   title="Add condition"
-                >
-                  <Plus class="h-3 w-3" aria-hidden="true" />
-                </DropdownMenuTrigger>
+                />
                 <DropdownMenuContent>
                   <For each={CONDITIONS}>
                     {(condition) => (
@@ -479,7 +479,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               </DropdownMenu>
             </Show>
           </div>
-          <div class="flex flex-wrap gap-1.5 min-h-[1.5rem]">
+          <div class="flex flex-wrap items-center gap-x-1.5 min-h-[1.5rem]">
             <Show
               when={(props.character.conditions ?? []).length > 0}
               fallback={<span class="text-xs text-muted-foreground italic">None</span>}
@@ -494,16 +494,16 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                       </span>
                     }
                   >
-                    <button
-                      type="button"
+                    <ChipButton
                       data-test={`remove-condition-${condition}`}
-                      onClick={() => toggleCondition(condition)}
-                      class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors"
+                      action="remove"
+                      appearance="destructive"
+                      aria-label={`Remove ${condition}`}
                       title="Click to remove"
+                      onClick={() => toggleCondition(condition)}
                     >
                       {condition}
-                      <X class="h-2.5 w-2.5" aria-hidden="true" />
-                    </button>
+                    </ChipButton>
                   </Show>
                 )}
               </For>
@@ -518,13 +518,13 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             <Show when={!isReadOnly}>
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  as="button"
+                  as={ChipButton}
                   data-test="add-condition-immunity-button"
-                  class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+                  action="add"
+                  appearance="dashed"
+                  aria-label="Add condition immunity"
                   title="Add condition immunity"
-                >
-                  <Plus class="h-3 w-3" aria-hidden="true" />
-                </DropdownMenuTrigger>
+                />
                 <DropdownMenuContent>
                   <For each={CONDITIONS}>
                     {(condition) => (
@@ -543,7 +543,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               </DropdownMenu>
             </Show>
           </div>
-          <div class="flex flex-wrap gap-1.5 min-h-[1.5rem]">
+          <div class="flex flex-wrap items-center gap-x-1.5 min-h-[1.5rem]">
             <Show
               when={effectiveConditionImmunities().own.length + effectiveConditionImmunities().granted.length > 0}
               fallback={<span class="text-xs text-muted-foreground italic">None</span>}
@@ -567,16 +567,15 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                         </span>
                       }
                     >
-                      <button
-                        type="button"
+                      <ChipButton
                         data-test={`remove-condition-immunity-${condition}`}
-                        onClick={() => toggleConditionImmunity(condition)}
-                        class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                        action="remove"
+                        aria-label={`Remove ${condition} immunity`}
                         title="Click to remove"
+                        onClick={() => toggleConditionImmunity(condition)}
                       >
                         {condition}
-                        <X class="h-2.5 w-2.5" aria-hidden="true" />
-                      </button>
+                      </ChipButton>
                     </Show>
                   )
                 }}

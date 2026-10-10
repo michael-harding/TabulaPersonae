@@ -1,5 +1,6 @@
 import { Checkbox as CheckboxPrimitive } from "@kobalte/core/checkbox"
 import { ComponentProps, JSX, Show, splitProps } from "solid-js"
+import { Dynamic } from "solid-js/web"
 import Check from "lucide-solid/icons/check"
 
 import { cn, TOUCH_TARGET, TOUCH_TARGET_BOX } from "@/lib/utils"
@@ -8,6 +9,14 @@ type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & {
   class?: string
   label?: JSX.Element
   labelClass?: string
+  /** Page-unique `data-test` for the label (e.g. when the label is also the item's title). */
+  labelTestId?: string
+  /**
+   * Wraps the label in a heading, for when the label doubles as the title of a card (a spell or
+   * item name). It stays a real <label>, so clicking it toggles the checkbox and assistive tech
+   * doesn't see a second control, and the heading keeps it reachable by heading navigation.
+   */
+  labelHeading?: "h2" | "h3" | "h4"
   containerClass?: string
 }
 
@@ -26,8 +35,16 @@ type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & {
  * has bitten this codebase twice; use `label`/`labelClass` instead.
  */
 export function Checkbox(props: CheckboxProps) {
-  const [local, rest] = splitProps(props, ["class", "label", "labelClass", "containerClass"])
+  const [local, rest] = splitProps(props, ["class", "label", "labelClass", "labelTestId", "labelHeading", "containerClass"])
   const [inputAttrs, others] = splitProps(rest, ["id", "title", "aria-label"])
+  const label = () => (
+    <CheckboxPrimitive.Label
+      data-test={local.labelTestId}
+      class={cn("inline-flex min-h-11 items-center", local.labelClass ?? "text-xs text-muted-foreground cursor-pointer select-none")}
+    >
+      {local.label}
+    </CheckboxPrimitive.Label>
+  )
   return (
     <CheckboxPrimitive
       data-sem="checkbox"
@@ -52,9 +69,12 @@ export function Checkbox(props: CheckboxProps) {
       </CheckboxPrimitive.Control>
       </span>
       <Show when={local.label}>
-        <CheckboxPrimitive.Label class={local.labelClass ?? "text-xs text-muted-foreground cursor-pointer select-none"}>
-          {local.label}
-        </CheckboxPrimitive.Label>
+        {/* The label is a 44px-tall target too. It is pulled 8px into the checkbox's 44px box so
+            the text sits about 6px from the square. The overlap is harmless because both toggle
+            the same checkbox. */}
+        <Show when={local.labelHeading} fallback={<span class="-ml-2 inline-flex">{label()}</span>}>
+          <Dynamic component={local.labelHeading} class="-ml-2 inline-flex">{label()}</Dynamic>
+        </Show>
       </Show>
     </CheckboxPrimitive>
   )

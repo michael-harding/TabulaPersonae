@@ -11,6 +11,8 @@ type ComboboxProps = {
   placeholder?: string
   disabled?: boolean
   class?: string
+  /** Set on the text input, so a `<Label for={id}>` names the combobox. */
+  id?: string
   "aria-label"?: string
   "data-test"?: string
 }
@@ -137,6 +139,7 @@ export function Combobox(props: ComboboxProps) {
           ref={inputRef}
           type="text"
           role="combobox"
+          id={props.id}
           aria-expanded={open()}
           aria-label={props["aria-label"]}
           data-test={props["data-test"]}

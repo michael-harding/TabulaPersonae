@@ -95,11 +95,11 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
               </div>
               <div>
                 <Label for="race">{raceLabel()}</Label>
-                <Combobox value={edited().race} onValueChange={(v) => updateField("race", v)} options={raceList()} placeholder={`Select ${raceLabel().toLowerCase()}`} />
+                <Combobox id="race" data-test="race-combobox" value={edited().race} onValueChange={(v) => updateField("race", v)} options={raceList()} placeholder={`Select ${raceLabel().toLowerCase()}`} />
               </div>
               <div>
                 <Label for="class">Class</Label>
-                <Combobox value={edited().class} onValueChange={(v) => updateField("class", v)} options={CLASSES} placeholder="Select class" />
+                <Combobox id="class" data-test="class-combobox" value={edited().class} onValueChange={(v) => updateField("class", v)} options={CLASSES} placeholder="Select class" />
               </div>
               <Show when={edition() === "2024"}>
                 <div>

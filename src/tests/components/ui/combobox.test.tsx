@@ -7,6 +7,16 @@ import { render, screen, fireEvent } from "../../test-utils"
 const OPTIONS = ["Barbarian", "Bard", "Cleric", "Druid", "Fighter"]
 
 describe("Combobox", () => {
+  it("puts its id on the input so a <label for> names it", () => {
+    render(
+      <>
+        <label for="class">Class</label>
+        <Combobox id="class" options={OPTIONS} />
+      </>
+    )
+    expect(screen.getByRole("combobox", { name: "Class" })).toBeInTheDocument()
+  })
+
   it("renders an input with the current value", () => {
     render(<Combobox value="Bard" options={OPTIONS} />)
     expect(screen.getByRole("combobox")).toHaveValue("Bard")

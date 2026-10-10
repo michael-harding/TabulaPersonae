@@ -20,6 +20,21 @@ describe("Checkbox", () => {
     expect(onChange).toHaveBeenCalledWith(true)
   })
 
+  it("wraps the label in a heading when labelHeading is set, and the label still toggles once", () => {
+    const onChange = vi.fn()
+    render(<Checkbox label="Longbow" labelHeading="h3" labelTestId="item-name" aria-label="Equipped: Longbow" checked={false} onChange={onChange} />)
+    const label = screen.getByTestId("item-name")
+    expect(label.tagName).toBe("LABEL")
+    expect(screen.getByRole("heading", { level: 3, name: "Longbow" })).toContainElement(label)
+    fireEvent.click(label)
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it("gives the label a 44px-tall target", () => {
+    render(<Checkbox label="Inline label" checked={false} onChange={vi.fn()} />)
+    expect(screen.getByText("Inline label")).toHaveClass("min-h-11")
+  })
+
   it("uses aria-label as the accessible name when provided", () => {
     render(<Checkbox aria-label="Toggle attuned" checked={false} onChange={vi.fn()} />)
     expect(screen.getByRole("checkbox", { name: "Toggle attuned" })).toBeInTheDocument()

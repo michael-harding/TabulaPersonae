@@ -10,9 +10,13 @@ type ChipButtonProps = Omit<ComponentProps<"button">, "children"> & {
   "data-test": string
   /** "add" shows a leading +, "remove" a trailing ×. The icon only signals what a click does. */
   action: "add" | "remove"
-  /** Pill style: a rounded badge (tags) or a squared outline (add buttons). */
-  appearance?: "secondary" | "outline" | "square"
-  children: JSX.Element
+  /**
+   * Pill style: a rounded badge (tags), a squared outline (add buttons), a destructive badge
+   * (active conditions), or a dashed circle holding just the icon (an "add from a list" trigger —
+   * give it an `aria-label`, since it has no visible text).
+   */
+  appearance?: "secondary" | "outline" | "destructive" | "square" | "dashed"
+  children?: JSX.Element
 }
 
 /**
@@ -30,9 +34,11 @@ export function ChipButton(props: ChipButtonProps) {
   const appearance = () => local.appearance ?? "secondary"
   const pill = () => {
     const a = appearance()
-    return a === "square"
-      ? "gap-1 rounded border px-2.5 py-1 group-hover:bg-accent group-hover:text-accent-foreground"
-      : cn(badgeVariants({ variant: a }), "gap-1.5 pr-1.5")
+    if (a === "square") return "gap-1 rounded border px-2.5 py-1 group-hover:bg-accent group-hover:text-accent-foreground"
+    if (a === "dashed") {
+      return "h-6 w-6 justify-center rounded-full border border-dashed border-muted-foreground/50 text-muted-foreground group-hover:border-primary group-hover:text-primary"
+    }
+    return cn(badgeVariants({ variant: a }), "gap-1.5 pr-1.5")
   }
   return (
     <button

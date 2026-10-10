@@ -92,6 +92,8 @@ function EditableTagList(props: {
       <Show when={props.editing}>
         <div class="flex gap-2">
           <Input
+            data-test={`${props.testKey}-input`}
+            aria-label={`New ${props.itemLabel}`}
             placeholder={props.placeholder}
             value={newValue()}
             onInput={(e) => setNewValue(e.currentTarget.value)}
@@ -99,7 +101,7 @@ function EditableTagList(props: {
             class="flex-1"
           />
           <Tooltip content={`Add ${props.itemLabel}`}>
-            <Button onClick={add} size="sm" aria-label={`Add ${props.itemLabel}`} disabled={!newValue().trim()}>
+            <Button data-test={`${props.testKey}-add`} onClick={add} size="sm" aria-label={`Add ${props.itemLabel}`} disabled={!newValue().trim()}>
               <Plus class="h-4 w-4" aria-hidden="true" />
             </Button>
           </Tooltip>
@@ -358,6 +360,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                         when={effectiveSave().granted}
                         fallback={
                           <Checkbox
+                            data-test={`saving-throw-${ability}`}
                             checked={isProficient()}
                             onChange={() => toggleSavingThrow(ability)}
                             label={ABILITY_ABBREVIATIONS[ability]}
@@ -368,6 +371,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                       >
                         <Tooltip content={`Granted by ${effectiveSave().grantedBy}`} triggerFocusable>
                           <Checkbox
+                            data-test={`saving-throw-${ability}`}
                             checked={isProficient()}
                             disabled
                             onChange={() => toggleSavingThrow(ability)}

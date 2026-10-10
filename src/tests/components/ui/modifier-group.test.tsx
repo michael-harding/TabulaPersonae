@@ -25,6 +25,11 @@ describe("ModifierGroup", () => {
     cleanupPortals()
   })
 
+  it("gives the header a 44px-tall touch target", () => {
+    render(<ModifierGroup {...baseProps()}>content</ModifierGroup>)
+    expect(screen.getByTestId("modifier-group-ability-scores")).toHaveClass("min-h-11")
+  })
+
   it("renders the label text", () => {
     render(<ModifierGroup {...baseProps()}>content</ModifierGroup>)
     expect(screen.getByText("Ability Scores")).toBeInTheDocument()

@@ -99,10 +99,11 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
                     <Label for={`phys-${field}`} class="text-xs">{label}</Label>
                     <Input
                       id={`phys-${field}`}
+                      data-test={`physical-${field}-input`}
                       value={(editedCharacter()[field] as string) || ""}
                       onInput={(e) => updateField(field, e.currentTarget.value)}
                       placeholder={label}
-                      class="mt-1 h-8 text-sm"
+                      class="mt-1 text-sm"
                     />
                   </div>
                 )}</For>

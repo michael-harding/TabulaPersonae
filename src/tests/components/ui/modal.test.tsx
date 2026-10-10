@@ -84,6 +84,11 @@ describe("Modal", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it("gives the built-in close button a 44×44 touch target", () => {
+    const dialog = openModal()
+    expect(within(dialog).getByRole("button", { name: "Dismiss" })).toHaveClass("h-11", "w-11")
+  })
+
   it("calls onOpenChange(false) when a footer action closes the modal", () => {
     const onOpenChange = vi.fn()
     const onConfirm = vi.fn()

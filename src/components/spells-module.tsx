@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
-import { NumericInput } from "@/components/ui/numeric-input"
+import { StepperInput } from "@/components/ui/stepper-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -583,7 +583,9 @@ export function SpellsModule(props: SpellsModuleProps) {
                                 <div class="flex items-start justify-between">
                                   <div class="flex-1">
                                     <div class="flex items-center gap-2 mb-1">
-                                      <Show when={!isReadOnly}>
+                                      {/* The spell name is the checkbox's label (wrapped in the card's heading), so
+                                          clicking it toggles Known (cantrips) or Prepared (leveled spells). */}
+                                      <Show when={!isReadOnly} fallback={<h3 data-test={`spell-name-${spell.id}`} class="font-medium">{spell.name}</h3>}>
                                         <Show when={spell.level === 0}>
                                           <Tooltip content="Known">
                                             <Checkbox
@@ -591,6 +593,10 @@ export function SpellsModule(props: SpellsModuleProps) {
                                               checked={spell.known ?? true}
                                               onChange={() => toggleKnown(spell.id)}
                                               aria-label={`Known: ${spell.name}`}
+                                              label={spell.name}
+                                              labelHeading="h3"
+                                              labelTestId={`spell-name-${spell.id}`}
+                                              labelClass="font-medium cursor-pointer select-none"
                                             />
                                           </Tooltip>
                                         </Show>
@@ -602,26 +608,14 @@ export function SpellsModule(props: SpellsModuleProps) {
                                               disabled={!(spell.known ?? true)}
                                               onChange={() => togglePrepared(spell.id)}
                                               aria-label={`Prepared: ${spell.name}`}
+                                              label={spell.name}
+                                              labelHeading="h3"
+                                              labelTestId={`spell-name-${spell.id}`}
+                                              labelClass="font-medium cursor-pointer select-none data-[disabled]:cursor-default"
                                             />
                                           </Tooltip>
                                         </Show>
                                       </Show>
-                                      <h3 class="font-medium">
-                                        <button
-                                          type="button"
-                                          data-test={`spell-name-${spell.id}`}
-                                          disabled={isReadOnly}
-                                          class={`bg-transparent border-0 p-0 font-medium text-left ${isReadOnly ? "cursor-default" : "cursor-pointer"}`}
-                                          onClick={() => {
-                                            if (isReadOnly) return
-                                            if (spell.level === 0) toggleKnown(spell.id)
-                                            else if (!(spell.known ?? true)) return
-                                            else togglePrepared(spell.id)
-                                          }}
-                                        >
-                                          {spell.name}
-                                        </button>
-                                      </h3>
                                       <Badge variant="outline" class="text-xs">{spell.school}</Badge>
                                       <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>
                                       <Show when={spell.ritual}>
@@ -731,13 +725,12 @@ export function SpellsModule(props: SpellsModuleProps) {
                     <div class="flex items-center justify-between p-3 border rounded-lg">
                       <span class="font-medium">Level {level}</span>
                       <div class="flex items-center gap-2">
-                        <NumericInput
+                        <StepperInput
                           data-test={`spell-slot-level-${level}-total`}
                           min={0} max={20}
                           value={slots().total}
                           onChange={(v) => updateSpellSlots(level, "total", v)}
-                          class="w-16 h-8 text-center"
-                          title="Total slots"
+                          aria-label={`Level ${level} total slots`}
                         />
                         <span class="text-sm text-muted-foreground">slots</span>
                       </div>

@@ -145,6 +145,34 @@ test.describe("Touch targets", () => {
     expect(undersized).not.toMatch(/level-effect-0-skill-perception-(remove|check)/)
   })
 
+  test("Edit Spell Slots modal", async ({ page }) => {
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+    await page.getByRole("tab", { name: "Spells" }).click()
+    await page.getByRole("button", { name: /edit slots/i }).click()
+    await expect(page.getByRole("dialog")).toBeVisible()
+    expectNoStolenClicks(await auditTouchTargets(page))
+  })
+
+  test("item editor with tag pickers open", async ({ page }) => {
+    await page.goto(`/character/${testCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+    await page.getByRole("tab", { name: "Inventory" }).click()
+    // The first inventory item is a weapon (Longbow). Editing one used to throw before the
+    // dialog opened (structuredClone of a store proxy), so this also guards that regression.
+    await page.locator('[data-test^="equipment-edit-"]').first().click()
+    await expect(page.locator('[data-test="item-name"]')).toHaveValue("Longbow")
+    const modal = page.getByRole("dialog")
+    await modal.locator('[data-test="modifier-group-skill-effects"]').click()
+    await modal.getByRole("button", { name: "Add Grants Advantage On" }).click()
+    await page.getByRole("menuitem").first().click()
+    // The picker stays open for multi-select; close it so it doesn't cover the controls below.
+    await page.keyboard.press("Escape")
+    await expect(page.getByRole("menu")).toHaveCount(0)
+    await expect(modal.getByRole("button", { name: /^Remove / }).first()).toBeVisible()
+    expectNoStolenClicks(await auditTouchTargets(page))
+  })
+
   test("tab settings page", async ({ page }) => {
     await page.goto("/settings/tabs")
     await page.waitForLoadState("networkidle")

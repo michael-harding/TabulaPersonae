@@ -38,6 +38,13 @@ describe("ChipButton", () => {
     expect(addIcon.nextSibling?.textContent).toBe("B")
   })
 
+  it("renders an icon-only dashed trigger named by its aria-label", () => {
+    render(<ChipButton data-test="add-condition" action="add" appearance="dashed" aria-label="Add condition" onClick={vi.fn()} />)
+    const button = screen.getByRole("button", { name: "Add condition" })
+    expect(button).toHaveClass("min-h-11", "min-w-11")
+    expect(button.textContent).toBe("")
+  })
+
   it("has no accessibility violations", async () => {
     const { container } = render(<ChipButton data-test="chip" action="remove" aria-label="Remove Common" onClick={vi.fn()}>Common</ChipButton>)
     expect((await axe(container)).violations).toHaveLength(0)

@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
+import { InlineStepper } from "@/components/ui/inline-stepper"
 import { cascadeDecrement } from "@/lib/currency-utils"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
@@ -505,27 +506,20 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                     <div class="flex-1">
                       <div class="flex items-center gap-2 flex-wrap">
                         <div class="flex items-center gap-2">
-                          <Show when={!isReadOnly}>
+                          {/* The item name is the equipped checkbox's label (wrapped in the card's heading). */}
+                          <Show when={!isReadOnly} fallback={<h3 data-test={`equipment-item-name-${item.id}`} class="font-medium">{item.name}</h3>}>
                             <Checkbox
                               data-test={`equipment-toggle-equipped-${item.id}`}
                               checked={item.equipped || false}
                               onChange={() => toggleEquipped(item.id)}
                               title="Toggle equipped"
                               aria-label={`Toggle equipped: ${item.name}`}
+                              label={item.name}
+                              labelHeading="h3"
+                              labelTestId={`equipment-item-name-${item.id}`}
+                              labelClass="font-medium cursor-pointer select-none"
                             />
                           </Show>
-                          <h3 class="font-medium">
-                            <button
-                              type="button"
-                              data-test={`equipment-item-name-${item.id}`}
-                              disabled={isReadOnly}
-                              aria-pressed={!isReadOnly ? item.equipped : undefined}
-                              class={`bg-transparent border-0 p-0 font-medium text-left ${isReadOnly ? "cursor-default" : "cursor-pointer"}`}
-                              onClick={() => !isReadOnly && toggleEquipped(item.id)}
-                            >
-                              {item.name}
-                            </button>
-                          </h3>
                         </div>
                         <Show when={item.type && item.type !== "other"}>
                           <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
@@ -600,28 +594,13 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           when={!isReadOnly}
                           fallback={<span class="w-8 text-center">{item.quantity}</span>}
                         >
-                          <div class="flex items-center gap-1">
-                            <Button
-                              data-test={`equipment-quantity-decrease-${item.id}`}
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              disabled={item.quantity <= 1}
-                              class="h-6 w-6 p-0"
-                            >
-                              -
-                            </Button>
-                            <span class="w-8 text-center">{item.quantity}</span>
-                            <Button
-                              data-test={`equipment-quantity-increase-${item.id}`}
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              class="h-6 w-6 p-0"
-                            >
-                              +
-                            </Button>
-                          </div>
+                          <InlineStepper
+                            data-test={`equipment-quantity-${item.id}`}
+                            label={`${item.name} quantity`}
+                            value={item.quantity}
+                            min={1}
+                            onChange={(v) => updateQuantity(item.id, v)}
+                          />
                         </Show>
                       </div>
                       <Show when={item.weight && item.weight > 0}>

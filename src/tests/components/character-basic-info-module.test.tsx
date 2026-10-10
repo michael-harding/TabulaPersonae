@@ -62,6 +62,12 @@ describe("CharacterBasicInfoModule", () => {
       expect(screen.getByLabelText(/character name/i)).toBeInTheDocument()
     })
 
+    it("names the Class combobox via its visible label", () => {
+      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByRole("combobox", { name: "Class" })).toBeInTheDocument()
+    })
+
     it("shows save and cancel buttons in the header when editing", () => {
       render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
       clickEditButton()
