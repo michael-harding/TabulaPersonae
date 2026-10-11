@@ -5,6 +5,15 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Damage resistances, immunities and vulnerabilities in Skills & Proficiencies are now picked from the standard damage types, with a "Custom…" entry in the same menu for anything else (e.g. "Nonmagical Bludgeoning"). Entries saved earlier in a different case ("fire") are tidied to the standard spelling when the character loads, and duplicates that differed only by case are merged
+
+### Fixed
+- Clearing a value on a cloud-synced character (such as the sheet colour) now stays cleared; previously the old value could remain in the cloud copy and come back
+- Clicking an open dropdown's button a second time now closes it, instead of closing and immediately reopening it
+
 ## [v1.6.1] - 2026-10-08
 
 ### Added

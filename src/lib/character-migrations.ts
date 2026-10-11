@@ -1,5 +1,5 @@
 import type { Character, Equipment, Feature, SenseType } from "./character-types"
-import { calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import { calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
 const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass",
@@ -16,6 +16,9 @@ const CALCULATED_VALUE_FLAGS = [
 ] as const
 
 const FEATURE_LIST_FIELDS = ["classFeatures", "speciesTraits", "feats", "backgroundFeatures"] as const
+
+// Free text until these became a menu of the standard damage types plus custom entries.
+const DAMAGE_TYPE_LIST_FIELDS = ["damageResistances", "damageImmunities", "damageVulnerabilities"] as const
 
 /**
  * Spellcasting ability and hit die size used to be plain `character.spellcastingAbility`/
@@ -162,6 +165,16 @@ export function migrateCharacter(raw: any): Character {
   if (Array.isArray(raw.equipment)) {
     const backfilledEquipment = backfillEquipmentUses(raw.equipment as Equipment[])
     if (backfilledEquipment) patch.equipment = backfilledEquipment
+  }
+
+  for (const field of DAMAGE_TYPE_LIST_FIELDS) {
+    // Lists saved as free text can hold "fire" where the menu and feature/equipment grants say
+    // "Fire", which would show as a second, different entry. Only the casing of real values is
+    // changed; a missing list is left missing.
+    const stored: unknown = raw[field] // legacy data — may be absent or not a string list
+    if (!Array.isArray(stored) || !stored.every((value) => typeof value === "string")) continue
+    const normalized = normalizeDamageTypes(stored)
+    if (normalized !== stored) patch[field] = normalized
   }
 
   return Object.keys(patch).length > 0 ? { ...raw, ...patch } : (raw as Character)

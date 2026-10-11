@@ -86,6 +86,11 @@ function dedupUnion(...lists: (string[] | undefined)[]): string[] {
 
 export const ABILITY_KEYS: (keyof AbilityScores)[] = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
 
+export const ABILITY_DISPLAY_NAMES: Record<keyof AbilityScores, string> = {
+  strength: "Strength", dexterity: "Dexterity", constitution: "Constitution",
+  intelligence: "Intelligence", wisdom: "Wisdom", charisma: "Charisma",
+}
+
 export const ABILITY_ABBREVIATIONS: Record<keyof AbilityScores, string> = {
   strength: "STR", dexterity: "DEX", constitution: "CON", intelligence: "INT", wisdom: "WIS", charisma: "CHA",
 }
@@ -1021,6 +1026,25 @@ export function safeFeatures(raw: Feature[] | string | undefined): Feature[] {
 
 export const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
 export const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+
+/**
+ * Puts a list of damage types into its standard form: a value matching one of DAMAGE_TYPE_OPTIONS
+ * in any case becomes that option ("fire" → "Fire"), anything else is kept as typed, and blanks
+ * and case-insensitive duplicates are dropped. Returns `values` itself when nothing changes.
+ */
+export function normalizeDamageTypes(values: string[]): string[] {
+  const seen = new Set<string>()
+  const normalized: string[] = []
+  for (const value of values) {
+    const trimmed = value.trim()
+    const key = trimmed.toLowerCase()
+    if (!trimmed || seen.has(key)) continue
+    seen.add(key)
+    normalized.push(DAMAGE_TYPE_OPTIONS.find((option) => option.toLowerCase() === key) ?? trimmed)
+  }
+  const unchanged = normalized.length === values.length && normalized.every((value, i) => value === values[i])
+  return unchanged ? values : normalized
+}
 
 export const CONDITIONS = [
   "Blinded", "Charmed", "Deafened", "Exhaustion", "Frightened",

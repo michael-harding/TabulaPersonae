@@ -1,5 +1,6 @@
 import { migrateCharacter, migrateCharacters } from "@/lib/character-migrations"
 import { createDefaultCharacter } from "@/lib/character-types"
+import type { Character } from "@/lib/character-types"
 import { getEffectiveHitDiceSize, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
 
 describe("migrateCharacter", () => {
@@ -328,6 +329,33 @@ describe("migrateCharacter", () => {
       const migrated = migrateCharacter(raw)
       expect(migrated.useCalculatedSenses).toEqual({ darkvision: true, blindsight: true, tremorsense: true, truesight: true })
     })
+  })
+})
+
+describe("migrateCharacter damage type normalisation", () => {
+  const FIELDS = ["damageResistances", "damageImmunities", "damageVulnerabilities"] as const
+
+  // These three lists were free text before they became a menu of the standard damage types, so
+  // saved characters can hold "fire" where the menu (and feature/equipment grants) say "Fire".
+  it.each(FIELDS)("re-cases standard types and drops the resulting duplicates in %s", (field) => {
+    const raw = { ...createDefaultCharacter(), [field]: ["fire", "Fire", "Nonmagical Bludgeoning"] }
+    expect(migrateCharacter(raw)[field]).toEqual(["Fire", "Nonmagical Bludgeoning"])
+  })
+
+  it.each(FIELDS)("does not create %s on a character that never had it", (field) => {
+    const raw: Partial<Character> = { ...createDefaultCharacter() }
+    delete raw[field]
+    expect(field in migrateCharacter(raw)).toBe(false)
+  })
+
+  it("returns the same object when every list is already in its standard form", () => {
+    const raw = { ...createDefaultCharacter(), damageResistances: ["Fire", "Homebrew"], damageImmunities: [] }
+    expect(migrateCharacter(raw)).toBe(raw)
+  })
+
+  it("leaves a list alone when it holds something other than strings", () => {
+    const raw = { ...createDefaultCharacter(), damageResistances: ["fire", 3] }
+    expect(migrateCharacter(raw).damageResistances).toEqual(["fire", 3])
   })
 })
 

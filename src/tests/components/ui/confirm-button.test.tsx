@@ -1,8 +1,9 @@
 import { axe } from "vitest-axe"
 
 import { ConfirmButton, CONFIRM_GUARD_MS, CONFIRM_TIMEOUT_MS } from "@/components/ui/confirm-button"
+import { Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle } from "@/components/ui/modal"
 
-import { render, screen, fireEvent } from "../../test-utils"
+import { render, screen, fireEvent, cleanupPortals } from "../../test-utils"
 
 function renderButton(overrides: Partial<Parameters<typeof ConfirmButton>[0]> = {}) {
   const onConfirm = vi.fn()
@@ -26,6 +27,7 @@ describe("ConfirmButton", () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.useRealTimers()
+    cleanupPortals()
   })
 
   it("renders its idle content with the verb + subject as accessible name", () => {
@@ -88,6 +90,47 @@ describe("ConfirmButton", () => {
     now += CONFIRM_GUARD_MS + 1
     fireEvent.click(button(), { detail: 1 })
     expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  // Kobalte's Dialog closes on Escape through its own document-level keydown listener, which
+  // stopPropagation from a delegated handler cannot reach.
+  it("disarms on Escape without closing an enclosing modal; a second Escape closes it", async () => {
+    const onOpenChange = vi.fn()
+    render(
+      <Modal open onOpenChange={onOpenChange}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Edit feature</ModalTitle>
+            <ModalDescription>Level effects</ModalDescription>
+          </ModalHeader>
+          <ConfirmButton data-test="remove-effect" verb="Remove" onConfirm={vi.fn()}>x</ConfirmButton>
+        </ModalContent>
+      </Modal>
+    )
+    const button = await screen.findByTestId("remove-effect")
+    fireEvent.click(button, { detail: 1 })
+    expect(button).toHaveAttribute("data-armed")
+    fireEvent.keyDown(button, { key: "Escape" })
+    expect(button).not.toHaveAttribute("data-armed")
+    expect(onOpenChange).not.toHaveBeenCalled()
+    fireEvent.keyDown(button, { key: "Escape" })
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  // Holding Enter auto-repeats keydown, and each repeat would otherwise click the button again
+  // with `detail` 0 — arming on the first and confirming on a later one, past the guard window.
+  it("swallows auto-repeated Enter and Space so a held key cannot confirm", () => {
+    const { button } = renderButton()
+    fireEvent.click(button(), { detail: 0 })
+    expect(fireEvent.keyDown(button(), { key: "Enter", repeat: true })).toBe(false)
+    expect(fireEvent.keyDown(button(), { key: " ", repeat: true })).toBe(false)
+    expect(button()).toHaveAttribute("data-armed")
+  })
+
+  it("leaves a fresh Enter press alone so the keyboard can still confirm", () => {
+    const { button } = renderButton()
+    fireEvent.click(button(), { detail: 0 })
+    expect(fireEvent.keyDown(button(), { key: "Enter" })).toBe(true)
   })
 
   it("disarms on a pointerdown elsewhere", () => {

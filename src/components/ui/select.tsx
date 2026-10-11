@@ -32,6 +32,9 @@ interface SelectContextType {
   setActiveValue: (value: string | undefined) => void
   listEl: () => HTMLUListElement | undefined
   setListEl: (el: HTMLUListElement | undefined) => void
+  // The element wrapping the trigger and the popup, for telling inside clicks from outside ones.
+  // Held as a ref because `data-sem` is stripped from production builds and can't be queried.
+  rootEl: () => HTMLDivElement | undefined
 }
 
 const SelectContext = createContext<SelectContextType>()
@@ -63,6 +66,7 @@ export function Select(props: SelectRootProps) {
   const [items, setItems] = createSignal<string[]>([])
   const [explicitActive, setExplicitActive] = createSignal<string | undefined>(undefined)
   const [listEl, setListEl] = createSignal<HTMLUListElement>()
+  const [rootEl, setRootEl] = createSignal<HTMLDivElement>()
   const value = () => props.value ?? internalValue()
 
   // Falls back to the current value's item, then the first item, whenever nothing has been
@@ -102,9 +106,9 @@ export function Select(props: SelectRootProps) {
       value, onValueChange, open, setOpen,
       placeholder: () => props.placeholder, disabled: () => props.disabled ?? false,
       items, registerItem, activeValue, setActiveValue: setExplicitActive,
-      listEl, setListEl,
+      listEl, setListEl, rootEl,
     }}>
-      <div data-sem="select" class="relative">
+      <div ref={setRootEl} data-sem="select" class="relative">
         {props.children}
       </div>
     </SelectContext.Provider>
@@ -193,13 +197,11 @@ export function SelectValue(props: { placeholder?: string }) {
 export function SelectContent(props: ComponentProps<"ul">) {
   const [local, others] = splitProps(props, ["class", "children"])
   const ctx = useSelect()
-  let ref!: HTMLDivElement
 
   // "Outside" means outside the whole select, trigger included. Counting the trigger as outside
   // made a second click on it close the list on mousedown, then reopen it on click.
   const handleOutsideClick = (e: MouseEvent) => {
-    const root = ref?.closest('[data-sem="select"]') ?? ref
-    if (!root?.contains(e.target as Node)) {
+    if (!ctx.rootEl()?.contains(e.target as Node)) {
       ctx.setOpen(false)
     }
   }
@@ -208,7 +210,7 @@ export function SelectContent(props: ComponentProps<"ul">) {
   onCleanup(() => document.removeEventListener("mousedown", handleOutsideClick))
 
   return (
-    <div ref={ref} class="relative">
+    <div class="relative">
       {ctx.open() && (
         <ul
           ref={ctx.setListEl}

@@ -14,9 +14,10 @@ export default function Layout(props: ParentProps) {
   // ACCESSIBILITY.md §7: move focus to <main> on route change so screen reader users are
   // notified of the new page. `on` receives `undefined` as the previous value on its first
   // run (initial mount), which we use to skip stealing focus from the page's natural initial
-  // focus — only subsequent, real navigations move focus.
+  // focus — only subsequent, real navigations move focus. `preventScroll` keeps the focus call
+  // from scrolling <main> into view over the position the browser restores on history Back.
   createEffect(on(() => location.pathname, (_path, prevPath) => {
-    if (prevPath != null) mainRef?.focus()
+    if (prevPath != null) mainRef?.focus({ preventScroll: true })
   }))
 
   return (

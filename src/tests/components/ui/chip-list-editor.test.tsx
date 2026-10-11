@@ -9,7 +9,7 @@ import { render, screen, fireEvent, waitFor, cleanupPortals, expectTapTooltip } 
 
 const DAMAGE_TYPES = ["Acid", "Cold", "Fire"]
 
-function Harness(props: { initial?: string[]; options?: string[]; editing?: boolean; grantedValues?: string[]; emptyText?: string; variant?: "secondary" | "outline" | "destructive" }) {
+function Harness(props: { initial?: string[]; options?: string[]; allowCustom?: boolean; editing?: boolean; grantedValues?: string[]; emptyText?: string; variant?: "secondary" | "outline" | "destructive" }) {
   const [values, setValues] = createSignal(props.initial ?? [])
   return (
     <ChipListEditor
@@ -18,14 +18,14 @@ function Harness(props: { initial?: string[]; options?: string[]; editing?: bool
       itemLabel="resistance"
       placeholder="e.g. Fire"
       options={props.options}
+      allowCustom={props.allowCustom}
       editing={props.editing}
       variant={props.variant}
       grantedValues={props.grantedValues}
       grantedTooltip={(v) => `Granted by ${v} Ring`}
       emptyText={props.emptyText}
       values={values()}
-      onAdd={(v) => setValues((prev) => [...prev, v])}
-      onRemove={(v) => setValues((prev) => prev.filter((x) => x !== v))}
+      onChange={setValues}
     />
   )
 }
@@ -75,6 +75,23 @@ describe("ChipListEditor", () => {
       fireEvent.keyDown(input, { key: "Enter" })
       expect(screen.getAllByText("Fire")).toHaveLength(1)
     })
+
+    it("treats a value differing only by case as already in the list", () => {
+      render(<Harness initial={["Fire"]} />)
+      const input = screen.getByTestId("resistances-input")
+      fireEvent.input(input, { target: { value: "fire" } })
+      fireEvent.keyDown(input, { key: "Enter" })
+      expect(screen.queryByText("fire")).not.toBeInTheDocument()
+    })
+
+    it("leaves Escape alone, for an enclosing modal to handle", () => {
+      render(<Harness />)
+      const onDocumentKeyDown = vi.fn()
+      document.addEventListener("keydown", onDocumentKeyDown)
+      fireEvent.keyDown(screen.getByTestId("resistances-input"), { key: "Escape" })
+      expect(onDocumentKeyDown).toHaveBeenCalledTimes(1)
+      document.removeEventListener("keydown", onDocumentKeyDown)
+    })
   })
 
   describe("closed list (options)", () => {
@@ -97,6 +114,103 @@ describe("ChipListEditor", () => {
       render(<Harness options={DAMAGE_TYPES} initial={["Homebrew"]} />)
       fireEvent.click(screen.getByRole("button", { name: "Remove resistance Homebrew" }))
       expect(screen.queryByText("Homebrew")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("closed list that allows custom values (options + allowCustom)", () => {
+    const openCustom = async (user: ReturnType<typeof userEvent.setup>) => {
+      await pick(user, "Custom…")
+      return await screen.findByRole("textbox", { name: "New resistance" })
+    }
+
+    it("offers no Custom… entry unless custom values are allowed", async () => {
+      const user = userEvent.setup()
+      render(<Harness options={DAMAGE_TYPES} />)
+      await user.click(screen.getByRole("button", { name: "Add resistance" }))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Fire" })).toBeInTheDocument())
+      expect(screen.queryByRole("menuitem", { name: "Custom…" })).not.toBeInTheDocument()
+    })
+
+    it("swaps the menu's + Add chip for a focused text input, keeping a single + Add chip", async () => {
+      const user = userEvent.setup()
+      render(<Harness options={DAMAGE_TYPES} allowCustom />)
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+      const input = await openCustom(user)
+      await waitFor(() => expect(input).toHaveFocus())
+      const addChips = screen.getAllByRole("button", { name: "Add resistance" })
+      expect(addChips).toHaveLength(1)
+      expect(addChips[0]).not.toHaveAttribute("aria-haspopup")
+    })
+
+    it("adds the typed value verbatim, then returns to the menu chip and focuses it", async () => {
+      const user = userEvent.setup()
+      render(<Harness options={DAMAGE_TYPES} allowCustom />)
+      await user.type(await openCustom(user), "Nonmagical Bludgeoning{Enter}")
+      expect(screen.getByRole("button", { name: "Remove resistance Nonmagical Bludgeoning" })).toBeInTheDocument()
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+      const menuChip = screen.getByRole("button", { name: "Add resistance" })
+      expect(menuChip).toHaveAttribute("aria-haspopup")
+      await waitFor(() => expect(menuChip).toHaveFocus())
+    })
+
+    it("adds the standard option when its name is typed in another case", async () => {
+      const user = userEvent.setup()
+      render(<Harness options={DAMAGE_TYPES} allowCustom />)
+      await user.type(await openCustom(user), "fire{Enter}")
+      expect(screen.getByRole("button", { name: "Remove resistance Fire" })).toBeInTheDocument()
+      expect(screen.queryByText("fire")).not.toBeInTheDocument()
+    })
+
+    it("adds with the + Add chip beside the input as well as with Enter", async () => {
+      const user = userEvent.setup()
+      render(<Harness options={DAMAGE_TYPES} allowCustom />)
+      await user.type(await openCustom(user), "Silvered")
+      await user.click(screen.getByRole("button", { name: "Add resistance" }))
+      expect(screen.getByRole("button", { name: "Remove resistance Silvered" })).toBeInTheDocument()
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+    })
+
+    it("closes on Escape without adding, refocuses the menu chip, and keeps the key from an enclosing modal", async () => {
+      const user = userEvent.setup()
+      render(<Harness options={DAMAGE_TYPES} allowCustom />)
+      const input = await openCustom(user)
+      await user.type(input, "Silv")
+      const onDocumentKeyDown = vi.fn()
+      document.addEventListener("keydown", onDocumentKeyDown)
+      fireEvent.keyDown(input, { key: "Escape" })
+      document.removeEventListener("keydown", onDocumentKeyDown)
+      expect(onDocumentKeyDown).not.toHaveBeenCalled()
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+      expect(screen.queryByText("Silv")).not.toBeInTheDocument()
+      await waitFor(() => expect(screen.getByRole("button", { name: "Add resistance" })).toHaveFocus())
+      // Reopening starts from an empty input, not the abandoned text.
+      expect(await openCustom(user)).toHaveValue("")
+    })
+
+    it("closes when focus leaves an empty input, but stays open while it holds text", async () => {
+      const user = userEvent.setup()
+      render(<Harness options={DAMAGE_TYPES} allowCustom />)
+      const input = await openCustom(user)
+      await user.type(input, "Silv")
+      fireEvent.blur(input)
+      expect(screen.getByRole("textbox")).toBeInTheDocument()
+      await user.clear(input)
+      fireEvent.blur(input)
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+    })
+
+    it("ticks an option the list holds in a different case, and picking it removes that value", async () => {
+      const user = userEvent.setup()
+      render(<Harness options={DAMAGE_TYPES} allowCustom initial={["fire"]} />)
+      await pick(user, "Fire")
+      expect(screen.queryByRole("button", { name: /Remove resistance/ })).not.toBeInTheDocument()
+    })
+
+    it("has no accessibility violations with the custom input open", async () => {
+      const user = userEvent.setup()
+      const { container } = render(<Harness options={DAMAGE_TYPES} allowCustom initial={["Fire"]} />)
+      await openCustom(user)
+      expect((await axe(container)).violations).toHaveLength(0)
     })
   })
 
@@ -151,7 +265,7 @@ describe("ChipListEditor", () => {
 
   it("renders option labels and a custom chip when given", async () => {
     const user = userEvent.setup()
-    const onRemove = vi.fn()
+    const onChange = vi.fn()
     render(
       <ChipListEditor
         data-test="skills"
@@ -159,19 +273,21 @@ describe("ChipListEditor", () => {
         itemLabel="skill proficiency"
         options={["athletics", "stealth"]}
         optionLabel={(v) => v.toUpperCase()}
-        values={["athletics"]}
-        onAdd={vi.fn()}
-        onRemove={onRemove}
-        renderChip={(v) => (
-          <CheckableChip data-test={`skills-${v}`} removeLabel={`Remove ${v}`} onRemove={() => onRemove(v)} checkLabel="Exp" checkAriaLabel={`Expertise for ${v}`} checked={false} onCheckedChange={vi.fn()}>
+        values={["athletics", "stealth"]}
+        onChange={onChange}
+        renderChip={(v, remove) => (
+          <CheckableChip data-test={`skills-${v}`} removeLabel={`Remove ${v}`} onRemove={remove} checkLabel="Exp" checkAriaLabel={`Expertise for ${v}`} checked={false} onCheckedChange={vi.fn()}>
             {v.toUpperCase()}
           </CheckableChip>
         )}
       />
     )
     expect(screen.getByRole("checkbox", { name: "Expertise for athletics" })).toBeInTheDocument()
+    // A custom chip removes its value through the callback it is handed.
+    await user.click(screen.getByRole("button", { name: "Remove athletics" }))
+    expect(onChange).toHaveBeenCalledWith(["stealth"])
     await user.click(screen.getByRole("button", { name: "Add skill proficiency" }))
-    await waitFor(() => expect(screen.getByRole("menuitem", { name: "STEALTH" })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole("menuitem", { name: /STEALTH/ })).toBeInTheDocument())
   })
 
   it("has no accessibility violations", async () => {

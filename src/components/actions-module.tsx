@@ -10,7 +10,7 @@ import ChevronDown from "lucide-solid/icons/chevron-down"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, DAMAGE_TYPE_OPTIONS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -82,10 +82,7 @@ interface ActionFormProps {
   onCancel: () => void
 }
 
-const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
-
 const ACTION_TYPE_LABELS = ACTION_TYPES.map((t) => t.label)
-const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
 
 function ActionForm(props: ActionFormProps) {
   const kindLabel = KIND_LABELS[props.kind]

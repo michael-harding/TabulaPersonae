@@ -40,6 +40,19 @@ describe("Select", () => {
     expect(screen.getByRole("listbox")).toBeInTheDocument()
   })
 
+  // Production builds strip `data-sem` (CONSTITUTION.md §6.9), so the trigger must be recognised
+  // as inside the select without it. Removing the attributes here reproduces the production DOM.
+  it("closes on a second click of the trigger with data-sem stripped, as in production", () => {
+    renderSelect()
+    document.querySelectorAll("[data-sem]").forEach((el) => el.removeAttribute("data-sem"))
+    const trigger = screen.getByRole("button", { name: "Class" })
+    const realClick = () => { fireEvent.mouseDown(trigger); fireEvent.click(trigger) }
+    realClick()
+    expect(screen.getByRole("listbox")).toBeInTheDocument()
+    realClick()
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+  })
+
   it("still closes on a mousedown outside the select", () => {
     renderSelect()
     fireEvent.click(screen.getByRole("button", { name: "Class" }))

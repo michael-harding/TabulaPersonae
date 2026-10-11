@@ -301,11 +301,8 @@ function LevelEffectRow(props: {
   const effects = () => props.tier.effects
   const update = (patch: Partial<FeatureEffects>) => props.onEffectsChange({ ...effects(), ...patch })
 
-  const addTo = (key: StringListEffectKey, value: string) => update({ [key]: [...(effects()[key] ?? []), value] })
-  const removeFrom = (key: StringListEffectKey, value: string) => {
-    const next = (effects()[key] ?? []).filter((v) => v !== value)
-    update({ [key]: next.length > 0 ? next : undefined })
-  }
+  // An emptied list is stored as absent rather than as [], like every other unset effect.
+  const setList = (key: StringListEffectKey, values: string[]) => update({ [key]: values.length > 0 ? values : undefined })
 
   const toggleSave = (ability: keyof AbilityScores) => {
     const current = effects().savingThrowProficiencies ?? []
@@ -313,12 +310,10 @@ function LevelEffectRow(props: {
     update({ savingThrowProficiencies: next.length > 0 ? next : undefined })
   }
 
-  const addSkill = (skill: keyof Skills) => {
+  // Keeps each remaining skill's expertise flag; a newly added skill starts without it.
+  const setSkills = (skills: (keyof Skills)[]) => {
     const current = effects().skillProficiencies ?? []
-    update({ skillProficiencies: [...current, { skill, expertise: false }] })
-  }
-  const removeSkill = (skill: keyof Skills) => {
-    const next = (effects().skillProficiencies ?? []).filter((g) => g.skill !== skill)
+    const next = skills.map((skill) => current.find((g) => g.skill === skill) ?? { skill, expertise: false })
     update({ skillProficiencies: next.length > 0 ? next : undefined })
   }
   const toggleSkillExpertise = (skill: keyof Skills) => {
@@ -373,13 +368,12 @@ function LevelEffectRow(props: {
           options={SKILL_KEYS}
           optionLabel={(skill) => SKILL_DISPLAY_NAMES[skill]}
           values={(effects().skillProficiencies ?? []).map((g) => g.skill)}
-          onAdd={addSkill}
-          onRemove={removeSkill}
-          renderChip={(skill) => (
+          onChange={setSkills}
+          renderChip={(skill, remove) => (
             <CheckableChip
               data-test={`level-effect-${props.index}-skill-${skill}`}
               removeLabel={`Remove ${SKILL_DISPLAY_NAMES[skill]}`}
-              onRemove={() => removeSkill(skill)}
+              onRemove={remove}
               checkLabel="Exp"
               checkAriaLabel={`Expertise for ${SKILL_DISPLAY_NAMES[skill]}`}
               checked={(effects().skillProficiencies ?? []).find((g) => g.skill === skill)?.expertise ?? false}
@@ -398,8 +392,7 @@ function LevelEffectRow(props: {
           data-test={`level-effect-${props.index}-other-proficiency`}
           placeholder="e.g. Light Armor"
           values={effects().otherProficiencies ?? []}
-          onAdd={(v) => addTo('otherProficiencies', v)}
-          onRemove={(v) => removeFrom('otherProficiencies', v)}
+          onChange={(next) => setList('otherProficiencies', next)}
         />
       </Show>
 
@@ -461,8 +454,7 @@ function LevelEffectRow(props: {
             data-test={`level-effect-${props.index}-resistance`}
             options={DAMAGE_TYPE_OPTIONS}
             values={effects().resistances ?? []}
-            onAdd={(v) => addTo('resistances', v)}
-            onRemove={(v) => removeFrom('resistances', v)}
+            onChange={(next) => setList('resistances', next)}
           />
           <ChipListEditor
             label="Damage Immunities"
@@ -470,8 +462,7 @@ function LevelEffectRow(props: {
             data-test={`level-effect-${props.index}-immunity`}
             options={DAMAGE_TYPE_OPTIONS}
             values={effects().immunities ?? []}
-            onAdd={(v) => addTo('immunities', v)}
-            onRemove={(v) => removeFrom('immunities', v)}
+            onChange={(next) => setList('immunities', next)}
           />
           <ChipListEditor
             label="Damage Vulnerabilities"
@@ -479,8 +470,7 @@ function LevelEffectRow(props: {
             data-test={`level-effect-${props.index}-vulnerability`}
             options={DAMAGE_TYPE_OPTIONS}
             values={effects().vulnerabilities ?? []}
-            onAdd={(v) => addTo('vulnerabilities', v)}
-            onRemove={(v) => removeFrom('vulnerabilities', v)}
+            onChange={(next) => setList('vulnerabilities', next)}
           />
         </div>
       </Show>
@@ -492,8 +482,7 @@ function LevelEffectRow(props: {
             data-test={`level-effect-${props.index}-condition-immunity`}
             options={CONDITIONS}
             values={effects().conditionImmunities ?? []}
-            onAdd={(v) => addTo('conditionImmunities', v)}
-            onRemove={(v) => removeFrom('conditionImmunities', v)}
+            onChange={(next) => setList('conditionImmunities', next)}
           />
       </Show>
 
@@ -504,8 +493,7 @@ function LevelEffectRow(props: {
           data-test={`level-effect-${props.index}-language`}
           placeholder="e.g. Elvish"
           values={effects().languages ?? []}
-          onAdd={(v) => addTo('languages', v)}
-          onRemove={(v) => removeFrom('languages', v)}
+          onChange={(next) => setList('languages', next)}
         />
       </Show>
 

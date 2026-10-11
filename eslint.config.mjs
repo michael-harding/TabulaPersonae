@@ -2,6 +2,14 @@ import tseslint from 'typescript-eslint'
 import solid from 'eslint-plugin-solid'
 import importX from 'eslint-plugin-import-x'
 
+// CONSTITUTION.md §6.7: strict equality against only one of null/undefined lets the
+// other slip through (e.g. `null` from imported JSON passing a `!== undefined` check).
+// `== null` / `!= null` / `??` cover both.
+const NULLISH_STRICT_EQUALITY = {
+  selector: "BinaryExpression:matches([operator='==='], [operator='!==']) > :matches(Literal[raw='null'], Identifier[name='undefined'])",
+  message: 'Use `== null` / `!= null` (or `??`) to check for nullish values; strict equality misses either null or undefined.',
+}
+
 export default tseslint.config(
   {
     ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'tests/visual/__snapshots__/**'],
@@ -61,12 +69,20 @@ export default tseslint.config(
       // augment Solid's JSX.Directives for a custom directive (see TabSettings.tsx) —
       // not a stray namespace that should be ES modules.
       '@typescript-eslint/no-namespace': ['error', { allowDeclarations: true }],
-      // CONSTITUTION.md §6.7: strict equality against only one of null/undefined lets the
-      // other slip through (e.g. `null` from imported JSON passing a `!== undefined` check).
-      // `== null` / `!= null` / `??` cover both.
-      'no-restricted-syntax': ['error', {
-        selector: "BinaryExpression:matches([operator='==='], [operator='!==']) > :matches(Literal[raw='null'], Identifier[name='undefined'])",
-        message: 'Use `== null` / `!= null` (or `??`) to check for nullish values; strict equality misses either null or undefined.',
+      'no-restricted-syntax': ['error', NULLISH_STRICT_EQUALITY],
+    },
+  },
+  {
+    // CONSTITUTION.md §6.8–9: `data-test` and `data-sem` are stripped from production builds, so
+    // app code that looks an element up by either works in dev and tests and silently fails in
+    // production. Tests are exempt — selecting by `data-test` is what the attribute is for.
+    // Repeats the nullish rule because a later `no-restricted-syntax` replaces the earlier one.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/tests/**'],
+    rules: {
+      'no-restricted-syntax': ['error', NULLISH_STRICT_EQUALITY, {
+        selector: ':matches(Literal[value=/\\[data-(test|sem)/], TemplateElement[value.raw=/\\[data-(test|sem)/])',
+        message: '`data-test` and `data-sem` are stripped from production builds; hold a ref to the element instead of selecting by them.',
       }],
     },
   },

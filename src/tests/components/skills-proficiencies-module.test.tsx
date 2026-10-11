@@ -946,12 +946,29 @@ describe("SkillsProficienciesModule", () => {
       )
     })
 
-    it("restricts damage types to the rules list — there is no free-text input", () => {
+    it("offers the rules list first — the free-text input stays hidden until Custom… is picked", () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.queryByRole("textbox", { name: "New resistance" })).not.toBeInTheDocument()
       expect(screen.queryByRole("textbox", { name: "New immunity" })).not.toBeInTheDocument()
       expect(screen.queryByRole("textbox", { name: "New vulnerability" })).not.toBeInTheDocument()
+    })
+
+    it.each([
+      ["resistance", "damageResistances"],
+      ["immunity", "damageImmunities"],
+      ["vulnerability", "damageVulnerabilities"],
+    ] as const)("adds a custom %s that is not in the rules list, through Custom…", async (itemLabel, field) => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      clickEditButton()
+      await user.click(screen.getByRole("button", { name: `Add ${itemLabel}` }))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Custom…" })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name: "Custom…" }))
+      await user.type(await screen.findByRole("textbox", { name: `New ${itemLabel}` }), "Nonmagical Bludgeoning{Enter}")
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ [field]: ["Nonmagical Bludgeoning"] }))
     })
 
     it("keeps a previously typed off-list resistance, still removable", () => {

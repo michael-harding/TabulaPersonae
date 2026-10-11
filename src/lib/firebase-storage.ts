@@ -8,6 +8,8 @@ import {
   addDoc,
   setDoc,
   deleteDoc,
+  deleteField,
+  FieldPath,
   onSnapshot,
   query,
   where,
@@ -23,6 +25,11 @@ import type { UserTabConfig } from './tab-config-types';
 
 const CHARACTERS_COLLECTION = 'characters';
 
+// The top-level fields each character's document held when this client last read or wrote it.
+// A save uses it to tell a field the user has cleared since (delete it) from one this client has
+// never seen — set by another device or a newer app version — which must be left alone.
+const knownFields = new Map<string, Set<string>>();
+
 export async function saveCharacterToFirebase(character: Character, userId: string): Promise<boolean> {
   try {
     const rawData = { ...character, userId };
@@ -33,10 +40,29 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
 
     if (character.id) {
       const characterRef = doc(db, CHARACTERS_COLLECTION, character.id);
-      // Whole-document overwrite, not `merge`: the JSON round-trip above drops cleared
-      // (undefined) fields, and a merge would leave their stale values in Firestore —
-      // including keys removed from nested maps, which merge deep-merges.
-      await setDoc(characterRef, characterData);
+      const written = Object.keys(characterData);
+      const previous = knownFields.get(character.id) ?? new Set<string>();
+      // The JSON round-trip above drops cleared (undefined) fields, so they have to be deleted
+      // explicitly or their old values would stay in Firestore.
+      const cleared = [...previous].filter((field) => !(field in characterData));
+      for (const field of cleared) characterData[field] = deleteField();
+
+      // Recorded before the write settles: offline it stays pending until the server answers,
+      // and a save made meanwhile must already count these fields as present.
+      knownFields.set(character.id, new Set(written));
+      try {
+        // A mask of top-level fields rather than `merge: true` or a plain overwrite: each listed
+        // field is replaced whole (`merge` deep-merges nested maps, keeping keys removed from
+        // them), and fields not listed are untouched (an overwrite would drop them). FieldPath
+        // keeps a field name containing a dot from being read as a nested path.
+        await setDoc(characterRef, characterData, {
+          mergeFields: [...written, ...cleared].map((field) => new FieldPath(field)),
+        });
+      } catch (error) {
+        // The deletes may not have been applied, so keep those fields on record to retry.
+        knownFields.set(character.id, new Set([...previous, ...written]));
+        throw error;
+      }
     } else {
       const newCharacterData = {
         ...characterData,
@@ -44,6 +70,7 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
       };
       const docRef = await addDoc(collection(db, CHARACTERS_COLLECTION), newCharacterData);
       character.id = docRef.id;
+      knownFields.set(docRef.id, new Set(Object.keys(newCharacterData)));
     }
 
     return true;
@@ -68,6 +95,7 @@ export async function getCharactersFromFirebase(userId: string): Promise<Charact
 
     querySnapshot.forEach((doc) => {
       const data = doc.data();
+      knownFields.set(doc.id, new Set(Object.keys(data)));
       characters.push(migrateCharacter({
         ...data,
         id: doc.id,
@@ -95,6 +123,7 @@ export async function getCharacterFromFirebase(id: string, userId: string): Prom
         return null;
       }
 
+      knownFields.set(characterSnap.id, new Set(Object.keys(data)));
       return migrateCharacter({
         ...data,
         id: characterSnap.id,
@@ -187,6 +216,7 @@ export async function deleteCharacterFromFirebase(id: string, userId: string): P
   try {
     const characterRef = doc(db, CHARACTERS_COLLECTION, id);
     await deleteDoc(characterRef);
+    knownFields.delete(id);
     return true;
   } catch (error) {
     console.error('Failed to delete character from Firebase:', error);

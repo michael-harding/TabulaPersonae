@@ -4,7 +4,8 @@ import { Button, type ButtonProps } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 // Clicks arriving sooner than this after arming are treated as the tail of an accidental double
-// click (or an auto-repeating Enter key) rather than a deliberate confirmation.
+// click rather than a deliberate confirmation. A held key is not covered by this — its repeats
+// can start after the window — so auto-repeated keydowns are swallowed in onKeyDown instead.
 export const CONFIRM_GUARD_MS = 500
 // An armed button reverts on its own so a forgotten "Confirm" can't be hit much later by accident.
 export const CONFIRM_TIMEOUT_MS = 4000
@@ -83,8 +84,15 @@ export function ConfirmButton(props: ConfirmButtonProps) {
       onClick={handleClick}
       onKeyDown={(e: KeyboardEvent) => {
         if (e.key === "Escape" && armed()) {
-          e.stopPropagation()
+          e.preventDefault()
+          // Only this button should react, not a surrounding Modal. The Modal's Escape handling is
+          // its own document-level listener, which stopPropagation from Solid's delegated
+          // (also document-level) handler can't block — see SelectTrigger for the same case.
+          e.stopImmediatePropagation()
           disarm()
+        } else if (e.repeat && (e.key === "Enter" || e.key === " ")) {
+          // A held key must not click again: one press arms, a separate press confirms.
+          e.preventDefault()
         }
       }}
       onFocusOut={() => disarm()}

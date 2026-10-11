@@ -150,24 +150,14 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     hpPercentage, hpColor, tempHpWidth, tempHpLeft,
   } = useHpDisplay(() => props.character)
 
-  const toggleCondition = (condition: string) => {
+  const setConditions = (conditions: string[]) => {
     if (isReadOnly) return
-    const current = props.character.conditions ?? []
-    const next = current.includes(condition)
-      ? current.filter((c) => c !== condition)
-      : [...current, condition]
-    const updated = { ...props.character, conditions: next }
-    props.onUpdate(updated)
+    props.onUpdate({ ...props.character, conditions })
   }
 
-  const toggleConditionImmunity = (condition: string) => {
+  const setConditionImmunities = (conditionImmunities: string[]) => {
     if (isReadOnly) return
-    const own = props.character.conditionImmunities ?? []
-    const next = own.includes(condition)
-      ? own.filter((c) => c !== condition)
-      : [...own, condition]
-    const updated = { ...props.character, conditionImmunities: next }
-    props.onUpdate(updated)
+    props.onUpdate({ ...props.character, conditionImmunities })
   }
 
   const effectiveConditionImmunities = createMemo(() => getEffectiveConditionImmunities(props.character))
@@ -457,8 +447,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           editing={!isReadOnly}
           options={CONDITIONS}
           values={props.character.conditions ?? []}
-          onAdd={toggleCondition}
-          onRemove={toggleCondition}
+          onChange={setConditions}
         />
 
         {/* Condition Immunities */}
@@ -476,8 +465,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             const source = effectiveConditionImmunities().grantedBy[condition]
             return source === "equipment" ? "Granted by an equipped item" : `Granted by ${source} — edit in Features`
           }}
-          onAdd={toggleConditionImmunity}
-          onRemove={toggleConditionImmunity}
+          onChange={setConditionImmunities}
         />
 
         {/* Other Combat Stats */}

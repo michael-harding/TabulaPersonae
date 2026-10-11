@@ -439,8 +439,7 @@ function EquipmentForm(props: EquipmentFormProps) {
             options={SKILL_KEYS.filter((k) => !formData.modifierSkillDisadvantage.includes(k))}
             optionLabel={(k) => SKILL_DISPLAY_NAMES[k]}
             values={formData.modifierSkillAdvantage}
-            onAdd={(k) => setFormData("modifierSkillAdvantage", SKILL_KEYS.filter((s) => s === k || formData.modifierSkillAdvantage.includes(s)))}
-            onRemove={(k) => setFormData("modifierSkillAdvantage", formData.modifierSkillAdvantage.filter((s) => s !== k))}
+            onChange={(next) => setFormData("modifierSkillAdvantage", SKILL_KEYS.filter((skill) => next.includes(skill)))}
           />
           <ChipListEditor
             label="Grants Disadvantage On"
@@ -450,8 +449,7 @@ function EquipmentForm(props: EquipmentFormProps) {
             options={SKILL_KEYS.filter((k) => !formData.modifierSkillAdvantage.includes(k))}
             optionLabel={(k) => SKILL_DISPLAY_NAMES[k]}
             values={formData.modifierSkillDisadvantage}
-            onAdd={(k) => setFormData("modifierSkillDisadvantage", SKILL_KEYS.filter((s) => s === k || formData.modifierSkillDisadvantage.includes(s)))}
-            onRemove={(k) => setFormData("modifierSkillDisadvantage", formData.modifierSkillDisadvantage.filter((s) => s !== k))}
+            onChange={(next) => setFormData("modifierSkillDisadvantage", SKILL_KEYS.filter((skill) => next.includes(skill)))}
           />
         </div>
       </ModifierGroup>
@@ -632,8 +630,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                 itemLabel="language"
                 placeholder="Add language"
                 values={formData.modifierLanguages}
-                onAdd={(v) => setFormData("modifierLanguages", [...formData.modifierLanguages, v])}
-                onRemove={(v) => setFormData("modifierLanguages", formData.modifierLanguages.filter((x) => x !== v))}
+                onChange={(next) => setFormData("modifierLanguages", next)}
                 data-test="modifier-languages"
               />
               <ChipListEditor
@@ -641,8 +638,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                 itemLabel="proficiency"
                 placeholder="Add proficiency (weapons, tools, etc.)"
                 values={formData.modifierProficiencies}
-                onAdd={(v) => setFormData("modifierProficiencies", [...formData.modifierProficiencies, v])}
-                onRemove={(v) => setFormData("modifierProficiencies", formData.modifierProficiencies.filter((x) => x !== v))}
+                onChange={(next) => setFormData("modifierProficiencies", next)}
                 data-test="modifier-proficiencies"
               />
             </ModifierGroup>
@@ -697,8 +693,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                   emptyText="None"
                   options={DAMAGE_TYPE_OPTIONS}
                   values={formData.modifierResistances}
-                  onAdd={(v) => setFormData("modifierResistances", [...formData.modifierResistances, v])}
-                  onRemove={(v) => setFormData("modifierResistances", formData.modifierResistances.filter((x) => x !== v))}
+                  onChange={(next) => setFormData("modifierResistances", next)}
                 />
                 <ChipListEditor
                   label="Damage Immunities"
@@ -707,8 +702,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                   emptyText="None"
                   options={DAMAGE_TYPE_OPTIONS}
                   values={formData.modifierImmunities}
-                  onAdd={(v) => setFormData("modifierImmunities", [...formData.modifierImmunities, v])}
-                  onRemove={(v) => setFormData("modifierImmunities", formData.modifierImmunities.filter((x) => x !== v))}
+                  onChange={(next) => setFormData("modifierImmunities", next)}
                 />
                 <ChipListEditor
                   label="Damage Vulnerabilities"
@@ -717,8 +711,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                   emptyText="None"
                   options={DAMAGE_TYPE_OPTIONS}
                   values={formData.modifierVulnerabilities}
-                  onAdd={(v) => setFormData("modifierVulnerabilities", [...formData.modifierVulnerabilities, v])}
-                  onRemove={(v) => setFormData("modifierVulnerabilities", formData.modifierVulnerabilities.filter((x) => x !== v))}
+                  onChange={(next) => setFormData("modifierVulnerabilities", next)}
                 />
                 <ChipListEditor
                   label="Condition Immunities"
@@ -727,8 +720,7 @@ function EquipmentForm(props: EquipmentFormProps) {
                   emptyText="None"
                   options={CONDITIONS}
                   values={formData.modifierConditionImmunities}
-                  onAdd={(v) => setFormData("modifierConditionImmunities", [...formData.modifierConditionImmunities, v])}
-                  onRemove={(v) => setFormData("modifierConditionImmunities", formData.modifierConditionImmunities.filter((x) => x !== v))}
+                  onChange={(next) => setFormData("modifierConditionImmunities", next)}
                 />
               </div>
             </ModifierGroup>

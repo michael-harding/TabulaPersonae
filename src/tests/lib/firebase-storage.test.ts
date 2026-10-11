@@ -11,6 +11,11 @@ vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(),
   setDoc: vi.fn(),
   deleteDoc: vi.fn(),
+  deleteField: () => '__delete__',
+  FieldPath: class MockFieldPath {
+    segments: string[]
+    constructor(...segments: string[]) { this.segments = segments }
+  },
   onSnapshot: vi.fn(),
   Timestamp: class MockTimestamp {
     seconds: number; nanoseconds: number
@@ -68,20 +73,105 @@ function makeDocSnap(exists: boolean, data?: object) {
 describe('saveCharacterToFirebase', () => {
   beforeEach(() => {
     mockSetDoc.mockReset()
+    mockGetDoc.mockReset()
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
   })
 
-  it('overwrites the whole document rather than merging, so stale fields cannot survive', async () => {
-    await saveCharacterToFirebase({ ...createDefaultCharacter(), id: 'char-1' }, userId)
-    expect(mockSetDoc).toHaveBeenCalledTimes(1)
-    expect(mockSetDoc.mock.calls[0]).toHaveLength(2)
+  // Each test uses its own character id: the module remembers, per character, which fields the
+  // document held when it was last read or written.
+  const character = (id: string, extra: Record<string, unknown> = {}) =>
+    ({ ...createDefaultCharacter(), id, ...extra })
+
+  // `unknown`: a hand-built stand-in for Firestore's DocumentSnapshot, of which the code under
+  // test only uses exists(), id and data().
+  const docSnap = (id: string, data: Record<string, unknown>) =>
+    ({ exists: () => true, id, data: () => data }) as unknown as Awaited<ReturnType<typeof getDoc>>
+
+  const load = async (id: string, data: Record<string, unknown>) => {
+    mockGetDoc.mockResolvedValue(docSnap(id, { userId, ...data }))
+    await getCharacterFromFirebase(id, userId)
+  }
+
+  // The write as Firestore sees it: the document, and the names in its top-level field mask.
+  const lastWrite = () => {
+    const [, written, options] = mockSetDoc.mock.calls.at(-1)! as unknown as
+      [unknown, Record<string, unknown>, { merge?: boolean; mergeFields: { segments: string[] }[] }]
+    return { written, options, mask: options.mergeFields.map((field) => field.segments.join('|')) }
+  }
+
+  it('writes with a top-level field mask covering exactly the fields it sends, not a deep merge', async () => {
+    await saveCharacterToFirebase(character('mask-1'), userId)
+    const { written, options, mask } = lastWrite()
+    expect(options.merge).toBeUndefined()
+    expect([...mask].sort()).toEqual(Object.keys(written).sort())
+    expect(mask).toEqual(expect.arrayContaining(['name', 'abilityScores', 'userId', 'updatedAt']))
   })
 
-  it('omits a cleared field from the written document', async () => {
-    await saveCharacterToFirebase({ ...createDefaultCharacter(), id: 'char-1', sheetColor: undefined }, userId)
-    const written = mockSetDoc.mock.calls[0][1] as Record<string, unknown>
-    expect('sheetColor' in written).toBe(false)
-    expect(written.userId).toBe(userId)
-    expect(written.updatedAt).toBeDefined()
+  it('names each field as a single path segment, so a key containing a dot is not split', async () => {
+    await load('mask-2', { 'legacy.key': 1 })
+    await saveCharacterToFirebase(character('mask-2'), userId)
+    expect(lastWrite().mask).toContain('legacy.key')
+  })
+
+  it('deletes a field the document held when loaded and the character no longer has', async () => {
+    await load('clear-1', { name: 'Thorin', sheetColor: '#ff0000' })
+    await saveCharacterToFirebase(character('clear-1', { sheetColor: undefined }), userId)
+    const { written, mask } = lastWrite()
+    expect(written.sheetColor).toBe('__delete__')
+    expect(mask).toContain('sheetColor')
+  })
+
+  it('leaves alone a field it has never seen, such as one another device added', async () => {
+    await load('unseen-1', { name: 'Thorin' })
+    // Another device sets isPublic after this client loaded; this client's copy has no such key.
+    await saveCharacterToFirebase(character('unseen-1'), userId)
+    const { written, mask } = lastWrite()
+    expect(mask).not.toContain('isPublic')
+    expect('isPublic' in written).toBe(false)
+  })
+
+  it('deletes nothing when the character was never loaded in this session', async () => {
+    await saveCharacterToFirebase(character('cold-1', { sheetColor: undefined }), userId)
+    const { written, mask } = lastWrite()
+    expect(Object.values(written)).not.toContain('__delete__')
+    expect(mask).not.toContain('sheetColor')
+  })
+
+  it('deletes a field cleared between two saves, and sends that delete only once', async () => {
+    await saveCharacterToFirebase(character('twice-1', { sheetColor: '#ff0000' }), userId)
+    await saveCharacterToFirebase(character('twice-1', { sheetColor: undefined }), userId)
+    expect(lastWrite().written.sheetColor).toBe('__delete__')
+    await saveCharacterToFirebase(character('twice-1', { sheetColor: undefined }), userId)
+    expect(lastWrite().mask).not.toContain('sheetColor')
+  })
+
+  // Offline, a write stays pending until the server acknowledges it, so the next save cannot
+  // wait for the previous one to settle before working out what has been cleared.
+  it('deletes a field cleared while the save that added it is still pending', async () => {
+    mockSetDoc.mockReturnValue(new Promise(() => {}))
+    void saveCharacterToFirebase(character('pending-1', { sheetColor: '#ff0000' }), userId)
+    void saveCharacterToFirebase(character('pending-1', { sheetColor: undefined }), userId)
+    await Promise.resolve()
+    expect(mockSetDoc).toHaveBeenCalledTimes(2)
+    expect(lastWrite().written.sheetColor).toBe('__delete__')
+  })
+
+  it('still deletes a cleared field on the next save when the write that cleared it failed', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await load('failed-1', { name: 'Thorin', sheetColor: '#ff0000' })
+    mockSetDoc.mockRejectedValueOnce(new Error('permission-denied'))
+    expect(await saveCharacterToFirebase(character('failed-1', { sheetColor: undefined }), userId)).toBe(false)
+    mockSetDoc.mockResolvedValue(undefined)
+    await saveCharacterToFirebase(character('failed-1', { sheetColor: undefined }), userId)
+    expect(lastWrite().written.sheetColor).toBe('__delete__')
+    consoleError.mockRestore()
+  })
+
+  it('does not treat another user\'s document as loaded', async () => {
+    mockGetDoc.mockResolvedValue(docSnap('foreign-1', { userId: 'someone-else', sheetColor: '#ff0000' }))
+    expect(await getCharacterFromFirebase('foreign-1', userId)).toBeNull()
+    await saveCharacterToFirebase(character('foreign-1', { sheetColor: undefined }), userId)
+    expect(lastWrite().mask).not.toContain('sheetColor')
   })
 })
 

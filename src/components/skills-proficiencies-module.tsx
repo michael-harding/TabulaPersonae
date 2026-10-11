@@ -2,7 +2,7 @@ import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
 
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, SKILL_ABILITY_MAP, SKILL_DISPLAY_NAMES, ABILITY_DISPLAY_NAMES, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { ChipListEditor } from "@/components/ui/chip-list-editor"
@@ -14,31 +14,8 @@ import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
-const SKILL_ABILITY_MAP: Record<keyof Character["skills"], keyof Character["abilityScores"]> = {
-  acrobatics: "dexterity", animalHandling: "wisdom", arcana: "intelligence",
-  athletics: "strength", deception: "charisma", history: "intelligence",
-  insight: "wisdom", intimidation: "charisma", investigation: "intelligence",
-  medicine: "wisdom", nature: "intelligence", perception: "wisdom",
-  performance: "charisma", persuasion: "charisma", religion: "intelligence",
-  sleightOfHand: "dexterity", stealth: "dexterity", survival: "wisdom",
-}
-
-const ABILITY_DISPLAY_NAMES: Record<keyof Character["abilityScores"], string> = {
-  strength: "Strength", dexterity: "Dexterity", constitution: "Constitution",
-  intelligence: "Intelligence", wisdom: "Wisdom", charisma: "Charisma",
-}
-
 // The Prof/Exp pills are the same compact shape whether displayed (Chip) or toggled (ToggleChip).
 const COMPACT_PILL = "text-xs px-1 py-0"
-
-const SKILL_DISPLAY_NAMES: Record<keyof Character["skills"], string> = {
-  acrobatics: "Acrobatics", animalHandling: "Animal Handling", arcana: "Arcana",
-  athletics: "Athletics", deception: "Deception", history: "History",
-  insight: "Insight", intimidation: "Intimidation", investigation: "Investigation",
-  medicine: "Medicine", nature: "Nature", perception: "Perception",
-  performance: "Performance", persuasion: "Persuasion", religion: "Religion",
-  sleightOfHand: "Sleight of Hand", stealth: "Stealth", survival: "Survival",
-}
 
 type AbilityKey = keyof Character["abilityScores"]
 type SkillKey = keyof Character["skills"]
@@ -241,11 +218,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
 
   type TagListField = "languages" | "otherProficiencies" | "damageResistances" | "damageImmunities" | "damageVulnerabilities"
 
-  const addTag = (field: TagListField, value: string) => {
-    setEdited((prev) => ({ ...prev, [field]: [...(prev[field] ?? []), value] }))
-  }
-  const removeTag = (field: TagListField, value: string) => {
-    setEdited((prev) => ({ ...prev, [field]: (prev[field] ?? []).filter((v) => v !== value) }))
+  const setTags = (field: TagListField, values: string[]) => {
+    setEdited((prev) => ({ ...prev, [field]: values }))
   }
 
   return (
@@ -461,6 +435,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             label="Damage Resistances"
             itemLabel="resistance"
             options={DAMAGE_TYPE_OPTIONS}
+            allowCustom
             emptyText="No resistances"
             values={effectiveDamageResistances().own}
             grantedValues={effectiveDamageResistances().granted}
@@ -469,8 +444,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
               return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
             }}
             editing={isEditing()}
-            onAdd={(v) => addTag("damageResistances", v)}
-            onRemove={(v) => removeTag("damageResistances", v)}
+            onChange={(next) => setTags("damageResistances", next)}
           />
           <ChipListEditor
             heading
@@ -479,6 +453,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             label="Damage Immunities"
             itemLabel="immunity"
             options={DAMAGE_TYPE_OPTIONS}
+            allowCustom
             emptyText="No immunities"
             values={effectiveDamageImmunities().own}
             grantedValues={effectiveDamageImmunities().granted}
@@ -487,8 +462,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
               return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
             }}
             editing={isEditing()}
-            onAdd={(v) => addTag("damageImmunities", v)}
-            onRemove={(v) => removeTag("damageImmunities", v)}
+            onChange={(next) => setTags("damageImmunities", next)}
           />
           <ChipListEditor
             heading
@@ -497,6 +471,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             label="Damage Vulnerabilities"
             itemLabel="vulnerability"
             options={DAMAGE_TYPE_OPTIONS}
+            allowCustom
             emptyText="No vulnerabilities"
             values={effectiveDamageVulnerabilities().own}
             grantedValues={effectiveDamageVulnerabilities().granted}
@@ -505,8 +480,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
               return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
             }}
             editing={isEditing()}
-            onAdd={(v) => addTag("damageVulnerabilities", v)}
-            onRemove={(v) => removeTag("damageVulnerabilities", v)}
+            onChange={(next) => setTags("damageVulnerabilities", next)}
           />
         </div>
 
@@ -527,8 +501,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
           }}
           editing={isEditing()}
-          onAdd={(v) => addTag("languages", v)}
-          onRemove={(v) => removeTag("languages", v)}
+          onChange={(next) => setTags("languages", next)}
         />
 
         <Separator />
@@ -549,8 +522,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
           }}
           editing={isEditing()}
-          onAdd={(v) => addTag("otherProficiencies", v)}
-          onRemove={(v) => removeTag("otherProficiencies", v)}
+          onChange={(next) => setTags("otherProficiencies", next)}
         />
 
     </EditableModule>

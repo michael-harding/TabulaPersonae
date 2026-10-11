@@ -6,6 +6,8 @@ import Check from "lucide-solid/icons/check"
 import { cn, TOUCH_TARGET, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & {
+  /** Page-unique. Lands on the checkbox root; the visible square is `${data-test}-control`. */
+  "data-test": string
   class?: string
   label?: JSX.Element
   labelClass?: string
@@ -56,7 +58,7 @@ export function Checkbox(props: CheckboxProps) {
           fills that box (ACCESSIBILITY.md touch targets), so neighbouring checkboxes can't overlap. */}
       <span class={TOUCH_TARGET_BOX}>
       <CheckboxPrimitive.Control
-        data-test={inputAttrs.id ? `checkbox-control-${inputAttrs.id}` : "checkbox-control"}
+        data-test={`${props["data-test"]}-control`}
         class={cn(
           TOUCH_TARGET,
           "peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 data-[checked]:bg-primary data-[checked]:text-primary-foreground",

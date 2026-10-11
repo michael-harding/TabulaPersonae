@@ -9,6 +9,7 @@ import {
   formatModifier,
   SKILL_ABILITY_MAP,
   SKILL_DISPLAY_NAMES,
+  normalizeDamageTypes,
   parseHitDiceSize,
   rollHitDice,
   getEquippedWeaponAttacks,
@@ -2051,5 +2052,28 @@ describe("reconcileEquipmentRest", () => {
     expect(longRest.quantity).toBe(0)
     expect(longRest.consumedUses).toBe(0)
     expect(longRest.charges).toBe(0) // matching rest type resets charges too, independent of the quantity effect above
+  })
+})
+
+describe("normalizeDamageTypes", () => {
+  it("re-cases a standard damage type typed in any case", () => {
+    expect(normalizeDamageTypes(["fire", "COLD", "nEcRoTiC"])).toEqual(["Fire", "Cold", "Necrotic"])
+  })
+
+  it("keeps a value that is not a standard damage type exactly as typed", () => {
+    expect(normalizeDamageTypes(["Nonmagical Bludgeoning", "silvered"])).toEqual(["Nonmagical Bludgeoning", "silvered"])
+  })
+
+  it("drops duplicates that differ only by case or surrounding space, keeping the first", () => {
+    expect(normalizeDamageTypes(["fire", "Fire", " fire ", "Homebrew", "homebrew"])).toEqual(["Fire", "Homebrew"])
+  })
+
+  it("drops blank values", () => {
+    expect(normalizeDamageTypes(["", "  ", "Fire"])).toEqual(["Fire"])
+  })
+
+  it("returns the same array when nothing needs to change, so callers can tell", () => {
+    const values = ["Fire", "Nonmagical Bludgeoning"]
+    expect(normalizeDamageTypes(values)).toBe(values)
   })
 })

@@ -1,9 +1,17 @@
+import { createSignal } from "solid-js"
 import { axe } from "vitest-axe"
 
 import Layout from "@/components/layout"
 import { useSyncState } from "@/lib/sync-context"
 
 import { render, screen, cleanupPortals } from "../test-utils"
+
+// The shared router mock in setup.tsx returns a fixed location; route-change focus needs one
+// that can change, so this file backs `pathname` with a signal the tests drive.
+const [pathname, setPathname] = createSignal("/")
+vi.mock("@solidjs/router", () => ({
+  useLocation: () => ({ get pathname() { return pathname() } }),
+}))
 
 function SyncConsumer() {
   const ctx = useSyncState()
@@ -14,6 +22,7 @@ describe("Layout", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     cleanupPortals()
+    setPathname("/")
   })
 
   it("renders children inside a main element", () => {
@@ -34,6 +43,23 @@ describe("Layout", () => {
     // an outline drawn around the entire page content after every navigation.
     expect(main).toHaveAttribute("tabindex", "-1")
     expect(main).toHaveClass("focus:outline-none")
+  })
+
+  it("does not take focus on initial mount", () => {
+    render(<Layout>{null}</Layout>)
+    expect(screen.getByRole("main")).not.toHaveFocus()
+  })
+
+  // Focusing an element scrolls it into view by default, which on history Back would override
+  // the scroll position the browser had just restored.
+  it("moves focus to main on a route change without scrolling the page", () => {
+    render(<Layout>{null}</Layout>)
+    const main = screen.getByRole("main")
+    const focus = vi.spyOn(main, "focus")
+    setPathname("/settings/tabs")
+    expect(main).toHaveFocus()
+    expect(focus).toHaveBeenCalledTimes(1)
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
   })
 
   it("renders the footer copyright and license text", () => {

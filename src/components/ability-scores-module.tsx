@@ -2,7 +2,7 @@ import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import Zap from "lucide-solid/icons/zap"
 
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, getAbilityScoreBaseMax, ABILITY_ABBREVIATIONS, ABILITY_TITLE_CASE } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, getAbilityScoreBaseMax, ABILITY_ABBREVIATIONS, ABILITY_TITLE_CASE, ABILITY_DISPLAY_NAMES, ABILITY_KEYS } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -16,15 +16,8 @@ interface AbilityScoresModuleProps {
   onUpdate: (character: Character) => void
 }
 
-const ABILITY_NAMES = {
-  strength: "Strength", dexterity: "Dexterity", constitution: "Constitution",
-  intelligence: "Intelligence", wisdom: "Wisdom", charisma: "Charisma",
-} as const
-
 const DEFAULT_SCORES = { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 }
 const DEFAULT_SAVES = { strength: false, dexterity: false, constitution: false, intelligence: false, wisdom: false, charisma: false }
-
-type AbilityKey = keyof typeof DEFAULT_SCORES
 
 export function AbilityScoresModule(props: AbilityScoresModuleProps) {
   const safeScores = () => props.character.abilityScores || DEFAULT_SCORES
@@ -85,7 +78,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
       onCancel={handleCancel}
     >
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <For each={Object.keys(ABILITY_NAMES) as AbilityKey[]}>
+          <For each={ABILITY_KEYS}>
             {(ability) => {
               const score = () => isEditing() ? editedScores()[ability] : safeScores()[ability]
               const itemGrants = () => modifierTotals().abilityScoreGrants[ability]
@@ -149,14 +142,14 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                     <div class="space-y-2">
                       <NumericInput
                         min={1} max={baseMax()}
-                        aria-label={ABILITY_NAMES[ability]}
+                        aria-label={ABILITY_DISPLAY_NAMES[ability]}
                         data-test={`${ability}-score-input`}
                         value={editedScores()[ability]}
                         onChange={(v) => setEditedScores((prev) => ({ ...prev, [ability]: v }))}
                         class="text-center text-2xl font-bold h-16"
                       />
                       <CalculatedValue data-test={`${ability}-effective-score`}
-                        label={`${ABILITY_NAMES[ability]} Effective`}
+                        label={`${ABILITY_DISPLAY_NAMES[ability]} Effective`}
                         labelPosition="left"
                         labelClass="text-xs text-muted-foreground"
                         editable={true}
@@ -167,7 +160,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                         when={grantedBySave()}
                         fallback={
                           <Checkbox
-                            aria-label={`${ABILITY_NAMES[ability]} saving throw`}
+                            aria-label={`${ABILITY_DISPLAY_NAMES[ability]} saving throw`}
                             data-test={`${ability}-save-prof-checkbox`}
                             checked={ownProfSave()}
                             onChange={(checked) => setEditedSaves((prev) => ({ ...prev, [ability]: checked }))}
@@ -179,7 +172,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                       >
                         <Tooltip content={`Granted by ${grantedBySave()}`} triggerFocusable>
                           <Checkbox
-                            aria-label={`${ABILITY_NAMES[ability]} saving throw`}
+                            aria-label={`${ABILITY_DISPLAY_NAMES[ability]} saving throw`}
                             data-test={`${ability}-save-prof-checkbox`}
                             checked
                             disabled
