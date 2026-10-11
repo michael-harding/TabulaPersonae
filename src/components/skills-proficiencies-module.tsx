@@ -81,7 +81,7 @@ function SkillAdvantagePips(props: {
               onClick={props.onToggleAdvantage}
               class={cn(TOUCH_TARGET_BOX, "cursor-pointer")}
             >
-              <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-white text-white"}`}>A</span>
+              <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-foreground text-foreground"}`}>A</span>
             </button>
           </Tooltip>
           <Tooltip content={tooltip("disadvantage")}>
@@ -94,7 +94,7 @@ function SkillAdvantagePips(props: {
               onClick={props.onToggleDisadvantage}
               class={cn(TOUCH_TARGET_BOX, "cursor-pointer")}
             >
-              <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-white text-white"}`}>D</span>
+              <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-foreground text-foreground"}`}>D</span>
             </button>
           </Tooltip>
         </div>
