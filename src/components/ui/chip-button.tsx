@@ -1,4 +1,6 @@
 import { splitProps, type ComponentProps, type JSX } from "solid-js"
+import Check from "lucide-solid/icons/check"
+import Circle from "lucide-solid/icons/circle"
 import Plus from "lucide-solid/icons/plus"
 import X from "lucide-solid/icons/x"
 
@@ -51,6 +53,63 @@ export function ChipButton(props: ChipButtonProps) {
         {local.action === "add" && <Plus class="h-3 w-3" aria-hidden="true" />}
         {local.children}
         {local.action === "remove" && <X class="h-3 w-3" aria-hidden="true" />}
+      </span>
+    </button>
+  )
+}
+
+type ToggleChipProps = Omit<ComponentProps<"button">, "children" | "aria-pressed" | "disabled"> & {
+  /** Page-unique. */
+  "data-test": string
+  pressed: boolean
+  /** Colours while on — use the variant the matching display Chip has. Off is always "outline". */
+  variant?: ChipVariant
+  /**
+   * The value is fixed from elsewhere (e.g. granted by a feature). A locked chip ignores clicks
+   * but stays focusable, so wrap it in a Tooltip that says why.
+   */
+  locked?: boolean
+  /** Extra classes for the pill, e.g. the compact padding of the display Chip it mirrors. */
+  pillClass?: string
+  children?: JSX.Element
+}
+
+/**
+ * A Chip that switches an option on and off (e.g. a skill's "Prof" flag). On, it is drawn exactly
+ * like the display Chip that shows the option in view mode, plus a leading check so the state is
+ * not carried by colour alone; off, it is the same pill with a visible outline and an empty
+ * circle in the check's place, so it still reads as a control rather than plain text and does not
+ * change width when toggled. Same invisible ≥44×44 box as ChipButton.
+ */
+export function ToggleChip(props: ToggleChipProps) {
+  const [local, others] = splitProps(props, ["pressed", "variant", "locked", "pillClass", "children", "class", "onClick"])
+  const handleClick: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (event) => {
+    if (local.locked) return
+    const onClick = local.onClick
+    if (typeof onClick === "function") onClick(event)
+  }
+  return (
+    <button
+      type="button"
+      data-sem="toggle-chip"
+      aria-pressed={local.pressed}
+      aria-disabled={local.locked ? "true" : undefined}
+      class={cn(TOUCH_TARGET_BOX, "group focus-visible:outline-none", local.locked ? "cursor-not-allowed" : "cursor-pointer", local.class)}
+      onClick={handleClick}
+      {...others}
+    >
+      <span
+        class={cn(
+          chipVariants({ variant: local.pressed ? local.variant ?? "secondary" : "outline", interactive: !local.locked }),
+          PILL_FOCUS_RING,
+          "gap-0.5",
+          !local.pressed && "border-muted-foreground",
+          local.locked && "opacity-50",
+          local.pillClass,
+        )}
+      >
+        {local.pressed ? <Check class="h-3 w-3" aria-hidden="true" /> : <Circle class="h-3 w-3" aria-hidden="true" />}
+        {local.children}
       </span>
     </button>
   )

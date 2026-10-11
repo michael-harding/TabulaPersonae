@@ -242,17 +242,37 @@ describe("SkillsProficienciesModule", () => {
   })
 
   describe("edit mode — skill proficiency/expertise", () => {
-    // In edit mode, "<Skill> proficient" checkboxes are one per skill (18 total, in skill order).
-    // "<Skill> expertise" checkboxes are one per skill (18 total, in skill order).
-    // Checkboxes with title="Disadvantage" are one per skill (18 total, in skill order).
-    // The first 6 checkboxes (no title) are saving throw proficiency boxes.
+    // In edit mode each skill has a "Prof" and an "Exp" toggle chip to the right of its name
+    // (skill-proficient-<skill> / skill-expertise-<skill>), and each saving throw a "Prof" toggle
+    // chip (saving-throw-<ability>). They are the pills view mode shows, made pressable.
 
-    it("shows skill names as plain text and names each checkbox after its skill", () => {
+    it("shows skill names as plain text and names each toggle chip after its skill", () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByTestId("skill-name-perception").closest("button")).toBeNull()
-      expect(screen.getByRole("checkbox", { name: "Perception proficient" })).toBeInTheDocument()
-      expect(screen.getByRole("checkbox", { name: "Perception expertise" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Perception proficient" })).toHaveTextContent("Prof")
+      expect(screen.getByRole("button", { name: "Perception expertise" })).toHaveTextContent("Exp")
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
+    })
+
+    it("puts the toggle chips after the skill name, where view mode shows the Prof/Exp chips", () => {
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const name = screen.getByTestId("skill-name-stealth")
+      const following = Node.DOCUMENT_POSITION_FOLLOWING
+      expect(name.compareDocumentPosition(screen.getByTestId("skill-proficient-stealth")) & following).toBeTruthy()
+      expect(name.compareDocumentPosition(screen.getByTestId("skill-expertise-stealth")) & following).toBeTruthy()
+    })
+
+    it("reflects each skill's on/off state on its chips", () => {
+      render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByTestId("skill-proficient-stealth")).toHaveAttribute("aria-pressed", "true")
+      expect(screen.getByTestId("skill-expertise-stealth")).toHaveAttribute("aria-pressed", "true")
+      expect(screen.getByTestId("skill-proficient-perception")).toHaveAttribute("aria-pressed", "false")
+      expect(screen.getByTestId("skill-expertise-perception")).toHaveAttribute("aria-pressed", "false")
+      fireEvent.click(screen.getByTestId("skill-proficient-perception"))
+      expect(screen.getByTestId("skill-proficient-perception")).toHaveAttribute("aria-pressed", "true")
     })
 
     it("toggles skill proficiency ON for an unproficient skill", () => {
@@ -260,9 +280,8 @@ describe("SkillsProficienciesModule", () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
-      // perception is index 11 — currently not proficient
-      const profCheckboxes = screen.getAllByRole("checkbox", { name: / proficient$/i })
-      fireEvent.click(profCheckboxes[11]) // perception
+      // perception is currently not proficient
+      fireEvent.click(screen.getByTestId("skill-proficient-perception"))
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
 
       expect(onUpdate).toHaveBeenCalledWith(
@@ -279,11 +298,11 @@ describe("SkillsProficienciesModule", () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
-      // stealth is index 16 — currently proficient + expert
-      const profCheckboxes = screen.getAllByRole("checkbox", { name: / proficient$/i })
-      expect(profCheckboxes[16]).toBeChecked()
+      // stealth is currently proficient + expert
+      const stealthProf = screen.getByTestId("skill-proficient-stealth")
+      expect(stealthProf).toHaveAttribute("aria-pressed", "true")
 
-      fireEvent.click(profCheckboxes[16]) // turn off proficiency
+      fireEvent.click(stealthProf) // turn off proficiency
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
 
       expect(onUpdate).toHaveBeenCalledWith(
@@ -300,9 +319,8 @@ describe("SkillsProficienciesModule", () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
-      // perception is index 11 — currently neither proficient nor expert
-      const expCheckboxes = screen.getAllByRole("checkbox", { name: / expertise$/i })
-      fireEvent.click(expCheckboxes[11]) // enable expertise → should also set proficient
+      // perception is currently neither proficient nor expert
+      fireEvent.click(screen.getByTestId("skill-expertise-perception")) // enable expertise → should also set proficient
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
 
       expect(onUpdate).toHaveBeenCalledWith(
@@ -399,10 +417,13 @@ describe("SkillsProficienciesModule", () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
 
-      // First 6 checkboxes (no title): strength(0), dexterity(1), ...
-      const allCheckboxes = screen.getAllByRole("checkbox")
-      // dexterity saving throw is at index 1 — currently not proficient
-      fireEvent.click(allCheckboxes[1])
+      // dexterity saving throw is currently not proficient
+      const dexSave = screen.getByTestId("saving-throw-dexterity")
+      expect(dexSave).toHaveAccessibleName("Dexterity saving throw proficient")
+      expect(dexSave).toHaveTextContent("Prof")
+      expect(dexSave).toHaveAttribute("aria-pressed", "false")
+      fireEvent.click(dexSave)
+      expect(dexSave).toHaveAttribute("aria-pressed", "true")
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
 
       expect(onUpdate).toHaveBeenCalledWith(
@@ -504,8 +525,9 @@ describe("SkillsProficienciesModule", () => {
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
-      // Back in view mode: checkboxes are gone
-      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
+      // Back in view mode: the toggle chips are gone
+      expect(screen.queryByTestId("skill-proficient-perception")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("saving-throw-strength")).not.toBeInTheDocument()
       // Languages still visible
       expect(screen.getByText("Common")).toBeInTheDocument()
     })
@@ -522,9 +544,9 @@ describe("SkillsProficienciesModule", () => {
       const onUpdate = vi.fn()
       render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
-      const profCheckboxes = screen.getAllByRole("checkbox", { name: / proficient$/i })
-      fireEvent.click(profCheckboxes[11]) // perception
-      fireEvent.keyDown(profCheckboxes[11], { key: "s", ctrlKey: true })
+      const perceptionProf = screen.getByTestId("skill-proficient-perception")
+      fireEvent.click(perceptionProf)
+      fireEvent.keyDown(perceptionProf, { key: "s", ctrlKey: true })
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           skills: expect.objectContaining({
@@ -538,6 +560,13 @@ describe("SkillsProficienciesModule", () => {
 
   it("has no accessibility violations", async () => {
     const { container } = render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
+  })
+
+  it("has no accessibility violations in edit mode", async () => {
+    const { container } = render(<SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+    clickEditButton()
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -1006,16 +1035,21 @@ describe("SkillsProficienciesModule", () => {
       }
     }
 
-    it("shows a locked, checked saving throw checkbox when a feature grants it", () => {
+    it("shows a locked, pressed saving throw chip when a feature grants it", () => {
       const feature = makeFeature({ levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["dexterity"] } }] })
       const character = makeCharacter({ classFeatures: [feature], level: 1 })
-      render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
+      const onUpdate = vi.fn()
+      render(<SkillsProficienciesModule character={character} onUpdate={onUpdate} />)
       clickEditButton()
 
-      // First 6 checkboxes are saving throws: strength(0), dexterity(1), ...
-      const allCheckboxes = screen.getAllByRole("checkbox")
-      expect(allCheckboxes[1]).toBeChecked()
-      expect(allCheckboxes[1]).toBeDisabled()
+      const dexSave = screen.getByTestId("saving-throw-dexterity")
+      expect(dexSave).toHaveAttribute("aria-pressed", "true")
+      expect(dexSave).toHaveAttribute("aria-disabled", "true")
+      fireEvent.click(dexSave)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ savingThrows: expect.objectContaining({ dexterity: false }) })
+      )
     })
 
     it("does not lock a saving throw when the granting feature's level requirement is unmet", () => {
@@ -1024,20 +1058,20 @@ describe("SkillsProficienciesModule", () => {
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       clickEditButton()
 
-      const allCheckboxes = screen.getAllByRole("checkbox")
-      expect(allCheckboxes[1]).not.toBeChecked()
-      expect(allCheckboxes[1]).not.toBeDisabled()
+      const dexSave = screen.getByTestId("saving-throw-dexterity")
+      expect(dexSave).toHaveAttribute("aria-pressed", "false")
+      expect(dexSave).not.toHaveAttribute("aria-disabled")
     })
 
-    it("shows a locked, checked Proficient checkbox for a feature-granted skill", () => {
+    it("shows a locked, pressed Prof chip for a feature-granted skill", () => {
       const feature = makeFeature({ levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception" }] } }] })
       const character = makeCharacter({ classFeatures: [feature], level: 1 })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       clickEditButton()
 
-      const profCheckboxes = screen.getAllByRole("checkbox", { name: / proficient$/i })
-      expect(profCheckboxes[11]).toBeChecked() // perception is index 11
-      expect(profCheckboxes[11]).toBeDisabled()
+      const perceptionProf = screen.getByTestId("skill-proficient-perception")
+      expect(perceptionProf).toHaveAttribute("aria-pressed", "true")
+      expect(perceptionProf).toHaveAttribute("aria-disabled", "true")
     })
 
     it("does not show a Granted badge in the view for a feature-granted skill (still shows Prof)", () => {

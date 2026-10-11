@@ -7,7 +7,7 @@ import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { ChipListEditor } from "@/components/ui/chip-list-editor"
 import { Chip } from "@/components/ui/chip"
-import { Checkbox } from "@/components/ui/checkbox"
+import { ToggleChip } from "@/components/ui/chip-button"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip } from "@/components/ui/tooltip"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -22,6 +22,14 @@ const SKILL_ABILITY_MAP: Record<keyof Character["skills"], keyof Character["abil
   performance: "charisma", persuasion: "charisma", religion: "intelligence",
   sleightOfHand: "dexterity", stealth: "dexterity", survival: "wisdom",
 }
+
+const ABILITY_DISPLAY_NAMES: Record<keyof Character["abilityScores"], string> = {
+  strength: "Strength", dexterity: "Dexterity", constitution: "Constitution",
+  intelligence: "Intelligence", wisdom: "Wisdom", charisma: "Charisma",
+}
+
+// The Prof/Exp pills are the same compact shape whether displayed (Chip) or toggled (ToggleChip).
+const COMPACT_PILL = "text-xs px-1 py-0"
 
 const SKILL_DISPLAY_NAMES: Record<keyof Character["skills"], string> = {
   acrobatics: "Acrobatics", animalHandling: "Animal Handling", arcana: "Arcana",
@@ -274,43 +282,31 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 }
                 return (
                   <div class="flex items-center justify-between p-2 rounded border">
-                    <Show
-                      when={isEditing()}
-                      fallback={
-                        <div class="flex items-center gap-2">
-                          <span class="text-sm font-medium">{ABILITY_ABBREVIATIONS[ability]}</span>
-                          <Show when={isProficient()}>
-                            <Chip variant="secondary" class="text-xs px-1 py-0">Prof</Chip>
-                          </Show>
-                        </div>
-                      }
-                    >
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-medium">{ABILITY_ABBREVIATIONS[ability]}</span>
                       <Show
-                        when={effectiveSave().granted}
+                        when={isEditing()}
                         fallback={
-                          <Checkbox
-                            data-test={`saving-throw-${ability}`}
-                            checked={isProficient()}
-                            onChange={() => toggleSavingThrow(ability)}
-                            label={ABILITY_ABBREVIATIONS[ability]}
-                            labelClass="text-sm font-medium cursor-pointer"
-                            containerClass="gap-2"
-                          />
+                          <Show when={isProficient()}>
+                            <Chip variant="secondary" class={COMPACT_PILL}>Prof</Chip>
+                          </Show>
                         }
                       >
-                        <Tooltip content={`Granted by ${effectiveSave().grantedBy}`} triggerFocusable>
-                          <Checkbox
+                        <Tooltip content={effectiveSave().granted ? `Granted by ${effectiveSave().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
+                          <ToggleChip
                             data-test={`saving-throw-${ability}`}
-                            checked={isProficient()}
-                            disabled
-                            onChange={() => toggleSavingThrow(ability)}
-                            label={ABILITY_ABBREVIATIONS[ability]}
-                            labelClass="text-sm font-medium cursor-pointer"
-                            containerClass="gap-2"
-                          />
+                            aria-label={`${ABILITY_DISPLAY_NAMES[ability]} saving throw proficient`}
+                            variant="secondary"
+                            pillClass={COMPACT_PILL}
+                            pressed={isProficient()}
+                            locked={effectiveSave().granted}
+                            onClick={() => toggleSavingThrow(ability)}
+                          >
+                            Prof
+                          </ToggleChip>
                         </Tooltip>
                       </Show>
-                    </Show>
+                    </div>
                     <Tooltip content={saveTooltip()} triggerFocusable>
                       <span data-test={`saving-throw-modifier-${ability}`} class="font-semibold">{formatModifier(modifier())}</span>
                     </Tooltip>
@@ -341,36 +337,46 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                   return formula
                 }
                 return (
-                  <div class="break-inside-avoid flex items-center justify-between p-1 rounded hover:bg-foreground/5 [&:nth-child(3n)]:mb-3">
-                    <div class="flex items-center gap-3 w-full transition-colors duration-150">
-                      <Show when={isEditing()}>
-                        <div class="flex gap-1">
-                          <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
-                            <Checkbox
-                              aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} proficient`}
-                              checked={effectiveSkill().proficient}
-                              disabled={effectiveSkill().granted}
-                              onChange={() => toggleSkillProf(skillKey)}
-                              class="border-secondary data-[checked]:bg-secondary"
-                            />
-                          </Tooltip>
-                          <Tooltip content={effectiveSkill().expertiseGranted ? `Granted by ${effectiveSkill().grantedBy}` : "Expertise (doubles proficiency bonus)"}>
-                            <Checkbox
-                              aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} expertise`}
-                              checked={effectiveSkill().expertise}
-                              disabled={effectiveSkill().expertiseGranted}
-                              onChange={() => toggleSkillExp(skillKey)}
-                            />
-                          </Tooltip>
-                        </div>
-                      </Show>
-                      <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                          <span data-test={`skill-name-${skillKey}`} class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Chip variant="secondary" class="text-xs px-1 py-0">Prof</Chip></Show><Show when={effectiveSkill().expertise}><Chip variant="default" class="text-xs px-1 py-0">Exp</Chip></Show></span></Show></span>
+                  <div data-sem="skill-block" class={cn("break-inside-avoid flex items-center justify-between rounded hover:bg-foreground/5 [&:nth-child(3n)]:mb-3", isEditing() ? "px-1" : "p-1")}>
+                    <div class="flex items-center gap-3 w-full min-w-0 transition-colors duration-150">
+                      <div class="flex-1 min-w-0">
+                        {/* The toggle chips drop to a second line when the column is too narrow for name + chips + A/D pips. */}
+                        <div class="flex flex-wrap items-center gap-x-2">
+                          <span data-test={`skill-name-${skillKey}`} class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Chip variant="secondary" class={COMPACT_PILL}>Prof</Chip></Show><Show when={effectiveSkill().expertise}><Chip variant="default" class={COMPACT_PILL}>Exp</Chip></Show></span></Show></span>
+                          <Show when={isEditing()}>
+                            <div class="flex items-center gap-1">
+                              <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
+                                <ToggleChip
+                                  data-test={`skill-proficient-${skillKey}`}
+                                  aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} proficient`}
+                                  variant="secondary"
+                                  pillClass={COMPACT_PILL}
+                                  pressed={effectiveSkill().proficient}
+                                  locked={effectiveSkill().granted}
+                                  onClick={() => toggleSkillProf(skillKey)}
+                                >
+                                  Prof
+                                </ToggleChip>
+                              </Tooltip>
+                              <Tooltip content={effectiveSkill().expertiseGranted ? `Granted by ${effectiveSkill().grantedBy}` : "Expertise (doubles proficiency bonus)"}>
+                                <ToggleChip
+                                  data-test={`skill-expertise-${skillKey}`}
+                                  aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} expertise`}
+                                  variant="default"
+                                  pillClass={COMPACT_PILL}
+                                  pressed={effectiveSkill().expertise}
+                                  locked={effectiveSkill().expertiseGranted}
+                                  onClick={() => toggleSkillExp(skillKey)}
+                                >
+                                  Exp
+                                </ToggleChip>
+                              </Tooltip>
+                            </div>
+                          </Show>
                         </div>
                       </div>
                     </div>
-                    <div class="flex items-center gap-1 justify-end min-w-[3rem]">
+                    <div class="flex shrink-0 items-center gap-1 justify-end min-w-[3rem]">
                       <SkillAdvantagePips
                         testKey={skillKey}
                         state={effectiveAdvantage().state}
