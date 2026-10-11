@@ -61,10 +61,7 @@ export default tseslint.config(
     rules: {
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'warn',
-      // CONSTITUTION.md §6.2 permits `any` with a justifying inline comment rather than
-      // banning it outright; downgraded to warn until the Phase 4 cleanup adds comments
-      // or removes each remaining use (tracked in the constitutional-alignment plan).
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
       // `declare module "solid-js" { namespace JSX { ... } }` is the standard way to
       // augment Solid's JSX.Directives for a custom directive (see TabSettings.tsx) —
       // not a stray namespace that should be ES modules.
