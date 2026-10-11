@@ -337,7 +337,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                   return formula
                 }
                 return (
-                  <div data-sem="skill-block" class={cn("break-inside-avoid flex items-center justify-between rounded hover:bg-foreground/5 [&:nth-child(3n)]:mb-3", isEditing() ? "px-1" : "p-1")}>
+                  <div data-sem="skill-block" class={cn("break-inside-avoid flex items-center justify-between rounded even:bg-[color-mix(in_oklch,var(--foreground)_3%,transparent)] hover:bg-[color-mix(in_oklch,var(--foreground)_5%,transparent)] [&:nth-child(3n)]:mb-3", isEditing() ? "px-1" : "p-1")}>
                     <div class="flex items-center gap-3 w-full min-w-0 transition-colors duration-150">
                       <div class="flex-1 min-w-0">
                         {/* The toggle chips drop to a second line when the column is too narrow for name + chips + A/D pips. */}
