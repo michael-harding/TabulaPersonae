@@ -5,7 +5,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Spell, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, cleanupPortals, confirmClick } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals, confirmClick, expectTapTooltip } from "../test-utils"
 
 function makeSpell(overrides: Partial<Spell> = {}): Spell {
   return {
@@ -139,7 +139,7 @@ describe("SpellsModule", () => {
         1: { total: 2, used: 0 },
       }
       render(<SpellsModule character={makeCharacter({ spellSlots })} onUpdate={vi.fn()} />)
-      expect(screen.getAllByTitle("Available slot (click to use)")).toHaveLength(2)
+      expect(screen.getAllByLabelText("Available slot (click to use)")).toHaveLength(2)
     })
 
     it("calls onUpdate with incremented used count when a slot circle is clicked", () => {
@@ -149,7 +149,7 @@ describe("SpellsModule", () => {
         1: { total: 2, used: 0 },
       }
       render(<SpellsModule character={makeCharacter({ spellSlots })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getAllByTitle("Available slot (click to use)")[0])
+      fireEvent.click(screen.getAllByLabelText("Available slot (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 1 }) }),
@@ -350,19 +350,18 @@ describe("SpellsModule", () => {
   })
 
   describe("concentration and ritual badges", () => {
-    it("shows 'R' badge for a ritual spell", () => {
+    it("shows 'R' badge for a ritual spell, tooltipped 'Ritual'", async () => {
       const spell = makeSpell({ name: "Detect Magic", level: 1, ritual: true })
       render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByText("1st Level"))
-      expect(screen.getByTitle("Ritual")).toBeInTheDocument()
-      expect(screen.getByText("R")).toBeInTheDocument()
+      await expectTapTooltip(screen.getByText("R"), "Ritual")
     })
 
     it("does not show C or R badges for a plain spell", () => {
       const spell = makeSpell({ name: "Fire Bolt", level: 0, concentration: false, ritual: false })
       render(<SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
-      expect(screen.queryByTitle("Concentration")).not.toBeInTheDocument()
-      expect(screen.queryByTitle("Ritual")).not.toBeInTheDocument()
+      expect(screen.queryByText("C")).not.toBeInTheDocument()
+      expect(screen.queryByText("R")).not.toBeInTheDocument()
     })
   })
 

@@ -36,7 +36,7 @@ type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & {
  */
 export function Checkbox(props: CheckboxProps) {
   const [local, rest] = splitProps(props, ["class", "label", "labelClass", "labelTestId", "labelHeading", "containerClass"])
-  const [inputAttrs, others] = splitProps(rest, ["id", "title", "aria-label"])
+  const [inputAttrs, others] = splitProps(rest, ["id", "aria-label"])
   const label = () => (
     <CheckboxPrimitive.Label
       data-test={local.labelTestId}

@@ -619,17 +619,20 @@ export function SpellsModule(props: SpellsModuleProps) {
                                       <Chip variant="outline" class="text-xs">{spell.school}</Chip>
                                       <Chip variant="outline" class="text-xs">Level: {spell.level}</Chip>
                                       <Show when={spell.ritual}>
-                                        <Chip variant="secondary" class="text-xs" title="Ritual">R</Chip>
+                                        <Tooltip content="Ritual" triggerFocusable>
+                                          <Chip data-test={`spell-ritual-${spell.id}`} variant="secondary" class="text-xs">R</Chip>
+                                        </Tooltip>
                                       </Show>
                                       <Show when={magicItemById(spell.grantedBy)}>
                                         {(item) => (
-                                          <Chip
-                                            variant="outline"
-                                            class={`text-xs ${isItemModifierActive(item()) ? "" : "text-muted-foreground italic"}`}
-                                            title={isItemModifierActive(item()) ? undefined : "Item not currently equipped/attuned"}
+                                          <Show
+                                            when={!isItemModifierActive(item())}
+                                            fallback={<Chip variant="outline" class="text-xs">Granted: {item().name}</Chip>}
                                           >
-                                            Granted: {item().name}
-                                          </Chip>
+                                            <Tooltip content="Item not currently equipped/attuned" triggerFocusable>
+                                              <Chip data-test={`spell-granted-inactive-${spell.id}`} variant="outline" class="text-xs text-muted-foreground italic">Granted: {item().name}</Chip>
+                                            </Tooltip>
+                                          </Show>
                                         )}
                                       </Show>
                                       <Show when={spell.grantedBy && spell.freeCast}>

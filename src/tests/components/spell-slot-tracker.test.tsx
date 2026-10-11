@@ -49,15 +49,15 @@ describe("SpellSlotTracker", () => {
     render(
       <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 0 } })} onToggle={vi.fn()} />
     )
-    expect(screen.getAllByTitle("Available slot (click to use)")).toHaveLength(3)
+    expect(screen.getAllByLabelText("Available slot (click to use)")).toHaveLength(3)
   })
 
   it("renders used slots with the correct title", () => {
     render(
       <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 2 } })} onToggle={vi.fn()} />
     )
-    expect(screen.getAllByTitle("Used slot (click to restore)")).toHaveLength(2)
-    expect(screen.getAllByTitle("Available slot (click to use)")).toHaveLength(1)
+    expect(screen.getAllByLabelText("Used slot (click to restore)")).toHaveLength(2)
+    expect(screen.getAllByLabelText("Available slot (click to use)")).toHaveLength(1)
   })
 
   it("calls onToggle with level and used+1 when an available slot is clicked", () => {
@@ -65,7 +65,7 @@ describe("SpellSlotTracker", () => {
     render(
       <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 0 } })} onToggle={onToggle} />
     )
-    fireEvent.click(screen.getAllByTitle("Available slot (click to use)")[0])
+    fireEvent.click(screen.getAllByLabelText("Available slot (click to use)")[0])
     expect(onToggle).toHaveBeenCalledWith(1, 1)
   })
 
@@ -74,7 +74,7 @@ describe("SpellSlotTracker", () => {
     render(
       <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 2 } })} onToggle={onToggle} />
     )
-    fireEvent.click(screen.getAllByTitle("Used slot (click to restore)")[0])
+    fireEvent.click(screen.getAllByLabelText("Used slot (click to restore)")[0])
     expect(onToggle).toHaveBeenCalledWith(1, 1)
   })
 
@@ -84,7 +84,7 @@ describe("SpellSlotTracker", () => {
       <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 2, used: 1 } })} onToggle={onToggle} />
     )
     // slot at index 1 (>= used=1) → newUsed = 2, clamped to min(2, 2) = 2
-    fireEvent.click(screen.getAllByTitle("Available slot (click to use)")[0])
+    fireEvent.click(screen.getAllByLabelText("Available slot (click to use)")[0])
     expect(onToggle).toHaveBeenCalledWith(1, 2)
   })
 
@@ -95,7 +95,7 @@ describe("SpellSlotTracker", () => {
         onToggle={vi.fn()}
       />
     )
-    expect(screen.getAllByTitle("Available slot (click to use)")).toHaveLength(6)
+    expect(screen.getAllByLabelText("Available slot (click to use)")).toHaveLength(6)
   })
 
   it("has no accessibility violations", async () => {
@@ -117,8 +117,8 @@ describe("SpellSlotTracker", () => {
         </ReadOnlyProvider>
       )
       expect(screen.queryAllByRole("button")).toHaveLength(0)
-      expect(screen.queryAllByTitle("Available slot (click to use)")).toHaveLength(2)
-      expect(screen.queryAllByTitle("Used slot (click to restore)")).toHaveLength(1)
+      expect(screen.queryAllByLabelText("Available slot (click to use)")).toHaveLength(2)
+      expect(screen.queryAllByLabelText("Used slot (click to restore)")).toHaveLength(1)
     })
 
     it("still renders the level label when readOnly", () => {

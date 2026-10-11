@@ -74,7 +74,6 @@ function SkillAdvantagePips(props: {
           <Tooltip content={tooltip("advantage")}>
             <button
               type="button"
-              title="Advantage"
               aria-label="Advantage"
               aria-pressed={props.state === "advantage"}
               data-test={`skill-advantage-${props.testKey}`}
@@ -87,7 +86,6 @@ function SkillAdvantagePips(props: {
           <Tooltip content={tooltip("disadvantage")}>
             <button
               type="button"
-              title="Disadvantage"
               aria-label="Disadvantage"
               aria-pressed={props.state === "disadvantage"}
               data-test={`skill-disadvantage-${props.testKey}`}
@@ -100,12 +98,12 @@ function SkillAdvantagePips(props: {
         </div>
       </Show>
       <Show when={!props.editable && props.state === "advantage"}>
-        <Tooltip content={tooltip("advantage")}>
+        <Tooltip content={tooltip("advantage")} triggerFocusable>
           <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-xs font-bold leading-none">A</span>
         </Tooltip>
       </Show>
       <Show when={!props.editable && props.state === "disadvantage"}>
-        <Tooltip content={tooltip("disadvantage")}>
+        <Tooltip content={tooltip("disadvantage")} triggerFocusable>
           <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs font-bold leading-none">D</span>
         </Tooltip>
       </Show>
@@ -292,7 +290,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           </Show>
                         }
                       >
-                        <Tooltip content={effectiveSave().granted ? `Granted by ${effectiveSave().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
+                        <Tooltip content={effectiveSave().granted ? `Granted by ${effectiveSave().grantedBy}` : "Proficiency (adds proficiency bonus)"} toggleOnClick={effectiveSave().granted}>
                           <ToggleChip
                             data-test={`saving-throw-${ability}`}
                             aria-label={`${ABILITY_DISPLAY_NAMES[ability]} saving throw proficient`}
@@ -345,7 +343,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                           <span data-test={`skill-name-${skillKey}`} class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Chip variant="secondary" class={COMPACT_PILL}>Prof</Chip></Show><Show when={effectiveSkill().expertise}><Chip variant="default" class={COMPACT_PILL}>Exp</Chip></Show></span></Show></span>
                           <Show when={isEditing()}>
                             <div class="flex items-center gap-1">
-                              <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
+                              <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"} toggleOnClick={effectiveSkill().granted}>
                                 <ToggleChip
                                   data-test={`skill-proficient-${skillKey}`}
                                   aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} proficient`}
@@ -358,7 +356,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                                   Prof
                                 </ToggleChip>
                               </Tooltip>
-                              <Tooltip content={effectiveSkill().expertiseGranted ? `Granted by ${effectiveSkill().grantedBy}` : "Expertise (doubles proficiency bonus)"}>
+                              <Tooltip content={effectiveSkill().expertiseGranted ? `Granted by ${effectiveSkill().grantedBy}` : "Expertise (doubles proficiency bonus)"} toggleOnClick={effectiveSkill().expertiseGranted}>
                                 <ToggleChip
                                   data-test={`skill-expertise-${skillKey}`}
                                   aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} expertise`}

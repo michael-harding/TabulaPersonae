@@ -6,7 +6,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import { getSkillModifier, getSavingThrowModifier, formatModifier } from "@/lib/character-utils"
 import type { Character, Equipment, Feature } from "@/lib/character-types"
 
-import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, within, waitFor, cleanupPortals, expectTapTooltip } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}) {
   const base = createDefaultCharacter()
@@ -964,14 +964,14 @@ describe("SkillsProficienciesModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ damageResistances: [] }))
     })
 
-    it("shows a feature-granted resistance, tooltipped with the granting feature", () => {
+    it("shows a feature-granted resistance, tooltipped with the granting feature", async () => {
       const feature = {
         id: "feature-1", name: "Dwarven Resilience", description: "", source: "species-trait" as const,
         levelEffects: [{ level: 1, effects: { resistances: ["Poison"] } }],
       }
       const character = makeCharacter({ damageResistances: [], speciesTraits: [feature] })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Poison")).toHaveAttribute("title", "Granted by Dwarven Resilience Species Trait — edit in Features")
+      await expectTapTooltip(screen.getByText("Poison"), "Granted by Dwarven Resilience Species Trait — edit in Features")
     })
   })
 
@@ -994,33 +994,33 @@ describe("SkillsProficienciesModule", () => {
       expect(screen.getAllByText("Elvish").length).toBe(1)
     })
 
-    it("tooltips an equipment-granted proficiency as granted by equipment", () => {
+    it("tooltips an equipment-granted proficiency as granted by equipment", async () => {
       const character = makeCharacter({
         otherProficiencies: [],
         equipment: [makeMagicItem({ modifiers: { proficiencies: ["Herbalism Kit"] } })],
       })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Herbalism Kit")).toHaveAttribute("title", "Granted by equipment")
+      await expectTapTooltip(screen.getByText("Herbalism Kit"), "Granted by equipment")
     })
 
-    it("tooltips a Class-Feature-granted proficiency, naming the feature and pointing to Features", () => {
+    it("tooltips a Class-Feature-granted proficiency, naming the feature and pointing to Features", async () => {
       const feature = {
         id: "feature-1", name: "Martial Training", description: "", source: "class-feature" as const,
         levelEffects: [{ level: 1, effects: { otherProficiencies: ["Light Armor"] } }],
       }
       const character = makeCharacter({ otherProficiencies: [], classFeatures: [feature] })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Light Armor")).toHaveAttribute("title", "Granted by Martial Training Class Feature — edit in Features")
+      await expectTapTooltip(screen.getByText("Light Armor"), "Granted by Martial Training Class Feature — edit in Features")
     })
 
-    it("shows a feature-granted language, tooltipped with the granting feature", () => {
+    it("shows a feature-granted language, tooltipped with the granting feature", async () => {
       const feature = {
         id: "feature-1", name: "Draconic Ancestry", description: "", source: "species-trait" as const,
         levelEffects: [{ level: 1, effects: { languages: ["Draconic"] } }],
       }
       const character = makeCharacter({ speciesTraits: [feature] })
       render(<SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Draconic")).toHaveAttribute("title", "Granted by Draconic Ancestry Species Trait — edit in Features")
+      await expectTapTooltip(screen.getByText("Draconic"), "Granted by Draconic Ancestry Species Trait — edit in Features")
     })
   })
 
@@ -1050,6 +1050,18 @@ describe("SkillsProficienciesModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ savingThrows: expect.objectContaining({ dexterity: false }) })
       )
+    })
+
+    it("names the granting feature when a locked saving throw chip is tapped, but not for an unlocked chip", async () => {
+      const feature = makeFeature({ levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["dexterity"] } }] })
+      render(<SkillsProficienciesModule character={makeCharacter({ classFeatures: [feature], level: 1 })} onUpdate={vi.fn()} />)
+      clickEditButton()
+
+      cleanupPortals()
+      fireEvent.click(screen.getByTestId("saving-throw-strength"))
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+
+      await expectTapTooltip(screen.getByTestId("saving-throw-dexterity"), /^Granted by /)
     })
 
     it("does not lock a saving throw when the granting feature's level requirement is unmet", () => {

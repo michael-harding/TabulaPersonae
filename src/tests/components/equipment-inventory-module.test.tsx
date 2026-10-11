@@ -264,7 +264,7 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByTitle("Toggle equipped"))
+      fireEvent.click(screen.getByLabelText(/^Toggle equipped/))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ equipped: true })]),
@@ -677,7 +677,7 @@ describe("EquipmentInventoryModule", () => {
     it("toggles attunement from the Magic Items list", () => {
       const onUpdate = vi.fn()
       render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", attuned: false })] })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByTitle("Toggle attuned"))
+      fireEvent.click(screen.getByLabelText("Toggle attuned"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ attuned: true })]),
@@ -694,7 +694,7 @@ describe("EquipmentInventoryModule", () => {
         <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", equipped: false })] })} onUpdate={onUpdate} />
       )
       const section = screen.getByTestId("magic-items-section")
-      fireEvent.click(within(section).getByTitle("Toggle equipped"))
+      fireEvent.click(within(section).getByLabelText(/^Toggle equipped/))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ equipped: true })]),
@@ -731,7 +731,7 @@ describe("EquipmentInventoryModule", () => {
         </ReadOnlyProvider>
       )
       const section = screen.getByTestId("magic-items-section")
-      expect(within(section).queryByTitle("Toggle equipped")).not.toBeInTheDocument()
+      expect(within(section).queryByLabelText(/^Toggle equipped/)).not.toBeInTheDocument()
       expect(within(section).getByText("Ring")).toBeInTheDocument()
     })
 
@@ -758,7 +758,7 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ charges: 1 })]),
@@ -992,7 +992,7 @@ describe("EquipmentInventoryModule", () => {
 
       // Damage resistance picker (fixed-vocabulary dropdown)
       fireEvent.click(within(modal).getByText("Resistances & Immunities"))
-      await user.click(within(modal).getByTitle("Add damage resistance"))
+      await user.click(within(modal).getByLabelText("Add damage resistance"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Fire" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Fire" }))
 
@@ -1061,7 +1061,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chainmail" } })
       fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
 
-      await user.click(within(modal).getByTitle("Add skill disadvantage"))
+      await user.click(within(modal).getByLabelText("Add skill disadvantage"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
 
@@ -1089,7 +1089,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
       fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
 
-      await user.click(within(modal).getByTitle("Add skill advantage"))
+      await user.click(within(modal).getByLabelText("Add skill advantage"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
 
@@ -1114,11 +1114,11 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
 
-      await user.click(within(modal).getByTitle("Add skill advantage"))
+      await user.click(within(modal).getByLabelText("Add skill advantage"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
 
-      await user.click(within(modal).getByTitle("Add skill disadvantage"))
+      await user.click(within(modal).getByLabelText("Add skill disadvantage"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Perception" })).toBeInTheDocument())
       expect(screen.queryByRole("menuitem", { name: "Stealth" })).not.toBeInTheDocument()
     })
@@ -1291,8 +1291,8 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={vi.fn()}
         />
       )
-      expect(screen.getAllByTitle("Available (click to use)")).toHaveLength(2)
-      expect(screen.getAllByTitle("Used (click to restore)")).toHaveLength(1)
+      expect(screen.getAllByLabelText("Available (click to use)")).toHaveLength(2)
+      expect(screen.getAllByLabelText("Used (click to restore)")).toHaveLength(1)
     })
 
     it("clamps uses down when quantity is manually reduced below the current spent-uses count", () => {
@@ -1397,7 +1397,7 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={onUpdate}
         />
       )
-      const toggles = screen.getAllByTitle("Toggle attuned")
+      const toggles = screen.getAllByLabelText("Toggle attuned")
       fireEvent.click(toggles[toggles.length - 1])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({

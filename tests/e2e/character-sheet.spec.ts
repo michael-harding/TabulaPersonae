@@ -85,9 +85,9 @@ test.describe("Death saves", () => {
     await page.goto(`/character/${secondCharacter.id}`)
     await page.waitForLoadState("networkidle")
     // secondCharacter starts with 1 success already filled; clicking adds a second
-    await page.getByTitle("Click to add success").first().click()
+    await page.getByLabel("Click to add success").first().click()
     // Now 2 success slots are filled — assert count rather than strict single-match
-    await expect(page.getByTitle("Success (click to remove)")).toHaveCount(2)
+    await expect(page.getByLabel("Success (click to remove)")).toHaveCount(2)
   })
 })
 
@@ -138,12 +138,12 @@ test.describe("Spell slot usage", () => {
   test("clicking an available slot marks it as used", async ({ page }) => {
     // testCharacter level-1 slots: 4 total, 1 pre-used → 3 available
     // After clicking one: 2 used slots total
-    await page.getByTitle("Available slot (click to use)").first().click()
-    await expect(page.getByTitle("Used slot (click to restore)")).toHaveCount(2)
+    await page.getByLabel("Available slot (click to use)").first().click()
+    await expect(page.getByLabel("Used slot (click to restore)")).toHaveCount(2)
   })
 
   test("has no accessibility violations after using a spell slot", async ({ page }) => {
-    await page.getByTitle("Available slot (click to use)").first().click()
+    await page.getByLabel("Available slot (click to use)").first().click()
     await page.waitForLoadState("networkidle")
     const results = await new AxeBuilder({ page }).analyze()
     expect(results.violations).toEqual([])

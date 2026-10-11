@@ -5,6 +5,7 @@ import { ChipButton } from "@/components/ui/chip-button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tooltip } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 const REMOVE_VARIANT = {
@@ -79,16 +80,17 @@ export function ChipListEditor<T extends string>(props: ChipListEditorProps<T>) 
         <Show when={editing() && props.options}>
           {(options) => (
             <DropdownMenu>
-              <DropdownMenuTrigger
-                as={ChipButton}
-                data-test={`${props["data-test"]}-add`}
-                action="add"
-                variant="outline"
-                aria-label={addLabel()}
-                title={addLabel()}
-              >
-                Add
-              </DropdownMenuTrigger>
+              <Tooltip content={addLabel()}>
+                <DropdownMenuTrigger
+                  as={ChipButton}
+                  data-test={`${props["data-test"]}-add`}
+                  action="add"
+                  variant="outline"
+                  aria-label={addLabel()}
+                >
+                  Add
+                </DropdownMenuTrigger>
+              </Tooltip>
               <DropdownMenuContent>
                 <For each={options()}>
                   {(option) => (
@@ -135,9 +137,9 @@ export function ChipListEditor<T extends string>(props: ChipListEditorProps<T>) 
           </For>
           <For each={props.grantedValues}>
             {(value) => (
-              <Chip variant="secondary" title={props.grantedTooltip?.(value) ?? "Granted automatically"}>
-                {value}
-              </Chip>
+              <Tooltip content={props.grantedTooltip?.(value) ?? "Granted automatically"} triggerFocusable>
+                <Chip variant="secondary">{value}</Chip>
+              </Tooltip>
             )}
           </For>
         </div>
@@ -153,17 +155,18 @@ export function ChipListEditor<T extends string>(props: ChipListEditorProps<T>) 
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTyped() } }}
             class="flex-1"
           />
-          <ChipButton
-            data-test={`${props["data-test"]}-add`}
-            action="add"
-            variant="outline"
-            aria-label={addLabel()}
-            title={addLabel()}
-            disabled={!trimmed()}
-            onClick={addTyped}
-          >
-            Add
-          </ChipButton>
+          <Tooltip content={addLabel()}>
+            <ChipButton
+              data-test={`${props["data-test"]}-add`}
+              action="add"
+              variant="outline"
+              aria-label={addLabel()}
+              disabled={!trimmed()}
+              onClick={addTyped}
+            >
+              Add
+            </ChipButton>
+          </Tooltip>
         </div>
       </Show>
     </div>

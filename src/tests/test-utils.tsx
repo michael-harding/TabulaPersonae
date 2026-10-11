@@ -1,4 +1,4 @@
-import { render, fireEvent } from "@solidjs/testing-library"
+import { render, fireEvent, screen, waitFor } from "@solidjs/testing-library"
 import type { JSX } from "solid-js"
 
 import { CONFIRM_GUARD_MS } from "@/components/ui/confirm-button"
@@ -28,6 +28,13 @@ export function cleanupPortals() {
   Array.from(document.body.children).forEach((child) => {
     ;(child as HTMLElement).removeAttribute("aria-hidden")
   })
+}
+
+/** Taps a tooltip-only element (Tooltip's `toggleOnClick`) and asserts the tooltip it shows. */
+export async function expectTapTooltip(el: Element, text: string | RegExp) {
+  cleanupPortals()
+  fireEvent.click(el)
+  await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent(text))
 }
 
 // Performs the deliberate two-click confirmation a ConfirmButton requires: arm, wait out the

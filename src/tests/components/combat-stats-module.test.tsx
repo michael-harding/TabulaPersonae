@@ -6,7 +6,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, waitFor, cleanupPortals, within } from "../test-utils"
+import { render, screen, fireEvent, waitFor, cleanupPortals, within, expectTapTooltip } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}) {
   return {
@@ -185,7 +185,7 @@ describe("CombatStatsModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getAllByTitle("Click to add success")[0])
+      fireEvent.click(screen.getAllByLabelText("Click to add success")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           deathSaves: expect.objectContaining({ successes: 1 }),
@@ -204,7 +204,7 @@ describe("CombatStatsModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getAllByTitle("Success (click to remove)")[0])
+      fireEvent.click(screen.getAllByLabelText("Success (click to remove)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           deathSaves: expect.objectContaining({ successes: 1 }),
@@ -220,7 +220,7 @@ describe("CombatStatsModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getAllByTitle("Click to add failure")[0])
+      fireEvent.click(screen.getAllByLabelText("Click to add failure")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           deathSaves: expect.objectContaining({ failures: 1 }),
@@ -239,7 +239,7 @@ describe("CombatStatsModule", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getByTitle("Failure (click to remove)"))
+      fireEvent.click(screen.getByLabelText("Failure (click to remove)"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           deathSaves: expect.objectContaining({ failures: 0 }),
@@ -512,7 +512,7 @@ describe("CombatStatsModule", () => {
       const user = userEvent.setup()
       const onUpdate = vi.fn()
       render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
-      await user.click(screen.getByTitle("Add condition"))
+      await user.click(screen.getByLabelText("Add condition"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Poisoned" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Poisoned" }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -566,7 +566,7 @@ describe("CombatStatsModule", () => {
       const user = userEvent.setup()
       const onUpdate = vi.fn()
       render(<CombatStatsModule character={makeCharacter()} onUpdate={onUpdate} />)
-      await user.click(screen.getByTitle("Add condition immunity"))
+      await user.click(screen.getByLabelText("Add condition immunity"))
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Poisoned" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Poisoned" }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -590,13 +590,13 @@ describe("CombatStatsModule", () => {
       )
     })
 
-    it("shows a feature-granted condition immunity as non-removable, tooltipped with the granting feature", () => {
+    it("shows a feature-granted condition immunity as non-removable, tooltipped with the granting feature", async () => {
       const feature = {
         id: "feature-1", name: "Fey Ancestry", description: "", source: "species-trait" as const,
         levelEffects: [{ level: 1, effects: { conditionImmunities: ["Charmed"] } }],
       }
       const { container } = render(<CombatStatsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Charmed")).toHaveAttribute("title", "Granted by Fey Ancestry Species Trait — edit in Features")
+      await expectTapTooltip(screen.getByText("Charmed"), "Granted by Fey Ancestry Species Trait — edit in Features")
       expect(within(container).queryByTestId("condition-immunity-remove-Charmed")).not.toBeInTheDocument()
     })
   })
@@ -1335,13 +1335,13 @@ describe("CombatStatsModule", () => {
 
     it("does not render the Add condition button", () => {
       renderReadOnly()
-      expect(screen.queryByTitle("Add condition")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText("Add condition")).not.toBeInTheDocument()
     })
 
     it("renders existing conditions as non-interactive spans", () => {
       renderReadOnly({ conditions: ["Poisoned"] })
       expect(screen.getByText("Poisoned")).toBeInTheDocument()
-      expect(screen.queryByTitle("Click to remove")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText("Click to remove")).not.toBeInTheDocument()
     })
 
     it("still renders HP values", () => {

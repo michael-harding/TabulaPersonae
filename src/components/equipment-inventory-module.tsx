@@ -203,7 +203,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
           />
           <span>lbs</span>
           <Show when={overCarryingCapacity()}>
-            <Tooltip content="Over carrying capacity">
+            <Tooltip content="Over carrying capacity" triggerFocusable>
               <TriangleAlert class="h-3.5 w-3.5 text-amber-500" aria-label="Over carrying capacity" />
             </Tooltip>
           </Show>
@@ -270,7 +270,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
             />
             <span>attuned</span>
             <Show when={overAttunementLimit()}>
-              <Tooltip content="Over attunement limit">
+              <Tooltip content="Over attunement limit" triggerFocusable>
                 <TriangleAlert class="h-3.5 w-3.5 text-amber-500" aria-label="Over attunement limit" />
               </Tooltip>
             </Show>
@@ -283,15 +283,16 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
                         <Show when={!isReadOnly} fallback={<span class="font-medium text-sm">{item.name}</span>}>
-                          <Checkbox
-                            data-test={`magic-item-toggle-equipped-${item.id}`}
-                            checked={item.equipped ?? false}
-                            onChange={() => toggleEquipped(item.id)}
-                            title="Toggle equipped"
-                            aria-label={`Toggle equipped: ${item.name}`}
-                            label={item.name}
-                            labelClass="font-medium text-sm cursor-pointer select-none"
-                          />
+                          <Tooltip content="Toggle equipped">
+                            <Checkbox
+                              data-test={`magic-item-toggle-equipped-${item.id}`}
+                              checked={item.equipped ?? false}
+                              onChange={() => toggleEquipped(item.id)}
+                              aria-label={`Toggle equipped: ${item.name}`}
+                              label={item.name}
+                              labelClass="font-medium text-sm cursor-pointer select-none"
+                            />
+                          </Tooltip>
                         </Show>
                         <Show when={item.type && item.type !== "other"}>
                           <Chip variant="outline" class="text-xs capitalize">{item.type}</Chip>
@@ -307,7 +308,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         </Show>
                         <Show when={item.requiresAttunement}>
                           <Show when={!isReadOnly}>
-                            <Checkbox data-test={`magic-item-toggle-attuned-${item.id}`} checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} title="Toggle attuned" aria-label="Toggle attuned" />
+                            <Tooltip content="Toggle attuned">
+                              <Checkbox data-test={`magic-item-toggle-attuned-${item.id}`} checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} aria-label="Toggle attuned" />
+                            </Tooltip>
                           </Show>
                           <Show when={item.attuned}>
                             <Chip variant="secondary" class="text-xs">Attuned</Chip>
@@ -508,17 +511,18 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         <div class="flex items-center gap-2">
                           {/* The item name is the equipped checkbox's label (wrapped in the card's heading). */}
                           <Show when={!isReadOnly} fallback={<h3 data-test={`equipment-item-name-${item.id}`} class="font-medium">{item.name}</h3>}>
-                            <Checkbox
-                              data-test={`equipment-toggle-equipped-${item.id}`}
-                              checked={item.equipped || false}
-                              onChange={() => toggleEquipped(item.id)}
-                              title="Toggle equipped"
-                              aria-label={`Toggle equipped: ${item.name}`}
-                              label={item.name}
-                              labelHeading="h3"
-                              labelTestId={`equipment-item-name-${item.id}`}
-                              labelClass="font-medium cursor-pointer select-none"
-                            />
+                            <Tooltip content="Toggle equipped">
+                              <Checkbox
+                                data-test={`equipment-toggle-equipped-${item.id}`}
+                                checked={item.equipped || false}
+                                onChange={() => toggleEquipped(item.id)}
+                                aria-label={`Toggle equipped: ${item.name}`}
+                                label={item.name}
+                                labelHeading="h3"
+                                labelTestId={`equipment-item-name-${item.id}`}
+                                labelClass="font-medium cursor-pointer select-none"
+                              />
+                            </Tooltip>
                           </Show>
                         </div>
                         <Show when={item.type && item.type !== "other"}>

@@ -97,6 +97,13 @@ describe("CalculatedValue", () => {
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Custom")
     })
+
+    it("shows the calculated tooltip when the value is tapped, for touch users who cannot hover", async () => {
+      render(<CalculatedValue {...baseProps()} />)
+      fireEvent.click(screen.getByTestId("strength-display"))
+      await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
+      expect(screen.getByRole("tooltip")).toHaveTextContent("(Ability Score)")
+    })
   })
 
   describe("editable toggle", () => {

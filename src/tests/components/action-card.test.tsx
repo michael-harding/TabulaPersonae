@@ -224,7 +224,7 @@ describe("ActionCard", () => {
   describe("uses tracker vs cast buttons", () => {
     it("shows PipTracker when maxUses=3 and onCast is not provided", () => {
       render(<ActionCard {...makeProps({ maxUses: 3, uses: 0, onUsesChange: vi.fn() })} />)
-      expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+      expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(3)
     })
 
     it("shows StepperInput when maxUses=8 and onCast is not provided", () => {
@@ -235,14 +235,14 @@ describe("ActionCard", () => {
 
     it("shows no tracker when maxUses=0", () => {
       render(<ActionCard {...makeProps({ maxUses: 0, uses: 0, onUsesChange: vi.fn() })} />)
-      expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText("Charge available (click to use)")).not.toBeInTheDocument()
       expect(screen.queryByRole("button", { name: /increase/i })).not.toBeInTheDocument()
     })
 
     it("shows Cast button when onCast is provided; no pip tracker shown", () => {
       render(<ActionCard {...makeProps({ onCast: vi.fn(), castable: () => true, maxUses: 3, onUsesChange: vi.fn() })} />)
       expect(screen.getByRole("button", { name: /^cast$/i })).toBeInTheDocument()
-      expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText("Charge available (click to use)")).not.toBeInTheDocument()
     })
 
     it("Cast button is disabled when castable returns false", () => {
@@ -286,7 +286,7 @@ describe("ActionCard", () => {
     it("renders PipTracker uses as non-interactive spans when maxUses is set", () => {
       renderReadOnly({ maxUses: 3, uses: 0, onUsesChange: vi.fn() })
       expect(screen.queryByRole("button", { name: /charge/i })).not.toBeInTheDocument()
-      expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+      expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(3)
     })
 
     it("renders StepperInput without ± buttons when maxUses is large", () => {

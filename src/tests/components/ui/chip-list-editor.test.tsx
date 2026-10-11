@@ -5,7 +5,7 @@ import { axe } from "vitest-axe"
 import { CheckableChip } from "@/components/ui/chip-button"
 import { ChipListEditor } from "@/components/ui/chip-list-editor"
 
-import { render, screen, fireEvent, waitFor, cleanupPortals } from "../../test-utils"
+import { render, screen, fireEvent, waitFor, cleanupPortals, expectTapTooltip } from "../../test-utils"
 
 const DAMAGE_TYPES = ["Acid", "Cold", "Fire"]
 
@@ -128,9 +128,9 @@ describe("ChipListEditor", () => {
     expect(pill).not.toHaveClass("bg-secondary")
   })
 
-  it("shows granted values as read-only chips with their source as a tooltip", () => {
+  it("shows granted values as read-only chips with their source as a tooltip", async () => {
     render(<Harness initial={["Fire"]} grantedValues={["Cold"]} />)
-    expect(screen.getByText("Cold")).toHaveAttribute("title", "Granted by Cold Ring")
+    await expectTapTooltip(screen.getByText("Cold"), "Granted by Cold Ring")
     expect(screen.queryByTestId("resistances-remove-Cold")).not.toBeInTheDocument()
   })
 

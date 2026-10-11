@@ -258,15 +258,15 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     it("renders slot circles for levels with total > 0", () => {
       const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 3, used: 1 } }
       render(<ActionsModule character={makeCharacter({ spellSlots })} onUpdate={vi.fn()} />)
-      expect(screen.getAllByTitle("Used slot (click to restore)")).toHaveLength(1)
-      expect(screen.getAllByTitle("Available slot (click to use)")).toHaveLength(2)
+      expect(screen.getAllByLabelText("Used slot (click to restore)")).toHaveLength(1)
+      expect(screen.getAllByLabelText("Available slot (click to use)")).toHaveLength(2)
     })
 
     it("calls onUpdate with incremented used count when a slot circle is clicked", () => {
       const onUpdate = vi.fn()
       const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 0 } }
       render(<ActionsModule character={makeCharacter({ spellSlots })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getAllByTitle("Available slot (click to use)")[0])
+      fireEvent.click(screen.getAllByLabelText("Available slot (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 1 }) }),
@@ -686,14 +686,14 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     describe("BonusAction with maxUses <= 5", () => {
       it("renders pip buttons when maxUses = 3", () => {
         render(<ActionsModule character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 3 })] })} onUpdate={vi.fn()} />)
-        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+        expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(3)
         expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
       })
 
       it("clicking a pip calls onUpdate with incremented uses on the correct bonus action", () => {
         const onUpdate = vi.fn()
         render(<ActionsModule character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 3 })] })} onUpdate={onUpdate} />)
-        fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+        fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
             bonusActions: expect.arrayContaining([expect.objectContaining({ id: "ba-1", uses: 1 })]),
@@ -735,7 +735,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     describe("BonusAction with maxUses = 0", () => {
       it("renders no tracker UI", () => {
         render(<ActionsModule character={makeCharacter({ bonusActions: [makeBonusAction({ uses: 0, maxUses: 0 })] })} onUpdate={vi.fn()} />)
-        expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+        expect(screen.queryByLabelText("Charge available (click to use)")).not.toBeInTheDocument()
         expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument()
       })
     })
@@ -743,13 +743,13 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     describe("Reaction with maxUses <= 5", () => {
       it("renders pip buttons when maxUses = 2", () => {
         render(<ActionsModule character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 2 })] })} onUpdate={vi.fn()} />)
-        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(2)
+        expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(2)
       })
 
       it("clicking a pip calls onUpdate with incremented uses on the correct reaction", () => {
         const onUpdate = vi.fn()
         render(<ActionsModule character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 2 })] })} onUpdate={onUpdate} />)
-        fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+        fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
             reactions: expect.arrayContaining([expect.objectContaining({ id: "rx-1", uses: 1 })]),
@@ -761,20 +761,20 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     describe("Reaction with maxUses = 0", () => {
       it("renders no tracker UI", () => {
         render(<ActionsModule character={makeCharacter({ reactions: [makeReaction({ uses: 0, maxUses: 0 })] })} onUpdate={vi.fn()} />)
-        expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+        expect(screen.queryByLabelText("Charge available (click to use)")).not.toBeInTheDocument()
       })
     })
 
     describe("Attack with maxUses", () => {
       it("renders 2 pip buttons on an attack card with maxUses = 2", () => {
         render(<ActionsModule character={makeCharacter({ attacks: [makeAttack({ uses: 0, maxUses: 2 })] })} onUpdate={vi.fn()} />)
-        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(2)
+        expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(2)
       })
 
       it("clicking a pip calls onUpdate with updated uses on the attack", () => {
         const onUpdate = vi.fn()
         render(<ActionsModule character={makeCharacter({ attacks: [makeAttack({ uses: 0, maxUses: 2 })] })} onUpdate={onUpdate} />)
-        fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+        fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
             attacks: expect.arrayContaining([expect.objectContaining({ id: "atk-1", uses: 1 })]),
@@ -1016,7 +1016,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
           onUpdate={vi.fn()}
         />
       )
-      expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+      expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(3)
     })
 
     it("does not show pip tracker when feature has no maxUses", () => {
@@ -1026,7 +1026,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
           onUpdate={vi.fn()}
         />
       )
-      expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText("Charge available (click to use)")).not.toBeInTheDocument()
     })
 
     it("clicking pip calls onUpdate with updated classFeatures uses", () => {
@@ -1037,7 +1037,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           classFeatures: expect.arrayContaining([expect.objectContaining({ id: "cf-1", uses: 1 })]),
@@ -1053,7 +1053,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           speciesTraits: expect.arrayContaining([expect.objectContaining({ id: "st-1", uses: 1 })]),
@@ -1069,7 +1069,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           feats: expect.arrayContaining([expect.objectContaining({ id: "ft-1", uses: 1 })]),
@@ -1085,7 +1085,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
           onUpdate={onUpdate}
         />
       )
-      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           backgroundFeatures: expect.arrayContaining([expect.objectContaining({ id: "bg-1", uses: 1 })]),
@@ -1199,7 +1199,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
           onUpdate={onUpdate}
         />
       )
-      const pips = screen.getAllByTitle("Charge available (click to use)")
+      const pips = screen.getAllByLabelText("Charge available (click to use)")
       fireEvent.click(pips[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -1826,27 +1826,27 @@ describe("FeaturesModule", () => {
     it("shows pip tracker when feature has maxUses > 0", () => {
       const feature = makeFeature({ actionKind: "action", maxUses: 3, uses: 0 })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
-      expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+      expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(3)
     })
 
     it("does not show pip tracker when feature has no maxUses", () => {
       const feature = makeFeature({ actionKind: "action" })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
-      expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText("Charge available (click to use)")).not.toBeInTheDocument()
     })
 
     it("reflects used pips correctly", () => {
       const feature = makeFeature({ actionKind: "action", maxUses: 3, uses: 1 })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
-      expect(screen.getAllByTitle("Charge spent (click to restore)")).toHaveLength(1)
-      expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(2)
+      expect(screen.getAllByLabelText("Charge spent (click to restore)")).toHaveLength(1)
+      expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(2)
     })
 
     it("calls onUpdate with updated uses when pip is clicked", () => {
       const onUpdate = vi.fn()
       const feature = makeFeature({ id: "f-1", actionKind: "action", maxUses: 3, uses: 0 })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getAllByTitle("Charge available (click to use)")[0])
+      fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           classFeatures: expect.arrayContaining([
@@ -1860,13 +1860,13 @@ describe("FeaturesModule", () => {
       it("computes the pip total as maxUsesPerLevel * character level", () => {
         const feature = makeFeature({ actionKind: "action", maxUsesMode: "per-level", maxUsesPerLevel: 1, uses: 0 })
         render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 3 })} onUpdate={vi.fn()} />)
-        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(3)
+        expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(3)
       })
 
       it("shows a stepper instead of pips once the per-level total exceeds 5", () => {
         const feature = makeFeature({ actionKind: "action", maxUsesMode: "per-level", maxUsesPerLevel: 5, uses: 0 })
         render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 3 })} onUpdate={vi.fn()} />)
-        expect(screen.queryByTitle("Charge available (click to use)")).not.toBeInTheDocument()
+        expect(screen.queryByLabelText("Charge available (click to use)")).not.toBeInTheDocument()
         expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
         expect(screen.getByDisplayValue("15")).toBeInTheDocument()
       })
@@ -1874,7 +1874,7 @@ describe("FeaturesModule", () => {
       it("recalculates the total when character level changes, with no edit to the feature itself", () => {
         const feature = makeFeature({ actionKind: "action", maxUsesMode: "per-level", maxUsesPerLevel: 1, uses: 0 })
         render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 4 })} onUpdate={vi.fn()} />)
-        expect(screen.getAllByTitle("Charge available (click to use)")).toHaveLength(4)
+        expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(4)
       })
     })
   })
@@ -1884,7 +1884,7 @@ describe("FeaturesModule", () => {
       const feature = makeFeature({ name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 1, spentHitDice: 0 })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Spent Hit Dice")).toBeInTheDocument()
-      expect(screen.getAllByTitle("Hit die available")).toHaveLength(1)
+      expect(screen.getAllByLabelText("Hit die available")).toHaveLength(1)
     })
 
     it("does not show the tracker on a feature that doesn't grant hitDiceSize", () => {
@@ -1902,7 +1902,7 @@ describe("FeaturesModule", () => {
       const feature = makeFeature({ name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 8, spentHitDice: 2 })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Spent Hit Dice")).toBeInTheDocument()
-      expect(screen.queryByTitle("Hit die available")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText("Hit die available")).not.toBeInTheDocument()
       expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()
     })
 
@@ -1910,7 +1910,7 @@ describe("FeaturesModule", () => {
       const onUpdate = vi.fn()
       const feature = makeFeature({ name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 1, spentHitDice: 0 })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getAllByTitle("Hit die available")[0])
+      fireEvent.click(screen.getAllByLabelText("Hit die available")[0])
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentHitDice: 1 }))
     })
 
@@ -1918,7 +1918,7 @@ describe("FeaturesModule", () => {
       const featureA = makeFeature({ id: "f-a", name: "A", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
       const featureB = makeFeature({ id: "f-b", name: "B", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [featureA, featureB], level: 1 })} onUpdate={vi.fn()} />)
-      expect(screen.getAllByTitle("Hit die available")).toHaveLength(1)
+      expect(screen.getAllByLabelText("Hit die available")).toHaveLength(1)
     })
 
     it("shows the tracker only once even when two features share the same name and kind", () => {
@@ -1927,7 +1927,7 @@ describe("FeaturesModule", () => {
       const featureA = makeFeature({ id: "f-a", name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
       const featureB = makeFeature({ id: "f-b", name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
       render(<FeaturesModule character={makeCharacter({ classFeatures: [featureA, featureB], level: 1 })} onUpdate={vi.fn()} />)
-      expect(screen.getAllByTitle("Hit die available")).toHaveLength(1)
+      expect(screen.getAllByLabelText("Hit die available")).toHaveLength(1)
     })
   })
 

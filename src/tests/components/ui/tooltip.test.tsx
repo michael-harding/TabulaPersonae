@@ -97,6 +97,106 @@ describe("Tooltip", () => {
     expect(screen.getByRole("tooltip")).toHaveClass("custom-content")
   })
 
+  describe("pinning on click or tap", () => {
+    const renderPinnable = () => {
+      render(
+        <>
+          <Tooltip content="More info" triggerFocusable>
+            <span>Tap me</span>
+          </Tooltip>
+          <button type="button" data-test="elsewhere">Elsewhere</button>
+        </>
+      )
+      return screen.getByText("Tap me").closest('[data-sem="tooltip-trigger"]')!
+    }
+    // See the blur test above for why `aria-describedby`, not `role="tooltip"`, signals "closed".
+    const expectOpen = (trigger: Element) => waitFor(() => expect(trigger).toHaveAttribute("aria-describedby"))
+    const expectClosed = (trigger: Element) => waitFor(() => expect(trigger).not.toHaveAttribute("aria-describedby"))
+
+    it("shows the content on click and hides it on a second click", async () => {
+      const trigger = renderPinnable()
+
+      fireEvent.click(trigger)
+      await expectOpen(trigger)
+      expect(screen.getByRole("tooltip")).toHaveTextContent("More info")
+
+      fireEvent.click(trigger)
+      await expectClosed(trigger)
+    })
+
+    it("stays open when the pointer leaves or the trigger loses focus to nothing", async () => {
+      const trigger = renderPinnable()
+      fireEvent.click(trigger)
+      await expectOpen(trigger)
+
+      fireEvent.pointerLeave(trigger, { pointerType: "mouse" })
+      fireEvent.blur(trigger)
+      expect(trigger).toHaveAttribute("aria-describedby")
+    })
+
+    it("stays open when the tooltip itself is pressed, so its text can be selected", async () => {
+      const trigger = renderPinnable()
+      fireEvent.click(trigger)
+      await expectOpen(trigger)
+
+      const tooltip = screen.getByRole("tooltip")
+      fireEvent.pointerDown(tooltip)
+      fireEvent.click(tooltip)
+      expect(trigger).toHaveAttribute("aria-describedby")
+    })
+
+    it("closes on a press outside the trigger and the tooltip", async () => {
+      const trigger = renderPinnable()
+      fireEvent.click(trigger)
+      await expectOpen(trigger)
+
+      fireEvent.pointerDown(screen.getByTestId("elsewhere"))
+      await expectClosed(trigger)
+    })
+
+    it("closes on Escape", async () => {
+      const trigger = renderPinnable()
+      fireEvent.click(trigger)
+      await expectOpen(trigger)
+
+      fireEvent.keyDown(document.body, { key: "Escape" })
+      await expectClosed(trigger)
+    })
+
+    it("closes when focus moves to another element", async () => {
+      const trigger = renderPinnable()
+      fireEvent.click(trigger)
+      await expectOpen(trigger)
+
+      fireEvent.blur(trigger, { relatedTarget: screen.getByTestId("elsewhere") })
+      await expectClosed(trigger)
+    })
+
+    it("does not pin when the child has its own click action", () => {
+      render(
+        <Tooltip content="Edit">
+          <button type="button">Edit</button>
+        </Tooltip>
+      )
+      const trigger = screen.getByText("Edit").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.click(screen.getByText("Edit"))
+      expect(trigger).not.toHaveAttribute("aria-describedby")
+    })
+
+    it("pins without taking a tab stop when only toggleOnClick is set", async () => {
+      render(
+        <Tooltip content="Granted by Rage" toggleOnClick>
+          <button type="button" aria-disabled="true">Prof</button>
+        </Tooltip>
+      )
+      const trigger = screen.getByText("Prof").closest('[data-sem="tooltip-trigger"]')!
+      expect(trigger).not.toHaveAttribute("tabindex")
+
+      fireEvent.click(screen.getByText("Prof"))
+      await expectOpen(trigger)
+    })
+  })
+
   it("has no WCAG 2.1 A/AA accessibility violations when the portaled tooltip content is open", async () => {
     render(
       <Tooltip content="More info" triggerFocusable>
