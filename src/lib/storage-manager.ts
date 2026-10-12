@@ -89,7 +89,7 @@ export function useStorageManager() {
     }
 
     const deleteCharacter = async (id: string): Promise<boolean> => {
-      return u ? deleteCharacterFromFirebase(id, u.uid) : localAdapter.deleteCharacter(id)
+      return u ? deleteCharacterFromFirebase(id) : localAdapter.deleteCharacter(id)
     }
 
     const syncToFirebase = async (): Promise<boolean> => {

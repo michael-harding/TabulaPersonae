@@ -5,7 +5,7 @@ import { createStore } from "solid-js/store"
 import { EquipmentItemModal, hasOtherModifierFields } from "@/components/equipment-item-modal"
 import type { Equipment, ItemModifiers } from "@/lib/character-types"
 
-import { render, screen, fireEvent, within, waitFor, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 
 function makeItem(overrides: Partial<Equipment> = {}): Equipment {
   return {

@@ -501,7 +501,6 @@ describe("pdf-parser", () => {
         expect(classFeatures[0].actionKind).toBe("action")
       })
       it("leaves actionKind undefined when no pipe sub-items have action patterns", () => {
-        const text = "=== FEATURES ===\n* Darkvision • PHB-2024 195\nPassive trait."
         const { speciesTraits } = parseFeaturesTraitsText("=== SPECIES TRAITS ===\n* Darkvision • PHB-2024 195\nPassive trait.")
         expect(speciesTraits[0].actionKind).toBeUndefined()
       })

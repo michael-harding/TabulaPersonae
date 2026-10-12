@@ -19,7 +19,6 @@ import { useAuth } from "@/lib/auth-context"
 import {
   saveCharacterToFirebase,
   getCharactersFromFirebase,
-  getCharacterFromFirebase,
   deleteCharacterFromFirebase,
 } from "@/lib/firebase-storage"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -135,10 +134,10 @@ describe("useStorageManager — authenticated (user present)", () => {
     expect(result).toEqual([testCharacter])
   })
 
-  it("deleteCharacter calls deleteCharacterFromFirebase with id and uid", async () => {
+  it("deleteCharacter calls deleteCharacterFromFirebase with id", async () => {
     const manager = renderManager()
     await manager.deleteCharacter("char-1")
-    expect(mockDeleteFromFirebase).toHaveBeenCalledWith("char-1", "user-123")
+    expect(mockDeleteFromFirebase).toHaveBeenCalledWith("char-1")
   })
 
   it("storageType is 'firebase' and isAuthenticated is true", () => {

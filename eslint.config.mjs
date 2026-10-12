@@ -52,7 +52,9 @@ export default tseslint.config(
     },
     rules: {
       'no-unused-vars': 'warn',
-      'no-console': 'warn',
+      // CONSTITUTION.md §6.14–15: `console.log` and debug output must not be committed, but
+      // errors must be logged with `console.error` — so that is the one method allowed.
+      'no-console': ['error', { allow: ['error'] }],
     },
   },
   {

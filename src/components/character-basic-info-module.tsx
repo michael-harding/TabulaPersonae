@@ -8,8 +8,6 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
-import { useReadOnly } from "@/lib/read-only-context"
-import { TOUCH_TARGET_BOX } from "@/lib/utils"
 
 interface CharacterBasicInfoModuleProps {
   character: Character
@@ -51,7 +49,6 @@ const toEdit = (c: Character) => ({
 type EditState = ReturnType<typeof toEdit>
 
 export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
-  const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
   const [edited, setEdited] = createSignal(toEdit(props.character))
   createEffect(on(() => props.character.id, () => {

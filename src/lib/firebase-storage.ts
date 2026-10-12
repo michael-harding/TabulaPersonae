@@ -212,7 +212,7 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
   }
 }
 
-export async function deleteCharacterFromFirebase(id: string, userId: string): Promise<boolean> {
+export async function deleteCharacterFromFirebase(id: string): Promise<boolean> {
   try {
     const characterRef = doc(getDb(), CHARACTERS_COLLECTION, id);
     await deleteDoc(characterRef);
@@ -249,9 +249,8 @@ export async function getTabConfigFromFirebase(userId: string): Promise<UserTabC
     return isValidTabConfig(raw) ? raw : null;
   } catch (error) {
     const fe = error as { code?: string; message?: string }
-    if (fe?.code === 'unavailable') {
-      console.debug('Tab config not in Firestore cache (offline):', fe.message)
-    } else {
+    // `unavailable` is an offline cache miss — expected, so there is no error to report.
+    if (fe?.code !== 'unavailable') {
       console.error('Failed to get tab config from Firebase:', error)
     }
     return null;
