@@ -60,6 +60,32 @@ describe("StatsBar", () => {
     expect(results.violations).toHaveLength(0)
   })
 
+  it("has no accessibility violations with temporary HP, conditions and spellcasting shown", async () => {
+    const character = { ...makeSpellcaster(), hitPoints: { current: 8, maximum: 10, temporary: 5 }, conditions: ["Poisoned"] }
+    const { container } = render(<StatsBar character={character} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
+  })
+
+  describe("temporary HP", () => {
+    it("shows temporary HP as an addition between current and maximum", () => {
+      const character = { ...createDefaultCharacter(), hitPoints: { current: 8, maximum: 10, temporary: 5 } }
+      render(<StatsBar character={character} />)
+      expect(screen.getByTestId("current-hp")).toHaveTextContent("8")
+      expect(screen.getByText("+5")).toBeInTheDocument()
+      expect(screen.getByText("/10")).toBeInTheDocument()
+    })
+  })
+
+  describe("conditions", () => {
+    it("lists each active condition by name", () => {
+      const character = { ...makeCharacter(8, 10), conditions: ["Poisoned", "Prone"] }
+      render(<StatsBar character={character} />)
+      expect(screen.getByText("Poisoned")).toBeInTheDocument()
+      expect(screen.getByText("Prone")).toBeInTheDocument()
+    })
+  })
+
   describe("AC and initiative", () => {
     it("computes AC live from equipped armor rather than a stale stored field", () => {
       const character = {

@@ -232,4 +232,21 @@ describe("Character Storage", () => {
       })
     })
   })
+
+  describe("when localStorage refuses the write", () => {
+    const quotaError = new Error("QuotaExceededError")
+
+    it.each([
+      { name: "saveCharacter", logged: "Failed to save character:", run: () => saveCharacter(createDefaultCharacter()) },
+      { name: "deleteCharacter", logged: "Failed to delete character:", run: () => deleteCharacter("char-1") },
+      { name: "setActiveCharacter", logged: "Failed to set active character:", run: () => setActiveCharacter("char-1") },
+    ])("$name reports failure and logs", ({ logged, run }) => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+      localStorageMock.setItem.mockImplementationOnce(() => { throw quotaError })
+
+      expect(run()).toBe(false)
+      expect(consoleError).toHaveBeenCalledWith(logged, quotaError)
+      consoleError.mockRestore()
+    })
+  })
 })

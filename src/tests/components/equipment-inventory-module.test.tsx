@@ -554,6 +554,38 @@ describe("EquipmentInventoryModule", () => {
         expect.objectContaining({ coins: expect.objectContaining({ gp: 50 }) })
       )
     })
+
+    describe("decreasing a denomination", () => {
+      const noCoins = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }
+
+      function decrease(denom: keyof typeof noCoins, coins: Partial<typeof noCoins> | undefined) {
+        const onUpdate = vi.fn()
+        const character = makeCharacter({ coins: coins ? { ...noCoins, ...coins } : undefined })
+        render(<EquipmentInventoryModule character={character} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByTestId(`currency-${denom}-decrease`))
+        return onUpdate
+      }
+
+      it("takes one coin when the denomination has any", () => {
+        const onUpdate = decrease("gp", { gp: 3, sp: 4 })
+        expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ coins: { ...noCoins, gp: 2, sp: 4 } }))
+      })
+
+      it("breaks one coin of the next larger denomination that has any when it is empty", () => {
+        const onUpdate = decrease("sp", { gp: 2 })
+        expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ coins: { ...noCoins, sp: 9, gp: 1 } }))
+      })
+
+      it("changes nothing when it is empty and no larger coin can be broken", () => {
+        const onUpdate = decrease("gp", { cp: 500, sp: 50 })
+        expect(onUpdate).not.toHaveBeenCalled()
+      })
+
+      it("changes nothing for a character with no coins recorded at all", () => {
+        const onUpdate = decrease("cp", undefined)
+        expect(onUpdate).not.toHaveBeenCalled()
+      })
+    })
   })
 
   describe("Magic Items section", () => {

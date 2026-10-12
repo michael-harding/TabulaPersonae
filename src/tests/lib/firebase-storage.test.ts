@@ -28,12 +28,15 @@ vi.mock('firebase/firestore', () => ({
 }))
 
 import {
+  addDoc,
+  deleteDoc,
   getDocs,
   getDocsFromCache,
   getDoc,
   getDocFromCache,
   onSnapshot,
   setDoc,
+  Timestamp,
   type DocumentReference,
   type DocumentSnapshot,
   type SnapshotListenOptions,
@@ -47,11 +50,13 @@ import {
   getTabConfigFromFirebase,
   getPublicCharacterFromFirebase,
   saveCharacterToFirebase,
+  deleteCharacterFromFirebase,
+  saveTabConfigToFirebase,
   type CharacterSyncSnapshot,
 } from '@/lib/firebase-storage'
 import { createDefaultCharacter } from '@/lib/character-types'
 
-import { makeDocSnap, makeListenerSnap, makeQuerySnapshot } from '../mocks/firestore'
+import { makeDocRef, makeDocSnap, makeListenerSnap, makeQuerySnapshot, makeRawListenerSnap } from '../mocks/firestore'
 
 const mockGetDocs = vi.mocked(getDocs)
 const mockGetDocsFromCache = vi.mocked(getDocsFromCache)
@@ -62,6 +67,8 @@ const mockGetDocFromCache = vi.mocked(getDocFromCache)
 type DocumentListen = (ref: DocumentReference, options: SnapshotListenOptions, onNext: (snap: DocumentSnapshot) => void) => Unsubscribe
 const mockOnSnapshot = vi.mocked<DocumentListen>(onSnapshot)
 const mockSetDoc = vi.mocked(setDoc)
+const mockAddDoc = vi.mocked(addDoc)
+const mockDeleteDoc = vi.mocked(deleteDoc)
 
 const userId = 'user-123'
 const charData = { name: 'Thorin', userId, updatedAt: null }
@@ -169,6 +176,58 @@ describe('saveCharacterToFirebase', () => {
     await saveCharacterToFirebase(character('foreign-1', { sheetColor: undefined }), userId)
     expect(lastWrite().mask).not.toContain('sheetColor')
   })
+
+  it('reports failure and logs when the write is rejected', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('permission-denied')
+    mockSetDoc.mockRejectedValueOnce(failure)
+
+    expect(await saveCharacterToFirebase(character('rejected-1'), userId)).toBe(false)
+    expect(consoleError).toHaveBeenCalledWith('Failed to save character to Firebase:', failure)
+    consoleError.mockRestore()
+  })
+
+  describe('a character that has no id yet', () => {
+    beforeEach(() => {
+      mockAddDoc.mockReset()
+    })
+
+    it('adds a new document owned by the user and gives the character the generated id', async () => {
+      mockAddDoc.mockResolvedValue(makeDocRef('generated-1'))
+      const newCharacter = character('', { name: 'Thorin' })
+
+      expect(await saveCharacterToFirebase(newCharacter, userId)).toBe(true)
+
+      expect(mockSetDoc).not.toHaveBeenCalled()
+      expect(mockAddDoc).toHaveBeenCalledOnce()
+      expect(mockAddDoc.mock.calls[0][1]).toMatchObject({ name: 'Thorin', userId, id: '' })
+      expect(newCharacter.id).toBe('generated-1')
+    })
+
+    it('remembers the fields it added, so one cleared before the next save is deleted', async () => {
+      mockAddDoc.mockResolvedValue(makeDocRef('generated-2'))
+      mockSetDoc.mockResolvedValue(undefined)
+      const newCharacter = character('', { sheetColor: '#ff0000' })
+      await saveCharacterToFirebase(newCharacter, userId)
+
+      await saveCharacterToFirebase({ ...newCharacter, sheetColor: undefined }, userId)
+
+      expect(lastWrite().written.sheetColor).toBe('__delete__')
+      expect(lastWrite().mask).toContain('sheetColor')
+    })
+
+    it('reports failure, logs, and leaves the character without an id when the add is rejected', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const failure = new Error('unavailable')
+      mockAddDoc.mockRejectedValue(failure)
+      const newCharacter = character('')
+
+      expect(await saveCharacterToFirebase(newCharacter, userId)).toBe(false)
+      expect(newCharacter.id).toBe('')
+      expect(consoleError).toHaveBeenCalledWith('Failed to save character to Firebase:', failure)
+      consoleError.mockRestore()
+    })
+  })
 })
 
 describe('getPublicCharacterFromFirebase', () => {
@@ -258,6 +317,21 @@ describe('getPublicCharacterFromFirebase', () => {
       expect(result).not.toBeNull()
       expect(result?.name).toBe('Thorin')
     })
+
+    it('returns null without asking Firestore when the seed is "null" (simulated not-found)', async () => {
+      localStorage.setItem(key, 'null')
+      const result = await getPublicCharacterFromFirebase('char-1')
+      expect(result).toBeNull()
+      expect(mockGetDoc).not.toHaveBeenCalled()
+    })
+
+    it('ignores a seed that is not valid JSON and reads Firestore instead', async () => {
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+      localStorage.setItem(key, '{not json')
+      mockGetDoc.mockResolvedValue(makeDocSnap(true, { ...charData, isPublic: true }))
+      const result = await getPublicCharacterFromFirebase('char-1')
+      expect(result?.name).toBe('Thorin')
+    })
   })
 
   it('backfills useCalculatedArmorClass to true for a legacy document missing both the key and an armorClass value', async () => {
@@ -308,6 +382,29 @@ describe('getCharactersFromFirebase', () => {
     expect(result).toEqual([])
   })
 
+  it('returns every character the query finds, each under its own document id', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    mockGetDocs.mockResolvedValue(makeQuerySnapshot([
+      { id: 'char-1', data: () => charData },
+      { id: 'char-2', data: () => ({ ...charData, name: 'Gandalf' }) },
+    ]))
+
+    const result = await getCharactersFromFirebase(userId)
+
+    expect(result.map((c) => [c.id, c.name])).toEqual([['char-1', 'Thorin'], ['char-2', 'Gandalf']])
+  })
+
+  it('returns [] and logs when the query is rejected', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('permission-denied')
+    mockGetDocs.mockRejectedValue(failure)
+
+    expect(await getCharactersFromFirebase(userId)).toEqual([])
+    expect(errorSpy).toHaveBeenCalledWith('Failed to get characters from Firebase:', failure)
+    errorSpy.mockRestore()
+  })
+
   it('backfills useCalculatedArmorClass to true for a legacy document missing both the key and an armorClass value', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     mockGetDocs.mockResolvedValue(makeQuerySnapshot([{ id: 'char-1', data: () => charData }]))
@@ -354,6 +451,31 @@ describe('getCharacterFromFirebase', () => {
     expect(result).toBeNull()
   })
 
+  it('returns null when the document does not exist', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    mockGetDoc.mockResolvedValue(makeDocSnap(false))
+
+    expect(await getCharacterFromFirebase('char-1', userId)).toBeNull()
+  })
+
+  it('returns null for a document that belongs to another user', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    mockGetDoc.mockResolvedValue(makeDocSnap(true, { ...charData, userId: 'someone-else' }))
+
+    expect(await getCharacterFromFirebase('char-1', userId)).toBeNull()
+  })
+
+  it('returns null and logs when the read is rejected', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('permission-denied')
+    mockGetDoc.mockRejectedValue(failure)
+
+    expect(await getCharacterFromFirebase('char-1', userId)).toBeNull()
+    expect(errorSpy).toHaveBeenCalledWith('Failed to get character from Firebase:', failure)
+    errorSpy.mockRestore()
+  })
+
   it('backfills useCalculatedArmorClass to true for a legacy document missing both the key and an armorClass value', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     mockGetDoc.mockResolvedValue(makeDocSnap(true, charData))
@@ -382,6 +504,22 @@ describe('getTabConfigFromFirebase', () => {
     mockGetDoc.mockResolvedValue(makeDocSnap(true, { tabConfig: { notATabs: true } }))
 
     expect(await getTabConfigFromFirebase('user-123')).toBeNull()
+  })
+
+  it('returns null when the user has no settings document yet', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    mockGetDoc.mockResolvedValue(makeDocSnap(false))
+
+    expect(await getTabConfigFromFirebase('user-123')).toBeNull()
+  })
+
+  it('reads the tabConfig from the cache when offline', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const tabConfig = { tabs: [{ id: 'custom-1', label: 'Custom', modules: ['spells'] }] }
+    mockGetDocFromCache.mockResolvedValue(makeDocSnap(true, { tabConfig }))
+
+    expect(await getTabConfigFromFirebase('user-123')).toEqual(tabConfig)
+    expect(mockGetDoc).not.toHaveBeenCalled()
   })
 
   it('returns null without console.error when offline and cache throws unavailable', async () => {
@@ -477,5 +615,99 @@ describe('subscribeToCharacter', () => {
 
     const stored = localStorage.getItem(`dnd-last-synced-${charId}`)
     expect(stored).toBe(new Date(syncedAt).toISOString())
+  })
+
+  it('reads an updatedAt stored as a Firestore Timestamp', () => {
+    const syncedAt = new Date('2026-01-02T03:04:05.000Z')
+    const received: (CharacterSyncSnapshot | null)[] = []
+    subscribeToCharacter(charId, userId, (s) => received.push(s))
+
+    fire(makeRawListenerSnap(true, { userId, updatedAt: new Timestamp(syncedAt.getTime() / 1000, 0) }))
+
+    expect(received[0]).toEqual({ hasPendingWrites: false, updatedAt: syncedAt })
+  })
+
+  it('reports no confirmed sync time, and stores none, for a document never stamped with one', () => {
+    const received: (CharacterSyncSnapshot | null)[] = []
+    subscribeToCharacter(charId, userId, (s) => received.push(s))
+
+    fire(makeListenerSnap(userId, false, null))
+
+    expect(received[0]).toEqual({ hasPendingWrites: false, updatedAt: null })
+    expect(localStorage.getItem(`dnd-last-synced-${charId}`)).toBeNull()
+  })
+
+  it('passes null when the document does not exist', () => {
+    const received: (CharacterSyncSnapshot | null)[] = []
+    subscribeToCharacter(charId, userId, (s) => received.push(s))
+
+    fire(makeRawListenerSnap(false, {}))
+
+    expect(received).toEqual([null])
+  })
+
+  it('passes null, and stores no sync time, for a document that belongs to another user', () => {
+    const received: (CharacterSyncSnapshot | null)[] = []
+    subscribeToCharacter(charId, userId, (s) => received.push(s))
+
+    fire(makeListenerSnap('someone-else', false, Date.now()))
+
+    expect(received).toEqual([null])
+    expect(localStorage.getItem(`dnd-last-synced-${charId}`)).toBeNull()
+  })
+
+  it('returns the function that stops the listener', () => {
+    const unsubscribe = vi.fn()
+    mockOnSnapshot.mockReturnValue(unsubscribe)
+
+    expect(subscribeToCharacter(charId, userId, () => {})).toBe(unsubscribe)
+  })
+})
+
+describe('deleteCharacterFromFirebase', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('deletes the character document and reports success', async () => {
+    mockDeleteDoc.mockResolvedValue(undefined)
+
+    expect(await deleteCharacterFromFirebase('char-1')).toBe(true)
+    expect(mockDeleteDoc).toHaveBeenCalledOnce()
+  })
+
+  it('reports failure and logs when the delete is rejected', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('permission-denied')
+    mockDeleteDoc.mockRejectedValue(failure)
+
+    expect(await deleteCharacterFromFirebase('char-1')).toBe(false)
+    expect(errorSpy).toHaveBeenCalledWith('Failed to delete character from Firebase:', failure)
+    errorSpy.mockRestore()
+  })
+})
+
+describe('saveTabConfigToFirebase', () => {
+  const tabConfig = { tabs: [{ id: 'custom-1', label: 'Custom', modules: ['spells' as const] }] }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('merges the tabConfig into the user settings document, leaving other settings in place', async () => {
+    mockSetDoc.mockResolvedValue(undefined)
+
+    expect(await saveTabConfigToFirebase(tabConfig, userId)).toBe(true)
+    expect(mockSetDoc).toHaveBeenCalledWith(expect.anything(), { tabConfig }, { merge: true })
+  })
+
+  it('reports failure and logs when the write is rejected', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('permission-denied')
+    mockSetDoc.mockRejectedValue(failure)
+
+    expect(await saveTabConfigToFirebase(tabConfig, userId)).toBe(false)
+    expect(errorSpy).toHaveBeenCalledWith('Failed to save tab config to Firebase:', failure)
+    errorSpy.mockRestore()
   })
 })

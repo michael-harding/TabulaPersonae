@@ -47,16 +47,19 @@ vi.mock("@/lib/tab-config-context", async () => {
   }
 })
 
-// Mock @solidjs/router for tests
-vi.mock("@solidjs/router", () => ({
-  useNavigate: () => vi.fn(),
-  useParams: () => ({ id: "test-id" }),
-  useSearchParams: () => [{}, vi.fn()],
-  useLocation: () => ({ pathname: "/", search: "", hash: "", state: null, key: "" }),
-  A: (props: ParentProps<{ href: string }>) => <a href={props.href}>{props.children}</a>,
-  Router: (props: ParentProps) => <>{props.children}</>,
-  Route: () => null,
-}))
+// Mock @solidjs/router for tests. useNavigate returns a stable mock (see mocks/router.ts)
+vi.mock("@solidjs/router", async () => {
+  const { mockNavigate } = await import("./mocks/router")
+  return {
+    useNavigate: () => mockNavigate,
+    useParams: () => ({ id: "test-id" }),
+    useSearchParams: () => [{}, vi.fn()],
+    useLocation: () => ({ pathname: "/", search: "", hash: "", state: null, key: "" }),
+    A: (props: ParentProps<{ href: string }>) => <a href={props.href}>{props.children}</a>,
+    Router: (props: ParentProps) => <>{props.children}</>,
+    Route: () => null,
+  }
+})
 
 // Mock crypto.randomUUID
 Object.defineProperty(globalThis, "crypto", {

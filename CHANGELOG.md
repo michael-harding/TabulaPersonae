@@ -5,14 +5,31 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.6.2] - 2026-10-12
+
+### Added
+- **Two-click confirmation for deleting and removing** — deleting a character, tab, feature, spell, equipment item or custom action, and removing a module from a tab or a level tier from a feature, now takes two clicks: the first turns the button red and reads "Confirm Delete" (or "Confirm Remove"), the second carries it out. The button reverts on its own after a few seconds, on Escape, or when you click elsewhere. This replaces the browser pop-up previously used for deleting a character, and adds a guard to the others, which had none
+- **Tap-to-pin tooltips** — tapping or clicking a calculated value, granted tag or other tooltip target now pins its tooltip open, so it can be read on a touch screen and its text selected; a second tap, a tap elsewhere, or Escape closes it
+- Animations and transitions are reduced to near-instant when the device is set to reduce motion
+- Moving between pages now moves keyboard and screen reader focus to the new page's content
+- Equipment quantity can be adjusted with −/+ buttons directly in the inventory list
+- Every pull request and push to `main` now runs lint, type check, unit/integration tests, a coverage report, and the Playwright E2E, accessibility and visual regression suites in GitHub Actions
 
 ### Changed
+- Buttons, checkboxes, steppers, chips and other controls now have a touch target of at least 44×44px, without changing how large they look
+- Tags and pills across the sheet (conditions, proficiencies, spell levels, item and feature attributes) now share one chip style, and every editable list of them — conditions, condition immunities, languages, proficiencies, resistances, skill advantage/disadvantage — works the same way: click a chip to remove it, and add through a single "+ Add" chip
+- Skill proficiency and expertise are toggled with "Prof" and "Exp" chips instead of checkboxes when editing Skills & Proficiencies
+- The Inspiration checkbox in the Basic Info header was removed; the toggle beside the character's name is now the only one
+- The offline/sync indicator is now a button, so it can be reached and expanded from the keyboard and announces whether it is expanded
 - Damage resistances, immunities and vulnerabilities in Skills & Proficiencies are now picked from the standard damage types, with a "Custom…" entry in the same menu for anything else (e.g. "Nonmagical Bludgeoning"). Entries saved earlier in a different case ("fire") are tidied to the standard spelling when the character loads, and duplicates that differed only by case are merged
 
 ### Fixed
-- Clearing a value on a cloud-synced character (such as the sheet colour) now stays cleared; previously the old value could remain in the cloud copy and come back
+- Clearing a value on a cloud-synced character (such as the sheet color) now stays cleared; previously the old value could remain in the cloud copy and come back
 - Clicking an open dropdown's button a second time now closes it, instead of closing and immediately reopening it
+- Switching straight from one character to another no longer carries anything across: each character keeps its own collapsed and expanded sections in Actions, Features and Spells, and edits left unsaved in Actions or Combat Stats are dropped instead of being applied to the next character
+- Importing a D&D Beyond PDF whose Heroic Inspiration box is set to "Off" no longer imports the character as inspired
+- If cloud sync cannot start (for example, because its configuration is missing), the app now opens signed out and works from on-device storage instead of failing to start; trying to sign in reports the problem
+- The icon beside "Toggle Theme" now updates when the theme changes while the menu is open
 
 ## [v1.6.1] - 2026-10-08
 

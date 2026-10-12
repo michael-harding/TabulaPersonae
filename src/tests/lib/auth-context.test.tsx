@@ -13,8 +13,16 @@ vi.mock("@/lib/firebase-storage", () => ({
 }))
 
 import { cleanup, render } from "@solidjs/testing-library"
+import { createRoot } from "solid-js"
 import type { MockInstance } from "vitest"
-import { onAuthStateChanged, signOut, type User } from "firebase/auth"
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  type User,
+} from "firebase/auth"
 
 import { getFirebaseAuth } from "@/lib/firebase"
 import { saveCharacterToFirebase } from "@/lib/firebase-storage"
@@ -25,6 +33,9 @@ import { createTestUser } from "../mocks/auth"
 
 const mockOnAuthStateChanged = vi.mocked(onAuthStateChanged)
 const mockSignOut = vi.mocked(signOut)
+const mockSignIn = vi.mocked(signInWithEmailAndPassword)
+const mockCreateUser = vi.mocked(createUserWithEmailAndPassword)
+const mockSendPasswordReset = vi.mocked(sendPasswordResetEmail)
 const mockSaveCharacterToFirebase = vi.mocked(saveCharacterToFirebase)
 
 const testUser = createTestUser({ uid: "user-123", email: "test@test.com" })
@@ -226,5 +237,103 @@ describe("AuthProvider — Firebase failed to initialize", () => {
     const { capturedAuth } = renderProvider()
 
     await expect(capturedAuth.signIn("test@test.com", "password")).rejects.toBe(failure)
+  })
+})
+
+describe("AuthProvider — loading state", () => {
+  it("is loading until Firebase reports the first sign-in state", async () => {
+    const { authStateCallback, capturedAuth } = renderProvider()
+
+    expect(capturedAuth.loading()).toBe(true)
+    await authStateCallback(null)
+    expect(capturedAuth.loading()).toBe(false)
+  })
+
+  it("does not wait for Firebase at all in skip-auth mode", () => {
+    localStorage.setItem("dnd-skip-auth", "true")
+    const { capturedAuth } = renderProvider()
+
+    expect(capturedAuth.loading()).toBe(false)
+    expect(capturedAuth.skipAuth()).toBe(true)
+    expect(mockOnAuthStateChanged).not.toHaveBeenCalled()
+  })
+
+  it("stops listening for sign-in state when the provider is disposed", () => {
+    const unsubscribe = vi.fn()
+    mockOnAuthStateChanged.mockReturnValue(unsubscribe)
+    const { unmount } = render(() => <AuthProvider>{null}</AuthProvider>)
+
+    expect(unsubscribe).not.toHaveBeenCalled()
+    unmount()
+    expect(unsubscribe).toHaveBeenCalledOnce()
+  })
+})
+
+describe("AuthProvider — setSkipAuth", () => {
+  it.each([true, false])("sets the skipAuth signal to %s and remembers the choice", (value) => {
+    const { capturedAuth } = renderProvider()
+
+    capturedAuth.setSkipAuth(value)
+
+    expect(capturedAuth.skipAuth()).toBe(value)
+    expect(localStorage.getItem("dnd-skip-auth")).toBe(String(value))
+  })
+})
+
+describe("AuthProvider — account actions", () => {
+  const failure = Object.assign(new Error("Firebase: Error (auth/too-many-requests)."), { code: "auth/too-many-requests" })
+  let errorSpy: MockInstance<Console["error"]>
+
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    errorSpy.mockRestore()
+  })
+
+  it("signs in with the given email and password", async () => {
+    const { capturedAuth } = renderProvider()
+
+    await capturedAuth.signIn("test@test.com", "hunter22")
+
+    expect(mockSignIn).toHaveBeenCalledWith(expect.anything(), "test@test.com", "hunter22")
+  })
+
+  it("creates an account with the given email and password", async () => {
+    const { capturedAuth } = renderProvider()
+
+    await capturedAuth.signUp("new@test.com", "hunter22")
+
+    expect(mockCreateUser).toHaveBeenCalledWith(expect.anything(), "new@test.com", "hunter22")
+  })
+
+  it("sends a password reset email to the given address", async () => {
+    const { capturedAuth } = renderProvider()
+
+    await capturedAuth.resetPassword("test@test.com")
+
+    expect(mockSendPasswordReset).toHaveBeenCalledWith(expect.anything(), "test@test.com")
+  })
+
+  // Each action must hand Firebase's own error (with its `code`) back to the caller, which maps
+  // it to a message, and log it in full.
+  it.each([
+    { action: "signIn", logged: "Sign in error:", sdkCall: mockSignIn, run: (auth: ReturnType<typeof useAuth>) => auth.signIn("test@test.com", "hunter22") },
+    { action: "signUp", logged: "Sign up error:", sdkCall: mockCreateUser, run: (auth: ReturnType<typeof useAuth>) => auth.signUp("test@test.com", "hunter22") },
+    { action: "resetPassword", logged: "Password reset error:", sdkCall: mockSendPasswordReset, run: (auth: ReturnType<typeof useAuth>) => auth.resetPassword("test@test.com") },
+    { action: "logout", logged: "Sign out error:", sdkCall: mockSignOut, run: (auth: ReturnType<typeof useAuth>) => auth.logout() },
+  ])("$action rethrows a Firebase failure unchanged and logs it", async ({ logged, sdkCall, run }) => {
+    sdkCall.mockRejectedValueOnce(failure)
+    const { capturedAuth } = renderProvider()
+
+    await expect(run(capturedAuth)).rejects.toBe(failure)
+    expect(errorSpy).toHaveBeenCalledWith(logged, failure)
+  })
+})
+
+describe("useAuth", () => {
+  it("throws when used outside an AuthProvider", () => {
+    expect(() => createRoot(() => useAuth())).toThrow("useAuth must be used within an AuthProvider")
   })
 })

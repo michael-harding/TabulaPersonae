@@ -234,6 +234,14 @@ describe("reconcileImportedCharacter", () => {
       const result = reconcileImportedCharacter(createDefaultCharacter())
       expect(result.useCalculatedAbilityScores).toBeUndefined()
     })
+
+    it.each([
+      ["an empty overrides object", {}],
+      ["an override that is not a finite number", { strength: Number.NaN }],
+    ])("leaves useCalculatedAbilityScores untouched for %s", (_label, abilityScoreOverrides) => {
+      const character: Character = { ...createDefaultCharacter(), abilityScoreOverrides }
+      expect(reconcileImportedCharacter(character).useCalculatedAbilityScores).toBeUndefined()
+    })
   })
 
   it("reconciles ability scores before the scalar pass, so a stale flag can't produce a wrong armor class result", () => {
@@ -247,6 +255,57 @@ describe("reconcileImportedCharacter", () => {
 
     expect(result.useCalculatedAbilityScores?.dexterity).toBe(false)
     expect(result.useCalculatedArmorClass).toBe(true)
+  })
+})
+
+describe("reconcileImportedCharacter — fields an import can omit", () => {
+  // A character built by hand or by an older export may lack fields the type calls required.
+  // `Partial` records that these are deliberately missing; reconciliation still receives a Character.
+  function withoutFields(...fields: (keyof Character)[]): Character {
+    const partial: Partial<Character> = { ...createDefaultCharacter() }
+    for (const field of fields) delete partial[field]
+    return partial as Character
+  }
+
+  it("compares proficiencyBonus against level 1 when the level is missing", () => {
+    const result = reconcileImportedCharacter({ ...withoutFields("level"), proficiencyBonus: 2 })
+    expect(result.useCalculatedProficiencyBonus).toBe(true)
+  })
+
+  it("compares passive scores against a +2 proficiency bonus and no skill proficiency when both are missing", () => {
+    // WIS 10 / INT 10, not proficient: 10 + 0 = 10 for all three, whatever the bonus
+    const character = { ...withoutFields("proficiencyBonus", "skills"), passivePerception: 10, passiveInsight: 10, passiveInvestigation: 12 }
+    const result = reconcileImportedCharacter(character)
+    expect(result.useCalculatedPassivePerception).toBe(true)
+    expect(result.useCalculatedPassiveInsight).toBe(true)
+    expect(result.useCalculatedPassiveInvestigation).toBe(false)
+  })
+
+  it("adds the assumed +2 proficiency bonus for a skill marked proficient when the bonus is missing", () => {
+    const base = withoutFields("proficiencyBonus")
+    const proficient = { proficient: true, expertise: false }
+    const character: Character = {
+      ...base,
+      skills: { ...base.skills, perception: proficient, insight: proficient, investigation: proficient },
+      passivePerception: 12,
+      passiveInsight: 12,
+      passiveInvestigation: 12,
+    }
+    const result = reconcileImportedCharacter(character)
+    expect(result.useCalculatedPassivePerception).toBe(true)
+    expect(result.useCalculatedPassiveInsight).toBe(true)
+    expect(result.useCalculatedPassiveInvestigation).toBe(true)
+  })
+
+  it("returns the character exactly as imported, and logs, when reconciliation throws", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    const failure = new Error("unreadable field")
+    const character = createDefaultCharacter()
+    Object.defineProperty(character, "abilityScoreOverrides", { get: () => { throw failure }, enumerable: true })
+
+    expect(reconcileImportedCharacter(character)).toBe(character)
+    expect(consoleError).toHaveBeenCalledWith("Failed to reconcile calculated fields on imported character:", failure)
+    consoleError.mockRestore()
   })
 })
 

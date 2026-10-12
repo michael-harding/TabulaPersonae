@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth-context"
 import {
   saveCharacterToFirebase,
   getCharactersFromFirebase,
+  getCharacterFromFirebase,
   deleteCharacterFromFirebase,
 } from "@/lib/firebase-storage"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -28,6 +29,7 @@ import { createMockAuth, createTestUser } from "../mocks/auth"
 const mockUseAuth = vi.mocked(useAuth)
 const mockSaveToFirebase = vi.mocked(saveCharacterToFirebase)
 const mockGetFromFirebase = vi.mocked(getCharactersFromFirebase)
+const mockGetOneFromFirebase = vi.mocked(getCharacterFromFirebase)
 const mockDeleteFromFirebase = vi.mocked(deleteCharacterFromFirebase)
 
 const testCharacter = { ...createDefaultCharacter(), id: "char-1", name: "Thorin" }
@@ -88,6 +90,54 @@ describe("useStorageManager — unauthenticated (user: null)", () => {
     expect(mockDeleteFromFirebase).not.toHaveBeenCalled()
   })
 
+  it("getCharacters returns [] when the stored data is not valid JSON", async () => {
+    localStorage.setItem(STORAGE_KEY, "{not json")
+    const manager = renderManager()
+    expect(await manager.getCharacters()).toEqual([])
+  })
+
+  it("getCharacter finds a stored character by id", async () => {
+    const other = { ...testCharacter, id: "char-2", name: "Gandalf" }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([testCharacter, other]))
+    const manager = renderManager()
+    expect(await manager.getCharacter("char-2")).toEqual(other)
+    expect(mockGetOneFromFirebase).not.toHaveBeenCalled()
+  })
+
+  it("getCharacter returns null for an id that is not stored", async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([testCharacter]))
+    const manager = renderManager()
+    expect(await manager.getCharacter("missing")).toBeNull()
+  })
+
+  describe("when localStorage refuses the write", () => {
+    const quotaError = new Error("QuotaExceededError")
+
+    beforeEach(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([testCharacter]))
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw quotaError })
+      vi.spyOn(console, "error").mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it("saveCharacter reports failure and logs, keeping what was stored", async () => {
+      const manager = renderManager()
+      expect(await manager.saveCharacter({ ...testCharacter, name: "Thorin Updated" })).toBe(false)
+      expect(console.error).toHaveBeenCalledWith("Failed to save character to localStorage:", quotaError)
+      expect(storedCharacters()).toEqual([testCharacter])
+    })
+
+    it("deleteCharacter reports failure and logs, keeping what was stored", async () => {
+      const manager = renderManager()
+      expect(await manager.deleteCharacter("char-1")).toBe(false)
+      expect(console.error).toHaveBeenCalledWith("Failed to delete character from localStorage:", quotaError)
+      expect(storedCharacters()).toEqual([testCharacter])
+    })
+  })
+
   it("syncToFirebase returns false when not authenticated", async () => {
     const manager = renderManager()
     const result = await manager.syncToFirebase()
@@ -132,6 +182,14 @@ describe("useStorageManager — authenticated (user present)", () => {
     const result = await manager.getCharacters()
     expect(mockGetFromFirebase).toHaveBeenCalledWith("user-123")
     expect(result).toEqual([testCharacter])
+  })
+
+  it("getCharacter calls getCharacterFromFirebase with id and uid, not localStorage", async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([{ ...testCharacter, name: "Local copy" }]))
+    mockGetOneFromFirebase.mockResolvedValue(testCharacter)
+    const manager = renderManager()
+    expect(await manager.getCharacter("char-1")).toEqual(testCharacter)
+    expect(mockGetOneFromFirebase).toHaveBeenCalledWith("char-1", "user-123")
   })
 
   it("deleteCharacter calls deleteCharacterFromFirebase with id", async () => {

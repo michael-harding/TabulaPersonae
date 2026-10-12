@@ -6,6 +6,10 @@ vi.mock("@/lib/sync-context", () => ({
   useSyncState: vi.fn(() => null),
 }))
 
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: vi.fn(),
+}))
+
 // theme.ts runs createEffect at module level and calls window.matchMedia (not in jsdom)
 vi.mock("@/lib/theme", () => ({
   theme: () => "system",
@@ -13,23 +17,41 @@ vi.mock("@/lib/theme", () => ({
 }))
 
 import { axe } from "vitest-axe"
+import userEvent from "@testing-library/user-event"
+import { render as renderInRoot } from "@solidjs/testing-library"
 
-import { createDefaultCharacter } from "@/lib/character-types"
+import { useAuth } from "@/lib/auth-context"
+import { createDefaultCharacter, type Character } from "@/lib/character-types"
+import { subscribeToCharacter, type CharacterSyncSnapshot } from "@/lib/firebase-storage"
+import { useSyncState } from "@/lib/sync-context"
 import { useTabConfig } from "@/lib/tab-config-context"
 import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
 import CharacterSheet from "@/routes/CharacterSheet"
 
-import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
+import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor } from "../test-utils"
+import { createMockAuth, createTestUser } from "../mocks/auth"
+import { mockNavigate } from "../mocks/router"
 import { mockStorageManager } from "../mocks/storage-manager"
 
 const mockUseTabConfig = vi.mocked(useTabConfig)
+const mockUseAuth = vi.mocked(useAuth)
+const mockUseSyncState = vi.mocked(useSyncState)
+const mockSubscribeToCharacter = vi.mocked(subscribeToCharacter)
 
+const testUser = createTestUser({ uid: "test-user" })
 const testCharacter = { ...createDefaultCharacter(), id: "test-id", name: "Testy McTestface" }
 
 beforeEach(() => {
   vi.clearAllMocks()
   cleanup()
+  cleanupPortals()
+  document.title = ""
+  mockUseAuth.mockReturnValue(createMockAuth({ user: () => testUser }))
+  mockUseSyncState.mockReturnValue(undefined)
+  mockSubscribeToCharacter.mockReturnValue(vi.fn())
   mockStorageManager.getCharacters.mockResolvedValue([testCharacter])
+  mockStorageManager.getCharacter.mockResolvedValue(null)
+  mockStorageManager.saveCharacter.mockResolvedValue(true)
   // Restore default config before each test (vi.clearAllMocks resets mock state)
   mockUseTabConfig.mockReturnValue({
     tabConfig: () => DEFAULT_TAB_CONFIG,
@@ -39,6 +61,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  cleanupPortals()
 })
 
 async function renderAndLoad() {
@@ -133,5 +156,243 @@ describe("CharacterSheet tabs", () => {
     await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+})
+
+describe("CharacterSheet loading", () => {
+  it("sends a signed-out visitor to the sign-in page without loading any character", async () => {
+    mockUseAuth.mockReturnValue(createMockAuth())
+    render(<CharacterSheet />)
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/auth"))
+    expect(mockStorageManager.getCharacters).not.toHaveBeenCalled()
+  })
+
+  it("loads the sheet for a visitor who chose to continue without an account", async () => {
+    mockUseAuth.mockReturnValue(createMockAuth({ skipAuth: () => true }))
+    await renderAndLoad()
+
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(mockSubscribeToCharacter).not.toHaveBeenCalled()
+  })
+
+  it("shows the loading state and loads nothing while the sign-in state is still unknown", () => {
+    mockUseAuth.mockReturnValue(createMockAuth({ loading: () => true }))
+    render(<CharacterSheet />)
+
+    expect(screen.getByText("Loading character...")).toBeInTheDocument()
+    expect(mockStorageManager.getCharacters).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it("falls back to loading the character by id when the character list does not include it", async () => {
+    mockStorageManager.getCharacters.mockResolvedValue([])
+    mockStorageManager.getCharacter.mockResolvedValue(testCharacter)
+    await renderAndLoad()
+
+    expect(mockStorageManager.getCharacter).toHaveBeenCalledWith("test-id")
+    expect(screen.getByRole("heading", { name: /testy mctestface/i })).toBeInTheDocument()
+  })
+
+  it("goes to the not-found page when the character does not exist", async () => {
+    mockStorageManager.getCharacters.mockResolvedValue([{ ...testCharacter, id: "someone-else" }])
+    render(<CharacterSheet />)
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/404"))
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
+  })
+
+  it("logs the failure and stops loading when the characters cannot be read", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    const failure = new Error("storage unavailable")
+    mockStorageManager.getCharacters.mockRejectedValue(failure)
+    render(<CharacterSheet />)
+
+    await waitFor(() => expect(consoleError).toHaveBeenCalledWith("Failed to load character:", failure))
+    await waitFor(() => expect(screen.queryByText("Loading character...")).not.toBeInTheDocument())
+    consoleError.mockRestore()
+  })
+
+  it("names the character in the page title, and falls back to the app name when it has none", async () => {
+    await renderAndLoad()
+    expect(document.title).toBe("Testy McTestface | TabulaPersonae")
+
+    cleanup()
+    mockStorageManager.getCharacters.mockResolvedValue([{ ...testCharacter, name: "" }])
+    await renderAndLoad()
+    expect(document.title).toBe("TabulaPersonae")
+    expect(screen.getByRole("heading", { name: "Unnamed Character" })).toBeInTheDocument()
+  })
+})
+
+describe("CharacterSheet saving", () => {
+  const savedCharacter = (): Character => mockStorageManager.saveCharacter.mock.calls.at(-1)![0]
+
+  async function renderWith(overrides: Partial<Character>) {
+    mockStorageManager.getCharacters.mockResolvedValue([{ ...testCharacter, ...overrides }])
+    await renderAndLoad()
+  }
+
+  it("saves a change made on the sheet and shows it straight away", async () => {
+    await renderWith({ heroicInspiration: false })
+
+    fireEvent.click(screen.getByTestId("toggle-heroic-inspiration"))
+
+    await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledOnce())
+    expect(savedCharacter()).toMatchObject({ id: "test-id", heroicInspiration: true })
+
+    fireEvent.click(screen.getByTestId("toggle-heroic-inspiration"))
+    await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledTimes(2))
+    expect(savedCharacter().heroicInspiration).toBe(false)
+  })
+
+  it("clears death saves on any save made while the character is at exactly 1 HP", async () => {
+    await renderWith({
+      hitPoints: { ...testCharacter.hitPoints, current: 1 },
+      deathSaves: { successes: 2, failures: 1 },
+    })
+
+    fireEvent.click(screen.getByTestId("toggle-heroic-inspiration"))
+
+    await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledOnce())
+    expect(savedCharacter().deathSaves).toEqual({ successes: 0, failures: 0 })
+  })
+
+  it.each([0, 2])("keeps death saves as they are when the character is at %i HP", async (current) => {
+    await renderWith({
+      hitPoints: { ...testCharacter.hitPoints, current },
+      deathSaves: { successes: 2, failures: 1 },
+    })
+
+    fireEvent.click(screen.getByTestId("toggle-heroic-inspiration"))
+
+    await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledOnce())
+    expect(savedCharacter().deathSaves).toEqual({ successes: 2, failures: 1 })
+  })
+
+  it("tells the user and logs the error when saving throws", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    // jsdom does not implement window.alert
+    const alert = vi.fn()
+    vi.stubGlobal("alert", alert)
+    const failure = new Error("write failed")
+    mockStorageManager.saveCharacter.mockRejectedValue(failure)
+    await renderWith({})
+
+    fireEvent.click(screen.getByTestId("toggle-heroic-inspiration"))
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith("Failed to save character."))
+    expect(consoleError).toHaveBeenCalledWith("Failed to save character:", failure)
+    consoleError.mockRestore()
+    vi.unstubAllGlobals()
+  })
+})
+
+describe("CharacterSheet header actions", () => {
+  it("opens the tab settings page from the Configure tabs button", async () => {
+    await renderAndLoad()
+    fireEvent.click(screen.getByTestId("configure-tabs-button"))
+    expect(mockNavigate).toHaveBeenCalledWith("/settings/tabs")
+  })
+
+  it("opens the rest dialog from the Take a Rest button", async () => {
+    await renderAndLoad()
+    fireEvent.click(screen.getByTestId("take-a-rest-button"))
+    expect(await screen.findByTestId("rest-confirm-button")).toBeInTheDocument()
+
+    // Close it again: a modal torn down while open leaves Kobalte hiding the rest of the page
+    // (aria-hidden) from every test that renders afterwards.
+    fireEvent.click(screen.getByTestId("rest-cancel-button"))
+    await waitFor(() => expect(screen.getByRole("dialog", { hidden: true })).not.toHaveAttribute("data-expanded"))
+  })
+
+  it("returns to the character list from the menu's All Characters item", async () => {
+    const user = userEvent.setup()
+    await renderAndLoad()
+    await user.click(screen.getByTestId("header-menu-trigger"))
+    await user.click(await screen.findByRole("menuitem", { name: "All Characters" }))
+    expect(mockNavigate).toHaveBeenCalledWith("/")
+  })
+
+  describe("importing from the menu", () => {
+    async function importJson(content: unknown) {
+      const user = userEvent.setup()
+      await renderAndLoad()
+      await user.click(screen.getByTestId("header-menu-trigger"))
+      await user.click(await screen.findByRole("menuitem", { name: /import character/i }))
+      const file = new File([JSON.stringify(content)], "import.json", { type: "application/json" })
+      await user.upload(await screen.findByLabelText(/choose json file/i), file)
+    }
+
+    it("saves an imported character under a new id and opens it", async () => {
+      await importJson({ ...createDefaultCharacter(), id: "id-from-file", name: "Imported" })
+
+      await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledOnce())
+      const saved: Character = mockStorageManager.saveCharacter.mock.calls[0][0]
+      expect(saved.name).toBe("Imported")
+      expect(saved.id).not.toBe("id-from-file")
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(`/character/${saved.id}`))
+    })
+
+    it("saves every character of a multi-character import under new ids and opens the first", async () => {
+      await importJson([
+        { ...createDefaultCharacter(), id: "file-1", name: "First" },
+        { ...createDefaultCharacter(), id: "file-2", name: "Second" },
+      ])
+
+      await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledTimes(2))
+      const saved: Character[] = mockStorageManager.saveCharacter.mock.calls.map(([character]) => character)
+      expect(saved.map((c) => c.name)).toEqual(["First", "Second"])
+      expect(saved.map((c) => c.id)).not.toContain("file-1")
+      expect(saved[0].id).not.toBe(saved[1].id)
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(`/character/${saved[0].id}`))
+    })
+  })
+})
+
+describe("CharacterSheet cloud sync status", () => {
+  const setSyncState = vi.fn()
+  // The listener CharacterSheet registers, so a test can deliver a sync snapshot to it
+  let deliver: (snap: CharacterSyncSnapshot | null) => void = () => {}
+  const unsubscribe = vi.fn()
+
+  beforeEach(() => {
+    setSyncState.mockReset()
+    unsubscribe.mockReset()
+    mockUseSyncState.mockReturnValue({ syncState: () => null, setSyncState })
+    mockSubscribeToCharacter.mockImplementation((_id, _userId, callback) => {
+      deliver = callback
+      return unsubscribe
+    })
+  })
+
+  it("subscribes to the open character as the signed-in user", async () => {
+    await renderAndLoad()
+    expect(mockSubscribeToCharacter).toHaveBeenCalledWith("test-id", "test-user", expect.any(Function))
+  })
+
+  it("publishes each sync snapshot, and ignores one for a document it may not read", async () => {
+    await renderAndLoad()
+    const updatedAt = new Date("2026-01-02T03:04:05.000Z")
+
+    deliver({ hasPendingWrites: true, updatedAt })
+    expect(setSyncState).toHaveBeenLastCalledWith({ hasPendingWrites: true, updatedAt })
+
+    setSyncState.mockClear()
+    deliver(null)
+    expect(setSyncState).not.toHaveBeenCalled()
+  })
+
+  it("stops listening and clears the sync status when the sheet is closed", async () => {
+    // Rendered from a function so the sheet is created inside the root that unmount() disposes;
+    // test-utils' render takes an already-created element, whose effects are never cleaned up.
+    const { unmount } = renderInRoot(() => <CharacterSheet />)
+    await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
+    expect(unsubscribe).not.toHaveBeenCalled()
+
+    unmount()
+
+    expect(unsubscribe).toHaveBeenCalledOnce()
+    expect(setSyncState).toHaveBeenLastCalledWith(null)
   })
 })

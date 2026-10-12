@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, on, untrack, For, onMount, onCleanup, JSX } from "solid-js"
+import { createSignal, createEffect, createMemo, createUniqueId, on, untrack, For, onMount, onCleanup, JSX } from "solid-js"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Check from "lucide-solid/icons/check"
 
@@ -35,6 +35,11 @@ export function Combobox(props: ComboboxProps) {
     const q = inputValue().toLowerCase()
     return props.options.filter((o) => o.toLowerCase().includes(q))
   })
+
+  const listId = createUniqueId()
+  // The list is only rendered while there is something to show, so that is when the input is
+  // expanded and has a list to control.
+  const listShown = () => open() && filtered().length > 0
 
   const handleSelect = (option: string) => {
     setInputValue(option)
@@ -154,7 +159,8 @@ export function Combobox(props: ComboboxProps) {
           type="text"
           role="combobox"
           id={props.id}
-          aria-expanded={open()}
+          aria-expanded={listShown()}
+          aria-controls={listShown() ? listId : undefined}
           aria-label={props["aria-label"]}
           data-test={props["data-test"]}
           aria-autocomplete="list"
@@ -184,10 +190,12 @@ export function Combobox(props: ComboboxProps) {
         </button>
       </div>
 
-      {open() && filtered().length > 0 && (
+      {listShown() && (
         <ul
           ref={listRef}
+          id={listId}
           role="listbox"
+          aria-label={props["aria-label"] ?? "Options"}
           class="absolute z-50 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md mt-1"
         >
           <For each={filtered()}>
