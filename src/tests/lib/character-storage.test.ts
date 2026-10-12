@@ -113,18 +113,16 @@ describe("Character Storage", () => {
 
     it("should return empty array in server environment", () => {
       // Mock server environment
-      const originalWindow = global.window
-      delete (global as any).window
+      vi.stubGlobal("window", undefined)
 
       const characters = getCharacters()
-      expect(characters).toEqual([])
+      vi.unstubAllGlobals()
 
-      // Restore window
-      global.window = originalWindow
+      expect(characters).toEqual([])
     })
 
     it("backfills useCalculatedArmorClass to true for a legacy character missing the key when its stored AC already matches the calculated AC", () => {
-      const legacy: any = createDefaultCharacter()
+      const legacy = createDefaultCharacter()
       delete legacy.useCalculatedArmorClass
       localStorageMock.setItem("dnd-characters", JSON.stringify([legacy]))
 
@@ -215,14 +213,12 @@ describe("Character Storage", () => {
 
       it("should return null in server environment", () => {
         // Mock server environment
-        const originalWindow = global.window
-        delete (global as any).window
+        vi.stubGlobal("window", undefined)
 
         const activeId = getActiveCharacter()
-        expect(activeId).toBeNull()
+        vi.unstubAllGlobals()
 
-        // Restore window
-        global.window = originalWindow
+        expect(activeId).toBeNull()
       })
     })
 

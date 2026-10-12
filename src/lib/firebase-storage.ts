@@ -17,7 +17,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 
-import { db } from './firebase';
+import { getDb } from './firebase';
 import type { Character } from './character-types';
 import { migrateCharacter } from './character-migrations';
 import { isValidTabConfig } from './tab-config-types';
@@ -39,7 +39,7 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
     characterData.updatedAt = Timestamp.now();
 
     if (character.id) {
-      const characterRef = doc(db, CHARACTERS_COLLECTION, character.id);
+      const characterRef = doc(getDb(), CHARACTERS_COLLECTION, character.id);
       const written = Object.keys(characterData);
       const previous = knownFields.get(character.id) ?? new Set<string>();
       // The JSON round-trip above drops cleared (undefined) fields, so they have to be deleted
@@ -68,7 +68,7 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
         ...characterData,
         id: '',
       };
-      const docRef = await addDoc(collection(db, CHARACTERS_COLLECTION), newCharacterData);
+      const docRef = await addDoc(collection(getDb(), CHARACTERS_COLLECTION), newCharacterData);
       character.id = docRef.id;
       knownFields.set(docRef.id, new Set(Object.keys(newCharacterData)));
     }
@@ -83,7 +83,7 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
 export async function getCharactersFromFirebase(userId: string): Promise<Character[]> {
   try {
     const q = query(
-      collection(db, CHARACTERS_COLLECTION),
+      collection(getDb(), CHARACTERS_COLLECTION),
       where('userId', '==', userId),
       orderBy('updatedAt', 'desc')
     );
@@ -111,7 +111,7 @@ export async function getCharactersFromFirebase(userId: string): Promise<Charact
 
 export async function getCharacterFromFirebase(id: string, userId: string): Promise<Character | null> {
   try {
-    const characterRef = doc(db, CHARACTERS_COLLECTION, id);
+    const characterRef = doc(getDb(), CHARACTERS_COLLECTION, id);
     const characterSnap = navigator.onLine
       ? await getDoc(characterRef)
       : await getDocFromCache(characterRef);
@@ -153,7 +153,7 @@ export function subscribeToCharacter(
   const stored = localStorage.getItem(lastSyncedKey(id))
   let lastConfirmedAt: Date | null = stored ? new Date(stored) : null
 
-  const characterRef = doc(db, CHARACTERS_COLLECTION, id)
+  const characterRef = doc(getDb(), CHARACTERS_COLLECTION, id)
   return onSnapshot(
     characterRef,
     { includeMetadataChanges: true },
@@ -198,7 +198,7 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
     }
   }
   try {
-    const characterRef = doc(db, CHARACTERS_COLLECTION, id)
+    const characterRef = doc(getDb(), CHARACTERS_COLLECTION, id)
     const characterSnap = navigator.onLine
       ? await getDoc(characterRef)
       : await getDocFromCache(characterRef)
@@ -214,7 +214,7 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
 
 export async function deleteCharacterFromFirebase(id: string, userId: string): Promise<boolean> {
   try {
-    const characterRef = doc(db, CHARACTERS_COLLECTION, id);
+    const characterRef = doc(getDb(), CHARACTERS_COLLECTION, id);
     await deleteDoc(characterRef);
     knownFields.delete(id);
     return true;
@@ -228,7 +228,7 @@ const USER_SETTINGS_COLLECTION = 'userSettings';
 
 export async function saveTabConfigToFirebase(config: UserTabConfig, userId: string): Promise<boolean> {
   try {
-    const settingsRef = doc(db, USER_SETTINGS_COLLECTION, userId);
+    const settingsRef = doc(getDb(), USER_SETTINGS_COLLECTION, userId);
     await setDoc(settingsRef, { tabConfig: config }, { merge: true });
     return true;
   } catch (error) {
@@ -239,7 +239,7 @@ export async function saveTabConfigToFirebase(config: UserTabConfig, userId: str
 
 export async function getTabConfigFromFirebase(userId: string): Promise<UserTabConfig | null> {
   try {
-    const settingsRef = doc(db, USER_SETTINGS_COLLECTION, userId);
+    const settingsRef = doc(getDb(), USER_SETTINGS_COLLECTION, userId);
     const snap = navigator.onLine
       ? await getDoc(settingsRef)
       : await getDocFromCache(settingsRef);

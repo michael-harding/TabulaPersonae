@@ -48,6 +48,8 @@ const toEdit = (c: Character) => ({
   experiencePoints: c.experiencePoints || 0,
 })
 
+type EditState = ReturnType<typeof toEdit>
+
 export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
   const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
@@ -60,7 +62,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
   const raceLabel = () => edition() === "2014" ? "Race" : "Species"
   const raceList = () => edition() === "2014" ? RACES : SPECIES
 
-  const updateField = (field: keyof Character, value: any) => { // Character fields are heterogeneous; a union of all field types is not usable as an assignment target
+  const updateField = <K extends keyof EditState>(field: K, value: EditState[K]) => {
     setEdited((prev) => ({ ...prev, [field]: value }))
   }
 

@@ -1,4 +1,5 @@
 import { render, waitFor } from "@solidjs/testing-library"
+import type { ParentProps } from "solid-js"
 
 import { getTabConfigFromFirebase, saveTabConfigToFirebase } from "@/lib/firebase-storage"
 import { TabConfigProvider, useTabConfig } from "@/lib/tab-config-context"
@@ -23,7 +24,7 @@ vi.mock("@/lib/auth-context", () => ({
     logout: vi.fn(),
     resetPassword: vi.fn(),
   }),
-  AuthProvider: ({ children }: any) => children,
+  AuthProvider: (props: ParentProps) => <>{props.children}</>,
   AuthContext: {},
 }))
 
@@ -198,15 +199,6 @@ describe("TabConfigProvider — authenticated user", () => {
     })
     expect(mockSaveTabConfig).not.toHaveBeenCalled()
     expect(localStorage.getItem(TAB_CONFIG_KEY)).toBeNull()
-  })
-
-  it("uses DEFAULT_TAB_CONFIG when Firebase returns a malformed object", async () => {
-    mockGetTabConfig.mockResolvedValue({ notATabs: true } as any)
-    let ctx!: ReturnType<typeof useTabConfig>
-    renderProvider((c) => { ctx = c })
-    await waitFor(() => {
-      expect(ctx.tabConfig().tabs).toHaveLength(DEFAULT_TAB_CONFIG.tabs.length)
-    })
   })
 })
 

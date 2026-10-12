@@ -1,4 +1,5 @@
 import { axe } from "vitest-axe"
+import type { ComponentProps } from "solid-js"
 
 import { EditableModule } from "@/components/editable-module"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -7,7 +8,7 @@ import { render, screen, fireEvent } from "../test-utils"
 
 const icon = <span>icon</span>
 
-function renderView(overrides: Record<string, any> = {}) {
+function renderView(overrides: Partial<ComponentProps<typeof EditableModule>> = {}) {
   return render(
     <EditableModule data-test="test-module"
       icon={icon}
@@ -80,7 +81,7 @@ describe("EditableModule", () => {
   })
 
   describe("edit mode (isEditing=true)", () => {
-    function renderEdit(overrides: Record<string, any> = {}) {
+    function renderEdit(overrides: Partial<ComponentProps<typeof EditableModule>> = {}) {
       return render(
         <EditableModule data-test="test-module"
           icon={icon}
@@ -184,7 +185,7 @@ describe("EditableModule", () => {
   })
 
   describe("readOnly mode", () => {
-    function renderReadOnly(overrides: Record<string, any> = {}) {
+    function renderReadOnly(overrides: Partial<ComponentProps<typeof EditableModule>> = {}) {
       return render(
         <ReadOnlyProvider value={true}>
           <EditableModule data-test="test-module"

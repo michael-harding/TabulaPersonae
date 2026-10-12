@@ -24,13 +24,15 @@ import {
 } from "@/lib/firebase-storage"
 import { createDefaultCharacter } from "@/lib/character-types"
 
+import { createMockAuth, createTestUser } from "../mocks/auth"
+
 const mockUseAuth = vi.mocked(useAuth)
 const mockSaveToFirebase = vi.mocked(saveCharacterToFirebase)
 const mockGetFromFirebase = vi.mocked(getCharactersFromFirebase)
 const mockDeleteFromFirebase = vi.mocked(deleteCharacterFromFirebase)
 
 const testCharacter = { ...createDefaultCharacter(), id: "char-1", name: "Thorin" }
-const testUser = { uid: "user-123" } as any
+const testUser = createTestUser({ uid: "user-123" })
 
 const STORAGE_KEY = "dnd-characters"
 
@@ -51,15 +53,7 @@ describe("useStorageManager — unauthenticated (user: null)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
-    mockUseAuth.mockReturnValue({
-      user: () => null,
-      loading: () => false,
-      skipAuth: () => false,
-      signIn: vi.fn(),
-      signUp: vi.fn(),
-      logout: vi.fn(),
-      resetPassword: vi.fn(),
-    } as any)
+    mockUseAuth.mockReturnValue(createMockAuth())
   })
 
   it("getCharacters reads from localStorage", async () => {
@@ -109,7 +103,7 @@ describe("useStorageManager — unauthenticated (user: null)", () => {
   })
 
   it("getCharacters backfills useCalculatedArmorClass to true for a legacy character missing the key when its stored AC already matches the calculated AC", async () => {
-    const legacy: any = { ...testCharacter }
+    const legacy = { ...testCharacter }
     delete legacy.useCalculatedArmorClass
     localStorage.setItem(STORAGE_KEY, JSON.stringify([legacy]))
     const manager = renderManager()
@@ -122,15 +116,7 @@ describe("useStorageManager — authenticated (user present)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
-    mockUseAuth.mockReturnValue({
-      user: () => testUser,
-      loading: () => false,
-      skipAuth: () => false,
-      signIn: vi.fn(),
-      signUp: vi.fn(),
-      logout: vi.fn(),
-      resetPassword: vi.fn(),
-    } as any)
+    mockUseAuth.mockReturnValue(createMockAuth({ user: () => testUser }))
     mockSaveToFirebase.mockResolvedValue(true)
     mockGetFromFirebase.mockResolvedValue([testCharacter])
     mockDeleteFromFirebase.mockResolvedValue(true)

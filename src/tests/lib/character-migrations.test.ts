@@ -12,13 +12,13 @@ describe("migrateCharacter", () => {
   it("backfills useCalculatedArmorClass to true when the stored AC already matches the calculated AC", () => {
     // Default character: no equipment, ability scores all 10 -> calculated AC is 10, same as the
     // stored default. Nothing changes on screen by switching to calculated, so it's safe to do so.
-    const raw: any = { ...createDefaultCharacter() }
+    const raw = { ...createDefaultCharacter() }
     delete raw.useCalculatedArmorClass
     expect(migrateCharacter(raw).useCalculatedArmorClass).toBe(true)
   })
 
   it("backfills useCalculatedArmorClass to false when the stored AC differs from the calculated AC", () => {
-    const raw: any = { ...createDefaultCharacter(), armorClass: 17 }
+    const raw = { ...createDefaultCharacter(), armorClass: 17 }
     delete raw.useCalculatedArmorClass
     const migrated = migrateCharacter(raw)
     expect(migrated.useCalculatedArmorClass).toBe(false)
@@ -39,7 +39,7 @@ describe("migrateCharacter", () => {
     // A default character has no Species Trait effects, so calculated walk speed is 0 and
     // calculated size is "" — nothing here matches the stored defaults (30/"Medium"), so this case
     // instead uses a character with no baked-in speed/size at all to exercise the "matches" path.
-    const raw: any = { ...createDefaultCharacter(), speed: undefined, flySpeed: undefined, swimSpeed: undefined, climbSpeed: undefined, burrowSpeed: undefined, size: undefined }
+    const raw = { ...createDefaultCharacter(), speed: undefined, flySpeed: undefined, swimSpeed: undefined, climbSpeed: undefined, burrowSpeed: undefined, size: undefined }
     delete raw.useCalculatedSpeed
     delete raw.useCalculatedFlySpeed
     delete raw.useCalculatedSwimSpeed
@@ -59,7 +59,7 @@ describe("migrateCharacter", () => {
     // Imported JSON can carry `null` where the model expects an absent key; a strict
     // `=== undefined` check would treat null as a stored custom value and backfill `false`.
     // `any`: null is deliberately outside the Character type, simulating external JSON
-    const raw: any = { ...createDefaultCharacter(), speed: null, flySpeed: null, swimSpeed: null, climbSpeed: null, burrowSpeed: null, size: null }
+    const raw = { ...createDefaultCharacter(), speed: null, flySpeed: null, swimSpeed: null, climbSpeed: null, burrowSpeed: null, size: null }
     delete raw.useCalculatedSpeed
     delete raw.useCalculatedFlySpeed
     delete raw.useCalculatedSwimSpeed
@@ -81,7 +81,7 @@ describe("migrateCharacter", () => {
     // won't match the feature-derived calculation (0 / ""). Backfilling `true` here would silently
     // replace the player's value with that calculated one — exactly the bug this migration exists
     // to prevent.
-    const raw: any = { ...createDefaultCharacter(), speed: 25, flySpeed: 10, swimSpeed: 5, climbSpeed: 5, burrowSpeed: 5, size: "Small" }
+    const raw = { ...createDefaultCharacter(), speed: 25, flySpeed: 10, swimSpeed: 5, climbSpeed: 5, burrowSpeed: 5, size: "Small" }
     delete raw.useCalculatedSpeed
     delete raw.useCalculatedFlySpeed
     delete raw.useCalculatedSwimSpeed
@@ -100,7 +100,7 @@ describe("migrateCharacter", () => {
   })
 
   it("only backfills the specific flags that are missing, leaving others untouched", () => {
-    const raw: any = { ...createDefaultCharacter(), useCalculatedSpeed: true }
+    const raw = { ...createDefaultCharacter(), useCalculatedSpeed: true }
     delete raw.useCalculatedSize
     const migrated = migrateCharacter(raw)
     expect(migrated.useCalculatedSpeed).toBe(true)
@@ -108,9 +108,11 @@ describe("migrateCharacter", () => {
     expect(migrated.useCalculatedSize).toBe(false)
   })
 
-  it("passes through non-object input unchanged", () => {
-    expect(migrateCharacter(null)).toBeNull()
-    expect(migrateCharacter(undefined)).toBeUndefined()
+  it("rejects input that is not a character record", () => {
+    expect(() => migrateCharacter(null)).toThrow(TypeError)
+    expect(() => migrateCharacter(undefined)).toThrow(TypeError)
+    expect(() => migrateCharacter("Thorin")).toThrow(TypeError)
+    expect(() => migrateCharacter([createDefaultCharacter()])).toThrow(TypeError)
   })
 
   describe("legacy spellcasting/hit-die Feature import", () => {
@@ -119,7 +121,7 @@ describe("migrateCharacter", () => {
     // Feature, so it never got one. A real legacy character can't carry a Feature that didn't exist
     // yet; only brand-new characters created under the current code do.
     it("synthesizes a Feature granting the legacy spellcasting ability when nothing else grants one", () => {
-      const raw: any = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
+      const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
       delete raw.useCalculatedSize
       const migrated = migrateCharacter(raw)
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("intelligence")
@@ -129,8 +131,14 @@ describe("migrateCharacter", () => {
       expect(migrated.classFeatures![0].name).toBe("Spellcasting")
     })
 
+    it("does not synthesize a Spellcasting Feature from a legacy value that is not an ability", () => {
+      const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "Intelligence (INT)", hitDice: "" }
+      delete raw.useCalculatedSize
+      expect(migrateCharacter(raw).classFeatures).toEqual([])
+    })
+
     it("synthesizes a Feature granting the legacy hit die size when nothing else grants one", () => {
-      const raw: any = { ...createDefaultCharacter(), classFeatures: [], hitDice: "1d10" }
+      const raw = { ...createDefaultCharacter(), classFeatures: [], hitDice: "1d10" }
       delete raw.useCalculatedSize
       const migrated = migrateCharacter(raw)
       expect(getEffectiveHitDiceSize(migrated)).toBe(10)
@@ -141,14 +149,14 @@ describe("migrateCharacter", () => {
     })
 
     it("prefers an explicit legacy hitDiceSize over parsing hitDice", () => {
-      const raw: any = { ...createDefaultCharacter(), classFeatures: [], hitDice: "1d8", hitDiceSize: 12 }
+      const raw = { ...createDefaultCharacter(), classFeatures: [], hitDice: "1d8", hitDiceSize: 12 }
       delete raw.useCalculatedSize
       const migrated = migrateCharacter(raw)
       expect(getEffectiveHitDiceSize(migrated)).toBe(12)
     })
 
     it("synthesizes separate Features for spellcasting and hit die, so editing one in the Features tab can't drop the other", () => {
-      const raw: any = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "wisdom", hitDice: "1d8" }
+      const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "wisdom", hitDice: "1d8" }
       delete raw.useCalculatedSize
       const migrated = migrateCharacter(raw)
       expect(migrated.classFeatures).toHaveLength(2)
@@ -157,7 +165,7 @@ describe("migrateCharacter", () => {
     })
 
     it("does not synthesize a duplicate Feature when one already grants the legacy value", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         spellcastingAbility: "wisdom",
         hitDice: "",
@@ -171,7 +179,7 @@ describe("migrateCharacter", () => {
     })
 
     it("also covers PDF-imported characters, whose plain Features have no levelEffects", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         spellcastingAbility: "charisma",
         hitDice: "1d8",
@@ -185,7 +193,7 @@ describe("migrateCharacter", () => {
     })
 
     it("normalizes a legacy string-shaped classFeatures instead of spreading it character-by-character", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         classFeatures: "Rage, Reckless Attack, Danger Sense",
         spellcastingAbility: "wisdom",
@@ -203,7 +211,7 @@ describe("migrateCharacter", () => {
 
   describe("featureType backfill", () => {
     it("backfills featureType onto a Feature that predates the field", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         classFeatures: [
           { id: "f1", name: "Rage", description: "", source: "class-feature", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["strength"] } }] },
@@ -219,7 +227,7 @@ describe("migrateCharacter", () => {
       // { ...createDefaultCharacter(), ...parsed } merge PDF import produces (see mergeWithDefault
       // in pdf-parser.ts) — deliberately NOT deleting any flag here, so migrateCharacter's
       // CALCULATED_VALUE_FLAGS gate is skipped entirely. The featureType backfill must still run.
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         classFeatures: [
           { id: "f1", name: "Bardic Inspiration", description: "", source: "class-feature", actionKind: "bonus-action" },
@@ -230,7 +238,7 @@ describe("migrateCharacter", () => {
     })
 
     it("does not touch a Feature that already has a featureType, including ''", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         classFeatures: [
           { id: "f1", name: "Custom", description: "", source: "class-feature", featureType: "" },
@@ -241,7 +249,7 @@ describe("migrateCharacter", () => {
     })
 
     it("gives a legacy-synthesized Spellcasting Feature the correct featureType", () => {
-      const raw: any = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
+      const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
       delete raw.useCalculatedSize
       const migrated = migrateCharacter(raw)
       expect(migrated.classFeatures![0].name).toBe("Spellcasting")
@@ -249,7 +257,7 @@ describe("migrateCharacter", () => {
     })
 
     it("backfills featureType on every feature list, not just classFeatures", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         speciesTraits: [{ id: "f1", name: "Darkvision", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { senses: { darkvision: 60 } } }] }],
         feats: [{ id: "f2", name: "Tough", description: "", source: "feat", levelEffects: [{ level: 1, effects: { hpBonusPerLevel: 2 } }] }],
@@ -264,7 +272,7 @@ describe("migrateCharacter", () => {
 
   describe("equipment uses backfill", () => {
     it("relocates a legacy consumedUses-style uses to charges for a magic item with charges configured", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         equipment: [{ id: "e1", name: "Wand", quantity: 1, weight: 1, description: "", equipped: true, type: "other", magic: true, maxUses: 3, uses: 2 }],
       }
@@ -275,7 +283,7 @@ describe("migrateCharacter", () => {
     })
 
     it("relocates a legacy uses to consumedUses for a plain consumable item", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         equipment: [{ id: "e1", name: "Potion", quantity: 5, weight: 1, description: "", equipped: true, type: "consumable", uses: 2 }],
       }
@@ -286,7 +294,7 @@ describe("migrateCharacter", () => {
     })
 
     it("does not touch an item that already has no legacy uses field", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         equipment: [{ id: "e1", name: "Rope", quantity: 1, weight: 1, description: "", equipped: false, type: "other", charges: 0 }],
       }
@@ -297,14 +305,14 @@ describe("migrateCharacter", () => {
 
   describe("useCalculatedSenses backfill", () => {
     it("backfills to true when the stored sense already matches the calculated total", () => {
-      const raw: any = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: 0 } }
+      const raw = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: 0 } }
       delete raw.useCalculatedSenses
       const migrated = migrateCharacter(raw)
       expect(migrated.useCalculatedSenses).toEqual({ darkvision: true, blindsight: true, tremorsense: true, truesight: true })
     })
 
     it("backfills to false and preserves the stored value when it differs from the calculated total", () => {
-      const raw: any = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: 60 } }
+      const raw = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: 60 } }
       delete raw.useCalculatedSenses
       const migrated = migrateCharacter(raw)
       expect(migrated.useCalculatedSenses?.darkvision).toBe(false)
@@ -313,14 +321,14 @@ describe("migrateCharacter", () => {
 
     it("treats a null sense value from external JSON the same as an absent one", () => {
       // `any`: null is deliberately outside the Character type, simulating external JSON
-      const raw: any = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: null } }
+      const raw = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: null } }
       delete raw.useCalculatedSenses
       const migrated = migrateCharacter(raw)
       expect(migrated.useCalculatedSenses?.darkvision).toBe(true)
     })
 
     it("leaves an already-present useCalculatedSenses untouched", () => {
-      const raw: any = {
+      const raw = {
         ...createDefaultCharacter(),
         classFeatures: [],
         senses: { darkvision: 60 },
@@ -361,10 +369,15 @@ describe("migrateCharacter damage type normalisation", () => {
 
 describe("migrateCharacters", () => {
   it("maps an array of raw records", () => {
-    const raw: any = { ...createDefaultCharacter() }
+    const raw = { ...createDefaultCharacter() }
     delete raw.useCalculatedArmorClass
     const [migrated] = migrateCharacters([raw])
     expect(migrated.useCalculatedArmorClass).toBe(true)
+  })
+
+  it("drops entries that are not character records", () => {
+    const record = createDefaultCharacter()
+    expect(migrateCharacters([null, record, "Thorin", 3, [record]])).toEqual([record])
   })
 
   it("returns [] for non-array input", () => {

@@ -1,10 +1,22 @@
-import { PDFDocument, PDFName, PDFArray } from "pdf-lib"
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFString, type PDFObject } from "pdf-lib"
 
 import type { AbilityScores, ActionKind, Attack, Character, Equipment, Feature, FeatureKind, Skills, Spell } from "./character-types"
 import { createDefaultCharacter } from "./character-types"
 
 type SpellSlots = Character["spellSlots"]
 type SpellSlotLevel = keyof SpellSlots
+
+/**
+ * What a PDF yields: only the fields the sheet actually held. The grouped fields can be partly
+ * filled too (three of the six ability scores, some spell slot levels), so they are partial as
+ * well. mergeWithDefault fills every gap from createDefaultCharacter().
+ */
+export type ParsedCharacter = Omit<Partial<Character>, "abilityScores" | "savingThrows" | "skills" | "spellSlots"> & {
+  abilityScores?: Partial<AbilityScores>
+  savingThrows?: Partial<Character["savingThrows"]>
+  skills?: Partial<Skills>
+  spellSlots?: Partial<SpellSlots>
+}
 
 // --- Primitive parsers (exported for unit tests) ---
 
@@ -289,6 +301,13 @@ function isProficient(raw: string): boolean {
   return decodeValue(raw).trim().length > 0
 }
 
+// A checkbox's value is the name of its "on" state when ticked (/Inspired for Heroic Inspiration,
+// /Yes for most others) and /Off, or no value at all, when not.
+function isCheckboxOn(raw: string): boolean {
+  const state = decodeValue(raw).trim()
+  return state.length > 0 && state.toLowerCase() !== "off"
+}
+
 function isExpertise(raw: string): boolean {
   const decoded = decodeValue(raw).trim().toUpperCase()
   return decoded === "E" || decoded === "★"
@@ -311,8 +330,8 @@ function parseWeight(raw: string): number {
   return match ? parseFloat(match[1]) : 0
 }
 
-export function mapFieldsToCharacter(fields: Record<string, string | boolean>): Partial<Character> {
-  const result: Partial<Character> = {}
+export function mapFieldsToCharacter(fields: Record<string, string | boolean>): ParsedCharacter {
+  const result: ParsedCharacter = {}
   const f = (key: string): string => {
     const raw = fields[key]
     return typeof raw === "string" ? decodeValue(raw).trim() : ""
@@ -355,7 +374,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
     const val = f(key)
     if (val) abilityScores[ability] = parseIntField(val)
   }
-  if (Object.keys(abilityScores).length > 0) result.abilityScores = abilityScores as AbilityScores
+  if (Object.keys(abilityScores).length > 0) result.abilityScores = abilityScores
 
   // --- Saving throws ---
   // D&D Beyond uses "StrProf", "DexProf", etc. — non-empty = proficient
@@ -368,7 +387,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
     const raw = fields[key] as string | undefined
     if (raw != null) savingThrows[ability] = isProficient(raw)
   }
-  if (Object.keys(savingThrows).length > 0) result.savingThrows = savingThrows as Character["savingThrows"]
+  if (Object.keys(savingThrows).length > 0) result.savingThrows = savingThrows
 
   // --- Skills ---
   // D&D Beyond uses "AthleticsProf", "AcrobaticsProf", etc.
@@ -558,7 +577,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
       spellSlots[i as SpellSlotLevel] = parsed
     }
   }
-  if (Object.keys(spellSlots).length > 0) result.spellSlots = spellSlots as SpellSlots
+  if (Object.keys(spellSlots).length > 0) result.spellSlots = spellSlots
 
   // Parse individual spells
   const spells: Spell[] = []
@@ -597,7 +616,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
 
   // --- Heroic Inspiration ---
   const inspirationRaw = fields["Inspiration"] as string | undefined
-  if (inspirationRaw != null) result.heroicInspiration = isProficient(inspirationRaw)
+  if (inspirationRaw != null) result.heroicInspiration = isCheckboxOn(inspirationRaw)
 
   return result
 }
@@ -623,7 +642,7 @@ function mergeSpellSlots(defaults: SpellSlots, parsed?: Partial<SpellSlots>): Sp
   return result
 }
 
-export function mergeWithDefault(parsed: Partial<Character>): Character {
+export function mergeWithDefault(parsed: ParsedCharacter): Character {
   const d = createDefaultCharacter()
   return {
     ...d,
@@ -643,6 +662,16 @@ export function mergeWithDefault(parsed: Partial<Character>): Character {
 // --- PDF field extraction via Widget annotations ---
 // D&D Beyond exports PDFs with character data stored in Widget annotations (not AcroForm).
 // The /V key on each Widget annotation contains the field value.
+
+// The text of a field's name or value. D&D Beyond writes both as PDF strings; a checkbox's value
+// is a PDF name instead (/Inspired, /Off). No other PDF object type holds text this parser reads.
+// A hex string is returned as its raw hex digits, not decoded: decodeDndbeyondHexString does that.
+function pdfObjectText(object: PDFObject | undefined): string {
+  if (object instanceof PDFString || object instanceof PDFHexString) return object.asString()
+  if (object instanceof PDFName) return object.decodeText()
+  return ""
+}
+
 async function extractPdfFields(arrayBuffer: ArrayBuffer | Uint8Array): Promise<Record<string, string>> {
   const doc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
   const { context } = doc
@@ -658,20 +687,16 @@ async function extractPdfFields(arrayBuffer: ArrayBuffer | Uint8Array): Promise<
 
     for (let i = 0; i < annots.size(); i++) {
       try {
-        const annot = context.lookup(annots.get(i)) as any // pdf-lib's PDFObject has no typed accessor API
-        const subtype = annot?.get?.(PDFName.of("Subtype"))?.encodedName
-        if (subtype !== "/Widget") continue
-
-        const t = annot.get(PDFName.of("T"))
-        const v = annot.get(PDFName.of("V"))
-        if (!t) continue
+        const annot = context.lookup(annots.get(i))
+        if (!(annot instanceof PDFDict)) continue
+        // pdf-lib interns names, so the same name is always the same object
+        if (annot.get(PDFName.of("Subtype")) !== PDFName.of("Widget")) continue
 
         // Trim trailing whitespace from field names (D&D Beyond has inconsistent padding)
-        const name = ((t as any).value ?? (t as any).encodedName ?? "").toString().trim() // pdf-lib internal fields not typed
+        const name = pdfObjectText(annot.get(PDFName.of("T"))).trim()
         if (!name) continue
 
-        const rawValue = v ? ((v as any).value ?? (v as any).encodedName ?? "").toString() : "" // pdf-lib internal fields not typed
-        result[name] = rawValue
+        result[name] = pdfObjectText(annot.get(PDFName.of("V")))
       } catch { /* skip unreadable annotations */ }
     }
   }
@@ -679,12 +704,12 @@ async function extractPdfFields(arrayBuffer: ArrayBuffer | Uint8Array): Promise<
   return result
 }
 
-export async function parsePdfBuffer(input: Uint8Array | ArrayBuffer): Promise<Partial<Character>> {
+export async function parsePdfBuffer(input: Uint8Array | ArrayBuffer): Promise<ParsedCharacter> {
   const fields = await extractPdfFields(input)
   return mapFieldsToCharacter(fields)
 }
 
-export async function parsePdfCharacterSheet(file: File): Promise<Partial<Character>> {
+export async function parsePdfCharacterSheet(file: File): Promise<ParsedCharacter> {
   const arrayBuffer = await file.arrayBuffer()
   return parsePdfBuffer(arrayBuffer)
 }

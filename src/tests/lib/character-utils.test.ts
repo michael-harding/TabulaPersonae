@@ -47,7 +47,7 @@ import {
   effectiveEquipmentUses,
   reconcileEquipmentRest,
 } from "@/lib/character-utils"
-import { createDefaultCharacter, type AbilityScores, type Equipment, type Feature } from "@/lib/character-types"
+import { createDefaultCharacter, type Character, type Equipment, type Feature } from "@/lib/character-types"
 
 describe("Character Utils", () => {
   describe("getAbilityModifier", () => {
@@ -177,7 +177,8 @@ describe("Character Utils", () => {
       it("handles character with undefined ability scores", () => {
         const character = createDefaultCharacter()
         character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] })]
-        character.abilityScores = undefined as any
+        // @ts-expect-error abilityScores is required on Character; this simulates a stored record that lost it
+        character.abilityScores = undefined
 
         const result = getSpellSaveDC(character)
         expect(result).toBe(10) // 8 + 2 proficiency + 0 ability modifier (default 10)
@@ -192,37 +193,6 @@ describe("Character Utils", () => {
 
         const result = getSpellSaveDC(character)
         expect(result).toBe(15) // 8 + 3 proficiency + 4 ability modifier (18 INT)
-      })
-    })
-
-    describe("with separate parameters", () => {
-      const abilityScores: AbilityScores = {
-        strength: 10,
-        dexterity: 12,
-        constitution: 14,
-        intelligence: 16,
-        wisdom: 13,
-        charisma: 8,
-      }
-
-      it("calculates spell save DC with separate parameters", () => {
-        const result = getSpellSaveDC("intelligence", abilityScores, 3)
-        expect(result).toBe(14) // 8 + 3 proficiency + 3 ability modifier
-      })
-
-      it("returns 8 for empty spellcasting ability", () => {
-        const result = getSpellSaveDC("" as any, abilityScores, 3)
-        expect(result).toBe(8)
-      })
-
-      it("returns 8 for undefined ability scores", () => {
-        const result = getSpellSaveDC("intelligence", undefined as any, 3)
-        expect(result).toBe(8)
-      })
-
-      it("uses default proficiency bonus when not provided", () => {
-        const result = getSpellSaveDC("intelligence", abilityScores, undefined as any)
-        expect(result).toBe(13) // 8 + 2 default proficiency + 3 ability modifier
       })
     })
   })
@@ -249,7 +219,8 @@ describe("Character Utils", () => {
       it("handles character with undefined ability scores", () => {
         const character = createDefaultCharacter()
         character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] })]
-        character.abilityScores = undefined as any
+        // @ts-expect-error abilityScores is required on Character; this simulates a stored record that lost it
+        character.abilityScores = undefined
 
         const result = getSpellAttackBonus(character)
         expect(result).toBe(2) // 2 proficiency + 0 ability modifier (default 10)
@@ -264,37 +235,6 @@ describe("Character Utils", () => {
 
         const result = getSpellAttackBonus(character)
         expect(result).toBe(7) // 3 proficiency + 4 ability modifier (18 INT)
-      })
-    })
-
-    describe("with separate parameters", () => {
-      const abilityScores: AbilityScores = {
-        strength: 10,
-        dexterity: 12,
-        constitution: 14,
-        intelligence: 16,
-        wisdom: 13,
-        charisma: 8,
-      }
-
-      it("calculates spell attack bonus with separate parameters", () => {
-        const result = getSpellAttackBonus("intelligence", abilityScores, 3)
-        expect(result).toBe(6) // 3 proficiency + 3 ability modifier
-      })
-
-      it("returns 0 for empty spellcasting ability", () => {
-        const result = getSpellAttackBonus("" as any, abilityScores, 3)
-        expect(result).toBe(0)
-      })
-
-      it("returns 0 for undefined ability scores", () => {
-        const result = getSpellAttackBonus("intelligence", undefined as any, 3)
-        expect(result).toBe(0)
-      })
-
-      it("uses default proficiency bonus when not provided", () => {
-        const result = getSpellAttackBonus("intelligence", abilityScores, undefined as any)
-        expect(result).toBe(5) // 2 default proficiency + 3 ability modifier
       })
     })
   })
@@ -483,6 +423,16 @@ function makeMagicItem(overrides: Partial<Equipment> = {}): Equipment {
     rarity: "rare",
     ...overrides,
   }
+}
+
+// The calculators take a character's complete savingThrows/skills records. These build one from
+// the defaults (nothing proficient) with only the entries a test cares about changed.
+function savingThrowsWith(overrides: Partial<Character["savingThrows"]>): Character["savingThrows"] {
+  return { ...createDefaultCharacter().savingThrows, ...overrides }
+}
+
+function skillsWith(overrides: Partial<Character["skills"]>): Character["skills"] {
+  return { ...createDefaultCharacter().skills, ...overrides }
 }
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
@@ -1573,8 +1523,8 @@ describe("getActiveFeatureEffects", () => {
   })
 
   it("ignores null scalar effects from external JSON instead of recording them as a grant", () => {
-    // `any`: null is deliberately outside the FeatureEffects type, simulating external JSON
-    const effects: any = { speed: null, flySpeed: null, carryingCapacityMultiplier: null }
+    const effects = { speed: null, flySpeed: null, carryingCapacityMultiplier: null }
+    // @ts-expect-error null is outside FeatureEffects, but external JSON can hold it where the type says "absent" (CONSTITUTION §6.7)
     const feature = makeFeature({ name: "Imported", levelEffects: [{ level: 1, effects }] })
     const totals = getActiveFeatureEffects({ classFeatures: [feature], speciesTraits: [], feats: [], level: 1 })
     expect(totals.speed).toBeUndefined()
@@ -1810,7 +1760,7 @@ describe("getEffectiveHitDiceSize", () => {
   })
 
   it("ignores stale raw hitDiceSize/hitDice fields once no feature grants one, even if they're still present", () => {
-    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, hitDiceSize: 10, hitDice: "1d8" } as any
+    const character = { classFeatures: [], speciesTraits: [], feats: [], level: 1, hitDiceSize: 10, hitDice: "1d8" }
     expect(getEffectiveHitDiceSize(character)).toBeUndefined()
   })
 })
@@ -1843,8 +1793,8 @@ describe("inferFeatureType", () => {
   })
 
   it("treats null effect values from external JSON as unset rather than as a grant", () => {
-    // `any`: null is deliberately outside the FeatureEffects type, simulating external JSON
-    const effects: any = { speed: null, hpBonusPerLevel: null, carryingCapacityBonus: null, senses: { darkvision: null }, abilityScoreFloors: { strength: null } }
+    const effects = { speed: null, hpBonusPerLevel: null, carryingCapacityBonus: null, senses: { darkvision: null }, abilityScoreFloors: { strength: null } }
+    // @ts-expect-error null is outside FeatureEffects, but external JSON can hold it where the type says "absent" (CONSTITUTION §6.7)
     expect(inferFeatureType(undefined, [{ level: 1, effects }])).toBe("")
   })
 
@@ -1855,26 +1805,26 @@ describe("inferFeatureType", () => {
 
 describe("getEffectiveSavingThrowProficiency / getEffectiveSkillProficiency", () => {
   it("is proficient via the character's own flag when no feature grants it", () => {
-    const character = { savingThrows: { strength: true } as any, classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    const character = { savingThrows: savingThrowsWith({ strength: true }), classFeatures: [], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveSavingThrowProficiency(character, "strength")).toEqual({ proficient: true, granted: false, grantedBy: undefined })
   })
 
   it("is proficient and marked granted when a feature grants the save, independent of the own flag", () => {
     const feature = makeFeature({ name: "Divine Protection", levelEffects: [{ level: 1, effects: { savingThrowProficiencies: ["wisdom"] } }] })
-    const character = { savingThrows: { wisdom: false } as any, classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
+    const character = { savingThrows: savingThrowsWith({ wisdom: false }), classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveSavingThrowProficiency(character, "wisdom")).toEqual({ proficient: true, granted: true, grantedBy: "Divine Protection Class Feature" })
   })
 
   it("preserves the character's own flag once a granting feature's level requirement is no longer met", () => {
     const feature = makeFeature({ name: "Late Bonus", levelEffects: [{ level: 10, effects: { savingThrowProficiencies: ["dexterity"] } }] })
-    const character = { savingThrows: { dexterity: false } as any, classFeatures: [feature], speciesTraits: [], feats: [], level: 5 }
+    const character = { savingThrows: savingThrowsWith({ dexterity: false }), classFeatures: [feature], speciesTraits: [], feats: [], level: 5 }
     expect(getEffectiveSavingThrowProficiency(character, "dexterity")).toEqual({ proficient: false, granted: false, grantedBy: undefined })
   })
 
   it("merges skill proficiency and expertise from own and granted sources", () => {
     const feature = makeFeature({ name: "Skilled", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception", expertise: true }] } }] })
     const character = {
-      skills: { perception: { proficient: false, expertise: false } } as any,
+      skills: skillsWith({ perception: { proficient: false, expertise: false } }),
       classFeatures: [feature], speciesTraits: [], feats: [], level: 1,
     }
     expect(getEffectiveSkillProficiency(character, "perception")).toEqual({ proficient: true, expertise: true, granted: true, expertiseGranted: true, grantedBy: "Skilled Class Feature" })
@@ -1901,31 +1851,31 @@ describe("getEquipmentSkillEffectTotals", () => {
 
 describe("getEffectiveSkillAdvantage", () => {
   it("is none when nothing grants advantage or disadvantage", () => {
-    const character = { skills: { stealth: { proficient: false, expertise: false } } as any, equipment: [], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    const character = { skills: skillsWith({ stealth: { proficient: false, expertise: false } }), equipment: [], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "none", isManualOverride: false, advantageSources: [], disadvantageSources: [] })
   })
 
   it("reflects a manually-set disadvantage", () => {
-    const character = { skills: { stealth: { proficient: false, expertise: false, disadvantage: true } } as any, equipment: [], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    const character = { skills: skillsWith({ stealth: { proficient: false, expertise: false, disadvantage: true } }), equipment: [], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "disadvantage", isManualOverride: true, advantageSources: [], disadvantageSources: [] })
   })
 
   it("grants disadvantage from a mundane equipped item", () => {
     const chainmail = makeMagicItem({ magic: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
-    const character = { skills: { stealth: { proficient: false, expertise: false } } as any, equipment: [chainmail], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    const character = { skills: skillsWith({ stealth: { proficient: false, expertise: false } }), equipment: [chainmail], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "disadvantage", isManualOverride: false, advantageSources: [], disadvantageSources: ["Chainmail"] })
   })
 
   it("grants advantage from a feature", () => {
     const feature = makeFeature({ name: "Keen Senses", levelEffects: [{ level: 1, effects: { skillAdvantage: ["perception"] } }] })
-    const character = { skills: { perception: { proficient: false, expertise: false } } as any, equipment: [], classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
+    const character = { skills: skillsWith({ perception: { proficient: false, expertise: false } }), equipment: [], classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveSkillAdvantage(character, "perception")).toEqual({ state: "advantage", isManualOverride: false, advantageSources: ["Keen Senses Class Feature"], disadvantageSources: [] })
   })
 
   it("cancels an equipment-granted advantage and a feature-granted disadvantage on the same skill to none", () => {
     const boots = makeMagicItem({ id: "boots", name: "Boots of Quiet", modifiers: { skillAdvantage: ["stealth"] } })
     const feature = makeFeature({ name: "Clumsy Curse", levelEffects: [{ level: 1, effects: { skillDisadvantage: ["stealth"] } }] })
-    const character = { skills: { stealth: { proficient: false, expertise: false } } as any, equipment: [boots], classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
+    const character = { skills: skillsWith({ stealth: { proficient: false, expertise: false } }), equipment: [boots], classFeatures: [feature], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({
       state: "none", isManualOverride: false,
       advantageSources: ["Boots of Quiet"], disadvantageSources: ["Clumsy Curse Class Feature"],
@@ -1934,7 +1884,7 @@ describe("getEffectiveSkillAdvantage", () => {
 
   it("a manual advantage override wins even when an equipped item grants disadvantage on the same skill", () => {
     const chainmail = makeMagicItem({ magic: false, name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
-    const character = { skills: { stealth: { proficient: false, expertise: false, advantage: true } } as any, equipment: [chainmail], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
+    const character = { skills: skillsWith({ stealth: { proficient: false, expertise: false, advantage: true } }), equipment: [chainmail], classFeatures: [], speciesTraits: [], feats: [], level: 1 }
     expect(getEffectiveSkillAdvantage(character, "stealth")).toEqual({ state: "advantage", isManualOverride: true, advantageSources: [], disadvantageSources: ["Chainmail"] })
   })
 })

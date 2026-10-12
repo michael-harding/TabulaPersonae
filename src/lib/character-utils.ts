@@ -588,10 +588,12 @@ export function getEffectiveSkillAdvantage(
   return { state, isManualOverride: false, advantageSources, disadvantageSources }
 }
 
-type AbilityScoreCharacter = Pick<
-  Character,
-  "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores"
-> & FeatureEffectCharacter
+// abilityScores and equipment are optional because the calculations already fall back when they
+// are missing (a base score of 10, no items), which character-migrations.ts relies on for records
+// saved before those fields were guaranteed.
+type AbilityScoreCharacter = Partial<Pick<Character, "abilityScores" | "equipment">>
+  & Pick<Character, "abilityScoreOverrides" | "useCalculatedAbilityScores">
+  & FeatureEffectCharacter
 
 function getCalculatedAbilityScoreFromTotals(
   character: AbilityScoreCharacter,
@@ -652,7 +654,7 @@ export function getPassiveScore(
   return 10 + getSkillModifier(abilityScore, proficiencyBonus, isProficient, hasExpertise)
 }
 
-type SensesCharacter = Pick<Character, "equipment"> & FeatureEffectCharacter
+type SensesCharacter = Partial<Pick<Character, "equipment">> & FeatureEffectCharacter
 
 // No fallback to a hardcoded base — like getEffectiveMovementSpeeds, a sense only has a real
 // answer once a Species Trait or item grants it. character.senses is never read here; it's
@@ -675,7 +677,7 @@ export interface MovementSpeeds {
   burrow: number
 }
 
-type MovementCharacter = Pick<Character, "equipment"> & FeatureEffectCharacter
+type MovementCharacter = Partial<Pick<Character, "equipment">> & FeatureEffectCharacter
 
 // No fallback to a hardcoded "30 ft" baseline — a species's walking speed only has a real answer
 // once a Species Trait (or, failing that, a manual custom override — see useCalculatedSpeed in
@@ -903,58 +905,18 @@ export function getEffectiveMaxHp(character?: MaxHpCharacter): number {
   return Math.max(1, baseHp + (hitPoints?.temporaryMaximum ?? 0))
 }
 
-export function getSpellSaveDC(character: Character): number
-export function getSpellSaveDC(
-  spellcastingAbility: keyof AbilityScores,
-  abilityScores: AbilityScores,
-  proficiencyBonus: number,
-): number
-export function getSpellSaveDC(
-  characterOrAbility: Character | keyof AbilityScores,
-  abilityScores?: AbilityScores,
-  proficiencyBonus?: number,
-): number {
-  // If first parameter is a Character object
-  if (typeof characterOrAbility === "object" && "spellcastingAbility" in characterOrAbility) {
-    const character = characterOrAbility
-    const ability = getEffectiveSpellcastingAbility(character)
-    if (!ability) return 8
-    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
-    return 8 + (character.proficiencyBonus || 2) + abilityMod
-  }
-
-  // Original function signature
-  const spellcastingAbility = characterOrAbility as keyof AbilityScores
-  if (!spellcastingAbility || !abilityScores) return 8
-  const abilityMod = getAbilityModifier(abilityScores[spellcastingAbility])
-  return 8 + (proficiencyBonus || 2) + abilityMod
+export function getSpellSaveDC(character: Character): number {
+  const ability = getEffectiveSpellcastingAbility(character)
+  if (!ability) return 8
+  const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
+  return 8 + (character.proficiencyBonus || 2) + abilityMod
 }
 
-export function getSpellAttackBonus(character: Character): number
-export function getSpellAttackBonus(
-  spellcastingAbility: keyof AbilityScores,
-  abilityScores: AbilityScores,
-  proficiencyBonus: number,
-): number
-export function getSpellAttackBonus(
-  characterOrAbility: Character | keyof AbilityScores,
-  abilityScores?: AbilityScores,
-  proficiencyBonus?: number,
-): number {
-  // If first parameter is a Character object
-  if (typeof characterOrAbility === "object" && "spellcastingAbility" in characterOrAbility) {
-    const character = characterOrAbility
-    const ability = getEffectiveSpellcastingAbility(character)
-    if (!ability) return 0
-    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
-    return (character.proficiencyBonus || 2) + abilityMod
-  }
-
-  // Original function signature
-  const spellcastingAbility = characterOrAbility as keyof AbilityScores
-  if (!spellcastingAbility || !abilityScores) return 0
-  const abilityMod = getAbilityModifier(abilityScores[spellcastingAbility])
-  return (proficiencyBonus || 2) + abilityMod
+export function getSpellAttackBonus(character: Character): number {
+  const ability = getEffectiveSpellcastingAbility(character)
+  if (!ability) return 0
+  const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
+  return (character.proficiencyBonus || 2) + abilityMod
 }
 
 export function computeSpellModifier(character: Character): number {
@@ -1125,8 +1087,7 @@ export function formatTerm(amount: number, label: string): string {
 }
 
 export function calculateEquippedAC(
-  character: Pick<Character, "equipment" | "abilityScores" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
-    & FeatureEffectCharacter
+  character: AbilityScoreCharacter
 ): { ac: number; breakdown: string; isEquippedArmor: boolean } {
   const equipment = character.equipment ?? []
   const itemTotals = getEquipmentModifierTotals(equipment)

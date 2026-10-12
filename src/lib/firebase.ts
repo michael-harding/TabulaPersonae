@@ -1,15 +1,7 @@
 /// <reference types="vite/client" />
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
-
-// any is required: these are assigned inside the try block below and exported as
-// module-level bindings. Narrowing to FirebaseApp | Auth | Firestore would require
-// null-guards in every consumer (auth-context, firebase-storage, network-status).
-// Consumers are only called after successful init, so the null case never occurs at runtime.
-let app: any;
-let auth: any;
-let db: any;
+import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { initializeFirestore, persistentLocalCache, type Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -20,15 +12,42 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache(),
-  });
-} catch (error) {
-  console.error('Firebase initialization error:', error);
+interface FirebaseServices {
+  app: FirebaseApp;
+  auth: Auth;
+  db: Firestore;
 }
 
-export { app, auth, db };
-export default app;
+// Initialization can fail (missing or invalid configuration). The failure is kept instead of
+// being thrown while this module loads, so the app can still start and run on local storage; the
+// accessors below throw it at the point Firebase is actually needed.
+function initFirebase(): FirebaseServices | Error {
+  try {
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = initializeFirestore(app, {
+      localCache: persistentLocalCache(),
+    });
+    return { app, auth, db };
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+    return new Error('Firebase is unavailable because it failed to initialize', { cause: error });
+  }
+}
+
+const services = initFirebase();
+
+function requireServices(): FirebaseServices {
+  if (services instanceof Error) throw services;
+  return services;
+}
+
+/** The Firebase Auth instance. Throws if Firebase failed to initialize. */
+export function getFirebaseAuth(): Auth {
+  return requireServices().auth;
+}
+
+/** The Firestore instance. Throws if Firebase failed to initialize. */
+export function getDb(): Firestore {
+  return requireServices().db;
+}

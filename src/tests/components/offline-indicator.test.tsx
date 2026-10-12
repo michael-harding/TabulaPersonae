@@ -25,19 +25,20 @@ import { axe } from "vitest-axe"
 import { createSignal } from 'solid-js'
 
 import { OfflineIndicator, formatAge } from '@/components/offline-indicator'
-import { createNetworkStatus } from '@/lib/network-status'
+import { createNetworkStatus, type SyncStatus } from '@/lib/network-status'
 import { useAuth } from '@/lib/auth-context'
 import { useSyncState } from '@/lib/sync-context'
 
 import { render, screen, fireEvent } from '../test-utils'
+import { createMockAuth } from '../mocks/auth'
 
 const mockCreateNetworkStatus = vi.mocked(createNetworkStatus)
 const mockUseAuth = vi.mocked(useAuth)
 const mockUseSyncState = vi.mocked(useSyncState)
 
-function makeNetworkStatus(initialStatus: Parameters<typeof createSignal>[0]) {
-  const [status, setStatus] = createSignal(initialStatus)
-  return { status, setStatus }
+function makeNetworkStatus(initialStatus: SyncStatus): ReturnType<typeof createNetworkStatus> {
+  const [status] = createSignal(initialStatus)
+  return { status }
 }
 
 describe('OfflineIndicator', () => {
@@ -69,22 +70,14 @@ describe('OfflineIndicator', () => {
 
   describe('visibility', () => {
     it('renders nothing when status is online', () => {
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online') as any)
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online'))
       const { container } = render(<OfflineIndicator />)
       expect(container.firstChild).toBeNull()
     })
 
     it('renders nothing when user is unauthenticated even if offline', () => {
-      mockUseAuth.mockReturnValueOnce({
-        user: () => null,
-        loading: () => false,
-        skipAuth: () => false,
-        signIn: vi.fn(),
-        signUp: vi.fn(),
-        logout: vi.fn(),
-        resetPassword: vi.fn(),
-      } as any)
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('offline') as any)
+      mockUseAuth.mockReturnValueOnce(createMockAuth())
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('offline'))
       const { container } = render(<OfflineIndicator />)
       expect(container.firstChild).toBeNull()
     })
@@ -92,7 +85,7 @@ describe('OfflineIndicator', () => {
 
   describe('offline state', () => {
     beforeEach(() => {
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('offline') as any)
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('offline'))
     })
 
     it('renders with gold background', () => {
@@ -180,7 +173,7 @@ describe('OfflineIndicator', () => {
 
   describe('syncing state', () => {
     beforeEach(() => {
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('syncing') as any)
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('syncing'))
     })
 
     it('renders with blue background', () => {
@@ -203,7 +196,7 @@ describe('OfflineIndicator', () => {
 
   describe('synced state', () => {
     beforeEach(() => {
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('synced') as any)
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('synced'))
     })
 
     it('renders with green background', () => {
@@ -225,7 +218,7 @@ describe('OfflineIndicator', () => {
   })
 
   it("has no accessibility violations", async () => {
-    mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online') as any)
+    mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online'))
     const { container } = render(<OfflineIndicator />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)

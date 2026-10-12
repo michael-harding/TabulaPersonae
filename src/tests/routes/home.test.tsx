@@ -18,6 +18,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import Home from "@/routes/Home"
 
 import { cleanup, render, screen, waitFor, fireEvent, confirmClick } from "../test-utils"
+import { mockStorageManager } from "../mocks/storage-manager"
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -29,7 +30,7 @@ afterEach(() => {
 })
 
 async function renderAndLoad(characters: ReturnType<typeof createDefaultCharacter>[]) {
-  ;(globalThis as any).mockStorageManager.getCharacters.mockResolvedValue(characters)
+  mockStorageManager.getCharacters.mockResolvedValue(characters)
   render(<Home />)
   await waitFor(() => expect(screen.getByText(/level/i)).toBeInTheDocument())
 }
@@ -87,14 +88,14 @@ describe("Home page — accessibility", () => {
       await renderAndLoad([character()])
       fireEvent.click(deleteButton(), { detail: 1 })
       expect(deleteButton()).toHaveTextContent("Confirm Delete")
-      expect((globalThis as any).mockStorageManager.deleteCharacter).not.toHaveBeenCalled()
+      expect(mockStorageManager.deleteCharacter).not.toHaveBeenCalled()
       expect(screen.getByText("Testy")).toBeInTheDocument()
     })
 
     it("deletes after a deliberate second click", async () => {
       await renderAndLoad([character()])
       confirmClick(deleteButton())
-      expect((globalThis as any).mockStorageManager.deleteCharacter).toHaveBeenCalledWith("char-1")
+      expect(mockStorageManager.deleteCharacter).toHaveBeenCalledWith("char-1")
       await waitFor(() => expect(screen.queryByText("Testy")).not.toBeInTheDocument())
     })
   })

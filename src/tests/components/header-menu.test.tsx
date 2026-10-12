@@ -26,7 +26,7 @@ const char2: Character = { ...createDefaultCharacter(), id: "id-2", name: "Arago
 
 const defaultProps = {
   characters: [char1, char2],
-  onImportCharacter: vi.fn(),
+  onImportCharacter: vi.fn<(character: Character) => void>(),
   onImportMultiple: vi.fn(),
   onAllCharacters: vi.fn(),
 }
@@ -151,7 +151,7 @@ describe("HeaderMenu import reconciliation", () => {
     // calculated value and correctly infers useCalculatedSpellSaveDC: true. Reconciling first (the
     // bug) would compute spellSaveDC against no ability at all (the "no spellcasting" default of 8),
     // never matching the stored 10, and wrongly leave it flagged custom.
-    const raw: any = {
+    const raw = {
       ...createDefaultCharacter(),
       id: "c1",
       classFeatures: [],
@@ -166,7 +166,7 @@ describe("HeaderMenu import reconciliation", () => {
     await user.upload(input, file)
     await waitFor(() => expect(defaultProps.onImportCharacter).toHaveBeenCalled())
     const imported = defaultProps.onImportCharacter.mock.calls[0][0]
-    expect(imported.classFeatures.some((f: any) => f.name === "Spellcasting")).toBe(true)
+    expect(imported.classFeatures?.some((f) => f.name === "Spellcasting")).toBe(true)
     expect(imported.useCalculatedSpellSaveDC).toBe(true)
   })
 
@@ -202,7 +202,7 @@ describe("HeaderMenu import reconciliation", () => {
 
   it("reconciles a PDF import before calling onImportCharacter", async () => {
     const { parsePdfCharacterSheet, mergeWithDefault } = await import("@/lib/pdf-parser")
-    vi.mocked(parsePdfCharacterSheet).mockResolvedValueOnce({} as any)
+    vi.mocked(parsePdfCharacterSheet).mockResolvedValueOnce({})
     vi.mocked(mergeWithDefault).mockReturnValueOnce({ ...createDefaultCharacter(), armorClass: 15 })
 
     const user = await openImportModal()

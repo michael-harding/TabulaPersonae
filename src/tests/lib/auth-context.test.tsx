@@ -13,17 +13,21 @@ vi.mock("@/lib/firebase-storage", () => ({
 }))
 
 import { cleanup, render } from "@solidjs/testing-library"
-import { onAuthStateChanged, signOut } from "firebase/auth"
+import type { MockInstance } from "vitest"
+import { onAuthStateChanged, signOut, type User } from "firebase/auth"
 
+import { getFirebaseAuth } from "@/lib/firebase"
 import { saveCharacterToFirebase } from "@/lib/firebase-storage"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { createDefaultCharacter } from "@/lib/character-types"
+
+import { createTestUser } from "../mocks/auth"
 
 const mockOnAuthStateChanged = vi.mocked(onAuthStateChanged)
 const mockSignOut = vi.mocked(signOut)
 const mockSaveCharacterToFirebase = vi.mocked(saveCharacterToFirebase)
 
-const testUser = { uid: "user-123", email: "test@test.com" } as any
+const testUser = createTestUser({ uid: "user-123", email: "test@test.com" })
 const char1 = { ...createDefaultCharacter(), id: "char-1", name: "Thorin" }
 const char2 = { ...createDefaultCharacter(), id: "char-2", name: "Gandalf" }
 const CHARS_KEY = "dnd-characters"
@@ -32,11 +36,14 @@ const ACTIVE_KEY = "dnd-active-character"
 // Renders AuthProvider and captures both the onAuthStateChanged callback
 // (to simulate login/logout events) and the useAuth() return value.
 function renderProvider() {
-  let authStateCallback!: (user: any) => Promise<void>
+  let authStateCallback!: (user: User | null) => Promise<void>
   let capturedAuth!: ReturnType<typeof useAuth>
 
-  mockOnAuthStateChanged.mockImplementation((_auth, cb) => {
-    authStateCallback = cb as any
+  mockOnAuthStateChanged.mockImplementation((_auth, nextOrObserver) => {
+    // The SDK accepts either a callback or an observer object; AuthProvider passes a callback.
+    if (typeof nextOrObserver !== "function") throw new Error("Expected AuthProvider to pass onAuthStateChanged a callback")
+    // AuthProvider's callback is async, so awaiting it lets a test wait for the login handling to finish.
+    authStateCallback = async (user) => { await nextOrObserver(user) }
     return vi.fn()
   })
 
@@ -57,7 +64,7 @@ function renderProvider() {
 beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
-  mockSignOut.mockResolvedValue(undefined as any)
+  mockSignOut.mockResolvedValue(undefined)
   mockSaveCharacterToFirebase.mockResolvedValue(true)
 })
 
@@ -188,5 +195,36 @@ describe("AuthProvider — logout clears local data", () => {
     await capturedAuth.logout()
 
     expect(mockSignOut).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("AuthProvider — Firebase failed to initialize", () => {
+  const failure = new Error("Firebase is unavailable because it failed to initialize")
+  let errorSpy: MockInstance<Console["error"]>
+
+  beforeEach(() => {
+    // What the real accessor does when initialization failed (see firebase.ts)
+    vi.mocked(getFirebaseAuth).mockImplementation(() => { throw failure })
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.mocked(getFirebaseAuth).mockReset()
+    errorSpy.mockRestore()
+  })
+
+  it("finishes loading signed out instead of waiting for a sign-in state that will never arrive", () => {
+    const { capturedAuth } = renderProvider()
+
+    expect(capturedAuth.loading()).toBe(false)
+    expect(capturedAuth.user()).toBeNull()
+    expect(mockOnAuthStateChanged).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith("Auth is unavailable; continuing signed out:", failure)
+  })
+
+  it("reports the failure when a sign-in is attempted", async () => {
+    const { capturedAuth } = renderProvider()
+
+    await expect(capturedAuth.signIn("test@test.com", "password")).rejects.toBe(failure)
   })
 })

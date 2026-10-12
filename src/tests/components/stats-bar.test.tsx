@@ -48,7 +48,8 @@ describe("StatsBar", () => {
   })
 
   it("handles missing hitPoints by defaulting to 0/1", () => {
-    const character = { ...createDefaultCharacter(), hitPoints: undefined as any }
+    const character = { ...createDefaultCharacter(), hitPoints: undefined }
+    // @ts-expect-error hitPoints is required on Character; this simulates a stored record that lost it
     render(<StatsBar character={character} />)
     expect(screen.getByText(/\/1/)).toBeInTheDocument()
   })

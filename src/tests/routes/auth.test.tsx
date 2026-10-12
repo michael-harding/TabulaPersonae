@@ -1,10 +1,11 @@
 vi.mock("@/lib/auth-context", () => ({
   useAuth: vi.fn(),
-  AuthProvider: ({ children }: any) => children,
+  AuthProvider: (props: ParentProps) => <>{props.children}</>,
   AuthContext: {},
 }))
 
 import { axe } from "vitest-axe"
+import type { ParentProps } from "solid-js"
 
 import { useAuth } from "@/lib/auth-context"
 import Auth from "@/routes/Auth"

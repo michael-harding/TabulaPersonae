@@ -20,6 +20,7 @@ import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
 import CharacterSheet from "@/routes/CharacterSheet"
 
 import { cleanup, render, screen, fireEvent, waitFor } from "../test-utils"
+import { mockStorageManager } from "../mocks/storage-manager"
 
 const mockUseTabConfig = vi.mocked(useTabConfig)
 
@@ -28,7 +29,7 @@ const testCharacter = { ...createDefaultCharacter(), id: "test-id", name: "Testy
 beforeEach(() => {
   vi.clearAllMocks()
   cleanup()
-  ;(globalThis as any).mockStorageManager.getCharacters.mockResolvedValue([testCharacter])
+  mockStorageManager.getCharacters.mockResolvedValue([testCharacter])
   // Restore default config before each test (vi.clearAllMocks resets mock state)
   mockUseTabConfig.mockReturnValue({
     tabConfig: () => DEFAULT_TAB_CONFIG,

@@ -7,6 +7,7 @@
 import { readFileSync } from "fs"
 import { resolve } from "path"
 
+import { PDFDocument, PDFHexString, PDFName, PDFNumber, PDFString, type PDFObject } from "pdf-lib"
 import { describe, it, expect } from "vitest"
 
 import { parsePdfBuffer, mergeWithDefault } from "@/lib/pdf-parser"
@@ -116,14 +117,14 @@ describe("PDF parser integration — Urush Greenshield (D&D Beyond export)", () 
     it("marks Athletics as proficient", async () => {
       const file = loadTestPdf()
       const result = await parsePdfBuffer(file)
-      expect(result.skills?.athletics.proficient).toBe(true)
+      expect(result.skills?.athletics?.proficient).toBe(true)
     })
 
     it("marks non-proficient skills as not proficient", async () => {
       const file = loadTestPdf()
       const result = await parsePdfBuffer(file)
-      expect(result.skills?.acrobatics.proficient).toBe(false)
-      expect(result.skills?.arcana.proficient).toBe(false)
+      expect(result.skills?.acrobatics?.proficient).toBe(false)
+      expect(result.skills?.arcana?.proficient).toBe(false)
     })
   })
 
@@ -286,5 +287,60 @@ describe("PDF parser integration — Urush Greenshield (D&D Beyond export)", () 
       expect(Array.isArray(character.spells)).toBe(true)
       expect(Array.isArray(character.equipment)).toBe(true)
     })
+  })
+})
+
+// Neither D&D Beyond export on hand has a ticked checkbox, so these build a PDF with real pdf-lib
+// to cover how each kind of field value is read: the same Widget annotations, written and parsed
+// back through the real library.
+describe("PDF parser — field value types", () => {
+  async function buildPdf(fields: Record<string, PDFObject | undefined>): Promise<Uint8Array> {
+    const doc = await PDFDocument.create()
+    const page = doc.addPage()
+    const widgets = Object.entries(fields).map(([name, value]) => {
+      const widget = doc.context.obj({ Type: "Annot", Subtype: "Widget", T: PDFString.of(name) })
+      if (value) widget.set(PDFName.of("V"), value)
+      return doc.context.register(widget)
+    })
+    page.node.set(PDFName.of("Annots"), doc.context.obj(widgets))
+    return doc.save()
+  }
+
+  it("reads a ticked Inspiration checkbox (a name value) as on", async () => {
+    const result = await parsePdfBuffer(await buildPdf({ Inspiration: PDFName.of("Inspired") }))
+    expect(result.heroicInspiration).toBe(true)
+  })
+
+  it("reads an Inspiration checkbox explicitly set to /Off as off", async () => {
+    const result = await parsePdfBuffer(await buildPdf({ Inspiration: PDFName.of("Off") }))
+    expect(result.heroicInspiration).toBe(false)
+  })
+
+  it("reads an Inspiration checkbox with no value as off", async () => {
+    const result = await parsePdfBuffer(await buildPdf({ Inspiration: undefined }))
+    expect(result.heroicInspiration).toBe(false)
+  })
+
+  it("reads plain and hex-encoded string values as their text", async () => {
+    const result = await parsePdfBuffer(await buildPdf({
+      CharacterName: PDFHexString.fromText("Thorin"),
+      STR: PDFString.of("15"),
+    }))
+    expect(result.name).toBe("Thorin")
+    expect(result.abilityScores?.strength).toBe(15)
+  })
+
+  it("ignores a value that is neither a string nor a name", async () => {
+    const result = await parsePdfBuffer(await buildPdf({ STR: PDFNumber.of(15), DEX: PDFString.of("12") }))
+    expect(result.abilityScores).toEqual({ dexterity: 12 })
+  })
+
+  it("skips annotations that are not form widgets", async () => {
+    const doc = await PDFDocument.create()
+    const page = doc.addPage()
+    const link = doc.context.register(doc.context.obj({ Type: "Annot", Subtype: "Link", T: PDFString.of("STR"), V: PDFString.of("15") }))
+    page.node.set(PDFName.of("Annots"), doc.context.obj([link]))
+    const result = await parsePdfBuffer(await doc.save())
+    expect(result.abilityScores).toBeUndefined()
   })
 })

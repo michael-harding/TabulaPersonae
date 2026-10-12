@@ -8,11 +8,11 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth'
 
-import { auth } from './firebase'
+import { getFirebaseAuth } from './firebase'
 import { saveCharacterToFirebase } from './firebase-storage'
 import type { Character } from './character-types'
 
-interface AuthContextType {
+export interface AuthContextType {
   user: () => User | null
   loading: () => boolean
   skipAuth: () => boolean
@@ -46,26 +46,34 @@ export const AuthProvider: ParentComponent = (props) => {
   }
 
   if (!isSkipAuth) {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const stored = localStorage.getItem('dnd-characters')
-        const localChars: Character[] = stored ? JSON.parse(stored) : []
-        if (localChars.length > 0) {
-          for (const char of localChars) {
-            await saveCharacterToFirebase(char, firebaseUser.uid)
+    try {
+      const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
+        if (firebaseUser) {
+          const stored = localStorage.getItem('dnd-characters')
+          const localChars: Character[] = stored ? JSON.parse(stored) : []
+          if (localChars.length > 0) {
+            for (const char of localChars) {
+              await saveCharacterToFirebase(char, firebaseUser.uid)
+            }
+            localStorage.setItem('dnd-characters', '[]')
           }
-          localStorage.setItem('dnd-characters', '[]')
         }
-      }
-      setUser(firebaseUser)
+        setUser(firebaseUser)
+        setLoading(false)
+      })
+      onCleanup(unsubscribe)
+    } catch (error) {
+      // Firebase could not be reached at all (see firebase.ts), so no sign-in state will ever
+      // arrive. Finish loading signed out so the app runs on local storage instead of waiting
+      // forever; signing in still reports the failure when it is attempted.
+      console.error('Auth is unavailable; continuing signed out:', error)
       setLoading(false)
-    })
-    onCleanup(unsubscribe)
+    }
   }
 
   const signIn = async (email: string, password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      await signInWithEmailAndPassword(getFirebaseAuth(), email, password)
     } catch (error) {
       console.error('Sign in error:', error)
       throw error
@@ -74,7 +82,7 @@ export const AuthProvider: ParentComponent = (props) => {
 
   const signUp = async (email: string, password: string) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password)
+      await createUserWithEmailAndPassword(getFirebaseAuth(), email, password)
     } catch (error) {
       console.error('Sign up error:', error)
       throw error
@@ -87,7 +95,7 @@ export const AuthProvider: ParentComponent = (props) => {
         localStorage.removeItem('dnd-characters')
         localStorage.removeItem('dnd-active-character')
       }
-      await signOut(auth)
+      await signOut(getFirebaseAuth())
     } catch (error) {
       console.error('Sign out error:', error)
       throw error
@@ -96,7 +104,7 @@ export const AuthProvider: ParentComponent = (props) => {
 
   const resetPassword = async (email: string) => {
     try {
-      await sendPasswordResetEmail(auth, email)
+      await sendPasswordResetEmail(getFirebaseAuth(), email)
     } catch (error) {
       console.error('Password reset error:', error)
       throw error

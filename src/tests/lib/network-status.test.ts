@@ -2,7 +2,7 @@ vi.mock('firebase/firestore', () => ({
   waitForPendingWrites: vi.fn(),
 }))
 
-// @/lib/firebase is mocked globally in setup.tsx as { auth: {}, db: {} }
+// @/lib/firebase is mocked globally in setup.tsx: getFirebaseAuth() and getDb() return {}
 
 vi.unmock('@/lib/network-status')
 

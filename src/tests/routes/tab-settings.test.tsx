@@ -2,9 +2,9 @@ vi.mock("@/lib/theme", () => ({ theme: () => "system", setTheme: vi.fn() }))
 
 // solid-dnd uses browser layout/pointer APIs unavailable in jsdom
 vi.mock("@thisbeyond/solid-dnd", () => ({
-  DragDropProvider: ({ children }: any) => children,
+  DragDropProvider: (props: ParentProps) => <>{props.children}</>,
   DragDropSensors: () => null,
-  SortableProvider: ({ children }: any) => children,
+  SortableProvider: (props: ParentProps) => <>{props.children}</>,
   createSortable: () => ({
     ref: () => {},
     transform: { x: 0, y: 0 },
@@ -31,10 +31,11 @@ vi.mock("@/lib/tab-config-context", () => ({
     tabConfig: () => currentConfig,
     saveTabConfig: mockSaveTabConfig,
   }),
-  TabConfigProvider: ({ children }: any) => children,
+  TabConfigProvider: (props: ParentProps) => <>{props.children}</>,
 }))
 
 import { axe } from "vitest-axe"
+import type { ParentProps } from "solid-js"
 
 import TabSettings from "@/routes/TabSettings"
 
