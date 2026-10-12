@@ -35,6 +35,29 @@ describe("Checkbox", () => {
     expect(screen.getByText("Inline label")).toHaveClass("min-h-11")
   })
 
+  // Regression: the 44px touch box pushed a card title's checkbox 14px in from the card's content
+  // edge, out of line with the text below it (ACCESSIBILITY.md §13: the touch target must not
+  // alter the visual design).
+  describe("flush", () => {
+    it("pulls the touch box back so the square sits on the container's leading edge", () => {
+      render(<Checkbox data-test="cb" flush label="Longbow" checked={false} onChange={vi.fn()} />)
+      expect(screen.getByTestId("cb")).toHaveClass("-ml-3.5")
+    })
+
+    it("is off by default, so a checkbox never overlaps a preceding neighbour unasked", () => {
+      render(<Checkbox data-test="cb" label="Longbow" checked={false} onChange={vi.fn()} />)
+      expect(screen.getByTestId("cb")).not.toHaveClass("-ml-3.5")
+    })
+
+    it("still toggles exactly once from the square and from the label", () => {
+      const onChange = vi.fn()
+      render(<Checkbox data-test="cb" flush label="Longbow" checked={false} onChange={onChange} />)
+      fireEvent.click(screen.getByTestId("cb-control"))
+      fireEvent.click(screen.getByText("Longbow"))
+      expect(onChange).toHaveBeenCalledTimes(2)
+    })
+  })
+
   it("uses aria-label as the accessible name when provided", () => {
     render(<Checkbox data-test="cb" aria-label="Toggle attuned" checked={false} onChange={vi.fn()} />)
     expect(screen.getByRole("checkbox", { name: "Toggle attuned" })).toBeInTheDocument()

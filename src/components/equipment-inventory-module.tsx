@@ -289,6 +289,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                               checked={item.equipped ?? false}
                               onChange={() => toggleEquipped(item.id)}
                               aria-label={`Toggle equipped: ${item.name}`}
+                              flush
                               label={item.name}
                               labelClass="font-medium text-sm cursor-pointer select-none"
                             />
@@ -517,6 +518,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                                 checked={item.equipped || false}
                                 onChange={() => toggleEquipped(item.id)}
                                 aria-label={`Toggle equipped: ${item.name}`}
+                                flush
                                 label={item.name}
                                 labelHeading="h3"
                                 labelTestId={`equipment-item-name-${item.id}`}

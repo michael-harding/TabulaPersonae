@@ -593,6 +593,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                                               checked={spell.known ?? true}
                                               onChange={() => toggleKnown(spell.id)}
                                               aria-label={`Known: ${spell.name}`}
+                                              flush
                                               label={spell.name}
                                               labelHeading="h3"
                                               labelTestId={`spell-name-${spell.id}`}
@@ -608,6 +609,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                                               disabled={!(spell.known ?? true)}
                                               onChange={() => togglePrepared(spell.id)}
                                               aria-label={`Prepared: ${spell.name}`}
+                                              flush
                                               label={spell.name}
                                               labelHeading="h3"
                                               labelTestId={`spell-name-${spell.id}`}

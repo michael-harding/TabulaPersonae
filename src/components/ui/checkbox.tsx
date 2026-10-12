@@ -19,6 +19,12 @@ type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & {
    * doesn't see a second control, and the heading keeps it reachable by heading navigation.
    */
   labelHeading?: "h2" | "h3" | "h4"
+  /**
+   * Pulls the 44px touch box 14px back into the space before it, so the visible square (not the
+   * box) sits on the container's leading edge and lines up with the text below it. For a checkbox
+   * that leads a card's title row. Only where nothing interactive sits in those 14px.
+   */
+  flush?: boolean
   containerClass?: string
 }
 
@@ -37,7 +43,7 @@ type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & {
  * has bitten this codebase twice; use `label`/`labelClass` instead.
  */
 export function Checkbox(props: CheckboxProps) {
-  const [local, rest] = splitProps(props, ["class", "label", "labelClass", "labelTestId", "labelHeading", "containerClass"])
+  const [local, rest] = splitProps(props, ["class", "label", "labelClass", "labelTestId", "labelHeading", "flush", "containerClass"])
   const [inputAttrs, others] = splitProps(rest, ["id", "aria-label"])
   const label = () => (
     <CheckboxPrimitive.Label
@@ -50,7 +56,7 @@ export function Checkbox(props: CheckboxProps) {
   return (
     <CheckboxPrimitive
       data-sem="checkbox"
-      class={cn("inline-flex items-center", local.containerClass)}
+      class={cn("inline-flex items-center", local.flush && "-ml-3.5", local.containerClass)}
       {...others}
     >
       <CheckboxPrimitive.Input {...inputAttrs} />
