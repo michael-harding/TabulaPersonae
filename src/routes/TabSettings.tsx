@@ -51,9 +51,10 @@ function SortableModuleRow(props: SortableModuleRowProps) {
       ref={sortable.ref}
       style={maybeTransformStyle(sortable.transform)}
       class={cn(
-        "flex items-center gap-2 px-2 rounded transition-colors",
+        "flex items-center gap-2 rounded transition-colors",
         sortable.isActiveDraggable ? "opacity-25" : "hover:bg-accent",
       )}
+      data-sem="draggable-module"
     >
       <button
         type="button"
@@ -212,12 +213,12 @@ function SortableTabRow(props: SortableTabRowProps) {
         <CollapsibleContent>
           <div class="px-4 pb-4 space-y-4 border-t pt-3">
             {/* Module list */}
-            <div class="space-y-1">
+            <div>
               <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Modules</p>
               <Show
                 when={props.tab.modules.length > 0}
                 fallback={
-                  <p class="text-sm text-muted-foreground py-2">No modules added yet.</p>
+                  <p class="mt-1 text-sm text-muted-foreground py-2">No modules added yet.</p>
                 }
               >
                 <DragDropProvider onDragEnd={onModuleDragEnd} collisionDetector={closestCenter}>
