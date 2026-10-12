@@ -8,6 +8,7 @@ import {
   splitProps,
   onCleanup,
   onMount,
+  untrack,
 } from "solid-js"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Check from "lucide-solid/icons/check"
@@ -232,7 +233,9 @@ export function SelectItem(props: ComponentProps<"li"> & { value: string }) {
   const [local, others] = splitProps(props, ["class", "value", "children"])
   const ctx = useSelect()
 
-  const unregister = ctx.registerItem(local.value)
+  // An item's value is fixed for its lifetime, and registering during setup (not in an effect)
+  // is what keeps items() in mount order.
+  const unregister = ctx.registerItem(untrack(() => local.value))
   onCleanup(unregister)
 
   const isSelected = () => ctx.value() === local.value

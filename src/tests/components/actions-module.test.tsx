@@ -1,4 +1,5 @@
 import { axe } from "vitest-axe"
+import { createStore, reconcile } from "solid-js/store"
 
 import { ActionsModule } from "@/components/actions-module"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -148,6 +149,20 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       for (const id of ["spell-attack", "spell-modifier", "spell-save-dc"]) {
         expect(screen.getByTestId(`${id}-toggle`)).toBeInTheDocument()
       }
+    })
+
+    it("drops the previous character's in-progress edits when the character is switched mid-edit", () => {
+      // The sheet swaps characters in place (same mounted module, new id), so edits started on
+      // one character must not be saved onto the next.
+      const onUpdate = vi.fn()
+      const [character, setCharacter] = createStore(
+        makeSpellcaster({ id: "char-a", useCalculatedSpellSaveDC: false, spellSaveDC: 20 })
+      )
+      render(<ActionsModule character={character} onUpdate={onUpdate} />)
+      clickEditButton()
+      setCharacter(reconcile(makeSpellcaster({ id: "char-b", useCalculatedSpellSaveDC: false, spellSaveDC: 11 })))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ id: "char-b", spellSaveDC: 11 }))
     })
 
     it("shows the ability-derived spell attack and save DC in view mode", () => {
@@ -1322,6 +1337,25 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       expect(trigger).toHaveAttribute("aria-expanded", "true")
       fireEvent.click(trigger)
       expect(trigger).toHaveAttribute("aria-expanded", "false")
+    })
+
+    describe("when the character is switched in place", () => {
+      beforeEach(() => localStorage.clear())
+      afterEach(() => localStorage.clear())
+
+      it("keeps each character's collapsed sections separate", () => {
+        const [character, setCharacter] = createStore(makeCharacter({ id: "char-a" }))
+        render(<ActionsModule character={character} onUpdate={vi.fn()} />)
+        const trigger = screen.getByText("Actions").closest("button")!
+        fireEvent.click(trigger)
+        expect(trigger).toHaveAttribute("aria-expanded", "false")
+
+        setCharacter(reconcile(makeCharacter({ id: "char-b" })))
+        expect(trigger).toHaveAttribute("aria-expanded", "true")
+
+        setCharacter(reconcile(makeCharacter({ id: "char-a" })))
+        expect(trigger).toHaveAttribute("aria-expanded", "false")
+      })
     })
 
     it("shows a count badge of 1 in the Actions section when one attack is present", () => {

@@ -1,4 +1,5 @@
 import { axe } from "vitest-axe"
+import { createSignal } from "solid-js"
 
 import { Combobox } from "@/components/ui/combobox"
 
@@ -52,6 +53,20 @@ describe("Combobox", () => {
   it("renders an input with the current value", () => {
     render(<Combobox value="Bard" options={OPTIONS} />)
     expect(screen.getByRole("combobox")).toHaveValue("Bard")
+  })
+
+  it("shows a new value as soon as the value prop changes, without needing focus", () => {
+    const [value, setValue] = createSignal("Bard")
+    render(<Combobox value={value()} options={OPTIONS} aria-label="Class" />)
+    setValue("Cleric")
+    expect(screen.getByRole("combobox")).toHaveValue("Cleric")
+  })
+
+  it("clears the input when the value prop is cleared", () => {
+    const [value, setValue] = createSignal<string | undefined>("Bard")
+    render(<Combobox value={value()} options={OPTIONS} aria-label="Class" />)
+    setValue(undefined)
+    expect(screen.getByRole("combobox")).toHaveValue("")
   })
 
   it("renders placeholder when no value is set", () => {

@@ -213,7 +213,7 @@ export function ActionCard(props: ActionCardProps) {
                 class={cn(TOUCH_TARGET, "text-muted-foreground hover:text-foreground transition-colors")}
                 aria-label={`Edit ${props.name}`}
                 data-test={`action-edit-button-${props.name}`}
-                onClick={props.onEdit}
+                onClick={() => props.onEdit?.()}
               >
                 <Pencil class="h-4 w-4" aria-hidden="true" />
               </button>

@@ -43,15 +43,14 @@ const customConfig: UserTabConfig = {
   tabs: [{ id: "custom-1", label: "Custom", modules: ["spells"] }],
 }
 
-function Consumer(props: { onCapture: (ctx: ReturnType<typeof useTabConfig>) => void }) {
-  props.onCapture(useTabConfig())
-  return null
-}
-
 function renderProvider(onCapture: (ctx: ReturnType<typeof useTabConfig>) => void) {
+  const Consumer = () => {
+    onCapture(useTabConfig())
+    return null
+  }
   return render(() => (
     <TabConfigProvider>
-      <Consumer onCapture={onCapture} />
+      <Consumer />
     </TabConfigProvider>
   ))
 }

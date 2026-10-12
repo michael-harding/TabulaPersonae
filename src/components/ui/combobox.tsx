@@ -1,4 +1,4 @@
-import { createSignal, createMemo, For, onMount, onCleanup, JSX } from "solid-js"
+import { createSignal, createEffect, createMemo, on, untrack, For, onMount, onCleanup, JSX } from "solid-js"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Check from "lucide-solid/icons/check"
 
@@ -18,7 +18,7 @@ type ComboboxProps = {
 }
 
 export function Combobox(props: ComboboxProps) {
-  const [inputValue, setInputValue] = createSignal(props.value ?? "")
+  const [inputValue, setInputValue] = createSignal(untrack(() => props.value ?? ""))
   const [open, setOpen] = createSignal(false)
   // Only filter after the user has typed; on initial focus, show all options
   const [filtering, setFiltering] = createSignal(false)
@@ -28,13 +28,7 @@ export function Combobox(props: ComboboxProps) {
   let listRef!: HTMLUListElement
 
   // Sync external value changes into the input
-  let prevProp = props.value
-  const syncValue = () => {
-    if (props.value !== prevProp) {
-      prevProp = props.value
-      setInputValue(props.value ?? "")
-    }
-  }
+  createEffect(on(() => props.value, (value) => { setInputValue(value ?? "") }, { defer: true }))
 
   const filtered = createMemo(() => {
     if (!filtering()) return props.options
@@ -51,7 +45,6 @@ export function Combobox(props: ComboboxProps) {
   }
 
   const handleInput: JSX.EventHandler<HTMLInputElement, InputEvent> = (e) => {
-    syncValue()
     setInputValue(e.currentTarget.value)
     setFiltering(true)
     setOpen(true)
@@ -168,7 +161,7 @@ export function Combobox(props: ComboboxProps) {
           aria-activedescendant={activeIndex() >= 0 ? `combobox-option-${activeIndex()}` : undefined}
           value={inputValue()}
           onInput={handleInput}
-          onFocus={() => { syncValue(); setFiltering(false); setOpen(true) }}
+          onFocus={() => { setFiltering(false); setOpen(true) }}
           onMouseDown={handleInputMouseDown}
           onClick={handleInputClick}
           onBlur={handleBlur}

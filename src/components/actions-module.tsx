@@ -1,4 +1,4 @@
-import { createSignal, createMemo, For, Show } from "solid-js"
+import { createSignal, createEffect, createMemo, on, untrack, For, Show } from "solid-js"
 import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
 import Clock from "lucide-solid/icons/clock"
@@ -85,7 +85,7 @@ interface ActionFormProps {
 const ACTION_TYPE_LABELS = ACTION_TYPES.map((t) => t.label)
 
 function ActionForm(props: ActionFormProps) {
-  const kindLabel = KIND_LABELS[props.kind]
+  const kindLabel = () => KIND_LABELS[props.kind]
   const isEditing = () => !!props.initialData?.name
   const [formData, setFormData] = createSignal<ActionFormData>({
     name: props.initialData?.name ?? "",
@@ -110,7 +110,7 @@ function ActionForm(props: ActionFormProps) {
   return (
     <div class="space-y-4">
       <div>
-        <Label for="action-name">{kindLabel} Name</Label>
+        <Label for="action-name">{kindLabel()} Name</Label>
         <Input id="action-name" autofocus value={formData().name}
           onInput={(e) => setFormData(p => ({ ...p, name: e.currentTarget.value }))}
           placeholder={props.kind === "reaction" ? "e.g., Shield, Opportunity Attack" : props.kind === "bonus-action" ? "e.g., Second Wind, Cunning Action" : "e.g., Lay on Hands, Breath Weapon"} />
@@ -185,7 +185,7 @@ function ActionForm(props: ActionFormProps) {
         <Label for="action-description">Description</Label>
         <Textarea id="action-description" value={formData().description}
           onInput={(e) => setFormData(p => ({ ...p, description: e.currentTarget.value }))}
-          placeholder={`Describe what this ${kindLabel.toLowerCase()} does...`} rows={3} />
+          placeholder={`Describe what this ${kindLabel().toLowerCase()} does...`} rows={3} />
       </div>
 
       <div class="flex gap-2 justify-end">
@@ -193,13 +193,13 @@ function ActionForm(props: ActionFormProps) {
           <ConfirmButton data-test="action-form-delete" variant="destructive" verb="Delete" onConfirm={() => props.onDelete?.()} class="mr-auto">Delete</ConfirmButton>
         </Show>
         <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel}</Button>
+        <Button onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel()}</Button>
       </div>
     </div>
   )
 }
 
-function spellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
+function createSpellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
   const slotKey = spell.level as keyof Character['spellSlots']
   const slots = () => getSpellSlots()[slotKey]
   const canCast = () => spell.level > 0 && (!!spell.freeCast || (!!slots() && slots().used < slots().total))
@@ -242,7 +242,11 @@ const toEdit = (c: Character): ActionsEditState => {
 export function ActionsModule(props: ActionsModuleProps) {
   const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(toEdit(props.character))
+  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
+  // The sheet swaps characters in place, so in-progress edits must not carry over to the next one.
+  createEffect(on(() => props.character.id, () => {
+    setEdited(toEdit(props.character))
+  }, { defer: true }))
   const [isActionModalOpen, setIsActionModalOpen] = createSignal(false)
   const [isBonusActionModalOpen, setIsBonusActionModalOpen] = createSignal(false)
   const [isReactionModalOpen, setIsReactionModalOpen] = createSignal(false)
@@ -270,7 +274,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   const closeOtherModal = () => { setIsOtherModalOpen(false); setEditingOther(null) }
   const [upcastSpellId, setUpcastSpellId] = createSignal<string | null>(null)
   const [expandedSections, setExpandedSections] = createPersistedSetSignal<ActionSection>(
-    `dnd-collapsible-actions-${props.character.id}`,
+    () => `dnd-collapsible-actions-${props.character.id}`,
     ['actions', 'bonus-actions', 'reactions', 'other']
   )
   const toggleSection = (section: ActionSection, open: boolean) => {
@@ -507,7 +511,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   }
 
   const renderSpell = (spell: Spell) => {
-    const { canCast, upcastLevels, hasHigherSlots } = spellAccessors(spell, () => props.character.spellSlots)
+    const { canCast, upcastLevels, hasHigherSlots } = createSpellAccessors(spell, () => props.character.spellSlots)
     return (
       <ActionCard
         name={spell.name}

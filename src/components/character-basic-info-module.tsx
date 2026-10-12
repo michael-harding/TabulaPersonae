@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, For, Show } from "solid-js"
+import { createSignal, createEffect, on, untrack, For, Show } from "solid-js"
 import User from "lucide-solid/icons/user"
 
 import type { Character } from "@/lib/character-types"
@@ -50,7 +50,7 @@ type EditState = ReturnType<typeof toEdit>
 
 export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(toEdit(props.character))
+  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
   createEffect(on(() => props.character.id, () => {
     setEdited(toEdit(props.character))
   }))

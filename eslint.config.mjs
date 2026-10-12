@@ -90,6 +90,11 @@ export default tseslint.config(
     plugins: { solid },
     rules: {
       ...solid.configs.recommended.rules,
+      // Both are warnings in the recommended set. Each one marks a prop or signal read once at
+      // setup, which goes stale when the sheet swaps characters in place — so they block.
+      // Deliberate one-time reads go through `untrack`.
+      'solid/reactivity': 'error',
+      'solid/components-return-once': 'error',
     },
   },
   {

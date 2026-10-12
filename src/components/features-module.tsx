@@ -1,4 +1,4 @@
-import { createSignal, For, Index, Show, type ParentProps } from "solid-js"
+import { createSignal, untrack, For, Index, Show, type ParentProps } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
 import Leaf from "lucide-solid/icons/leaf"
 import Star from "lucide-solid/icons/star"
@@ -683,7 +683,7 @@ function FeatureForm(props: FeatureFormProps) {
   // object, and Solid's <For> remounts children whose item reference changes), which would silently
   // discard any state kept inside it, snapping a manually-collapsed section back open on the next edit.
   const [effectGroupsOpen, setEffectGroupsOpen] = createSignal<Record<number, Record<EffectGroupKey, boolean>>>(
-    Object.fromEntries((formData().levelEffects).map((t, i) => [i, computeInitialEffectGroups(t.effects)]))
+    untrack(() => Object.fromEntries((formData().levelEffects).map((t, i) => [i, computeInitialEffectGroups(t.effects)])))
   )
   const getEffectGroupsOpen = (index: number) => effectGroupsOpen()[index] ?? computeInitialEffectGroups({})
   const setEffectGroupOpen = (index: number, key: EffectGroupKey, open: boolean) =>
@@ -1055,7 +1055,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
   const [isAddOpen, setIsAddOpen] = createSignal<FeatureKind | null>(null)
   const [editingFeature, setEditingFeature] = createSignal<Feature | null>(null)
   const [expandedSections, setExpandedSections] = createPersistedSetSignal<FeatureKind>(
-    `dnd-collapsible-features-${props.character.id}`,
+    () => `dnd-collapsible-features-${props.character.id}`,
     ['class-feature', 'species-trait', 'feat', 'background']
   )
 

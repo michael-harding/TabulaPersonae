@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, Show, For } from "solid-js"
+import { createSignal, createEffect, on, untrack, Show, For } from "solid-js"
 import FileText from "lucide-solid/icons/file-text"
 
 import type { Character } from "@/lib/character-types"
@@ -16,7 +16,7 @@ interface CharacterNotesModuleProps {
 
 export function CharacterNotesModule(props: CharacterNotesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
-  const [editedCharacter, setEditedCharacter] = createSignal(props.character)
+  const [editedCharacter, setEditedCharacter] = createSignal(untrack(() => props.character))
 
   createEffect(on(() => props.character.id, () => {
     setEditedCharacter(props.character)

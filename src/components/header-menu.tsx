@@ -1,4 +1,5 @@
 import { createSignal } from "solid-js"
+import { Dynamic } from "solid-js/web"
 import Menu from "lucide-solid/icons/menu"
 import Users from "lucide-solid/icons/users"
 import Upload from "lucide-solid/icons/upload"
@@ -128,11 +129,11 @@ export function HeaderMenu(props: HeaderMenuProps) {
     }
   }
 
-  const ThemeIcon = () => {
+  const themeIcon = () => {
     switch (theme()) {
-      case "dark": return <Moon class="h-4 w-4" aria-hidden="true" />
-      case "light": return <Sun class="h-4 w-4" aria-hidden="true" />
-      default: return <Monitor class="h-4 w-4" aria-hidden="true" />
+      case "dark": return Moon
+      case "light": return Sun
+      default: return Monitor
     }
   }
 
@@ -177,7 +178,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setTheme(theme() === "dark" ? "light" : "dark")}>
-            <ThemeIcon />
+            <Dynamic component={themeIcon()} class="h-4 w-4" aria-hidden="true" data-test={`theme-icon-${theme()}`} />
             <span class="ml-2">Toggle Theme</span>
           </DropdownMenuItem>
           {user() ? (

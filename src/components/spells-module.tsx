@@ -268,7 +268,7 @@ export function SpellsModule(props: SpellsModuleProps) {
   const [isAddModalOpen, setIsAddModalOpen] = createSignal(false)
   const [editingSpell, setEditingSpell] = createSignal<Spell | null>(null)
   const [expandedLevels, setExpandedLevels] = createPersistedSetSignal<number>(
-    `dnd-collapsible-spells-${props.character.id}`,
+    () => `dnd-collapsible-spells-${props.character.id}`,
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
   )
   const [isSpellSlotsModalOpen, setIsSpellSlotsModalOpen] = createSignal(false)

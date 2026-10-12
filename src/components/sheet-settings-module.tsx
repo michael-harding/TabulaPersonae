@@ -27,7 +27,15 @@ const PRESET_COLORS = [
 
 export function SheetSettingsModule(props: SheetSettingsModuleProps) {
   const isReadOnly = useReadOnly()
-  if (isReadOnly) return null
+  return (
+    <Show when={!isReadOnly}>
+      <SheetSettingsContent {...props} />
+    </Show>
+  )
+}
+
+// Split out so none of this — the share-link QR resource in particular — is set up in read-only mode.
+function SheetSettingsContent(props: SheetSettingsModuleProps) {
   const edition = () => props.character.edition ?? "2024"
   const sheetColor = () => props.character.sheetColor
   const shareUrl = () =>

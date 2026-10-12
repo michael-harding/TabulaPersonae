@@ -7,10 +7,15 @@ import type { Character } from "@/lib/character-types"
 
 import { cleanup, render, screen, waitFor, cleanupPortals } from "../test-utils"
 
-vi.mock("@/lib/theme", () => ({
-  theme: () => "system",
-  setTheme: vi.fn(),
-}))
+// A real signal behind the mocked theme, so a test can change the theme while the menu is open.
+const themeControl = vi.hoisted(() => ({ set: (() => {}) as (theme: "light" | "dark" | "system") => void }))
+
+vi.mock("@/lib/theme", async () => {
+  const { createSignal } = await import("solid-js")
+  const [theme, setThemeSignal] = createSignal<"light" | "dark" | "system">("system")
+  themeControl.set = setThemeSignal
+  return { theme, setTheme: vi.fn() }
+})
 
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: vi.fn() }),
@@ -40,6 +45,7 @@ async function openMenu(extraProps: Partial<typeof defaultProps & { currentChara
 
 beforeEach(() => {
   vi.clearAllMocks()
+  themeControl.set("system")
   cleanup()
   cleanupPortals()
 })
@@ -63,6 +69,22 @@ describe("HeaderMenu export label", () => {
   it("falls back to 'Export Character' when currentCharacter has no name", async () => {
     await openMenu({ currentCharacter: { ...char1, name: "" } })
     await waitFor(() => expect(screen.getByText("Export Character")).toBeInTheDocument())
+  })
+})
+
+describe("HeaderMenu theme icon", () => {
+  it.each(["light", "dark", "system"] as const)("shows the matching icon for the %s theme", async (theme) => {
+    themeControl.set(theme)
+    await openMenu()
+    await waitFor(() => expect(screen.getByTestId(`theme-icon-${theme}`)).toBeInTheDocument())
+  })
+
+  it("follows a theme change while the menu is open", async () => {
+    await openMenu()
+    await waitFor(() => expect(screen.getByTestId("theme-icon-system")).toBeInTheDocument())
+    themeControl.set("dark")
+    expect(screen.getByTestId("theme-icon-dark")).toBeInTheDocument()
+    expect(screen.queryByTestId("theme-icon-system")).not.toBeInTheDocument()
   })
 })
 

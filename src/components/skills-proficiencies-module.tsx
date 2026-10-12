@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
+import { createSignal, createEffect, createMemo, on, untrack, For, Show } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
 
 import type { Character } from "@/lib/character-types"
@@ -54,7 +54,7 @@ function SkillAdvantagePips(props: {
               aria-label="Advantage"
               aria-pressed={props.state === "advantage"}
               data-test={`skill-advantage-${props.testKey}`}
-              onClick={props.onToggleAdvantage}
+              onClick={() => props.onToggleAdvantage()}
               class={cn(TOUCH_TARGET_BOX, "cursor-pointer")}
             >
               <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-foreground text-foreground"}`}>A</span>
@@ -66,7 +66,7 @@ function SkillAdvantagePips(props: {
               aria-label="Disadvantage"
               aria-pressed={props.state === "disadvantage"}
               data-test={`skill-disadvantage-${props.testKey}`}
-              onClick={props.onToggleDisadvantage}
+              onClick={() => props.onToggleDisadvantage()}
               class={cn(TOUCH_TARGET_BOX, "cursor-pointer")}
             >
               <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-foreground text-foreground"}`}>D</span>
@@ -90,7 +90,7 @@ function SkillAdvantagePips(props: {
 
 export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(props.character)
+  const [edited, setEdited] = createSignal(untrack(() => props.character))
 
   createEffect(on(() => props.character.id, () => setEdited(props.character)))
 

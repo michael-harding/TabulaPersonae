@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For, Show } from "solid-js"
+import { createSignal, createEffect, untrack, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import {
   DragDropProvider,
@@ -45,8 +45,7 @@ interface SortableModuleRowProps {
 }
 
 function SortableModuleRow(props: SortableModuleRowProps) {
-  // eslint-disable-next-line solid/reactivity
-  const sortable = createSortable(props.moduleId)
+  const sortable = createSortable(untrack(() => props.moduleId))
   return (
     <div
       ref={sortable.ref}
@@ -96,8 +95,7 @@ interface SortableTabRowProps {
 }
 
 function SortableTabRow(props: SortableTabRowProps) {
-  // eslint-disable-next-line solid/reactivity
-  const sortable = createSortable(props.tab.id)
+  const sortable = createSortable(untrack(() => props.tab.id))
   const [renaming, setRenaming] = createSignal(false)
   const [renameValue, setRenameValue] = createSignal("")
   createEffect(() => {

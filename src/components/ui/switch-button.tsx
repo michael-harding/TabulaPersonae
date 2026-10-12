@@ -9,7 +9,7 @@ interface SwitchButtonProps {
 const LABEL = "inline-flex items-center justify-center h-6 px-3 text-xs font-semibold tracking-wide transition-all rounded-full cursor-pointer"
 
 export function SwitchButton(props: SwitchButtonProps) {
-  const inputId = props.id ?? "switch-button"
+  const inputId = () => props.id ?? "switch-button"
   const isB = () => props.value === props.optionB
 
   return (
@@ -17,20 +17,20 @@ export function SwitchButton(props: SwitchButtonProps) {
       <input
         class="sr-only"
         type="checkbox"
-        id={inputId}
+        id={inputId()}
         data-test={props.id ? `switch-button-${props.id}` : "switch-button"}
         checked={isB()}
         onChange={(e) => props.onChange(e.currentTarget.checked ? props.optionB : props.optionA)}
       />
       <label
         class={`${LABEL} ${!isB() ? "bg-primary text-primary-foreground" : "text-white/70"}`}
-        for={inputId}
+        for={inputId()}
       >
         {props.optionA}
       </label>
       <label
         class={`${LABEL} ${isB() ? "bg-primary text-primary-foreground" : "text-white/70"}`}
-        for={inputId}
+        for={inputId()}
       >
         {props.optionB}
       </label>

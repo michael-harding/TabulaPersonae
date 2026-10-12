@@ -1,5 +1,6 @@
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
+import { createStore, reconcile } from "solid-js/store"
 
 import { CombatStatsModule } from "@/components/combat-stats-module"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -397,6 +398,22 @@ describe("CombatStatsModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
       expect(onUpdate).not.toHaveBeenCalled()
       expect(screen.getByText(/\/20/)).toBeInTheDocument()
+    })
+
+    it("drops the previous character's in-progress edits when the character is switched mid-edit", () => {
+      // The sheet swaps characters in place (same mounted module, new id), so edits started on
+      // one character must not be saved onto the next.
+      const onUpdate = vi.fn()
+      const [character, setCharacter] = createStore<Character>(makeCharacter({ id: "char-a" }))
+      render(<CombatStatsModule character={character} onUpdate={onUpdate} />)
+      clickEditButton()
+      setCharacter(reconcile<Character, Character>(
+        makeCharacter({ id: "char-b", hitPoints: { current: 4, maximum: 20, temporary: 0 } })
+      ))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "char-b", hitPoints: expect.objectContaining({ current: 4 }) })
+      )
     })
   })
 

@@ -1,4 +1,4 @@
-import { createSignal, createMemo, Show } from "solid-js"
+import { createSignal, createEffect, createMemo, on, untrack, Show } from "solid-js"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
 import Plus from "lucide-solid/icons/plus"
@@ -76,7 +76,11 @@ const toEdit = (c: Character) => {
 export function CombatStatsModule(props: CombatStatsModuleProps) {
   const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(toEdit(props.character))
+  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
+  // The sheet swaps characters in place, so in-progress edits must not carry over to the next one.
+  createEffect(on(() => props.character.id, () => {
+    setEdited(toEdit(props.character))
+  }, { defer: true }))
   const current = () => (isEditing() ? edited() : props.character)
 
   const persist = () => {
