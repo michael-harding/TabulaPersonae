@@ -31,6 +31,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { useReadOnly } from "@/lib/read-only-context"
+import { cn, HOVER_ACCENT } from "@/lib/utils"
 
 const EMPTY_SPELLS: Spell[] = []
 
@@ -140,7 +141,7 @@ function SpellForm(props: SpellFormProps) {
         <div>
           <Label for="spell-level">Level</Label>
           <Select value={formData().level.toString()} onValueChange={(v: string) => setFormData((p) => ({ ...p, level: parseInt(v) }))}>
-            <SelectTrigger data-test="spell-level-select"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="spell-level" data-test="spell-level-select"><SelectValue /></SelectTrigger>
             <SelectContent>
               <For each={SPELL_LEVELS}>{(level) => <SelectItem value={level.value.toString()}>{level.label}</SelectItem>}</For>
             </SelectContent>
@@ -560,12 +561,14 @@ export function SpellsModule(props: SpellsModuleProps) {
                       open={expandedLevels().has(level.value)}
                       onOpenChange={(isOpen: boolean) => toggleLevelExpanded(level.value, isOpen)}
                     >
-                      <CollapsibleTrigger data-test={`spell-level-${level.value}-toggle`} class="flex w-full items-center justify-between p-3 rounded-md hover:bg-accent transition-colors">
+                      <CollapsibleTrigger data-test={`spell-level-${level.value}-toggle`} class={cn("flex w-full items-center justify-between p-3 rounded-md transition-colors", HOVER_ACCENT)}>
                         <div class="flex items-center gap-2">
                           <span class="font-semibold">{level.label}</span>
                           <Chip variant="secondary">{levelSpells().length}</Chip>
                           <Show when={level.value > 0}>
-                            <Chip variant="outline" class="text-xs">
+                            {/* An outline chip has no background of its own, so its text follows the
+                                header's colour and stays readable on the hover highlight. */}
+                            <Chip variant="outline" class="text-xs text-inherit">
                               {levelSpells().filter((s) => s.prepared).length} prepared
                             </Chip>
                           </Show>

@@ -34,7 +34,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { useReadOnly } from "@/lib/read-only-context"
-import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
+import { cn, HOVER_ACCENT, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 interface FeaturesModuleProps {
   character: Character
@@ -1163,7 +1163,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                 onOpenChange={(open: boolean) => toggleExpanded(section.kind, open)}
               >
                 <div class="flex items-center justify-between pr-1">
-                  <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
+                  <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
                     <section.icon class="h-4 w-4 text-primary" aria-hidden="true" />
                     <span class="font-semibold">{section.title}</span>
                     <Chip variant="secondary">{features().length}</Chip>

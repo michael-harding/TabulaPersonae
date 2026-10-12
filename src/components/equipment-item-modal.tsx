@@ -290,9 +290,9 @@ function EquipmentForm(props: EquipmentFormProps) {
       </div>
 
       <div>
-        <Label>Item Type</Label>
+        <Label for="item-type">Item Type</Label>
         <Select value={formData.type} onValueChange={handleTypeChange}>
-          <SelectTrigger data-test="item-type">
+          <SelectTrigger id="item-type" data-test="item-type">
             <SelectValue placeholder="Select type" />
           </SelectTrigger>
           <SelectContent>
@@ -357,12 +357,12 @@ function EquipmentForm(props: EquipmentFormProps) {
               />
             </div>
             <div>
-              <Label>Attack Using</Label>
+              <Label for="weapon-attack-ability">Attack Using</Label>
               <Select
                 value={formData.weaponStats?.attackAbility ?? "str"}
                 onValueChange={(v) => setFormData("weaponStats", "attackAbility", v as "str" | "dex" | "finesse")}
               >
-                <SelectTrigger data-test="weapon-attack-ability">
+                <SelectTrigger id="weapon-attack-ability" data-test="weapon-attack-ability">
                   <SelectValue placeholder="Select ability" />
                 </SelectTrigger>
                 <SelectContent>
@@ -390,12 +390,12 @@ function EquipmentForm(props: EquipmentFormProps) {
           <p class="text-sm font-medium">Armor Stats</p>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <Label>Armor Type</Label>
+              <Label for="armor-type">Armor Type</Label>
               <Select
                 value={formData.armorStats?.armorType ?? "light"}
                 onValueChange={(v) => setFormData("armorStats", "armorType", v as "light" | "medium" | "heavy" | "shield")}
               >
-                <SelectTrigger data-test="armor-type">
+                <SelectTrigger id="armor-type" data-test="armor-type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -470,12 +470,12 @@ function EquipmentForm(props: EquipmentFormProps) {
             Magic Item Details
           </p>
           <div>
-            <Label>Rarity</Label>
+            <Label for="item-rarity">Rarity</Label>
             <Select
               value={formData.rarity}
               onValueChange={(v) => setFormData("rarity", v as ItemRarity)}
             >
-              <SelectTrigger data-test="item-rarity">
+              <SelectTrigger id="item-rarity" data-test="item-rarity">
                 <SelectValue placeholder="Select rarity" />
               </SelectTrigger>
               <SelectContent>
@@ -606,12 +606,12 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
               <Show when={formData.maxUses > 0}>
                 <div>
-                  <Label>Recharge On</Label>
+                  <Label for="item-recharge-on">Recharge On</Label>
                   <Select
                     value={formData.rechargeOn}
                     onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
                   >
-                    <SelectTrigger data-test="item-recharge-on">
+                    <SelectTrigger id="item-recharge-on" data-test="item-recharge-on">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>

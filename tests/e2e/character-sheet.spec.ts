@@ -1,8 +1,10 @@
-import { test, expect, type Page } from "@playwright/test"
-import AxeBuilder from "@axe-core/playwright"
+import { type Page } from "@playwright/test"
 
 import { testCharacter, secondCharacter } from "../visual/fixtures"
+import { test, expect } from "./test"
 
+// Each scenario's final state is scanned with axe by the shared `test` (see ./test.ts), so there
+// are no separate accessibility tests here.
 function setup(page: Page, chars: unknown | unknown[]) {
   const list = Array.isArray(chars) ? chars : [chars]
   return page.addInitScript((data: unknown[]) => {
@@ -38,13 +40,6 @@ test.describe("Tab navigation", () => {
   test("Character tab shows basic info and notes", async ({ page }) => {
     await page.getByRole("tab", { name: "Character" }).click()
     await expect(page.getByText("Character Information")).toBeVisible()
-  })
-
-  test("has no accessibility violations after tab switch to Spells", async ({ page }) => {
-    await page.getByRole("tab", { name: "Spells" }).click()
-    await page.waitForLoadState("networkidle")
-    const results = await new AxeBuilder({ page }).analyze()
-    expect(results.violations).toEqual([])
   })
 })
 
@@ -112,19 +107,6 @@ test.describe("Conditions", () => {
     await page.locator('[data-test="condition-remove-Poisoned"]').click()
     await expect(page.locator('[data-test="condition-remove-Poisoned"]')).not.toBeVisible()
   })
-
-  test("has no accessibility violations after adding a condition", async ({ page }) => {
-    await page.locator('[data-test="condition-add"]').click()
-    await page.getByRole("menuitem", { name: "Charmed" }).click()
-    // Wait for badge to confirm click landed, then wait for menu portal to be detached.
-    // Kobalte's DropdownMenu sets aria-hidden on the rest of the page while open, which
-    // causes axe to report "no headings" (RGAA-9.2.1). Must wait for portal removal.
-    await page.locator('[data-test="condition-remove-Charmed"]').waitFor({ state: "visible" })
-    await page.locator('[role="menu"]').waitFor({ state: "detached" })
-    // Disable color-contrast: condition badge has a known contrast gap in dark mode
-    const results = await new AxeBuilder({ page }).disableRules(["color-contrast"]).analyze()
-    expect(results.violations).toEqual([])
-  })
 })
 
 test.describe("Spell slot usage", () => {
@@ -140,13 +122,6 @@ test.describe("Spell slot usage", () => {
     // After clicking one: 2 used slots total
     await page.getByLabel("Available slot (click to use)").first().click()
     await expect(page.getByLabel("Used slot (click to restore)")).toHaveCount(2)
-  })
-
-  test("has no accessibility violations after using a spell slot", async ({ page }) => {
-    await page.getByLabel("Available slot (click to use)").first().click()
-    await page.waitForLoadState("networkidle")
-    const results = await new AxeBuilder({ page }).analyze()
-    expect(results.violations).toEqual([])
   })
 })
 
@@ -168,13 +143,6 @@ test.describe("Rest modal", () => {
     await page.getByRole("button", { name: /cancel/i }).click()
     await expect(page.getByRole("dialog")).not.toBeVisible()
   })
-
-  test("has no accessibility violations with rest dialog open", async ({ page }) => {
-    await page.getByRole("button", { name: "Take a Rest" }).click()
-    await expect(page.getByRole("dialog")).toBeVisible()
-    const results = await new AxeBuilder({ page }).analyze()
-    expect(results.violations).toEqual([])
-  })
 })
 
 test.describe("Edit basic info workflow", () => {
@@ -190,5 +158,31 @@ test.describe("Edit basic info workflow", () => {
     await page.getByRole("button", { name: /save changes/i }).click()
     // Use heading role to avoid strict-mode match with the paragraph that also shows the name
     await expect(page.getByRole("heading", { name: "Zara Brightbow" })).toBeVisible()
+  })
+})
+
+test.describe("Guest mode", () => {
+  test("Back to Login keeps the guest's characters on this device", async ({ page }) => {
+    // Seeded once, not with an init script: an init script would run again on the reload that
+    // Back to Login triggers and put the characters back whether or not the app had kept them.
+    await page.goto("/auth")
+    await page.evaluate((character: unknown) => {
+      localStorage.setItem("dnd-characters", JSON.stringify([character]))
+      localStorage.setItem("dnd-skip-auth", "true")
+    }, testCharacter)
+    await page.goto("/")
+    await expect(page.getByText(testCharacter.name)).toBeVisible()
+
+    await page.locator('[data-test="header-menu-trigger"]').click()
+    await page.getByRole("menuitem", { name: "Back to Login" }).click()
+
+    // Leaving guest mode lands on the sign-in page
+    await expect(page.locator('[data-test="auth-skip-button"]')).toBeVisible()
+    // Without an account these characters exist nowhere else, so they must still be here
+    const stored = await page.evaluate(() => ({
+      characters: JSON.parse(localStorage.getItem("dnd-characters") ?? "[]").length,
+      skipAuth: localStorage.getItem("dnd-skip-auth"),
+    }))
+    expect(stored).toEqual({ characters: 1, skipAuth: null })
   })
 })

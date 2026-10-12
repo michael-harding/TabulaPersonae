@@ -7,9 +7,9 @@ import { render, screen, fireEvent } from "../../test-utils"
 describe("InlineStepper", () => {
   function renderStepper(props: { value?: number; min?: number; max?: number } = {}) {
     const onChange = vi.fn()
-    const { container } = render(
+    const { container } = render(() => (
       <InlineStepper data-test="qty" label="Rope quantity" value={props.value ?? 2} min={props.min} max={props.max} onChange={onChange} />
-    )
+    ))
     return { onChange, container }
   }
 

@@ -113,7 +113,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
               <div>
                 <Label for="alignment">Alignment</Label>
                 <Select value={edited().alignment} onValueChange={(v) => updateField("alignment", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select alignment" /></SelectTrigger>
+                  <SelectTrigger id="alignment"><SelectValue placeholder="Select alignment" /></SelectTrigger>
                   <SelectContent>
                     <For each={ALIGNMENTS}>{(a) => <SelectItem value={a}>{a}</SelectItem>}</For>
                   </SelectContent>

@@ -1,6 +1,7 @@
-import { test, expect, type Page } from "@playwright/test"
+import { type Page } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
+import { test, expect } from "./test"
 
 function setup(page: Page) {
   return page.addInitScript((char: unknown) => {

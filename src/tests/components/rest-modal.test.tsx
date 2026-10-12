@@ -68,7 +68,7 @@ describe("RestModal", () => {
         </>
       )
     }
-    render(<Wrapper />)
+    render(() => <Wrapper />)
     fireEvent.click(screen.getByRole("button", { name: "Open" }))
   }
 

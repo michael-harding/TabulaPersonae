@@ -44,7 +44,6 @@ export function createMockAuth(overrides: Partial<AuthContextType> = {}): AuthCo
     user: () => null, // signed out
     loading: () => false,
     skipAuth: () => false,
-    setSkipAuth: vi.fn(),
     signIn: vi.fn(),
     signUp: vi.fn(),
     logout: vi.fn(),

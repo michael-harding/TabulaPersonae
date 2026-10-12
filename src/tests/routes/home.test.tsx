@@ -3,9 +3,7 @@ vi.mock("@/lib/theme", () => ({
   setTheme: vi.fn(),
 }))
 
-vi.mock("@/hooks/use-toast", () => ({
-  useToast: () => ({ toast: vi.fn() }),
-}))
+vi.mock("@/hooks/use-toast", async () => (await import("../mocks/toast")).toastModuleMock)
 
 vi.mock("@/lib/pdf-parser", () => ({
   parsePdfCharacterSheet: vi.fn(),
@@ -27,6 +25,7 @@ import { cleanup, cleanupPortals, render, screen, waitFor, fireEvent, confirmCli
 import { createMockAuth, createTestUser } from "../mocks/auth"
 import { mockNavigate } from "../mocks/router"
 import { mockStorageManager } from "../mocks/storage-manager"
+import { mockToast } from "../mocks/toast"
 
 const mockUseAuth = vi.mocked(useAuth)
 
@@ -47,7 +46,7 @@ afterEach(() => {
 
 async function renderAndLoad(characters: ReturnType<typeof createDefaultCharacter>[]) {
   mockStorageManager.getCharacters.mockResolvedValue(characters)
-  render(<Home />)
+  render(() => <Home />)
   await waitFor(() => expect(screen.getByText(/level/i)).toBeInTheDocument())
 }
 
@@ -90,7 +89,7 @@ describe("Home character list", () => {
 
 describe("Home page — accessibility", () => {
   it("has no accessibility violations", async () => {
-    const { container } = render(<Home />)
+    const { container } = render(() => <Home />)
     await waitFor(() => expect(screen.getByText(/TabulaPersonae/i)).toBeInTheDocument())
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
@@ -120,7 +119,7 @@ describe("Home page — accessibility", () => {
 describe("Home loading", () => {
   it("sends a signed-out visitor to the sign-in page without loading any characters", async () => {
     mockUseAuth.mockReturnValue(createMockAuth())
-    render(<Home />)
+    render(() => <Home />)
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/auth"))
     expect(mockStorageManager.getCharacters).not.toHaveBeenCalled()
@@ -136,7 +135,7 @@ describe("Home loading", () => {
 
   it("shows the loading state and loads nothing while the sign-in state is still unknown", () => {
     mockUseAuth.mockReturnValue(createMockAuth({ loading: () => true }))
-    render(<Home />)
+    render(() => <Home />)
 
     expect(screen.getByText("Loading your characters...")).toBeInTheDocument()
     expect(mockStorageManager.getCharacters).not.toHaveBeenCalled()
@@ -147,7 +146,7 @@ describe("Home loading", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
     const failure = new Error("storage unavailable")
     mockStorageManager.getCharacters.mockRejectedValue(failure)
-    render(<Home />)
+    render(() => <Home />)
 
     await waitFor(() => expect(consoleError).toHaveBeenCalledWith("Failed to load characters:", failure))
     await waitFor(() => expect(screen.queryByText("Loading your characters...")).not.toBeInTheDocument())
@@ -165,7 +164,7 @@ describe("Home creating a character", () => {
   const savedCharacter = (): Character => mockStorageManager.saveCharacter.mock.calls[0][0]
 
   it("offers to create the first character when there are none, then saves and opens it", async () => {
-    render(<Home />)
+    render(() => <Home />)
 
     fireEvent.click(await screen.findByTestId("create-first-character-button"))
 
@@ -185,23 +184,35 @@ describe("Home creating a character", () => {
     expect(screen.getByText("Testy")).toBeInTheDocument()
   })
 
-  it("logs the failure when the new character cannot be saved", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
-    const failure = new Error("write failed")
-    mockStorageManager.saveCharacter.mockRejectedValue(failure)
-    render(<Home />)
+  it("tells the user when the new character could not be saved", async () => {
+    mockStorageManager.saveCharacter.mockResolvedValue(false)
+    render(() => <Home />)
 
     fireEvent.click(await screen.findByTestId("create-first-character-button"))
 
-    await waitFor(() => expect(consoleError).toHaveBeenCalledWith("Failed to save character:", failure))
-    consoleError.mockRestore()
+    await waitFor(() => expect(mockToast).toHaveBeenCalledExactlyOnceWith({
+      title: "Character not saved",
+      description: "The new character could not be saved.",
+      variant: "destructive",
+    }))
+  })
+
+  // Offline, a signed-in user's save stays pending until the server answers
+  it("opens the new character without waiting for a save that has not finished", async () => {
+    mockStorageManager.saveCharacter.mockReturnValue(new Promise<boolean>(() => {}))
+    render(() => <Home />)
+
+    fireEvent.click(await screen.findByTestId("create-first-character-button"))
+
+    expect(mockNavigate).toHaveBeenCalledWith(`/character/${savedCharacter().id}`)
+    expect(mockToast).not.toHaveBeenCalled()
   })
 })
 
 describe("Home importing from the menu", () => {
   async function importJson(content: unknown) {
     const user = userEvent.setup()
-    render(<Home />)
+    render(() => <Home />)
     await user.click(await screen.findByTestId("header-menu-trigger"))
     await user.click(await screen.findByRole("menuitem", { name: /import character/i }))
     const file = new File([JSON.stringify(content)], "import.json", { type: "application/json" })
@@ -233,30 +244,51 @@ describe("Home importing from the menu", () => {
   })
 
   it.each([
-    { label: "an imported character", logged: "Failed to save imported character:", content: { ...createDefaultCharacter(), id: "file-1", name: "First" } },
-    { label: "imported characters", logged: "Failed to save imported characters:", content: [{ ...createDefaultCharacter(), id: "file-1", name: "First" }] },
-  ])("logs the failure when $label cannot be saved", async ({ logged, content }) => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
-    const failure = new Error("write failed")
-    mockStorageManager.saveCharacter.mockRejectedValue(failure)
+    {
+      label: "an imported character",
+      saves: [false],
+      description: "First could not be saved.",
+      content: { ...createDefaultCharacter(), id: "file-1", name: "First" },
+    },
+    {
+      label: "any character of a multi-character import",
+      saves: [true, false],
+      description: "One or more of the imported characters could not be saved.",
+      content: [{ ...createDefaultCharacter(), id: "file-1", name: "First" }, { ...createDefaultCharacter(), id: "file-2", name: "Second" }],
+    },
+  ])("tells the user when $label could not be saved", async ({ saves, description, content }) => {
+    for (const saved of saves) mockStorageManager.saveCharacter.mockResolvedValueOnce(saved)
 
     await importJson(content)
 
-    await waitFor(() => expect(consoleError).toHaveBeenCalledWith(logged, failure))
-    consoleError.mockRestore()
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ title: "Import not saved", description, variant: "destructive" }))
   })
 })
 
 describe("Home deleting a character — failure", () => {
-  it("logs the failure when the character cannot be deleted", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
-    const failure = new Error("delete failed")
-    mockStorageManager.deleteCharacter.mockRejectedValue(failure)
+  it("tells the user and shows the character again when it could not be deleted", async () => {
+    mockStorageManager.deleteCharacter.mockResolvedValue(false)
     await renderAndLoad([{ ...createDefaultCharacter(), id: "char-1", name: "Testy" }])
 
     confirmClick(screen.getByTestId("delete-character-button-char-1"))
 
-    await waitFor(() => expect(consoleError).toHaveBeenCalledWith("Failed to delete character:", failure))
-    consoleError.mockRestore()
+    await waitFor(() => expect(mockToast).toHaveBeenCalledExactlyOnceWith({
+      title: "Character not deleted",
+      description: "Testy could not be deleted.",
+      variant: "destructive",
+    }))
+    // Removed at once, then reloaded from storage, where it still exists
+    expect(await screen.findByText("Testy")).toBeInTheDocument()
+    expect(mockStorageManager.getCharacters).toHaveBeenCalledTimes(2)
+  })
+
+  it("leaves the character removed and says nothing when the delete succeeds", async () => {
+    await renderAndLoad([{ ...createDefaultCharacter(), id: "char-1", name: "Testy" }])
+
+    confirmClick(screen.getByTestId("delete-character-button-char-1"))
+
+    await waitFor(() => expect(screen.queryByText("Testy")).not.toBeInTheDocument())
+    expect(mockToast).not.toHaveBeenCalled()
+    expect(mockStorageManager.getCharacters).toHaveBeenCalledOnce()
   })
 })

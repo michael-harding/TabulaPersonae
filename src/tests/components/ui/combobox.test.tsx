@@ -9,12 +9,12 @@ const OPTIONS = ["Barbarian", "Bard", "Cleric", "Druid", "Fighter"]
 
 describe("Combobox", () => {
   it("puts its id on the input so a <label for> names it", () => {
-    render(
+    render(() => (
       <>
         <label for="class">Class</label>
         <Combobox id="class" options={OPTIONS} />
       </>
-    )
+    ))
     expect(screen.getByRole("combobox", { name: "Class" })).toBeInTheDocument()
   })
 
@@ -27,7 +27,7 @@ describe("Combobox", () => {
     }
 
     it("on the input: opens, closes, reopens", () => {
-      render(<Combobox options={OPTIONS} aria-label="Class" />)
+      render(() => <Combobox options={OPTIONS} aria-label="Class" />)
       const input = screen.getByRole("combobox")
       realClick(input)
       expect(screen.getByRole("listbox")).toBeInTheDocument()
@@ -38,7 +38,7 @@ describe("Combobox", () => {
     })
 
     it("on the chevron: the first click opens it (it used to open and immediately re-close), the second closes it", () => {
-      render(<Combobox options={OPTIONS} aria-label="Class" />)
+      render(() => <Combobox options={OPTIONS} aria-label="Class" />)
       const chevron = screen.getByRole("button", { name: "Toggle options" })
       fireEvent.mouseDown(chevron)
       fireEvent.click(chevron)
@@ -51,31 +51,31 @@ describe("Combobox", () => {
   })
 
   it("renders an input with the current value", () => {
-    render(<Combobox value="Bard" options={OPTIONS} />)
+    render(() => <Combobox value="Bard" options={OPTIONS} />)
     expect(screen.getByRole("combobox")).toHaveValue("Bard")
   })
 
   it("shows a new value as soon as the value prop changes, without needing focus", () => {
     const [value, setValue] = createSignal("Bard")
-    render(<Combobox value={value()} options={OPTIONS} aria-label="Class" />)
+    render(() => <Combobox value={value()} options={OPTIONS} aria-label="Class" />)
     setValue("Cleric")
     expect(screen.getByRole("combobox")).toHaveValue("Cleric")
   })
 
   it("clears the input when the value prop is cleared", () => {
     const [value, setValue] = createSignal<string | undefined>("Bard")
-    render(<Combobox value={value()} options={OPTIONS} aria-label="Class" />)
+    render(() => <Combobox value={value()} options={OPTIONS} aria-label="Class" />)
     setValue(undefined)
     expect(screen.getByRole("combobox")).toHaveValue("")
   })
 
   it("renders placeholder when no value is set", () => {
-    render(<Combobox options={OPTIONS} placeholder="Select class" />)
+    render(() => <Combobox options={OPTIONS} placeholder="Select class" />)
     expect(screen.getByPlaceholderText("Select class")).toBeInTheDocument()
   })
 
   it("shows filtered options when input is focused", () => {
-    render(<Combobox options={OPTIONS} />)
+    render(() => <Combobox options={OPTIONS} />)
     const input = screen.getByRole("combobox")
     fireEvent.focus(input)
     expect(screen.getByRole("listbox")).toBeInTheDocument()
@@ -83,7 +83,7 @@ describe("Combobox", () => {
   })
 
   it("filters options as user types", () => {
-    render(<Combobox options={OPTIONS} />)
+    render(() => <Combobox options={OPTIONS} />)
     const input = screen.getByRole("combobox")
     fireEvent.focus(input)
     fireEvent.input(input, { target: { value: "bar" } })
@@ -93,7 +93,7 @@ describe("Combobox", () => {
 
   it("calls onValueChange with selected option when clicked", () => {
     const onValueChange = vi.fn()
-    render(<Combobox options={OPTIONS} onValueChange={onValueChange} />)
+    render(() => <Combobox options={OPTIONS} onValueChange={onValueChange} />)
     const input = screen.getByRole("combobox")
     fireEvent.focus(input)
     fireEvent.click(screen.getByText("Druid"))
@@ -102,7 +102,7 @@ describe("Combobox", () => {
 
   it("calls onValueChange with custom text on blur", () => {
     const onValueChange = vi.fn()
-    render(<Combobox options={OPTIONS} onValueChange={onValueChange} />)
+    render(() => <Combobox options={OPTIONS} onValueChange={onValueChange} />)
     const input = screen.getByRole("combobox")
     fireEvent.focus(input)
     fireEvent.input(input, { target: { value: "Mystic" } })
@@ -112,7 +112,7 @@ describe("Combobox", () => {
 
   it("does not call onValueChange on blur when value is unchanged", () => {
     const onValueChange = vi.fn()
-    render(<Combobox value="Bard" options={OPTIONS} onValueChange={onValueChange} />)
+    render(() => <Combobox value="Bard" options={OPTIONS} onValueChange={onValueChange} />)
     const input = screen.getByRole("combobox")
     fireEvent.focus(input)
     fireEvent.blur(input)
@@ -120,7 +120,7 @@ describe("Combobox", () => {
   })
 
   it("closes dropdown after selecting an option", () => {
-    render(<Combobox options={OPTIONS} />)
+    render(() => <Combobox options={OPTIONS} />)
     const input = screen.getByRole("combobox")
     fireEvent.focus(input)
     fireEvent.click(screen.getByText("Fighter"))
@@ -128,7 +128,7 @@ describe("Combobox", () => {
   })
 
   it("shows a checkmark on the currently selected option", () => {
-    render(<Combobox value="Cleric" options={OPTIONS} />)
+    render(() => <Combobox value="Cleric" options={OPTIONS} />)
     const input = screen.getByRole("combobox")
     fireEvent.focus(input)
     const clericOption = screen.getByRole("option", { name: "Cleric" })
@@ -136,7 +136,7 @@ describe("Combobox", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<Combobox value="Bard" options={OPTIONS} aria-label="Select class" />)
+    const { container } = render(() => <Combobox value="Bard" options={OPTIONS} aria-label="Select class" />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -144,7 +144,7 @@ describe("Combobox", () => {
   // Regression: only the closed state was checked, and the open one had two violations — the
   // listbox had no accessible name and the input no aria-controls.
   it("has no accessibility violations with the list open and an option active", async () => {
-    const { container } = render(<Combobox value="Bard" options={OPTIONS} aria-label="Select class" />)
+    const { container } = render(() => <Combobox value="Bard" options={OPTIONS} aria-label="Select class" />)
     const input = screen.getByRole("combobox")
     fireEvent.focus(input)
     fireEvent.mouseEnter(screen.getByRole("option", { name: "Cleric" }))
@@ -153,7 +153,7 @@ describe("Combobox", () => {
   })
 
   it("points the input at its list only while the list is shown", () => {
-    render(<Combobox options={OPTIONS} aria-label="Class" />)
+    render(() => <Combobox options={OPTIONS} aria-label="Class" />)
     const input = screen.getByRole("combobox")
     expect(input).toHaveAttribute("aria-expanded", "false")
     expect(input).not.toHaveAttribute("aria-controls")
@@ -170,12 +170,12 @@ describe("Combobox", () => {
   })
 
   it("closes the list when the pointer goes down outside it, and stays open for one inside", () => {
-    render(
+    render(() => (
       <>
         <Combobox options={OPTIONS} aria-label="Class" />
         <button type="button">Elsewhere</button>
       </>
-    )
+    ))
     fireEvent.focus(screen.getByRole("combobox"))
 
     fireEvent.mouseDown(screen.getByRole("option", { name: "Bard" }))
@@ -187,7 +187,7 @@ describe("Combobox", () => {
 
   it("does not commit the typed text while focus moves to one of its own options", () => {
     const onValueChange = vi.fn()
-    render(<Combobox options={OPTIONS} onValueChange={onValueChange} />)
+    render(() => <Combobox options={OPTIONS} onValueChange={onValueChange} />)
     const input = screen.getByRole("combobox")
     fireEvent.focus(input)
     fireEvent.input(input, { target: { value: "Bar" } })
@@ -199,7 +199,7 @@ describe("Combobox", () => {
   })
 
   it("disables both the input and the chevron", () => {
-    render(<Combobox options={OPTIONS} disabled aria-label="Class" />)
+    render(() => <Combobox options={OPTIONS} disabled aria-label="Class" />)
     expect(screen.getByRole("combobox")).toBeDisabled()
     expect(screen.getByRole("button", { name: "Toggle options" })).toBeDisabled()
   })
@@ -218,7 +218,7 @@ describe("Combobox", () => {
     })
 
     function openCombobox(props: { value?: string; onValueChange?: (value: string) => void } = {}) {
-      render(<Combobox options={OPTIONS} aria-label="Class" {...props} />)
+      render(() => <Combobox options={OPTIONS} aria-label="Class" {...props} />)
       const input = screen.getByRole("combobox")
       fireEvent.focus(input)
       return input

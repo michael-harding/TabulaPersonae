@@ -24,12 +24,12 @@ describe("Toaster", () => {
   })
 
   it("renders nothing visible when there are no toasts", () => {
-    render(<Toaster />)
+    render(() => <Toaster />)
     expect(screen.queryByText(/./)).not.toBeInTheDocument()
   })
 
   it("renders a toast's title and description after calling toast()", () => {
-    render(<Toaster />)
+    render(() => <Toaster />)
     const { toast } = useToast()
     toast({ title: "Saved", description: "Your changes were saved." })
     expect(screen.getByText("Saved")).toBeInTheDocument()
@@ -37,14 +37,14 @@ describe("Toaster", () => {
   })
 
   it("renders only the fields that were provided", () => {
-    render(<Toaster />)
+    render(() => <Toaster />)
     const { toast } = useToast()
     toast({ title: "Saved" })
     expect(screen.getByText("Saved")).toBeInTheDocument()
   })
 
   it("renders multiple toasts, most recent first, capped at 3", () => {
-    render(<Toaster />)
+    render(() => <Toaster />)
     const { toast } = useToast()
     toast({ title: "First" })
     toast({ title: "Second" })
@@ -58,7 +58,7 @@ describe("Toaster", () => {
   })
 
   it("applies the destructive variant class when variant='destructive'", () => {
-    render(<Toaster />)
+    render(() => <Toaster />)
     const { toast } = useToast()
     toast({ title: "Something went wrong", variant: "destructive" })
     const title = screen.getByText("Something went wrong")
@@ -67,7 +67,7 @@ describe("Toaster", () => {
   })
 
   it("removes a toast when its close button is clicked", () => {
-    render(<Toaster />)
+    render(() => <Toaster />)
     const { toast } = useToast()
     toast({ title: "Dismiss me" })
     expect(screen.getByText("Dismiss me")).toBeInTheDocument()
@@ -79,7 +79,7 @@ describe("Toaster", () => {
 
   it("auto-dismisses a toast after the timeout elapses", () => {
     vi.useFakeTimers()
-    render(<Toaster />)
+    render(() => <Toaster />)
     const { toast } = useToast()
     toast({ title: "Auto dismiss" })
     expect(screen.getByText("Auto dismiss")).toBeInTheDocument()
@@ -90,7 +90,7 @@ describe("Toaster", () => {
   })
 
   it("has no accessibility violations for a real toast composition", async () => {
-    const { container } = render(<Toaster />)
+    const { container } = render(() => <Toaster />)
     const { toast } = useToast()
     toast({ title: "Saved" })
     const results = await axe(container)

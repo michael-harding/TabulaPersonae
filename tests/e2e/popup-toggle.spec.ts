@@ -1,6 +1,7 @@
-import { test, expect, type Page, type Locator } from "@playwright/test"
+import { type Page, type Locator } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
+import { axeBuilder, test, expect } from "./test"
 
 // Every popup (DropdownMenu, Combobox, Select) must close on a second click of the control that
 // opened it, so the user can dismiss a list covering other controls without moving the pointer.
@@ -18,6 +19,10 @@ async function expectOpenCloseOpen(page: Page, control: Locator) {
     await page.mouse.click(x, y)
     await expect.poll(() => popupOpen(page)).toBe(expected)
   }
+  // The scan every scenario gets (see ./test.ts) runs after the popup is closed again. The open
+  // state is the one that had gone unchecked, and each kind of popup had violations in it.
+  const results = await axeBuilder(page).analyze()
+  expect(results.violations, "accessibility violations with the popup open").toEqual([])
   await page.keyboard.press("Escape")
 }
 
@@ -50,7 +55,7 @@ test.describe("Popups close on a second click", () => {
     })
 
     test("Select trigger", async ({ page }) => {
-      await expectOpenCloseOpen(page, page.locator('[data-test="character-basic-info-module-content"] button[aria-haspopup="listbox"]').first())
+      await expectOpenCloseOpen(page, page.getByRole("combobox", { name: "Alignment" }))
     })
   })
 })

@@ -2,6 +2,7 @@ import {
   createContext,
   createMemo,
   createSignal,
+  createUniqueId,
   useContext,
   JSX,
   ComponentProps,
@@ -33,6 +34,11 @@ interface SelectContextType {
   setActiveValue: (value: string | undefined) => void
   listEl: () => HTMLUListElement | undefined
   setListEl: (el: HTMLUListElement | undefined) => void
+  // The list's id, for the trigger's aria-controls
+  listId: string
+  // The trigger, which is what gives the list its accessible name
+  triggerEl: () => HTMLButtonElement | undefined
+  setTriggerEl: (el: HTMLButtonElement | undefined) => void
   // The element wrapping the trigger and the popup, for telling inside clicks from outside ones.
   // Held as a ref because `data-sem` is stripped from production builds and can't be queried.
   rootEl: () => HTMLDivElement | undefined
@@ -68,6 +74,8 @@ export function Select(props: SelectRootProps) {
   const [explicitActive, setExplicitActive] = createSignal<string | undefined>(undefined)
   const [listEl, setListEl] = createSignal<HTMLUListElement>()
   const [rootEl, setRootEl] = createSignal<HTMLDivElement>()
+  const [triggerEl, setTriggerEl] = createSignal<HTMLButtonElement>()
+  const baseId = createUniqueId()
   const value = () => props.value ?? internalValue()
 
   // Falls back to the current value's item, then the first item, whenever nothing has been
@@ -108,6 +116,7 @@ export function Select(props: SelectRootProps) {
       placeholder: () => props.placeholder, disabled: () => props.disabled ?? false,
       items, registerItem, activeValue, setActiveValue: setExplicitActive,
       listEl, setListEl, rootEl,
+      listId: `${baseId}-list`, triggerEl, setTriggerEl,
     }}>
       <div ref={setRootEl} data-sem="select" class="relative">
         {props.children}
@@ -117,8 +126,9 @@ export function Select(props: SelectRootProps) {
 }
 
 export function SelectTrigger(props: ComponentProps<"button">) {
-  const [local, others] = splitProps(props, ["class", "children"])
+  const [local, others] = splitProps(props, ["class", "children", "id"])
   const ctx = useSelect()
+  const fallbackId = createUniqueId()
 
   const moveActive = (delta: number) => {
     const list = ctx.items()
@@ -163,11 +173,19 @@ export function SelectTrigger(props: ComponentProps<"button">) {
   }
 
   return (
+    // A select-only combobox (ARIA 1.2): the button keeps focus and points at the highlighted
+    // option with aria-activedescendant, which the plain button role does not allow. Unlike a
+    // button, a combobox is not named by its content, so every use needs a label (a <Label for>
+    // or an aria-label) — the value it shows is its value, not its name.
     <button
+      ref={ctx.setTriggerEl}
       type="button"
+      role="combobox"
+      id={local.id ?? fallbackId}
       aria-expanded={ctx.open()}
       aria-haspopup="listbox"
-      aria-activedescendant={ctx.activeValue() != null ? optionId(ctx.activeValue()!) : undefined}
+      aria-controls={ctx.open() ? ctx.listId : undefined}
+      aria-activedescendant={ctx.open() && ctx.activeValue() != null ? optionId(ctx.activeValue()!) : undefined}
       disabled={ctx.disabled()}
       onClick={() => !ctx.disabled() && ctx.setOpen(!ctx.open())}
       onKeyDown={handleKeyDown}
@@ -215,7 +233,12 @@ export function SelectContent(props: ComponentProps<"ul">) {
       {ctx.open() && (
         <ul
           ref={ctx.setListEl}
+          id={ctx.listId}
           role="listbox"
+          // Named the same way as its trigger: by the trigger's aria-label when it has one,
+          // otherwise by the trigger itself, which a <Label for> names.
+          aria-label={ctx.triggerEl()?.getAttribute("aria-label") ?? undefined}
+          aria-labelledby={ctx.triggerEl()?.hasAttribute("aria-label") ? undefined : ctx.triggerEl()?.id}
           class={cn(
             "absolute z-50 max-h-96 min-w-[8rem] w-full overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md mt-1",
             local.class

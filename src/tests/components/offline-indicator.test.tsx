@@ -71,14 +71,14 @@ describe('OfflineIndicator', () => {
   describe('visibility', () => {
     it('renders nothing when status is online', () => {
       mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online'))
-      const { container } = render(<OfflineIndicator />)
+      const { container } = render(() => <OfflineIndicator />)
       expect(container.firstChild).toBeNull()
     })
 
     it('renders nothing when user is unauthenticated even if offline', () => {
       mockUseAuth.mockReturnValueOnce(createMockAuth())
       mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('offline'))
-      const { container } = render(<OfflineIndicator />)
+      const { container } = render(() => <OfflineIndicator />)
       expect(container.firstChild).toBeNull()
     })
   })
@@ -89,32 +89,32 @@ describe('OfflineIndicator', () => {
     })
 
     it('renders with gold background', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       expect(screen.getByTestId('offline-indicator')).toHaveClass('bg-yellow-500')
     })
 
     it('renders collapsed by default', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       expect(pill.classList.contains('max-w-xs')).toBe(false)
     })
 
     it('contains only phrasing content (no block <div>) inside the button', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       expect(pill.tagName).toBe('BUTTON')
       expect(pill.querySelector('div')).toBeNull()
     })
 
     it('expands on mouseenter', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(pill.classList.contains('max-w-xs')).toBe(true)
     })
 
     it('collapses on mouseleave', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       fireEvent.mouseLeave(pill)
@@ -122,7 +122,7 @@ describe('OfflineIndicator', () => {
     })
 
     it('toggles expanded on click', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       fireEvent.click(pill)
       expect(pill.classList.contains('max-w-xs')).toBe(true)
@@ -131,7 +131,7 @@ describe('OfflineIndicator', () => {
     })
 
     it('shows "Offline" label when expanded', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Offline')).toBeInTheDocument()
@@ -142,7 +142,7 @@ describe('OfflineIndicator', () => {
         syncState: () => ({ hasPendingWrites: true, updatedAt: null }),
         setSyncState: vi.fn(),
       })
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Not yet synced')).toBeInTheDocument()
@@ -153,7 +153,7 @@ describe('OfflineIndicator', () => {
         syncState: () => ({ hasPendingWrites: true, updatedAt: new Date(Date.now() - 90_000) }),
         setSyncState: vi.fn(),
       })
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('1 min ago')).toBeInTheDocument()
@@ -164,7 +164,7 @@ describe('OfflineIndicator', () => {
         syncState: () => ({ hasPendingWrites: false, updatedAt: new Date(Date.now() - 90_000) }),
         setSyncState: vi.fn(),
       })
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('1 min ago')).toBeInTheDocument()
@@ -177,19 +177,19 @@ describe('OfflineIndicator', () => {
     })
 
     it('renders with blue background', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       expect(screen.getByTestId('offline-indicator')).toHaveClass('bg-blue-500')
     })
 
     it('shows "Syncing…" label when expanded', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Syncing…')).toBeInTheDocument()
     })
 
     it('renders the spinning icon', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       expect(screen.getByTestId('offline-indicator-spinner')).toHaveClass('animate-spin')
     })
   })
@@ -200,26 +200,26 @@ describe('OfflineIndicator', () => {
     })
 
     it('renders with green background', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       expect(screen.getByTestId('offline-indicator')).toHaveClass('bg-green-500')
     })
 
     it('shows "Synced" label when expanded', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Synced')).toBeInTheDocument()
     })
 
     it('does not render spinning icon', () => {
-      render(<OfflineIndicator />)
+      render(() => <OfflineIndicator />)
       expect(screen.queryByTestId('offline-indicator-spinner')).toBeNull()
     })
   })
 
   it("has no accessibility violations", async () => {
     mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online'))
-    const { container } = render(<OfflineIndicator />)
+    const { container } = render(() => <OfflineIndicator />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

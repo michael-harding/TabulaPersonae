@@ -10,7 +10,11 @@ configure({ testIdAttribute: "data-test" })
 
 // Mock Firebase to prevent initialization errors. vi.fn so a test can make an accessor throw, the
 // way the real ones do when Firebase failed to initialize.
-vi.mock("@/lib/firebase", () => ({ getFirebaseAuth: vi.fn(() => ({})), getDb: vi.fn(() => ({})) }))
+vi.mock("@/lib/firebase", () => ({
+  getFirebaseAuth: vi.fn(() => ({})),
+  getDb: vi.fn(() => ({})),
+  clearFirestoreCache: vi.fn(() => Promise.resolve()),
+}))
 
 // Mock auth-context with signal-compatible values
 vi.mock("@/lib/auth-context", () => ({

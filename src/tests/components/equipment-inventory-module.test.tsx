@@ -49,137 +49,137 @@ describe("EquipmentInventoryModule", () => {
 
   describe("empty inventory", () => {
     it("renders the Equipment & Inventory heading", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("Equipment & Inventory")).toBeInTheDocument()
     })
 
     it("shows 0 lbs total weight badge", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("0 lbs")).toBeInTheDocument()
     })
 
     it("renders the Add Item button", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /add item/i })).toBeInTheDocument()
     })
 
     it("shows the empty state message", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("No equipment added yet.")).toBeInTheDocument()
     })
 
     it("renders the search input", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByPlaceholderText("Search equipment...")).toBeInTheDocument()
     })
   })
 
   describe("with items", () => {
     it("renders the item name", () => {
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Torch")).toBeInTheDocument()
     })
 
     it("calculates total weight correctly (weight × quantity)", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ weight: 5, quantity: 2 })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getByText("10 lbs")).toBeInTheDocument()
     })
 
     // Regression: 0.1 + 0.2 === 0.30000000000000004 in floating point — the total weight
     // badge must show a rounded value, not the raw accumulated sum.
     it("rounds total weight to one decimal place despite floating-point drift", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({
             equipment: [makeItem({ id: "a", weight: 0.1, quantity: 1 }), makeItem({ id: "b", weight: 0.2, quantity: 1 })],
           })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getByText("0.3 lbs")).toBeInTheDocument()
     })
 
     it("shows 'Currently Equipped' section when items are equipped", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ equipped: true })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getByText("Currently Equipped")).toBeInTheDocument()
     })
 
     it("does not show 'Currently Equipped' section when no items are equipped", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ equipped: false })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.queryByText("Currently Equipped")).not.toBeInTheDocument()
     })
 
     it("shows 'Equipped' badge on equipped items", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ equipped: true })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getAllByText("Equipped").length).toBeGreaterThanOrEqual(1)
     })
 
     it("shows item description when present", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ description: "50 feet of rope" })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getByText("50 feet of rope")).toBeInTheDocument()
     })
 
     it("shows item quantity", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ quantity: 3 })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(within(screen.getByText("Qty:").parentElement!).getByText("3")).toBeInTheDocument()
     })
 
     it("shows weight display when weight > 0", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ weight: 5, quantity: 1 })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getByText(/Weight:/)).toBeInTheDocument()
     })
 
     // Regression: 0.1 * 3 === 0.30000000000000004 in floating point — displayed weight
     // must be rounded, not the raw product.
     it("rounds a floating-point-prone per-item weight to one decimal place", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ weight: 0.1, quantity: 3 })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getByText(/Weight: 0\.3 lbs/)).toBeInTheDocument()
     })
   })
 
   describe("search filter", () => {
     it("filters items by name", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({
             equipment: [
@@ -189,7 +189,7 @@ describe("EquipmentInventoryModule", () => {
           })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       fireEvent.input(screen.getByPlaceholderText("Search equipment..."), {
         target: { value: "rope" },
       })
@@ -198,12 +198,12 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows 'No items match your search.' when no results", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Rope" })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       fireEvent.input(screen.getByPlaceholderText("Search equipment..."), {
         target: { value: "xyz" },
       })
@@ -214,12 +214,12 @@ describe("EquipmentInventoryModule", () => {
   describe("quantity adjustment", () => {
     it("calls onUpdate with quantity + 1 when + is clicked", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ quantity: 2 })] })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       fireEvent.click(screen.getByRole("button", { name: /^increase .* quantity$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -230,12 +230,12 @@ describe("EquipmentInventoryModule", () => {
 
     it("calls onUpdate with quantity - 1 when - is clicked (qty > 1)", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ quantity: 3 })] })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       fireEvent.click(screen.getByRole("button", { name: /^decrease .* quantity$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -245,12 +245,12 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("the - button is disabled when quantity is 1", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ quantity: 1 })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getByRole("button", { name: /^decrease .* quantity$/i })).toBeDisabled()
     })
   })
@@ -258,12 +258,12 @@ describe("EquipmentInventoryModule", () => {
   describe("toggle equipped", () => {
     it("calls onUpdate with toggled equipped state", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ equipped: false })] })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       fireEvent.click(screen.getByLabelText(/^Toggle equipped/))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -282,12 +282,12 @@ describe("EquipmentInventoryModule", () => {
     // which toggles exactly once. This test locks in that clicking the name still toggles equipped.
     it("also toggles equipped when the item name is clicked", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Torch", equipped: false })] })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       fireEvent.click(screen.getByText("Torch"))
       expect(onUpdate).toHaveBeenCalledTimes(1)
       expect(onUpdate).toHaveBeenCalledWith(
@@ -298,7 +298,7 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows the item name as the card's heading and the checkbox's label, not a button", () => {
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })} onUpdate={vi.fn()} />)
       const name = screen.getByText("Torch")
       expect(name.tagName).toBe("LABEL")
       expect(screen.getByRole("heading", { name: "Torch" })).toContainElement(name)
@@ -308,13 +308,13 @@ describe("EquipmentInventoryModule", () => {
 
   describe("Add Item modal", () => {
     it("opens the Add New Item modal when Add Item is clicked", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add item/i }))
       expect(screen.getByText("Add New Item")).toBeInTheDocument()
     })
 
     it("closes the modal when Cancel is clicked", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /cancel/i }))
@@ -323,7 +323,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("does not call onUpdate when name is empty", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
@@ -332,7 +332,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("calls onUpdate with the new item on valid submit", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Shield" } })
@@ -346,7 +346,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("sets type to 'other' for new items added via modal", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Shield" } })
@@ -361,35 +361,35 @@ describe("EquipmentInventoryModule", () => {
 
   describe("Edit Item modal", () => {
     it("opens the Edit Item modal when the edit icon button is clicked", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       fireEvent.click(screen.getByRole("button", { name: /edit torch/i }))
       expect(screen.getByText("Edit Item")).toBeInTheDocument()
     })
 
     it("pre-fills the form with existing item data", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Torch", quantity: 5 })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       fireEvent.click(screen.getByRole("button", { name: /edit torch/i }))
       expect(screen.getByLabelText(/item name/i)).toHaveValue("Torch")
     })
 
     it("calls onUpdate with updated item data on save", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       fireEvent.click(screen.getByRole("button", { name: /edit torch/i }))
       const nameInput = screen.getByLabelText(/item name/i)
       fireEvent.input(nameInput, { target: { value: "Lantern" } })
@@ -407,12 +407,12 @@ describe("EquipmentInventoryModule", () => {
     // including all Tier 2 grant fields, could never be reached when editing an existing item.
     it("reveals Magic Item Details and promotes the item when its label is clicked", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Torch" })] })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       fireEvent.click(screen.getByRole("button", { name: /edit torch/i }))
       expect(screen.queryByText("Magic Item Details")).not.toBeInTheDocument()
 
@@ -431,12 +431,12 @@ describe("EquipmentInventoryModule", () => {
   describe("Delete item", () => {
     it("calls onUpdate with item removed when delete is clicked", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Rope" })] })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       confirmClick(screen.getByRole("button", { name: /delete rope/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ equipment: [] })
@@ -447,12 +447,12 @@ describe("EquipmentInventoryModule", () => {
   describe("Action Kind (Used As)", () => {
     it("saves actionKind on the created item when a 'Used As' option is selected", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
       const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
-      fireEvent.click(within(usedAsSection).getByRole("button"))
+      fireEvent.click(within(usedAsSection).getByRole("combobox"))
       fireEvent.click(screen.getByRole("option", { name: "Bonus Action" }))
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -466,7 +466,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("omits actionKind when 'Used As' is left at None", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Rope" } })
@@ -481,34 +481,34 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows the action kind badge on a general item card", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Potion of Healing", actionKind: "bonus-action" })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getByText("Bonus Action")).toBeInTheDocument()
     })
 
     it("does not show an action kind badge when actionKind is not set", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Rope" })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.queryByText("Bonus Action")).not.toBeInTheDocument()
       expect(screen.queryByText("Action")).not.toBeInTheDocument()
     })
 
     it("pre-fills the Used As select and preserves actionKind when editing an existing item", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeItem({ name: "Scroll of Fireball", actionKind: "action" })] })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       fireEvent.click(screen.getByRole("button", { name: /edit scroll of fireball/i }))
       const modal = screen.getByRole("dialog")
       const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
@@ -526,7 +526,7 @@ describe("EquipmentInventoryModule", () => {
 
   describe("Coins", () => {
     it("renders CP, SP, EP, GP, PP labels", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByText("CP")).toBeInTheDocument()
       expect(screen.getByText("SP")).toBeInTheDocument()
       expect(screen.getByText("EP")).toBeInTheDocument()
@@ -535,7 +535,7 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows 0 for all coin denominations by default", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       const spinbuttons = screen.getAllByRole("spinbutton")
       // First 5 spinbuttons are coin fields (CP SP EP GP PP)
       spinbuttons.slice(0, 5).forEach((input) => {
@@ -545,7 +545,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("calls onUpdate with updated GP when GP field changes", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       const spinbuttons = screen.getAllByRole("spinbutton")
       // GP is the 4th coin field (index 3)
       fireEvent.input(spinbuttons[3], { target: { value: "50" } })
@@ -561,7 +561,7 @@ describe("EquipmentInventoryModule", () => {
       function decrease(denom: keyof typeof noCoins, coins: Partial<typeof noCoins> | undefined) {
         const onUpdate = vi.fn()
         const character = makeCharacter({ coins: coins ? { ...noCoins, ...coins } : undefined })
-        render(<EquipmentInventoryModule character={character} onUpdate={onUpdate} />)
+        render(() => <EquipmentInventoryModule character={character} onUpdate={onUpdate} />)
         fireEvent.click(screen.getByTestId(`currency-${denom}-decrease`))
         return onUpdate
       }
@@ -590,24 +590,24 @@ describe("EquipmentInventoryModule", () => {
 
   describe("Magic Items section", () => {
     it("renders the Magic Items section heading for both editions", () => {
-      render(<EquipmentInventoryModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Magic Items")).toBeInTheDocument()
     })
 
     it("renders the Magic Items section in 2014 mode too", () => {
-      render(<EquipmentInventoryModule character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Magic Items")).toBeInTheDocument()
     })
 
     it("renders magic item names", () => {
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring of Protection" })] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring of Protection" })] })} onUpdate={vi.fn()} />)
       const section = screen.getByTestId("magic-items-section")
       expect(within(section).getByText("Ring of Protection")).toBeInTheDocument()
     })
 
     it("shows the action kind badge on a magic item card", () => {
       const item = makeMagicItem({ name: "Wand of Magic Missiles", actionKind: "action" })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       const section = screen.getByTestId("magic-items-section")
       expect(within(section).getByText("Action")).toBeInTheDocument()
     })
@@ -620,7 +620,7 @@ describe("EquipmentInventoryModule", () => {
         type: "weapon",
         weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
       })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       const section = screen.getByTestId("magic-items-section")
       expect(within(section).getByText("weapon")).toBeInTheDocument()
       expect(within(section).getByText(/1d8 slashing.*5 ft/)).toBeInTheDocument()
@@ -632,43 +632,43 @@ describe("EquipmentInventoryModule", () => {
         type: "armor",
         armorStats: { baseAC: 18, armorType: "heavy" },
       })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       const section = screen.getByTestId("magic-items-section")
       expect(within(section).getByText("armor")).toBeInTheDocument()
       expect(within(section).getByText(/AC 18.*heavy/)).toBeInTheDocument()
     })
 
     it("shows 'Attuned' badge when item is attuned", () => {
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Staff of Power", attuned: true })] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Staff of Power", attuned: true })] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Attuned")).toBeInTheDocument()
     })
 
     it("does not show 'Attuned' badge when item is not attuned", () => {
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Bag of Holding", attuned: false })] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Bag of Holding", attuned: false })] })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Attuned")).not.toBeInTheDocument()
     })
 
     it("shows attuned count vs the (calculated) attunement limit in the heading", () => {
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Staff", attuned: true })] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Staff", attuned: true })] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("1/")).toBeInTheDocument()
       expect(screen.getByText("attuned")).toBeInTheDocument()
       expect(screen.getByTestId("attunement-limit-row")).toHaveTextContent("3")
     })
 
     it("does not show an over-limit warning when at or below the attunement limit", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({
             equipment: [makeMagicItem({ id: "1", attuned: true }), makeMagicItem({ id: "2", attuned: true }), makeMagicItem({ id: "3", attuned: true })],
           })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.queryByLabelText(/over attunement limit/i)).not.toBeInTheDocument()
     })
 
     it("shows an over-limit warning when attuned count exceeds the attunement limit", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({
             equipment: [
@@ -680,20 +680,20 @@ describe("EquipmentInventoryModule", () => {
           })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getByLabelText(/over attunement limit/i)).toBeInTheDocument()
     })
 
     it("calls onUpdate when deleting a magic item", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring" })] })} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring" })] })} onUpdate={onUpdate} />)
       confirmClick(screen.getAllByRole("button", { name: /delete ring/i })[0])
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ equipment: [] }))
     })
 
     it("creates a magic item via the general Add Item button by checking 'This is a Magic Item'", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
@@ -708,7 +708,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("toggles attunement from the Magic Items list", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", attuned: false })] })} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", attuned: false })] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByLabelText("Toggle attuned"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -722,9 +722,9 @@ describe("EquipmentInventoryModule", () => {
     // Magic Items list itself, so items don't need to be found twice to be equipped.
     it("allows equipping a magic item directly from the Magic Items list", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", equipped: false })] })} onUpdate={onUpdate} />
-      )
+      ))
       const section = screen.getByTestId("magic-items-section")
       fireEvent.click(within(section).getByLabelText(/^Toggle equipped/))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -736,9 +736,9 @@ describe("EquipmentInventoryModule", () => {
 
     it("also toggles equipped when a magic item's name is clicked in the Magic Items list", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", equipped: false })] })} onUpdate={onUpdate} />
-      )
+      ))
       const section = screen.getByTestId("magic-items-section")
       fireEvent.click(within(section).getByText("Ring"))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -749,19 +749,19 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows an 'Equipped' badge on an equipped magic item in the Magic Items list", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Cloak", equipped: true })] })} onUpdate={vi.fn()} />
-      )
+      ))
       const section = screen.getByTestId("magic-items-section")
       expect(within(section).getByText("Equipped")).toBeInTheDocument()
     })
 
     it("does not render an equip checkbox for magic items in readOnly mode", () => {
-      render(
+      render(() => (
         <ReadOnlyProvider value={true}>
           <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring" })] })} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
-      )
+      ))
       const section = screen.getByTestId("magic-items-section")
       expect(within(section).queryByLabelText(/^Toggle equipped/)).not.toBeInTheDocument()
       expect(within(section).getByText("Ring")).toBeInTheDocument()
@@ -772,24 +772,24 @@ describe("EquipmentInventoryModule", () => {
     // reliable name source for all assistive tech). The default axe test elsewhere in this
     // file renders no magic items, so it never exercised this checkbox.
     it("has no accessibility violations with an attunement-requiring magic item present", async () => {
-      const { container } = render(
+      const { container } = render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", requiresAttunement: true, attuned: false })] })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       const results = await axe(container)
       expect(results.violations).toHaveLength(0)
     })
 
     it("shows charge pips and spends a charge when clicked", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({ equipment: [makeMagicItem({ name: "Wand", charges: 0, maxUses: 3, rechargeOn: "long-rest" })] })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       fireEvent.click(screen.getAllByLabelText("Charge available (click to use)")[0])
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -806,7 +806,7 @@ describe("EquipmentInventoryModule", () => {
     }
 
     it("shows the Bonuses section when adding a magic item", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
@@ -816,7 +816,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("submits nonzero AC, saving throw, and ability score bonuses as Equipment.modifiers", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Ring of Protection" } })
@@ -842,7 +842,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("omits modifiers entirely when all bonus fields are left at zero", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Bag of Holding" } })
@@ -857,7 +857,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("sets rechargeOn on the created item when Max Charges > 0 and a recharge option is selected", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
@@ -867,7 +867,7 @@ describe("EquipmentInventoryModule", () => {
       // The Recharge On select's trigger has no accessible name (its placeholder text
       // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
       const rechargeSection = within(modal).getByText("Recharge On").closest("div")!
-      fireEvent.click(within(rechargeSection).getByRole("button"))
+      fireEvent.click(within(rechargeSection).getByRole("combobox"))
       fireEvent.click(screen.getByRole("option", { name: "Long Rest" }))
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -884,7 +884,7 @@ describe("EquipmentInventoryModule", () => {
     // doesn't clear a previously-picked rechargeOn — the save logic must strip it.
     it("clears rechargeOn on save when Max Charges is reset to 0 after a recharge option was selected", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Wand of Magic Missiles" } })
@@ -894,7 +894,7 @@ describe("EquipmentInventoryModule", () => {
       // The Recharge On select's trigger has no accessible name (its placeholder text
       // isn't exposed to the accessibility tree), so scope by its label's wrapping div.
       const rechargeSection = within(modal).getByText("Recharge On").closest("div")!
-      fireEvent.click(within(rechargeSection).getByRole("button"))
+      fireEvent.click(within(rechargeSection).getByRole("combobox"))
       fireEvent.click(screen.getByRole("option", { name: "Long Rest" }))
       setNumericValue(screen.getByTestId("item-max-uses"), "0")
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
@@ -913,9 +913,9 @@ describe("EquipmentInventoryModule", () => {
     it("clamps charges (not reset to 0) when Max Charges is edited on an item with spent charges", () => {
       const item = makeMagicItem({ name: "Wand", charges: 2, maxUses: 3 })
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
-      )
+      ))
       fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
       setNumericValue(screen.getByTestId("item-max-uses"), "4")
       expect((screen.getByTestId("item-uses-charges") as HTMLInputElement).value).toBe("2")
@@ -930,9 +930,9 @@ describe("EquipmentInventoryModule", () => {
     it("clamps charges down when Max Charges is edited below the current spent-charges count", () => {
       const item = makeMagicItem({ name: "Wand", charges: 2, maxUses: 3 })
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />
-      )
+      ))
       fireEvent.click(screen.getAllByRole("button", { name: /edit wand/i })[0])
       setNumericValue(screen.getByTestId("item-max-uses"), "1")
       expect((screen.getByTestId("item-uses-charges") as HTMLInputElement).value).toBe("1")
@@ -949,9 +949,9 @@ describe("EquipmentInventoryModule", () => {
         name: "Cloak of Protection",
         modifiers: { armorClass: 1, savingThrows: { wisdom: 2 }, abilityScores: { strength: 3 } },
       })
-      render(
+      render(() => (
         <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />
-      )
+      ))
       fireEvent.click(screen.getAllByRole("button", { name: /edit cloak of protection/i })[0])
       expect((screen.getByTestId("modifier-ac") as HTMLInputElement).value).toBe("1")
       expect((screen.getByTestId("modifier-save-wisdom") as HTMLInputElement).value).toBe("2")
@@ -959,7 +959,7 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("keeps all modifier groups collapsed by default when adding a new magic item", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
@@ -973,7 +973,7 @@ describe("EquipmentInventoryModule", () => {
         name: "Boots of the Winterlands",
         modifiers: { senses: { darkvision: 60 } },
       })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /edit boots of the winterlands/i })[0])
       // Senses has a value, so it auto-expands...
       expect((screen.getByTestId("modifier-sense-darkvision") as HTMLInputElement).value).toBe("60")
@@ -984,14 +984,14 @@ describe("EquipmentInventoryModule", () => {
 
     it("shows an active bonus summary in the Magic Items list", () => {
       const item = makeMagicItem({ name: "Ring of Protection", equipped: true, attuned: true, modifiers: { armorClass: 1 } })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("AC +1")).toBeInTheDocument()
       expect(screen.queryByText("(inactive)")).not.toBeInTheDocument()
     })
 
     it("marks the bonus summary inactive when the item requires attunement and is not attuned", () => {
       const item = makeMagicItem({ name: "Ring of Protection", equipped: true, requiresAttunement: true, attuned: false, modifiers: { armorClass: 1 } })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("AC +1")).toBeInTheDocument()
       expect(screen.getByText("(inactive)")).toBeInTheDocument()
     })
@@ -1006,7 +1006,7 @@ describe("EquipmentInventoryModule", () => {
     it("submits senses, movement, carrying capacity, ability floors, and granted languages/proficiencies", async () => {
       const user = userEvent.setup()
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Winged Boots" } })
@@ -1062,7 +1062,7 @@ describe("EquipmentInventoryModule", () => {
         attuned: true,
         modifiers: { flySpeed: 30, resistances: ["Fire"], senses: { darkvision: 60 } },
       })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Fly 30 ft")).toBeInTheDocument()
       expect(screen.getByText("Resist: Fire")).toBeInTheDocument()
       expect(screen.getByText("Darkvision +60 ft")).toBeInTheDocument()
@@ -1073,7 +1073,7 @@ describe("EquipmentInventoryModule", () => {
         name: "Boots of Striding",
         modifiers: { speed: 10, abilityScoreFloors: { strength: 19 } },
       })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /edit boots of striding/i })[0])
       // Movement & Weight and Ability Scores both have values, so both auto-expand without a click.
       expect((screen.getByTestId("modifier-speed") as HTMLInputElement).value).toBe("10")
@@ -1087,7 +1087,7 @@ describe("EquipmentInventoryModule", () => {
     it("submits a skill disadvantage grant on a non-magic item", async () => {
       const user = userEvent.setup()
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chainmail" } })
@@ -1114,7 +1114,7 @@ describe("EquipmentInventoryModule", () => {
     it("submits a skill advantage grant when the item is also marked as a magic item", async () => {
       const user = userEvent.setup()
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Cloak of Elvenkind" } })
@@ -1141,7 +1141,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("excludes a skill already granted advantage from the Grants Disadvantage On options, and vice versa", async () => {
       const user = userEvent.setup()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /^add item$/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByText("Advantage/Disadvantage"))
@@ -1150,14 +1150,16 @@ describe("EquipmentInventoryModule", () => {
       await waitFor(() => expect(screen.getByRole("menuitem", { name: "Stealth" })).toBeInTheDocument())
       await user.click(screen.getByRole("menuitem", { name: "Stealth" }))
 
+      // The options are looked up by the disadvantage menu's own ids: jsdom never finishes the
+      // advantage menu's closing animation, so that menu's items are still in the document.
       await user.click(within(modal).getByLabelText("Add skill disadvantage"))
-      await waitFor(() => expect(screen.getByRole("menuitem", { name: "Perception" })).toBeInTheDocument())
-      expect(screen.queryByRole("menuitem", { name: "Stealth" })).not.toBeInTheDocument()
+      await waitFor(() => expect(screen.getByTestId("modifier-skill-disadvantage-option-perception")).toBeInTheDocument())
+      expect(screen.queryByTestId("modifier-skill-disadvantage-option-stealth")).not.toBeInTheDocument()
     })
 
     it("pre-fills the Skill Effects pickers when editing an item with existing skill grants", () => {
       const item = makeItem({ name: "Chainmail", modifiers: { skillDisadvantage: ["stealth"] } })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /edit chainmail/i })[0])
       const modal = screen.getByRole("dialog")
       expect(within(modal).getByText("Stealth")).toBeInTheDocument()
@@ -1165,14 +1167,14 @@ describe("EquipmentInventoryModule", () => {
 
     it("shows a skill-effect summary line for an equipped, non-magic item (not tagged inactive)", () => {
       const item = makeItem({ name: "Chainmail", equipped: true, modifiers: { skillDisadvantage: ["stealth"] } })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Disadvantage: Stealth")).toBeInTheDocument()
       expect(screen.queryByText("(inactive)")).not.toBeInTheDocument()
     })
 
     it("flags the skill-effect summary as inactive when the granting item is not equipped", () => {
       const item = makeItem({ name: "Chainmail", equipped: false, modifiers: { skillDisadvantage: ["stealth"] } })
-      render(<EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("Disadvantage: Stealth")).toBeInTheDocument()
       expect(screen.getByText("(equip to activate)")).toBeInTheDocument()
     })
@@ -1180,16 +1182,127 @@ describe("EquipmentInventoryModule", () => {
 
   describe("Carrying Capacity", () => {
     it("shows carrying capacity computed from STR score x 15", () => {
-      render(<EquipmentInventoryModule character={makeCharacter({ abilityScores: { ...createDefaultCharacter().abilityScores, strength: 16 } })} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter({ abilityScores: { ...createDefaultCharacter().abilityScores, strength: 16 } })} onUpdate={vi.fn()} />)
       expect(screen.getAllByText(/carrying capacity/i).length).toBeGreaterThan(0)
       expect(screen.getByTestId("carrying-capacity-row")).toHaveTextContent("240")
+    })
+
+    it("switches to a custom carrying capacity from the toggle, starting from the value that was showing", () => {
+      const onUpdate = vi.fn()
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+
+      fireEvent.click(screen.getByRole("button", { name: "Use custom Carrying Capacity" }))
+
+      // STR 10 x 15 = 150 was on screen, so that becomes the custom value rather than a stale stored one
+      expect(onUpdate).toHaveBeenNthCalledWith(1, expect.objectContaining({ carryingCapacity: 150 }))
+      expect(onUpdate).toHaveBeenNthCalledWith(2, expect.objectContaining({ useCalculatedCarryingCapacity: false }))
+      expect(onUpdate).toHaveBeenCalledTimes(2)
+    })
+
+    it("switches back to the calculated carrying capacity from the toggle", () => {
+      const onUpdate = vi.fn()
+      render(() => <EquipmentInventoryModule character={makeCharacter({ useCalculatedCarryingCapacity: false, carryingCapacity: 300 })} onUpdate={onUpdate} />)
+
+      fireEvent.click(screen.getByRole("button", { name: "Use calculated Carrying Capacity" }))
+
+      expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ useCalculatedCarryingCapacity: true }))
+    })
+
+    it("shows the custom value instead of STR x 15, and saves an edit to it", () => {
+      const onUpdate = vi.fn()
+      render(() => <EquipmentInventoryModule character={makeCharacter({ useCalculatedCarryingCapacity: false, carryingCapacity: 300 })} onUpdate={onUpdate} />)
+      const input = screen.getByRole("spinbutton", { name: "Carrying Capacity" })
+      expect(input).toHaveValue(300)
+
+      fireEvent.input(input, { target: { value: "250" } })
+      fireEvent.blur(input)
+
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ carryingCapacity: 250 }))
+    })
+
+    // STR 10 carries 150 lb
+    it.each([
+      { weight: 150, over: false },
+      { weight: 151, over: true },
+    ])("warns that the character is over capacity: $over when carrying $weight lb of 150", ({ weight, over }) => {
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeItem({ weight })] })} onUpdate={vi.fn()} />)
+
+      expect(screen.queryAllByLabelText("Over carrying capacity").length > 0).toBe(over)
+    })
+  })
+
+  describe("what a magic item's summary says it does", () => {
+    it.each<[string, Equipment["modifiers"], string]>([
+      ["an AC bonus", { armorClass: 1 }, "AC +1"],
+      ["an initiative bonus", { initiative: 2 }, "Init +2"],
+      ["a saving throw bonus", { savingThrows: { wisdom: 1 } }, "WIS Save +1"],
+      ["an ability score bonus", { abilityScores: { strength: 2 } }, "STR +2"],
+      ["an ability score floor", { abilityScoreFloors: { constitution: 19 } }, "CON floor 19"],
+      ["an ability score cap", { abilityScoreMaxCaps: { strength: 22 } }, "STR max 22"],
+      ["resistances", { resistances: ["Fire", "Cold"] }, "Resist: Fire, Cold"],
+      ["immunities", { immunities: ["Poison"] }, "Immune: Poison"],
+      ["vulnerabilities", { vulnerabilities: ["Radiant"] }, "Vulnerable: Radiant"],
+      ["condition immunities", { conditionImmunities: ["Charmed"] }, "Condition Immune: Charmed"],
+      ["a speed bonus", { speed: 10 }, "Speed +10 ft"],
+      ["a fly speed", { flySpeed: 60 }, "Fly 60 ft"],
+    ])("lists %s", (_label, modifiers, text) => {
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ modifiers })] })} onUpdate={vi.fn()} />)
+
+      expect(screen.getByText(text)).toBeInTheDocument()
+    })
+
+    it("lists its rarity and a short description", () => {
+      const item = makeMagicItem({ rarity: "very-rare", description: "Glows faintly near orcs." })
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
+
+      expect(screen.getByText("very rare")).toBeInTheDocument()
+      expect(screen.getByText("Glows faintly near orcs.")).toBeInTheDocument()
+    })
+
+    it.each([
+      ["a magic item", () => makeMagicItem({ equipped: true, modifiers: { skillAdvantage: ["stealth"], skillDisadvantage: ["perception"] } })],
+      ["an ordinary item", () => makeItem({ equipped: true, modifiers: { skillAdvantage: ["stealth"], skillDisadvantage: ["perception"] } })],
+    ])("lists skill advantage and disadvantage for %s", (_label, makeIt) => {
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeIt()] })} onUpdate={vi.fn()} />)
+
+      expect(screen.getByText("Advantage: Stealth")).toBeInTheDocument()
+      expect(screen.getByText("Disadvantage: Perception")).toBeInTheDocument()
+    })
+  })
+
+  describe("uses of an item with more than five", () => {
+    it("tracks a magic item's charges with a stepper of what remains, and saves a change", () => {
+      const onUpdate = vi.fn()
+      const item = makeMagicItem({ id: "wand-1", name: "Wand", maxUses: 7, charges: 2 })
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />)
+      // 7 charges with 2 spent leaves 5
+      expect(screen.getByRole("spinbutton", { name: "Wand uses remaining" })).toHaveValue(5)
+
+      fireEvent.click(screen.getByTestId("magic-item-uses-stepper-wand-1-decrease"))
+
+      expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        equipment: [expect.objectContaining({ id: "wand-1", charges: 3 })],
+      }))
+    })
+
+    it("tracks a consumable's quantity with a stepper of what remains, and saves a change", () => {
+      const onUpdate = vi.fn()
+      const item = makeItem({ id: "arrows-1", name: "Arrows", type: "consumable", quantity: 20, consumedUses: 4 })
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />)
+      expect(screen.getByRole("spinbutton", { name: "Arrows uses remaining" })).toHaveValue(16)
+
+      fireEvent.click(screen.getByTestId("equipment-uses-stepper-arrows-1-decrease"))
+
+      expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        equipment: [expect.objectContaining({ id: "arrows-1", consumedUses: 5 })],
+      }))
     })
   })
 
   describe("Equipment form type and weapon/armor stats", () => {
     it("saves type correctly when adding an item", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add item/i }))
       fireEvent.input(screen.getByPlaceholderText("Enter item name"), { target: { value: "Torch" } })
       fireEvent.click(screen.getByRole("button", { name: /add item/i }))
@@ -1206,18 +1319,17 @@ describe("EquipmentInventoryModule", () => {
     }
 
     const selectConsumableType = (modal: HTMLElement) => {
-      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(within(modal).getByRole("combobox", { name: "Item Type" }))
       fireEvent.click(screen.getByRole("option", { name: "Consumable" }))
     }
 
     const selectUsedAsAction = (modal: HTMLElement) => {
-      const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
-      fireEvent.click(within(usedAsSection).getByRole("button"))
+      fireEvent.click(within(modal).getByRole("combobox", { name: "Used As Action" }))
       fireEvent.click(screen.getByRole("option", { name: "Action" }))
     }
 
     it("hides Quantity Consumed for a Consumable item with no action kind selected", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
@@ -1225,7 +1337,7 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows Quantity Consumed, but hides Max Charges and Reconcile On, when a Consumable item is also Used As an action", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
@@ -1237,7 +1349,7 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows uses tracking for a Consumable item without checking 'This is a Magic Item'", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
@@ -1250,7 +1362,7 @@ describe("EquipmentInventoryModule", () => {
     // independent of the Quantity Consumed tracking above, so the Charges group inside Magic
     // Item Details is no longer hidden for consumables.
     it("shows the Charges section for a Consumable item when 'This is a Magic Item' is checked", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       selectConsumableType(modal)
@@ -1262,7 +1374,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("persists Max Charges and Recharge On for a Consumable item that is also a Magic Item", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
@@ -1282,7 +1394,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("saves uses spent for a Consumable item with no rechargeOn (reconciles on rest)", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
@@ -1301,7 +1413,7 @@ describe("EquipmentInventoryModule", () => {
 
     it("does not persist maxUses for a saved consumable item", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Potion of Healing" } })
@@ -1315,28 +1427,28 @@ describe("EquipmentInventoryModule", () => {
     })
 
     it("shows a pip tracker in the equipment list bound to quantity for a consumable item", () => {
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({
             equipment: [makeItem({ name: "Potion of Healing", type: "consumable", quantity: 3, consumedUses: 1, rechargeOn: "short-rest" })],
           })}
           onUpdate={vi.fn()}
         />
-      )
+      ))
       expect(screen.getAllByLabelText("Available (click to use)")).toHaveLength(2)
       expect(screen.getAllByLabelText("Used (click to restore)")).toHaveLength(1)
     })
 
     it("clamps uses down when quantity is manually reduced below the current spent-uses count", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({
             equipment: [makeItem({ id: "pot-1", name: "Potion of Healing", type: "consumable", quantity: 2, consumedUses: 2, rechargeOn: "short-rest" })],
           })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       fireEvent.click(screen.getByRole("button", { name: /^decrease .* quantity$/i }))
       const updated = onUpdate.mock.calls[0][0]
       expect(updated.equipment[0].quantity).toBe(1)
@@ -1346,11 +1458,11 @@ describe("EquipmentInventoryModule", () => {
 
   describe("weapon sub-form", () => {
     it("selecting weapon type reveals weapon stats fields", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       // Item Type select trigger shows current value "other"
-      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(within(modal).getByRole("combobox", { name: "Item Type" }))
       fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
       expect(within(modal).getByText("Weapon Stats")).toBeInTheDocument()
       expect(within(modal).getByLabelText(/damage dice/i)).toBeInTheDocument()
@@ -1361,11 +1473,11 @@ describe("EquipmentInventoryModule", () => {
 
     it("saving a weapon item includes weaponStats with type weapon in onUpdate", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Longsword" } })
-      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(within(modal).getByRole("combobox", { name: "Item Type" }))
       fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -1384,10 +1496,10 @@ describe("EquipmentInventoryModule", () => {
 
   describe("armor sub-form", () => {
     it("selecting armor type reveals armor stats fields", () => {
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
-      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(within(modal).getByRole("combobox", { name: "Item Type" }))
       fireEvent.click(screen.getByRole("option", { name: "Armor" }))
       expect(within(modal).getByText("Armor Stats")).toBeInTheDocument()
       expect(within(modal).getByLabelText(/base ac/i)).toBeInTheDocument()
@@ -1395,11 +1507,11 @@ describe("EquipmentInventoryModule", () => {
 
     it("saving an armor item includes armorStats with type armor in onUpdate", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByRole("button", { name: /add item/i })[0])
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Chain Mail" } })
-      fireEvent.click(within(modal).getByRole("button", { name: "other" }))
+      fireEvent.click(within(modal).getByRole("combobox", { name: "Item Type" }))
       fireEvent.click(screen.getByRole("option", { name: "Armor" }))
       fireEvent.click(within(modal).getByRole("button", { name: /add item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -1421,14 +1533,14 @@ describe("EquipmentInventoryModule", () => {
 
     it("allows attuning beyond the limit rather than blocking it", () => {
       const onUpdate = vi.fn()
-      render(
+      render(() => (
         <EquipmentInventoryModule
           character={makeCharacter({
             equipment: [makeAttuned("1"), makeAttuned("2"), makeAttuned("3"), makeMagicItem({ id: "4", name: "Item 4", attuned: false })],
           })}
           onUpdate={onUpdate}
         />
-      )
+      ))
       const toggles = screen.getAllByLabelText("Toggle attuned")
       fireEvent.click(toggles[toggles.length - 1])
       expect(onUpdate).toHaveBeenCalledWith(
@@ -1440,14 +1552,14 @@ describe("EquipmentInventoryModule", () => {
 
     it("allows overriding the attunement limit via the calculated-value pencil toggle", () => {
       const onUpdate = vi.fn()
-      render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
+      render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /use custom attunement limit/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ useCalculatedAttunementLimit: false }))
     })
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
+    const { container } = render(() => <EquipmentInventoryModule character={makeCharacter()} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -1456,11 +1568,11 @@ describe("EquipmentInventoryModule", () => {
     const item = makeItem({ name: "Rope" })
 
     function renderReadOnly(overrides: Partial<Character> = {}) {
-      return render(
+      return render(() => (
         <ReadOnlyProvider value={true}>
           <EquipmentInventoryModule character={makeCharacter(overrides)} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
-      )
+      ))
     }
 
     it("does not render the Add Item button", () => {

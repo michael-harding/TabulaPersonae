@@ -28,6 +28,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { ActionCard } from "@/components/action-card"
 import { useReadOnly } from "@/lib/read-only-context"
+import { cn, HOVER_ACCENT } from "@/lib/utils"
 
 interface ActionsModuleProps {
   character: Character
@@ -616,7 +617,7 @@ export function ActionsModule(props: ActionsModuleProps) {
         {/* Actions */}
         <Collapsible open={expandedSections().has('actions')} onOpenChange={(open: boolean) => toggleSection('actions', open)}>
           <div class="flex items-center justify-between pr-1">
-            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
+            <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
               <Target class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Actions</span>
               <Chip variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featuresByKind().actions.length + equipmentByKind().actions.length}</Chip>
@@ -677,7 +678,7 @@ export function ActionsModule(props: ActionsModuleProps) {
         {/* Bonus Actions */}
         <Collapsible open={expandedSections().has('bonus-actions')} onOpenChange={(open: boolean) => toggleSection('bonus-actions', open)}>
           <div class="flex items-center justify-between pr-1">
-            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
+            <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
               <Clock class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Bonus Actions</span>
               <Chip variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featuresByKind().bonuses.length + equipmentByKind().bonuses.length}</Chip>
@@ -725,7 +726,7 @@ export function ActionsModule(props: ActionsModuleProps) {
         {/* Reactions */}
         <Collapsible open={expandedSections().has('reactions')} onOpenChange={(open: boolean) => toggleSection('reactions', open)}>
           <div class="flex items-center justify-between pr-1">
-            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
+            <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
               <Shield class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Reactions</span>
               <Chip variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featuresByKind().reactions.length + equipmentByKind().reactions.length}</Chip>
@@ -774,7 +775,7 @@ export function ActionsModule(props: ActionsModuleProps) {
         {/* Other */}
         <Collapsible open={expandedSections().has('other')} onOpenChange={(open: boolean) => toggleSection('other', open)}>
           <div class="flex items-center justify-between pr-1">
-            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
+            <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
               <Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Other</span>
               <Chip variant="secondary">{featuresByKind().others.length + (props.character.otherActions?.length ?? 0) + equipmentByKind().others.length}</Chip>

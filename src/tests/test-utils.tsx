@@ -5,14 +5,20 @@ import { CONFIRM_GUARD_MS } from "@/components/ui/confirm-button"
 
 type RenderOptions = NonNullable<Parameters<typeof render>[1]>
 
-const customRender = (ui: JSX.Element, options?: Omit<RenderOptions, "wrapper">) =>
-  render(() => ui, options)
+// Takes a function, not an element: `render(() => <X />)`. The component must be created inside
+// the root that cleanup() disposes; an element built at the call site is created outside it, so
+// its effects and listeners would outlive the test.
+const customRender = (ui: () => JSX.Element, options?: Omit<RenderOptions, "wrapper">) =>
+  render(ui, options)
 
 // Kobalte portals modal/menu/select content into body-level divs. In jsdom,
 // CSS transitions never fire so portals can accumulate between tests. Identify
 // portals by their contained ARIA role rather than by aria-hidden — the latter
 // also matches the testing-library app container (which Kobalte marks
 // aria-hidden while a modal is open) and would wrongly delete it.
+//
+// In an afterEach, call cleanup() first: the automatic cleanup runs after a file's own afterEach
+// hooks, and disposing a component whose portal node was already removed here throws.
 export function cleanupPortals() {
   const portalSelectors = ['[role="dialog"]', '[role="menu"]', '[role="listbox"]', '[role="tooltip"]']
   Array.from(document.body.children).forEach((child) => {

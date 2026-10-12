@@ -10,29 +10,29 @@ describe("Tooltip", () => {
   })
 
   it("renders the trigger children", () => {
-    render(
+    render(() => (
       <Tooltip content="More info" triggerFocusable>
         <span>Hover me</span>
       </Tooltip>
-    )
+    ))
     expect(screen.getByText("Hover me")).toBeInTheDocument()
   })
 
   it("does not show the tooltip content until triggered", () => {
-    render(
+    render(() => (
       <Tooltip content="More info" triggerFocusable>
         <span>Hover me</span>
       </Tooltip>
-    )
+    ))
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
   })
 
   it("shows the content on focus and hides it on blur", async () => {
-    render(
+    render(() => (
       <Tooltip content="More info" triggerFocusable>
         <span>Hover me</span>
       </Tooltip>
-    )
+    ))
     const trigger = screen.getByText("Hover me").closest('[data-sem="tooltip-trigger"]')!
 
     fireEvent.focus(trigger)
@@ -50,11 +50,11 @@ describe("Tooltip", () => {
   })
 
   it("renders JSX content, not just plain text", async () => {
-    render(
+    render(() => (
       <Tooltip content={<strong data-test="tooltip-strong">Important</strong>} triggerFocusable>
         <span>Hover me</span>
       </Tooltip>
-    )
+    ))
     const trigger = screen.getByText("Hover me").closest('[data-sem="tooltip-trigger"]')!
     fireEvent.focus(trigger)
     await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
@@ -62,33 +62,33 @@ describe("Tooltip", () => {
   })
 
   it("makes the trigger focusable with role='group' when triggerFocusable is true", () => {
-    render(
+    render(() => (
       <Tooltip content="More info" triggerFocusable>
         <span>Hover me</span>
       </Tooltip>
-    )
+    ))
     const trigger = screen.getByText("Hover me").closest('[data-sem="tooltip-trigger"]')!
     expect(trigger).toHaveAttribute("tabindex", "0")
     expect(trigger).toHaveAttribute("role", "group")
   })
 
   it("leaves the trigger non-focusable with no role when triggerFocusable is not set", () => {
-    render(
+    render(() => (
       <Tooltip content="More info">
         <span>Hover me</span>
       </Tooltip>
-    )
+    ))
     const trigger = screen.getByText("Hover me").closest('[data-sem="tooltip-trigger"]')!
     expect(trigger).not.toHaveAttribute("tabindex")
     expect(trigger).not.toHaveAttribute("role")
   })
 
   it("applies triggerClass to the trigger and class to the content", async () => {
-    render(
+    render(() => (
       <Tooltip content="More info" triggerFocusable triggerClass="custom-trigger" class="custom-content">
         <span>Hover me</span>
       </Tooltip>
-    )
+    ))
     const trigger = screen.getByText("Hover me").closest('[data-sem="tooltip-trigger"]')!
     expect(trigger).toHaveClass("custom-trigger")
 
@@ -99,14 +99,14 @@ describe("Tooltip", () => {
 
   describe("pinning on click or tap", () => {
     const renderPinnable = () => {
-      render(
+      render(() => (
         <>
           <Tooltip content="More info" triggerFocusable>
             <span>Tap me</span>
           </Tooltip>
           <button type="button" data-test="elsewhere">Elsewhere</button>
         </>
-      )
+      ))
       return screen.getByText("Tap me").closest('[data-sem="tooltip-trigger"]')!
     }
     // See the blur test above for why `aria-describedby`, not `role="tooltip"`, signals "closed".
@@ -173,22 +173,22 @@ describe("Tooltip", () => {
     })
 
     it("does not pin when the child has its own click action", () => {
-      render(
+      render(() => (
         <Tooltip content="Edit">
           <button type="button">Edit</button>
         </Tooltip>
-      )
+      ))
       const trigger = screen.getByText("Edit").closest('[data-sem="tooltip-trigger"]')!
       fireEvent.click(screen.getByText("Edit"))
       expect(trigger).not.toHaveAttribute("aria-describedby")
     })
 
     it("pins without taking a tab stop when only toggleOnClick is set", async () => {
-      render(
+      render(() => (
         <Tooltip content="Granted by Rage" toggleOnClick>
           <button type="button" aria-disabled="true">Prof</button>
         </Tooltip>
-      )
+      ))
       const trigger = screen.getByText("Prof").closest('[data-sem="tooltip-trigger"]')!
       expect(trigger).not.toHaveAttribute("tabindex")
 
@@ -198,11 +198,11 @@ describe("Tooltip", () => {
   })
 
   it("has no WCAG 2.1 A/AA accessibility violations when the portaled tooltip content is open", async () => {
-    render(
+    render(() => (
       <Tooltip content="More info" triggerFocusable>
         <span>Hover me</span>
       </Tooltip>
-    )
+    ))
     const trigger = screen.getByText("Hover me").closest('[data-sem="tooltip-trigger"]')!
     fireEvent.focus(trigger)
     await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())

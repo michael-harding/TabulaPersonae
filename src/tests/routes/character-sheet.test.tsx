@@ -10,6 +10,8 @@ vi.mock("@/lib/auth-context", () => ({
   useAuth: vi.fn(),
 }))
 
+vi.mock("@/hooks/use-toast", async () => (await import("../mocks/toast")).toastModuleMock)
+
 // theme.ts runs createEffect at module level and calls window.matchMedia (not in jsdom)
 vi.mock("@/lib/theme", () => ({
   theme: () => "system",
@@ -18,7 +20,6 @@ vi.mock("@/lib/theme", () => ({
 
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
-import { render as renderInRoot } from "@solidjs/testing-library"
 
 import { useAuth } from "@/lib/auth-context"
 import { createDefaultCharacter, type Character } from "@/lib/character-types"
@@ -32,6 +33,7 @@ import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor } from "../
 import { createMockAuth, createTestUser } from "../mocks/auth"
 import { mockNavigate } from "../mocks/router"
 import { mockStorageManager } from "../mocks/storage-manager"
+import { mockToast } from "../mocks/toast"
 
 const mockUseTabConfig = vi.mocked(useTabConfig)
 const mockUseAuth = vi.mocked(useAuth)
@@ -65,7 +67,7 @@ afterEach(() => {
 })
 
 async function renderAndLoad() {
-  render(<CharacterSheet />)
+  render(() => <CharacterSheet />)
   await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
 }
 
@@ -80,7 +82,7 @@ describe("CharacterSheet tab settings integration", () => {
       tabConfig: () => ({ tabs: [{ id: "custom-1", label: "My Custom Tab", modules: [] }] }),
       saveTabConfig: vi.fn(),
     })
-    render(<CharacterSheet />)
+    render(() => <CharacterSheet />)
     await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
     expect(screen.getByRole("tab", { name: /my custom tab/i })).toBeInTheDocument()
     expect(screen.queryByRole("tab", { name: /combat/i })).not.toBeInTheDocument()
@@ -91,7 +93,7 @@ describe("CharacterSheet tab settings integration", () => {
       tabConfig: () => ({ tabs: [{ id: "empty-tab", label: "Empty", modules: [] }] }),
       saveTabConfig: vi.fn(),
     })
-    render(<CharacterSheet />)
+    render(() => <CharacterSheet />)
     await waitFor(() => expect(screen.getByRole("tab", { name: /empty/i })).toBeInTheDocument())
   })
 })
@@ -152,7 +154,7 @@ describe("CharacterSheet tabs", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<CharacterSheet />)
+    const { container } = render(() => <CharacterSheet />)
     await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
@@ -162,7 +164,7 @@ describe("CharacterSheet tabs", () => {
 describe("CharacterSheet loading", () => {
   it("sends a signed-out visitor to the sign-in page without loading any character", async () => {
     mockUseAuth.mockReturnValue(createMockAuth())
-    render(<CharacterSheet />)
+    render(() => <CharacterSheet />)
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/auth"))
     expect(mockStorageManager.getCharacters).not.toHaveBeenCalled()
@@ -178,7 +180,7 @@ describe("CharacterSheet loading", () => {
 
   it("shows the loading state and loads nothing while the sign-in state is still unknown", () => {
     mockUseAuth.mockReturnValue(createMockAuth({ loading: () => true }))
-    render(<CharacterSheet />)
+    render(() => <CharacterSheet />)
 
     expect(screen.getByText("Loading character...")).toBeInTheDocument()
     expect(mockStorageManager.getCharacters).not.toHaveBeenCalled()
@@ -196,7 +198,7 @@ describe("CharacterSheet loading", () => {
 
   it("goes to the not-found page when the character does not exist", async () => {
     mockStorageManager.getCharacters.mockResolvedValue([{ ...testCharacter, id: "someone-else" }])
-    render(<CharacterSheet />)
+    render(() => <CharacterSheet />)
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/404"))
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
@@ -206,7 +208,7 @@ describe("CharacterSheet loading", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
     const failure = new Error("storage unavailable")
     mockStorageManager.getCharacters.mockRejectedValue(failure)
-    render(<CharacterSheet />)
+    render(() => <CharacterSheet />)
 
     await waitFor(() => expect(consoleError).toHaveBeenCalledWith("Failed to load character:", failure))
     await waitFor(() => expect(screen.queryByText("Loading character...")).not.toBeInTheDocument())
@@ -270,21 +272,26 @@ describe("CharacterSheet saving", () => {
     expect(savedCharacter().deathSaves).toEqual({ successes: 2, failures: 1 })
   })
 
-  it("tells the user and logs the error when saving throws", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
-    // jsdom does not implement window.alert
-    const alert = vi.fn()
-    vi.stubGlobal("alert", alert)
-    const failure = new Error("write failed")
-    mockStorageManager.saveCharacter.mockRejectedValue(failure)
+  it("tells the user when the save fails", async () => {
+    mockStorageManager.saveCharacter.mockResolvedValue(false)
     await renderWith({})
 
     fireEvent.click(screen.getByTestId("toggle-heroic-inspiration"))
 
-    await waitFor(() => expect(alert).toHaveBeenCalledWith("Failed to save character."))
-    expect(consoleError).toHaveBeenCalledWith("Failed to save character:", failure)
-    consoleError.mockRestore()
-    vi.unstubAllGlobals()
+    await waitFor(() => expect(mockToast).toHaveBeenCalledExactlyOnceWith({
+      title: "Character not saved",
+      description: "Your latest change could not be saved. It may be lost if you reload or leave this page.",
+      variant: "destructive",
+    }))
+  })
+
+  it("says nothing when the save succeeds", async () => {
+    await renderWith({})
+
+    fireEvent.click(screen.getByTestId("toggle-heroic-inspiration"))
+
+    await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledOnce())
+    expect(mockToast).not.toHaveBeenCalled()
   })
 })
 
@@ -299,11 +306,6 @@ describe("CharacterSheet header actions", () => {
     await renderAndLoad()
     fireEvent.click(screen.getByTestId("take-a-rest-button"))
     expect(await screen.findByTestId("rest-confirm-button")).toBeInTheDocument()
-
-    // Close it again: a modal torn down while open leaves Kobalte hiding the rest of the page
-    // (aria-hidden) from every test that renders afterwards.
-    fireEvent.click(screen.getByTestId("rest-cancel-button"))
-    await waitFor(() => expect(screen.getByRole("dialog", { hidden: true })).not.toHaveAttribute("data-expanded"))
   })
 
   it("returns to the character list from the menu's All Characters item", async () => {
@@ -324,6 +326,8 @@ describe("CharacterSheet header actions", () => {
       await user.upload(await screen.findByLabelText(/choose json file/i), file)
     }
 
+    const importFailed = (description: string) => ({ title: "Import not saved", description, variant: "destructive" })
+
     it("saves an imported character under a new id and opens it", async () => {
       await importJson({ ...createDefaultCharacter(), id: "id-from-file", name: "Imported" })
 
@@ -331,7 +335,8 @@ describe("CharacterSheet header actions", () => {
       const saved: Character = mockStorageManager.saveCharacter.mock.calls[0][0]
       expect(saved.name).toBe("Imported")
       expect(saved.id).not.toBe("id-from-file")
-      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(`/character/${saved.id}`))
+      expect(mockNavigate).toHaveBeenCalledWith(`/character/${saved.id}`)
+      expect(mockToast).not.toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" }))
     })
 
     it("saves every character of a multi-character import under new ids and opens the first", async () => {
@@ -345,7 +350,36 @@ describe("CharacterSheet header actions", () => {
       expect(saved.map((c) => c.name)).toEqual(["First", "Second"])
       expect(saved.map((c) => c.id)).not.toContain("file-1")
       expect(saved[0].id).not.toBe(saved[1].id)
-      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(`/character/${saved[0].id}`))
+      expect(mockNavigate).toHaveBeenCalledWith(`/character/${saved[0].id}`)
+    })
+
+    // Offline, a signed-in user's save stays pending until the server answers
+    it("opens the imported character without waiting for a save that has not finished", async () => {
+      mockStorageManager.saveCharacter.mockReturnValue(new Promise<boolean>(() => {}))
+
+      await importJson({ ...createDefaultCharacter(), id: "id-from-file", name: "Imported" })
+
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(expect.stringMatching(/^\/character\//)))
+      expect(mockToast).not.toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" }))
+    })
+
+    it("tells the user when the imported character could not be saved", async () => {
+      mockStorageManager.saveCharacter.mockResolvedValue(false)
+
+      await importJson({ ...createDefaultCharacter(), id: "id-from-file", name: "Imported" })
+
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith(importFailed("Imported could not be saved.")))
+    })
+
+    it("tells the user when any character of a multi-character import could not be saved", async () => {
+      mockStorageManager.saveCharacter.mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+
+      await importJson([
+        { ...createDefaultCharacter(), id: "file-1", name: "First" },
+        { ...createDefaultCharacter(), id: "file-2", name: "Second" },
+      ])
+
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith(importFailed("One or more of the imported characters could not be saved.")))
     })
   })
 })
@@ -384,9 +418,7 @@ describe("CharacterSheet cloud sync status", () => {
   })
 
   it("stops listening and clears the sync status when the sheet is closed", async () => {
-    // Rendered from a function so the sheet is created inside the root that unmount() disposes;
-    // test-utils' render takes an already-created element, whose effects are never cleaned up.
-    const { unmount } = renderInRoot(() => <CharacterSheet />)
+    const { unmount } = render(() => <CharacterSheet />)
     await waitFor(() => expect(screen.getByRole("tablist")).toBeInTheDocument())
     expect(unsubscribe).not.toHaveBeenCalled()
 

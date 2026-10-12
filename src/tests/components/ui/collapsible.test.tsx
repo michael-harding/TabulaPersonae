@@ -12,34 +12,34 @@ import { render, screen, fireEvent } from "../../test-utils"
 
 describe("Collapsible", () => {
   it("does not render the content when closed by default", () => {
-    render(
+    render(() => (
       <Collapsible>
         <CollapsibleTrigger>Toggle details</CollapsibleTrigger>
         <CollapsibleContent>Hidden details</CollapsibleContent>
       </Collapsible>
-    )
+    ))
     expect(screen.getByRole("button", { name: "Toggle details" })).toHaveAttribute("aria-expanded", "false")
     expect(screen.queryByText("Hidden details")).not.toBeInTheDocument()
   })
 
   it("renders the content when defaultOpen is true", () => {
-    render(
+    render(() => (
       <Collapsible defaultOpen>
         <CollapsibleTrigger>Toggle details</CollapsibleTrigger>
         <CollapsibleContent>Hidden details</CollapsibleContent>
       </Collapsible>
-    )
+    ))
     expect(screen.getByRole("button", { name: "Toggle details" })).toHaveAttribute("aria-expanded", "true")
     expect(screen.getByText("Hidden details")).toBeInTheDocument()
   })
 
   it("shows the content and flips aria-expanded when the trigger is clicked", () => {
-    render(
+    render(() => (
       <Collapsible>
         <CollapsibleTrigger>Toggle details</CollapsibleTrigger>
         <CollapsibleContent>Hidden details</CollapsibleContent>
       </Collapsible>
-    )
+    ))
     const trigger = screen.getByRole("button", { name: "Toggle details" })
 
     fireEvent.click(trigger)
@@ -72,19 +72,19 @@ describe("Collapsible", () => {
         </Collapsible>
       )
     }
-    render(<Controlled />)
+    render(() => <Controlled />)
     fireEvent.click(screen.getByRole("button", { name: "Toggle details" }))
     expect(onOpenChange).toHaveBeenCalledWith(true)
     expect(screen.getByText("Hidden details")).toBeInTheDocument()
   })
 
   it("has no accessibility violations when expanded", async () => {
-    const { container } = render(
+    const { container } = render(() => (
       <Collapsible defaultOpen>
         <CollapsibleTrigger>Toggle details</CollapsibleTrigger>
         <CollapsibleContent>Hidden details</CollapsibleContent>
       </Collapsible>
-    )
+    ))
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

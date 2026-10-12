@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 
 import { HeaderMenu } from "@/components/header-menu"
 import { useAuth } from "@/lib/auth-context"
+import { hasUnsyncedChanges } from "@/lib/firebase-storage"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character } from "@/lib/character-types"
 import { setTheme } from "@/lib/theme"
@@ -11,6 +12,7 @@ import { cleanup, render, screen, waitFor, cleanupPortals } from "../test-utils"
 import { createMockAuth, createTestUser } from "../mocks/auth"
 
 const mockUseAuth = vi.mocked(useAuth)
+const mockHasUnsyncedChanges = vi.mocked(hasUnsyncedChanges)
 
 // A real signal behind the mocked theme, so a test can change the theme while the menu is open.
 const themeControl = vi.hoisted(() => ({ set: (() => {}) as (theme: "light" | "dark" | "system") => void }))
@@ -33,6 +35,10 @@ vi.mock("@/lib/auth-context", () => ({
   useAuth: vi.fn(),
 }))
 
+vi.mock("@/lib/firebase-storage", () => ({
+  hasUnsyncedChanges: vi.fn(),
+}))
+
 vi.mock("@/lib/pdf-parser", () => ({
   parsePdfCharacterSheet: vi.fn(),
   mergeWithDefault: vi.fn(),
@@ -50,7 +56,7 @@ const defaultProps = {
 
 async function openMenu(extraProps: Partial<typeof defaultProps & { currentCharacter?: Character }> = {}) {
   const user = userEvent.setup()
-  render(<HeaderMenu {...defaultProps} {...extraProps} />)
+  render(() => <HeaderMenu {...defaultProps} {...extraProps} />)
   await user.click(screen.getByRole("button"))
   return user
 }
@@ -58,6 +64,7 @@ async function openMenu(extraProps: Partial<typeof defaultProps & { currentChara
 beforeEach(() => {
   vi.clearAllMocks()
   mockUseAuth.mockReturnValue(createMockAuth({ user: () => createTestUser({ email: "user@test.com" }) }))
+  mockHasUnsyncedChanges.mockResolvedValue(false)
   themeControl.set("system")
   cleanup()
   cleanupPortals()
@@ -409,17 +416,137 @@ describe("HeaderMenu account", () => {
     localStorage.clear()
   })
 
-  it("shows the signed-in user's email and signs out from the menu", async () => {
-    const logout = vi.fn().mockResolvedValue(undefined)
+  function signedInWith(logout: () => Promise<void>) {
     mockUseAuth.mockReturnValue(createMockAuth({ user: () => createTestUser({ email: "user@test.com" }), logout }))
+  }
+
+  async function chooseSignOut() {
     const user = await openMenu()
+    await user.click(await screen.findByRole("menuitem", { name: "Sign Out" }))
+    return user
+  }
+
+  it("shows the signed-in user's email, and offers Sign Out instead of Back to Login", async () => {
+    await openMenu()
 
     expect(screen.getByText("user@test.com")).toBeInTheDocument()
+    expect(await screen.findByRole("menuitem", { name: "Sign Out" })).toBeInTheDocument()
     expect(screen.queryByRole("menuitem", { name: "Back to Login" })).not.toBeInTheDocument()
-    await user.click(await screen.findByRole("menuitem", { name: "Sign Out" }))
+  })
 
+  it("signs out and reloads straight away when everything is synced", async () => {
+    const logout = vi.fn().mockResolvedValue(undefined)
+    signedInWith(logout)
+
+    await chooseSignOut()
+
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce())
     expect(logout).toHaveBeenCalledOnce()
-    expect(reload).not.toHaveBeenCalled()
+    expect(screen.queryByTestId("sign-out-dialog")).not.toBeInTheDocument()
+  })
+
+  describe("with changes the account has not received", () => {
+    const logout = vi.fn()
+
+    beforeEach(() => {
+      logout.mockReset().mockResolvedValue(undefined)
+      signedInWith(logout)
+      mockHasUnsyncedChanges.mockResolvedValue(true)
+    })
+
+    it("warns that they will be lost instead of signing out", async () => {
+      await chooseSignOut()
+
+      const dialog = await screen.findByRole("dialog", { name: "Sign out and lose unsynced changes?" })
+      expect(dialog).toHaveTextContent("Signing out removes all of your data from this device, so those changes will be lost.")
+      expect(logout).not.toHaveBeenCalled()
+      expect(reload).not.toHaveBeenCalled()
+    })
+
+    it("stays signed in when the user cancels", async () => {
+      const user = await chooseSignOut()
+
+      await user.click(await screen.findByTestId("sign-out-cancel"))
+
+      // Kobalte keeps a closed dialog in the DOM in jsdom; it is open only while data-expanded is set
+      await waitFor(() => expect(screen.getByTestId("sign-out-dialog")).not.toHaveAttribute("data-expanded"))
+      expect(logout).not.toHaveBeenCalled()
+      expect(reload).not.toHaveBeenCalled()
+    })
+
+    it("signs out and reloads when the user chooses to discard them", async () => {
+      const user = await chooseSignOut()
+
+      await user.click(await screen.findByTestId("sign-out-discard"))
+
+      await waitFor(() => expect(reload).toHaveBeenCalledOnce())
+      expect(logout).toHaveBeenCalledOnce()
+    })
+
+    it("has no accessibility violations", async () => {
+      await chooseSignOut()
+
+      // The dialog itself: jsdom never finishes the menu's closing animation, so the closed
+      // menu is still in the document, where a real browser has removed it.
+      const results = await axe(await screen.findByTestId("sign-out-dialog"))
+      expect(results.violations).toHaveLength(0)
+    })
+  })
+
+  it("also warns when characters created before signing in are still waiting to be uploaded", async () => {
+    const logout = vi.fn().mockResolvedValue(undefined)
+    signedInWith(logout)
+    localStorage.setItem("dnd-characters", JSON.stringify([char1]))
+
+    await chooseSignOut()
+
+    expect(await screen.findByRole("dialog", { name: "Sign out and lose unsynced changes?" })).toBeInTheDocument()
+    expect(logout).not.toHaveBeenCalled()
+  })
+
+  describe("when the device's data cannot be removed", () => {
+    const logout = vi.fn()
+
+    beforeEach(() => {
+      logout.mockReset().mockRejectedValue(new Error("another tab holds the cache"))
+      signedInWith(logout)
+    })
+
+    it("says the user is still signed in and what to do, without reloading on its own", async () => {
+      await chooseSignOut()
+
+      const dialog = await screen.findByRole("dialog", { name: "Sign-out did not finish" })
+      expect(dialog).toHaveTextContent("Your offline data could not be removed from this device, so you are still signed in.")
+      expect(dialog).toHaveTextContent("Close any other TabulaPersonae tabs, reload this page, and sign out again.")
+      expect(reload).not.toHaveBeenCalled()
+    })
+
+    it("reloads from the dialog's button", async () => {
+      const user = await chooseSignOut()
+
+      await user.click(await screen.findByTestId("sign-out-reload"))
+
+      expect(reload).toHaveBeenCalledOnce()
+    })
+
+    it("reports the same failure after the user chose to discard unsynced changes", async () => {
+      mockHasUnsyncedChanges.mockResolvedValue(true)
+      const user = await chooseSignOut()
+
+      await user.click(await screen.findByTestId("sign-out-discard"))
+
+      expect(await screen.findByRole("dialog", { name: "Sign-out did not finish" })).toBeInTheDocument()
+      expect(reload).not.toHaveBeenCalled()
+    })
+
+    it("has no accessibility violations", async () => {
+      await chooseSignOut()
+
+      // The dialog itself: jsdom never finishes the menu's closing animation, so the closed
+      // menu is still in the document, where a real browser has removed it.
+      const results = await axe(await screen.findByTestId("sign-out-dialog"))
+      expect(results.violations).toHaveLength(0)
+    })
   })
 
   it("offers Back to Login instead of Sign Out without an account, and leaves local-only mode through it", async () => {
@@ -439,7 +566,7 @@ describe("HeaderMenu account", () => {
 
 describe("HeaderMenu accessibility", () => {
   it("has no accessibility violations", async () => {
-    const { container } = render(<HeaderMenu {...defaultProps} />)
+    const { container } = render(() => <HeaderMenu {...defaultProps} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

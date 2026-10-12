@@ -138,13 +138,6 @@ describe("useStorageManager — unauthenticated (user: null)", () => {
     })
   })
 
-  it("syncToFirebase returns false when not authenticated", async () => {
-    const manager = renderManager()
-    const result = await manager.syncToFirebase()
-    expect(result).toBe(false)
-    expect(mockSaveToFirebase).not.toHaveBeenCalled()
-  })
-
   it("storageType is 'local' and isAuthenticated is false", () => {
     const manager = renderManager()
     expect(manager.storageType).toBe("local")
@@ -202,33 +195,5 @@ describe("useStorageManager — authenticated (user present)", () => {
     const manager = renderManager()
     expect(manager.storageType).toBe("firebase")
     expect(manager.isAuthenticated).toBe(true)
-  })
-
-  describe("syncToFirebase", () => {
-    it("copies local characters to Firebase and clears localStorage", async () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([testCharacter]))
-      const manager = renderManager()
-      const result = await manager.syncToFirebase()
-      expect(result).toBe(true)
-      expect(mockSaveToFirebase).toHaveBeenCalledWith(testCharacter, "user-123")
-      expect(localStorage.getItem(STORAGE_KEY)).toBe("[]")
-    })
-
-    it("returns false and does not clear localStorage when Firebase throws", async () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([testCharacter]))
-      mockSaveToFirebase.mockRejectedValueOnce(new Error("network error"))
-      const manager = renderManager()
-      const result = await manager.syncToFirebase()
-      expect(result).toBe(false)
-      // localStorage should NOT be cleared on failure
-      expect(localStorage.getItem(STORAGE_KEY)).not.toBe("[]")
-    })
-
-    it("returns true with no local characters to sync", async () => {
-      const manager = renderManager()
-      const result = await manager.syncToFirebase()
-      expect(result).toBe(true)
-      expect(mockSaveToFirebase).not.toHaveBeenCalled()
-    })
   })
 })

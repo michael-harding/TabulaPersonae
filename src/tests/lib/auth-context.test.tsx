@@ -12,6 +12,8 @@ vi.mock("@/lib/firebase-storage", () => ({
   saveCharacterToFirebase: vi.fn(),
 }))
 
+vi.mock("@/hooks/use-toast", async () => (await import("../mocks/toast")).toastModuleMock)
+
 import { cleanup, render } from "@solidjs/testing-library"
 import { createRoot } from "solid-js"
 import type { MockInstance } from "vitest"
@@ -24,12 +26,13 @@ import {
   type User,
 } from "firebase/auth"
 
-import { getFirebaseAuth } from "@/lib/firebase"
+import { clearFirestoreCache, getFirebaseAuth } from "@/lib/firebase"
 import { saveCharacterToFirebase } from "@/lib/firebase-storage"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { createDefaultCharacter } from "@/lib/character-types"
 
 import { createTestUser } from "../mocks/auth"
+import { mockToast } from "../mocks/toast"
 
 const mockOnAuthStateChanged = vi.mocked(onAuthStateChanged)
 const mockSignOut = vi.mocked(signOut)
@@ -37,6 +40,7 @@ const mockSignIn = vi.mocked(signInWithEmailAndPassword)
 const mockCreateUser = vi.mocked(createUserWithEmailAndPassword)
 const mockSendPasswordReset = vi.mocked(sendPasswordResetEmail)
 const mockSaveCharacterToFirebase = vi.mocked(saveCharacterToFirebase)
+const mockClearFirestoreCache = vi.mocked(clearFirestoreCache)
 
 const testUser = createTestUser({ uid: "user-123", email: "test@test.com" })
 const char1 = { ...createDefaultCharacter(), id: "char-1", name: "Thorin" }
@@ -77,6 +81,7 @@ beforeEach(() => {
   localStorage.clear()
   mockSignOut.mockResolvedValue(undefined)
   mockSaveCharacterToFirebase.mockResolvedValue(true)
+  mockClearFirestoreCache.mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -152,60 +157,187 @@ describe("AuthProvider — sync local characters on login", () => {
   })
 })
 
-describe("AuthProvider — logout clears local data", () => {
-  it("removes dnd-characters and dnd-active-character on logout", async () => {
+describe("AuthProvider — a local character that cannot be uploaded on login", () => {
+  const storedCharacters = () => JSON.parse(localStorage.getItem(CHARS_KEY) ?? "null")
+
+  it("keeps only the characters whose upload failed, and tells the user how many", async () => {
+    localStorage.setItem(CHARS_KEY, JSON.stringify([char1, char2]))
+    mockSaveCharacterToFirebase.mockImplementation(async (character) => character.id === "char-1")
+    const { authStateCallback } = renderProvider()
+
+    await authStateCallback(testUser)
+
+    expect(storedCharacters()).toEqual([char2])
+    expect(mockToast).toHaveBeenCalledExactlyOnceWith({
+      title: "Characters not uploaded",
+      description: "1 character created on this device could not be added to your account. They are kept on this device and retried the next time the app loads; signing out removes them.",
+      variant: "destructive",
+    })
+  })
+
+  it("counts every character that failed", async () => {
+    localStorage.setItem(CHARS_KEY, JSON.stringify([char1, char2]))
+    mockSaveCharacterToFirebase.mockResolvedValue(false)
+    const { authStateCallback } = renderProvider()
+
+    await authStateCallback(testUser)
+
+    expect(storedCharacters()).toEqual([char1, char2])
+    expect(mockToast).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ description: expect.stringMatching(/^2 characters created/) }))
+  })
+
+  it("still signs the user in", async () => {
     localStorage.setItem(CHARS_KEY, JSON.stringify([char1]))
-    localStorage.setItem(ACTIVE_KEY, "char-1")
+    mockSaveCharacterToFirebase.mockResolvedValue(false)
     const { authStateCallback, capturedAuth } = renderProvider()
+
     await authStateCallback(testUser)
 
-    await capturedAuth.logout()
-
-    expect(localStorage.getItem(CHARS_KEY)).toBeNull()
-    expect(localStorage.getItem(ACTIVE_KEY)).toBeNull()
+    expect(capturedAuth.user()).toBe(testUser)
+    expect(capturedAuth.loading()).toBe(false)
   })
 
-  it("calls signOut after clearing local data", async () => {
-    const { authStateCallback, capturedAuth } = renderProvider()
+  it("says nothing when every character uploads", async () => {
+    localStorage.setItem(CHARS_KEY, JSON.stringify([char1, char2]))
+    const { authStateCallback } = renderProvider()
+
     await authStateCallback(testUser)
 
-    await capturedAuth.logout()
-
-    expect(mockSignOut).toHaveBeenCalled()
+    expect(mockToast).not.toHaveBeenCalled()
   })
 
-  it("does not clear localStorage when user is null (skip-auth mode)", async () => {
+  it("retries a character kept from an earlier failure the next time the app loads", async () => {
+    localStorage.setItem(CHARS_KEY, JSON.stringify([char1]))
+    mockSaveCharacterToFirebase.mockResolvedValueOnce(false)
+    const first = renderProvider()
+    await first.authStateCallback(testUser)
+    cleanup()
+
+    const second = renderProvider()
+    await second.authStateCallback(testUser)
+
+    expect(mockSaveCharacterToFirebase).toHaveBeenCalledTimes(2)
+    expect(storedCharacters()).toEqual([])
+  })
+})
+
+describe("AuthProvider — signing in without a connection", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  // Firestore would hold the uploads pending while offline; waiting for them would leave the app
+  // on its loading screen.
+  it("finishes signing in without uploading, leaving local characters for the next load", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false)
+    localStorage.setItem(CHARS_KEY, JSON.stringify([char1]))
+    const { authStateCallback, capturedAuth } = renderProvider()
+
+    await authStateCallback(testUser)
+
+    expect(mockSaveCharacterToFirebase).not.toHaveBeenCalled()
+    expect(localStorage.getItem(CHARS_KEY)).toBe(JSON.stringify([char1]))
+    expect(capturedAuth.user()).toBe(testUser)
+    expect(capturedAuth.loading()).toBe(false)
+    expect(mockToast).not.toHaveBeenCalled()
+  })
+})
+
+describe("AuthProvider — unreadable local characters on login", () => {
+  it("signs the user in, logs the problem, and leaves the stored data as it was", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    localStorage.setItem(CHARS_KEY, "{not json")
+    const { authStateCallback, capturedAuth } = renderProvider()
+
+    await authStateCallback(testUser)
+
+    expect(capturedAuth.user()).toBe(testUser)
+    expect(capturedAuth.loading()).toBe(false)
+    expect(consoleError).toHaveBeenCalledWith("Failed to upload characters stored on this device:", expect.any(SyntaxError))
+    expect(localStorage.getItem(CHARS_KEY)).toBe("{not json")
+    expect(mockSaveCharacterToFirebase).not.toHaveBeenCalled()
+    consoleError.mockRestore()
+  })
+})
+
+describe("AuthProvider — logout removes the signed-in user's data from the device", () => {
+  async function signedIn() {
+    const provider = renderProvider()
+    await provider.authStateCallback(testUser)
+    return provider.capturedAuth
+  }
+
+  it("removes every app key that belongs to the user, and keeps the device's own settings", async () => {
+    const auth = await signedIn()
+    const userKeys = [CHARS_KEY, ACTIVE_KEY, "dnd-tab-config", "dnd-last-synced-char-1", "dnd-collapsible-spells-char-1"]
+    for (const key of userKeys) localStorage.setItem(key, "value")
+    localStorage.setItem("dnd-terms-accepted", "true")
+    localStorage.setItem("theme", "dark")
+
+    await auth.logout()
+
+    for (const key of userKeys) expect(localStorage.getItem(key)).toBeNull()
+    expect(localStorage.getItem("dnd-terms-accepted")).toBe("true")
+    expect(localStorage.getItem("theme")).toBe("dark")
+  })
+
+  it("deletes Firestore's offline data before signing out", async () => {
+    const auth = await signedIn()
+    const calls: string[] = []
+    mockClearFirestoreCache.mockImplementation(async () => { calls.push("clear cache") })
+    mockSignOut.mockImplementation(async () => { calls.push("sign out") })
+
+    await auth.logout()
+
+    expect(calls).toEqual(["clear cache", "sign out"])
+  })
+
+  describe("when the offline data cannot be deleted", () => {
+    const failure = Object.assign(new Error("another tab holds the cache"), { code: "failed-precondition" })
+    let errorSpy: MockInstance<Console["error"]>
+
+    beforeEach(() => {
+      mockClearFirestoreCache.mockRejectedValue(failure)
+      errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+      errorSpy.mockRestore()
+    })
+
+    it("does not sign the user out, so they are never signed out with data left behind", async () => {
+      const auth = await signedIn()
+
+      await expect(auth.logout()).rejects.toBe(failure)
+
+      expect(mockSignOut).not.toHaveBeenCalled()
+      expect(errorSpy).toHaveBeenCalledWith("Sign out error:", failure)
+    })
+
+    it("has still removed what it could from localStorage", async () => {
+      const auth = await signedIn()
+      localStorage.setItem("dnd-last-synced-char-1", "value")
+
+      await expect(auth.logout()).rejects.toBe(failure)
+
+      expect(localStorage.getItem("dnd-last-synced-char-1")).toBeNull()
+    })
+  })
+
+  it("leaves a guest's characters on the device: without an account they exist nowhere else", async () => {
     localStorage.setItem("dnd-skip-auth", "true")
     localStorage.setItem(CHARS_KEY, JSON.stringify([char1]))
-    localStorage.setItem(ACTIVE_KEY, "char-1")
-
-    // In skip-auth mode AuthProvider never registers onAuthStateChanged,
-    // so user() stays null — matching the handleBackToLogin flow.
-    let capturedAuth!: ReturnType<typeof useAuth>
-    function Consumer() {
-      capturedAuth = useAuth()
-      return null
-    }
-    render(() => (
-      <AuthProvider>
-        <Consumer />
-      </AuthProvider>
-    ))
+    localStorage.setItem("dnd-collapsible-spells-char-1", "[1]")
+    // In skip-auth mode AuthProvider never registers onAuthStateChanged, so user() stays null —
+    // matching the menu's "Back to Login".
+    const { capturedAuth } = renderProvider()
 
     await capturedAuth.logout()
 
     expect(localStorage.getItem(CHARS_KEY)).toBe(JSON.stringify([char1]))
-    expect(localStorage.getItem(ACTIVE_KEY)).toBe("char-1")
-    expect(mockSignOut).toHaveBeenCalled()
-  })
-
-  it("still calls signOut even when there is no local data to clear", async () => {
-    const { authStateCallback, capturedAuth } = renderProvider()
-    await authStateCallback(testUser)
-
-    await capturedAuth.logout()
-
-    expect(mockSignOut).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem("dnd-collapsible-spells-char-1")).toBe("[1]")
+    expect(mockClearFirestoreCache).not.toHaveBeenCalled()
+    expect(mockSignOut).toHaveBeenCalledOnce()
   })
 })
 
@@ -266,17 +398,6 @@ describe("AuthProvider — loading state", () => {
     expect(unsubscribe).not.toHaveBeenCalled()
     unmount()
     expect(unsubscribe).toHaveBeenCalledOnce()
-  })
-})
-
-describe("AuthProvider — setSkipAuth", () => {
-  it.each([true, false])("sets the skipAuth signal to %s and remembers the choice", (value) => {
-    const { capturedAuth } = renderProvider()
-
-    capturedAuth.setSkipAuth(value)
-
-    expect(capturedAuth.skipAuth()).toBe(value)
-    expect(localStorage.getItem("dnd-skip-auth")).toBe(String(value))
   })
 })
 

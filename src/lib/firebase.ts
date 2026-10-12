@@ -1,7 +1,13 @@
 /// <reference types="vite/client" />
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, type Firestore } from 'firebase/firestore';
+import {
+  clearIndexedDbPersistence,
+  initializeFirestore,
+  persistentLocalCache,
+  terminate,
+  type Firestore,
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -50,4 +56,15 @@ export function getFirebaseAuth(): Auth {
 /** The Firestore instance. Throws if Firebase failed to initialize. */
 export function getDb(): Firestore {
   return requireServices().db;
+}
+
+/**
+ * Deletes Firestore's offline copy of the signed-in user's data from this device, including any
+ * writes that have not reached the server. Firestore only allows this on an instance that has
+ * been shut down, so the page must be reloaded before Firestore is used again.
+ */
+export async function clearFirestoreCache(): Promise<void> {
+  const { db } = requireServices();
+  await terminate(db);
+  await clearIndexedDbPersistence(db);
 }

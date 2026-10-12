@@ -10,6 +10,7 @@ import { type Character } from "@/lib/character-types"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import { subscribeToCharacter } from "@/lib/firebase-storage"
+import { notifyIfFailed } from "@/lib/save-feedback"
 import { useSyncState } from "@/lib/sync-context"
 import { useTabConfig } from "@/lib/tab-config-context"
 import { MODULE_REGISTRY } from "@/lib/module-registry"
@@ -88,31 +89,41 @@ export default function CharacterSheet() {
     })
   })
 
-  const updateCharacter = async (updated: Character) => {
+  // None of these wait for the save before showing its result: offline, a signed-in user's write
+  // stays pending until the server answers (see notifyIfFailed).
+  const updateCharacter = (updated: Character) => {
     let next = updated
     if (next.hitPoints.current === 1) {
       next = { ...next, deathSaves: { successes: 0, failures: 0 } }
     }
     setCharStore("data", reconcile(next))
-    try {
-      await storageManager().saveCharacter(next)
-    } catch (error) {
-      console.error("Failed to save character:", error)
-      alert("Failed to save character.")
-    }
+    notifyIfFailed(storageManager().saveCharacter(next), {
+      title: "Character not saved",
+      description: "Your latest change could not be saved. It may be lost if you reload or leave this page.",
+    })
   }
 
-  const handleImportCharacter = async (char: Character) => {
+  const handleImportCharacter = (char: Character) => {
     const imported = { ...char, id: crypto.randomUUID() }
-    const success = await storageManager().saveCharacter(imported)
-    if (!success) throw new Error("Failed to save imported character")
+    notifyIfFailed(storageManager().saveCharacter(imported), {
+      title: "Import not saved",
+      description: `${imported.name || "The imported character"} could not be saved.`,
+    })
     navigate(`/character/${imported.id}`)
   }
 
-  const handleImportMultiple = async (importedCharacters: Character[]) => {
+  const handleImportMultiple = (importedCharacters: Character[]) => {
     const withNewIds = importedCharacters.map((char) => ({ ...char, id: crypto.randomUUID() }))
-    await Promise.all(withNewIds.map((char) => storageManager().saveCharacter(char)))
+    notifyIfFailed(saveAll(withNewIds), {
+      title: "Import not saved",
+      description: "One or more of the imported characters could not be saved.",
+    })
     if (withNewIds.length > 0) navigate(`/character/${withNewIds[0].id}`)
+  }
+
+  const saveAll = async (toSave: Character[]) => {
+    const results = await Promise.all(toSave.map((char) => storageManager().saveCharacter(char)))
+    return results.every(Boolean)
   }
 
   return (

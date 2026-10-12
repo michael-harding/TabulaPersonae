@@ -14,7 +14,8 @@ import {
   query,
   where,
   orderBy,
-  Timestamp
+  Timestamp,
+  waitForPendingWrites
 } from 'firebase/firestore';
 
 import { getDb } from './firebase';
@@ -254,5 +255,30 @@ export async function getTabConfigFromFirebase(userId: string): Promise<UserTabC
       console.error('Failed to get tab config from Firebase:', error)
     }
     return null;
+  }
+}
+
+// How long to give writes that are already on their way to the server before calling them unsynced.
+const PENDING_WRITES_GRACE_MS = 1500;
+// With no connection nothing can arrive; this only leaves time for "there are none" to come back.
+const PENDING_WRITES_OFFLINE_GRACE_MS = 100;
+
+/**
+ * Whether this device holds changes of any kind (edits, deletes, settings) that the server has
+ * not confirmed. If that cannot be determined the answer is `true`, so the caller warns.
+ */
+export async function hasUnsyncedChanges(): Promise<boolean> {
+  try {
+    const graceMs = navigator.onLine ? PENDING_WRITES_GRACE_MS : PENDING_WRITES_OFFLINE_GRACE_MS;
+    let timer: ReturnType<typeof setTimeout> | undefined; // undefined until the race below starts it
+    const stillPending = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(true), graceMs);
+    });
+    // Resolves at once when nothing is waiting, otherwise when the server has confirmed everything.
+    const confirmed = waitForPendingWrites(getDb()).then(() => false);
+    return await Promise.race([confirmed, stillPending]).finally(() => clearTimeout(timer));
+  } catch (error) {
+    console.error('Failed to check for unsynced changes:', error);
+    return true;
   }
 }

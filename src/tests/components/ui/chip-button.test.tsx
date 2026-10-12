@@ -7,30 +7,30 @@ import { render, screen, fireEvent } from "../../test-utils"
 describe("ChipButton", () => {
   it("acts on a single click — chip actions are cheap to undo, so there is no confirm step", () => {
     const onClick = vi.fn()
-    render(<ChipButton data-test="lang-remove-common" action="remove" aria-label="Remove Common" onClick={onClick}>Common</ChipButton>)
+    render(() => <ChipButton data-test="lang-remove-common" action="remove" aria-label="Remove Common" onClick={onClick}>Common</ChipButton>)
     fireEvent.click(screen.getByRole("button", { name: "Remove Common" }), { detail: 1 })
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
   it("makes the whole chip the button, with the label inside it", () => {
-    render(<ChipButton data-test="add-module-spells" action="add" variant="outline" onClick={vi.fn()}>Spells</ChipButton>)
+    render(() => <ChipButton data-test="add-module-spells" action="add" variant="outline" onClick={vi.fn()}>Spells</ChipButton>)
     const button = screen.getByTestId("add-module-spells")
     expect(button.tagName).toBe("BUTTON")
     expect(button).toHaveAccessibleName("Spells")
   })
 
   it("is a ≥44×44 box (ACCESSIBILITY.md touch targets)", () => {
-    render(<ChipButton data-test="chip" action="add" onClick={vi.fn()}>x</ChipButton>)
+    render(() => <ChipButton data-test="chip" action="add" onClick={vi.fn()}>x</ChipButton>)
     expect(screen.getByTestId("chip")).toHaveClass("min-h-11", "min-w-11")
   })
 
   it("shows a trailing × for remove and a leading + for add, hidden from assistive tech", () => {
-    render(
+    render(() => (
       <>
         <ChipButton data-test="remove-chip" action="remove" onClick={vi.fn()}>A</ChipButton>
         <ChipButton data-test="add-chip" action="add" onClick={vi.fn()}>B</ChipButton>
       </>
-    )
+    ))
     const removeIcon = screen.getByTestId("remove-chip").querySelector("svg")!
     const addIcon = screen.getByTestId("add-chip").querySelector("svg")!
     expect(removeIcon).toHaveAttribute("aria-hidden", "true")
@@ -39,12 +39,12 @@ describe("ChipButton", () => {
   })
 
   it("draws its pill with the display Chip's variant classes, defaulting to secondary", () => {
-    render(
+    render(() => (
       <>
         <ChipButton data-test="plain" action="add" onClick={vi.fn()}>A</ChipButton>
         <ChipButton data-test="outlined" action="add" variant="outline" onClick={vi.fn()}>B</ChipButton>
       </>
-    )
+    ))
     expect(screen.getByTestId("plain").querySelector("span")).toHaveClass("rounded-full", "bg-secondary", "text-secondary-foreground")
     const outlined = screen.getByTestId("outlined").querySelector("span")!
     expect(outlined).toHaveClass("rounded-full", "text-foreground")
@@ -52,14 +52,14 @@ describe("ChipButton", () => {
   })
 
   it("changes the pill's background and border when anywhere in the 44px box is hovered", () => {
-    render(<ChipButton data-test="chip" action="add" onClick={vi.fn()}>A</ChipButton>)
+    render(() => <ChipButton data-test="chip" action="add" onClick={vi.fn()}>A</ChipButton>)
     const button = screen.getByTestId("chip")
     expect(button).toHaveClass("group")
     expect(button.querySelector("span")).toHaveClass("group-hover:bg-secondary/80", "group-hover:border-secondary-foreground")
   })
 
   it("takes its hover style from its variant — only the removable variants get a destructive border", () => {
-    render(
+    render(() => (
       <>
         <ChipButton data-test="secondary" action="remove" variant="secondary" onClick={vi.fn()}>A</ChipButton>
         <ChipButton data-test="outline" action="add" variant="outline" onClick={vi.fn()}>B</ChipButton>
@@ -67,7 +67,7 @@ describe("ChipButton", () => {
         <ChipButton data-test="removable-secondary" action="remove" variant="removableSecondary" onClick={vi.fn()}>D</ChipButton>
         <ChipButton data-test="removable-outline" action="remove" variant="removableOutline" onClick={vi.fn()}>E</ChipButton>
       </>
-    )
+    ))
     const pill = (id: string) => screen.getByTestId(id).querySelector("span")!
     expect(pill("secondary")).toHaveClass("group-hover:bg-secondary/80", "group-hover:border-secondary-foreground")
     expect(pill("secondary")).not.toHaveClass("group-hover:border-destructive")
@@ -79,18 +79,18 @@ describe("ChipButton", () => {
   })
 
   it("defaults a remove chip to removableSecondary and an add chip to secondary", () => {
-    render(
+    render(() => (
       <>
         <ChipButton data-test="remove-chip" action="remove" onClick={vi.fn()}>A</ChipButton>
         <ChipButton data-test="add-chip" action="add" onClick={vi.fn()}>B</ChipButton>
       </>
-    )
+    ))
     expect(screen.getByTestId("remove-chip").querySelector("span")).toHaveClass("bg-secondary", "group-hover:border-destructive")
     expect(screen.getByTestId("add-chip").querySelector("span")).toHaveClass("bg-secondary", "group-hover:border-secondary-foreground")
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<ChipButton data-test="chip" action="remove" aria-label="Remove Common" onClick={vi.fn()}>Common</ChipButton>)
+    const { container } = render(() => <ChipButton data-test="chip" action="remove" aria-label="Remove Common" onClick={vi.fn()}>Common</ChipButton>)
     expect((await axe(container)).violations).toHaveLength(0)
   })
 })
@@ -98,7 +98,7 @@ describe("ChipButton", () => {
 describe("ToggleChip", () => {
   it("is a button that reports its on/off state and acts on a single click", () => {
     const onClick = vi.fn()
-    render(<ToggleChip data-test="prof" aria-label="Stealth proficient" pressed={false} onClick={onClick}>Prof</ToggleChip>)
+    render(() => <ToggleChip data-test="prof" aria-label="Stealth proficient" pressed={false} onClick={onClick}>Prof</ToggleChip>)
     const chip = screen.getByRole("button", { name: "Stealth proficient" })
     expect(chip).toHaveAttribute("aria-pressed", "false")
     expect(chip).toHaveTextContent("Prof")
@@ -107,13 +107,13 @@ describe("ToggleChip", () => {
   })
 
   it("is drawn in its variant's colours when on and outlined when off", () => {
-    render(
+    render(() => (
       <>
         <ToggleChip data-test="on" pressed variant="default" onClick={vi.fn()}>Exp</ToggleChip>
         <ToggleChip data-test="off" pressed={false} variant="default" onClick={vi.fn()}>Exp</ToggleChip>
         <ToggleChip data-test="on-default-variant" pressed onClick={vi.fn()}>Prof</ToggleChip>
       </>
-    )
+    ))
     const pill = (id: string) => screen.getByTestId(id).querySelector("span")!
     expect(screen.getByTestId("on")).toHaveAttribute("aria-pressed", "true")
     expect(pill("on")).toHaveClass("rounded-full", "bg-primary", "text-primary-foreground")
@@ -123,23 +123,23 @@ describe("ToggleChip", () => {
   })
 
   it("outlines the pill when off, so it reads as a control and not plain text", () => {
-    render(
+    render(() => (
       <>
         <ToggleChip data-test="on" pressed onClick={vi.fn()}>Prof</ToggleChip>
         <ToggleChip data-test="off" pressed={false} onClick={vi.fn()}>Prof</ToggleChip>
       </>
-    )
+    ))
     expect(screen.getByTestId("off").querySelector("span")).toHaveClass("border", "border-muted-foreground")
     expect(screen.getByTestId("on").querySelector("span")).not.toHaveClass("border-muted-foreground")
   })
 
   it("shows a leading check when on and an empty circle in its place when off, hidden from assistive tech", () => {
-    render(
+    render(() => (
       <>
         <ToggleChip data-test="on" pressed onClick={vi.fn()}>Prof</ToggleChip>
         <ToggleChip data-test="off" pressed={false} onClick={vi.fn()}>Prof</ToggleChip>
       </>
-    )
+    ))
     const check = screen.getByTestId("on").querySelector("svg")!
     const circle = screen.getByTestId("off").querySelector("svg")!
     expect(check).toHaveAttribute("aria-hidden", "true")
@@ -154,7 +154,7 @@ describe("ToggleChip", () => {
   })
 
   it("applies pillClass to the pill, not the 44px box", () => {
-    render(<ToggleChip data-test="chip" pressed pillClass="px-1" onClick={vi.fn()}>Prof</ToggleChip>)
+    render(() => <ToggleChip data-test="chip" pressed pillClass="px-1" onClick={vi.fn()}>Prof</ToggleChip>)
     expect(screen.getByTestId("chip")).toHaveClass("min-h-11", "min-w-11")
     expect(screen.getByTestId("chip")).not.toHaveClass("px-1")
     expect(screen.getByTestId("chip").querySelector("span")).toHaveClass("px-1")
@@ -162,7 +162,7 @@ describe("ToggleChip", () => {
 
   it("ignores clicks when locked but stays focusable", () => {
     const onClick = vi.fn()
-    render(<ToggleChip data-test="chip" pressed locked onClick={onClick}>Prof</ToggleChip>)
+    render(() => <ToggleChip data-test="chip" pressed locked onClick={onClick}>Prof</ToggleChip>)
     const chip = screen.getByTestId("chip")
     expect(chip).toHaveAttribute("aria-disabled", "true")
     expect(chip).not.toBeDisabled()
@@ -172,12 +172,12 @@ describe("ToggleChip", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(
+    const { container } = render(() => (
       <>
         <ToggleChip data-test="on" aria-label="Stealth proficient" pressed onClick={vi.fn()}>Prof</ToggleChip>
         <ToggleChip data-test="off" aria-label="Stealth expertise" pressed={false} locked onClick={vi.fn()}>Exp</ToggleChip>
       </>
-    )
+    ))
     expect((await axe(container)).violations).toHaveLength(0)
   })
 })
@@ -186,7 +186,7 @@ describe("CheckableChip", () => {
   function renderChip(overrides: { checked?: boolean } = {}) {
     const onRemove = vi.fn()
     const onCheckedChange = vi.fn()
-    const { container } = render(
+    const { container } = render(() => (
       <CheckableChip
         data-test="skill-athletics"
         removeLabel="Remove Athletics"
@@ -198,7 +198,7 @@ describe("CheckableChip", () => {
       >
         Athletics
       </CheckableChip>
-    )
+    ))
     return { onRemove, onCheckedChange, container }
   }
 

@@ -12,6 +12,8 @@ vi.mock("firebase/auth", () => ({
 vi.mock("firebase/firestore", () => ({
   initializeFirestore: vi.fn(() => ({ name: "db" })),
   persistentLocalCache: vi.fn(() => ({})),
+  terminate: vi.fn(),
+  clearIndexedDbPersistence: vi.fn(),
 }))
 
 describe("firebase", () => {
@@ -53,5 +55,51 @@ describe("firebase", () => {
     expect(() => getFirebaseAuth()).toThrow("Firebase is unavailable because it failed to initialize")
     expect(() => getDb()).toThrow("Firebase is unavailable because it failed to initialize")
     expect(() => getDb()).toThrow(expect.objectContaining({ cause }))
+  })
+
+  describe("clearFirestoreCache", () => {
+    it("shuts Firestore down and then deletes its offline data, in that order", async () => {
+      const { terminate, clearIndexedDbPersistence } = await import("firebase/firestore")
+      const calls: string[] = []
+      vi.mocked(terminate).mockImplementation(async () => { calls.push("terminate") })
+      vi.mocked(clearIndexedDbPersistence).mockImplementation(async () => { calls.push("clear") })
+      const { clearFirestoreCache } = await import("@/lib/firebase")
+
+      await clearFirestoreCache()
+
+      expect(calls).toEqual(["terminate", "clear"])
+      expect(terminate).toHaveBeenCalledWith({ name: "db" })
+      expect(clearIndexedDbPersistence).toHaveBeenCalledWith({ name: "db" })
+    })
+
+    it("rejects with Firestore's error when the offline data cannot be deleted", async () => {
+      const { terminate, clearIndexedDbPersistence } = await import("firebase/firestore")
+      const failure = Object.assign(new Error("another tab holds the cache"), { code: "failed-precondition" })
+      vi.mocked(terminate).mockResolvedValue(undefined)
+      vi.mocked(clearIndexedDbPersistence).mockRejectedValue(failure)
+      const { clearFirestoreCache } = await import("@/lib/firebase")
+
+      await expect(clearFirestoreCache()).rejects.toBe(failure)
+    })
+
+    it("does not try to delete anything when Firestore could not be shut down", async () => {
+      const { terminate, clearIndexedDbPersistence } = await import("firebase/firestore")
+      const failure = new Error("terminate failed")
+      vi.mocked(terminate).mockRejectedValue(failure)
+      vi.mocked(clearIndexedDbPersistence).mockClear()
+      const { clearFirestoreCache } = await import("@/lib/firebase")
+
+      await expect(clearFirestoreCache()).rejects.toBe(failure)
+      expect(clearIndexedDbPersistence).not.toHaveBeenCalled()
+    })
+
+    it("rejects with the initialization failure when Firebase never started", async () => {
+      const { initializeApp } = await import("firebase/app")
+      vi.mocked(initializeApp).mockImplementation(() => { throw new Error("auth/invalid-api-key") })
+      vi.spyOn(console, "error").mockImplementation(() => {})
+      const { clearFirestoreCache } = await import("@/lib/firebase")
+
+      await expect(clearFirestoreCache()).rejects.toThrow("Firebase is unavailable because it failed to initialize")
+    })
   })
 })

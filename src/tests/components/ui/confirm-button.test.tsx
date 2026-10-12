@@ -3,18 +3,18 @@ import { axe } from "vitest-axe"
 import { ConfirmButton, CONFIRM_GUARD_MS, CONFIRM_TIMEOUT_MS } from "@/components/ui/confirm-button"
 import { Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle } from "@/components/ui/modal"
 
-import { render, screen, fireEvent, cleanupPortals } from "../../test-utils"
+import { render, screen, fireEvent, cleanup, cleanupPortals } from "../../test-utils"
 
 function renderButton(overrides: Partial<Parameters<typeof ConfirmButton>[0]> = {}) {
   const onConfirm = vi.fn()
-  render(
+  render(() => (
     <div>
       <ConfirmButton data-test="delete-thing" verb="Delete" subject="Sharpshooter" onConfirm={onConfirm} {...overrides}>
         <span data-test="idle-icon">icon</span>
       </ConfirmButton>
       <button type="button" data-test="elsewhere">elsewhere</button>
     </div>
-  )
+  ))
   return { onConfirm, button: () => screen.getByTestId("delete-thing") }
 }
 
@@ -27,6 +27,7 @@ describe("ConfirmButton", () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.useRealTimers()
+    cleanup()
     cleanupPortals()
   })
 
@@ -96,7 +97,7 @@ describe("ConfirmButton", () => {
   // stopPropagation from a delegated handler cannot reach.
   it("disarms on Escape without closing an enclosing modal; a second Escape closes it", async () => {
     const onOpenChange = vi.fn()
-    render(
+    render(() => (
       <Modal open onOpenChange={onOpenChange}>
         <ModalContent>
           <ModalHeader>
@@ -106,7 +107,7 @@ describe("ConfirmButton", () => {
           <ConfirmButton data-test="remove-effect" verb="Remove" onConfirm={vi.fn()}>x</ConfirmButton>
         </ModalContent>
       </Modal>
-    )
+    ))
     const button = await screen.findByTestId("remove-effect")
     fireEvent.click(button, { detail: 1 })
     expect(button).toHaveAttribute("data-armed")
@@ -177,7 +178,7 @@ describe("ConfirmButton", () => {
   })
 
   it("uses the verb alone as the name when there is no subject", () => {
-    render(<ConfirmButton data-test="remove-thing" verb="Remove" onConfirm={vi.fn()}>x</ConfirmButton>)
+    render(() => <ConfirmButton data-test="remove-thing" verb="Remove" onConfirm={vi.fn()}>x</ConfirmButton>)
     const button = screen.getByTestId("remove-thing")
     expect(button).toHaveAccessibleName("Remove")
     fireEvent.click(button, { detail: 1 })

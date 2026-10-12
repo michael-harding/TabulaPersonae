@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { render, screen } from "../../test-utils"
 
 function renderFullCard() {
-  return render(
+  return render(() => (
     <Card data-test="card">
       <CardHeader data-test="card-header">
         <CardTitle data-test="card-title">Title</CardTitle>
@@ -14,7 +14,7 @@ function renderFullCard() {
       <CardContent data-test="card-content">Body content</CardContent>
       <CardFooter data-test="card-footer">Footer content</CardFooter>
     </Card>
-  )
+  ))
 }
 
 describe("Card", () => {
@@ -37,21 +37,21 @@ describe("Card", () => {
   })
 
   it("forwards a custom class to the root and nested parts", () => {
-    render(
+    render(() => (
       <Card data-test="card" class="card-class">
         <CardHeader data-test="card-header" class="header-class">Header</CardHeader>
       </Card>
-    )
+    ))
     expect(screen.getByTestId("card")).toHaveClass("card-class", "rounded-lg")
     expect(screen.getByTestId("card-header")).toHaveClass("header-class", "flex")
   })
 
   it("forwards arbitrary DOM attributes to the root element", () => {
-    render(
+    render(() => (
       <Card data-test="card" aria-label="character summary" id="card-1">
         Content
       </Card>
-    )
+    ))
     const card = screen.getByTestId("card")
     expect(card).toHaveAttribute("aria-label", "character summary")
     expect(card).toHaveAttribute("id", "card-1")
@@ -64,13 +64,13 @@ describe("Card", () => {
   })
 
   it("sets no data-test of its own, so repeated cards never share a selector", () => {
-    const { container } = render(
+    const { container } = render(() => (
       <Card>
         <CardHeader><CardTitle>T</CardTitle><CardDescription>D</CardDescription></CardHeader>
         <CardContent>C</CardContent>
         <CardFooter>F</CardFooter>
       </Card>
-    )
+    ))
     expect(container.querySelector("[data-test]")).toBeNull()
   })
 })

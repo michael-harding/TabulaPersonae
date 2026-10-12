@@ -10,19 +10,19 @@ afterEach(() => {
 
 describe("TermsOfUse page", () => {
   it("renders the page heading", () => {
-    render(<TermsOfUse />)
+    render(() => <TermsOfUse />)
     expect(screen.getByRole("heading", { name: /terms of use/i, level: 1 })).toBeInTheDocument()
   })
 
   it("renders a link back to auth", () => {
-    render(<TermsOfUse />)
+    render(() => <TermsOfUse />)
     const link = screen.getByRole("link", { name: /back/i })
     expect(link).toBeInTheDocument()
     expect(link).toHaveAttribute("href", "/auth")
   })
 
   it("renders the substantive body content", () => {
-    render(<TermsOfUse />)
+    render(() => <TermsOfUse />)
     expect(screen.getByRole("heading", { name: /use of the app/i })).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: /prohibited conduct/i })).toBeInTheDocument()
     expect(screen.getByText(/you retain ownership of any character data you create/i)).toBeInTheDocument()
@@ -31,7 +31,7 @@ describe("TermsOfUse page", () => {
 
 describe("TermsOfUse page — accessibility", () => {
   it("has no accessibility violations", async () => {
-    const { container } = render(<TermsOfUse />)
+    const { container } = render(() => <TermsOfUse />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

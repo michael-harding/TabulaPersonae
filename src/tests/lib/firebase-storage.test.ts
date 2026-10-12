@@ -17,6 +17,7 @@ vi.mock('firebase/firestore', () => ({
     constructor(...segments: string[]) { this.segments = segments }
   },
   onSnapshot: vi.fn(),
+  waitForPendingWrites: vi.fn(),
   Timestamp: class MockTimestamp {
     seconds: number; nanoseconds: number
     constructor(seconds: number, nanoseconds: number) {
@@ -37,6 +38,7 @@ import {
   onSnapshot,
   setDoc,
   Timestamp,
+  waitForPendingWrites,
   type DocumentReference,
   type DocumentSnapshot,
   type SnapshotListenOptions,
@@ -52,6 +54,7 @@ import {
   saveCharacterToFirebase,
   deleteCharacterFromFirebase,
   saveTabConfigToFirebase,
+  hasUnsyncedChanges,
   type CharacterSyncSnapshot,
 } from '@/lib/firebase-storage'
 import { createDefaultCharacter } from '@/lib/character-types'
@@ -69,6 +72,7 @@ const mockOnSnapshot = vi.mocked<DocumentListen>(onSnapshot)
 const mockSetDoc = vi.mocked(setDoc)
 const mockAddDoc = vi.mocked(addDoc)
 const mockDeleteDoc = vi.mocked(deleteDoc)
+const mockWaitForPendingWrites = vi.mocked(waitForPendingWrites)
 
 const userId = 'user-123'
 const charData = { name: 'Thorin', userId, updatedAt: null }
@@ -709,5 +713,72 @@ describe('saveTabConfigToFirebase', () => {
     expect(await saveTabConfigToFirebase(tabConfig, userId)).toBe(false)
     expect(errorSpy).toHaveBeenCalledWith('Failed to save tab config to Firebase:', failure)
     errorSpy.mockRestore()
+  })
+})
+
+describe('hasUnsyncedChanges', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('is false when Firestore has nothing waiting to be sent', async () => {
+    mockWaitForPendingWrites.mockResolvedValue(undefined)
+
+    expect(await hasUnsyncedChanges()).toBe(false)
+  })
+
+  it('is false when writes already on their way are confirmed within the grace period', async () => {
+    mockWaitForPendingWrites.mockReturnValue(new Promise((resolve) => setTimeout(resolve, 1000)))
+    const result = hasUnsyncedChanges()
+
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(await result).toBe(false)
+  })
+
+  it('is true when writes are still unconfirmed after the grace period', async () => {
+    mockWaitForPendingWrites.mockReturnValue(new Promise(() => {}))
+    let answer: boolean | undefined // undefined until the check has answered
+    void hasUnsyncedChanges().then((value) => { answer = value })
+
+    await vi.advanceTimersByTimeAsync(1499)
+    expect(answer).toBeUndefined()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(answer).toBe(true)
+  })
+
+  it('answers almost at once when offline, where waiting longer could not help', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    mockWaitForPendingWrites.mockReturnValue(new Promise(() => {}))
+    const result = hasUnsyncedChanges()
+
+    await vi.advanceTimersByTimeAsync(100)
+
+    expect(await result).toBe(true)
+  })
+
+  it('is true, and logs, when the check itself fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('client is terminated')
+    mockWaitForPendingWrites.mockRejectedValue(failure)
+
+    expect(await hasUnsyncedChanges()).toBe(true)
+    expect(errorSpy).toHaveBeenCalledWith('Failed to check for unsynced changes:', failure)
+    errorSpy.mockRestore()
+  })
+
+  it('leaves no timer running once it has answered', async () => {
+    mockWaitForPendingWrites.mockResolvedValue(undefined)
+
+    await hasUnsyncedChanges()
+
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

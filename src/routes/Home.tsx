@@ -9,6 +9,7 @@ import { type Character, createDefaultCharacter } from "@/lib/character-types"
 import { calculateEquippedAC, getEffectiveMaxHp } from "@/lib/character-utils"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
+import { notifyIfFailed } from "@/lib/save-feedback"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
@@ -21,25 +22,29 @@ export default function Home() {
   const { user, skipAuth, loading: authLoading } = useAuth()
   const storageManager = useStorageManager()
 
+  const loadCharacters = () =>
+    storageManager().getCharacters()
+      .then((chars) => setCharacters(chars))
+      .catch((err) => console.error("Failed to load characters:", err))
+
   createEffect(() => {
     if (authLoading()) return
     if (!user() && !skipAuth()) {
       navigate("/auth")
       return
     }
-    const sm = storageManager()
     setIsLoading(true)
-    sm.getCharacters()
-      .then((chars) => setCharacters(chars))
-      .catch((err) => console.error("Failed to load characters:", err))
-      .finally(() => setIsLoading(false))
+    loadCharacters().finally(() => setIsLoading(false))
   })
 
+  // None of these wait for the save before showing its result: offline, a signed-in user's write
+  // stays pending until the server answers (see notifyIfFailed).
   const createNewCharacter = () => {
     const newCharacter = createDefaultCharacter()
     setCharacters((prev) => [...prev, newCharacter])
-    storageManager().saveCharacter(newCharacter).catch((error) => {
-      console.error("Failed to save character:", error)
+    notifyIfFailed(storageManager().saveCharacter(newCharacter), {
+      title: "Character not saved",
+      description: "The new character could not be saved.",
     })
     navigate(`/character/${newCharacter.id}`)
   }
@@ -47,8 +52,9 @@ export default function Home() {
   const handleImportCharacter = (character: Character) => {
     const imported = { ...character, id: crypto.randomUUID() }
     setCharacters((prev) => [...prev, imported])
-    storageManager().saveCharacter(imported).catch((error) => {
-      console.error("Failed to save imported character:", error)
+    notifyIfFailed(storageManager().saveCharacter(imported), {
+      title: "Import not saved",
+      description: `${imported.name || "The imported character"} could not be saved.`,
     })
     navigate(`/character/${imported.id}`)
   }
@@ -56,17 +62,27 @@ export default function Home() {
   const handleImportMultiple = (importedCharacters: Character[]) => {
     const withNewIds = importedCharacters.map((char) => ({ ...char, id: crypto.randomUUID() }))
     setCharacters((prev) => [...prev, ...withNewIds])
-    Promise.all(withNewIds.map((char) => storageManager().saveCharacter(char))).catch((error) => {
-      console.error("Failed to save imported characters:", error)
+    notifyIfFailed(saveAll(withNewIds), {
+      title: "Import not saved",
+      description: "One or more of the imported characters could not be saved.",
     })
     if (withNewIds.length > 0) navigate(`/character/${withNewIds[0].id}`)
   }
 
+  const saveAll = async (toSave: Character[]) => {
+    const results = await Promise.all(toSave.map((char) => storageManager().saveCharacter(char)))
+    return results.every(Boolean)
+  }
+
   const handleDeleteCharacter = async (characterId: string) => {
+    const deleted = characters().find((c) => c.id === characterId)
     setCharacters((prev) => prev.filter((c) => c.id !== characterId))
-    storageManager().deleteCharacter(characterId).catch((error) => {
-      console.error("Failed to delete character:", error)
+    const succeeded = await notifyIfFailed(storageManager().deleteCharacter(characterId), {
+      title: "Character not deleted",
+      description: `${deleted?.name || "The character"} could not be deleted.`,
     })
+    // It still exists, so show it again
+    if (!succeeded) loadCharacters()
   }
 
   return (

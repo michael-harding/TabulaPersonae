@@ -1,6 +1,7 @@
-import { test, expect, type Page } from "@playwright/test"
+import { type Page } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
+import { test, expect } from "./test"
 
 // ACCESSIBILITY.md: every interactive element needs a 44×44px touch target, and neighbouring
 // targets must never overlap. jsdom has no layout, so this audits the real rendered page by
@@ -133,7 +134,7 @@ test.describe("Touch targets", () => {
     await page.getByRole("tab", { name: "Features" }).click()
     await page.getByRole("button", { name: /add class feature/i }).click()
     const modal = page.getByRole("dialog")
-    await modal.getByRole("button", { name: /feature type/i }).click()
+    await modal.getByRole("combobox", { name: /feature type/i }).click()
     await page.getByRole("option", { name: "Skill Proficiency" }).click()
     await modal.getByRole("button", { name: "Add skill proficiency" }).click()
     await page.getByRole("menuitem", { name: "Perception" }).click()

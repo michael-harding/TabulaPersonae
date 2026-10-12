@@ -51,13 +51,13 @@ describe("Modal", () => {
   })
 
   const openModal = (props: { onOpenChange?: (open: boolean) => void; onConfirm?: () => void } = {}) => {
-    render(<ExampleModal {...props} />)
+    render(() => <ExampleModal {...props} />)
     fireEvent.click(screen.getByRole("button", { name: "Open modal" }))
     return screen.getByRole("dialog")
   }
 
   it("does not render dialog content until opened", () => {
-    render(<ExampleModal />)
+    render(() => <ExampleModal />)
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 

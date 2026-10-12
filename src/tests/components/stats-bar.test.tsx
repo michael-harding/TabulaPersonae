@@ -27,42 +27,42 @@ function makeSpellcaster() {
 
 describe("StatsBar", () => {
   it("renders HP in current/max format", () => {
-    render(<StatsBar character={makeCharacter(8, 10)} />)
+    render(() => <StatsBar character={makeCharacter(8, 10)} />)
     expect(screen.getByText(/8/)).toBeInTheDocument()
     expect(screen.getByText(/\/10/)).toBeInTheDocument()
   })
 
   it("shows 0 HP correctly", () => {
-    render(<StatsBar character={makeCharacter(0, 10)} />)
+    render(() => <StatsBar character={makeCharacter(0, 10)} />)
     expect(screen.getByText(/\/10/)).toBeInTheDocument()
   })
 
   it("shows full HP correctly", () => {
-    render(<StatsBar character={makeCharacter(10, 10)} />)
+    render(() => <StatsBar character={makeCharacter(10, 10)} />)
     expect(screen.getAllByText(/10/).length).toBeGreaterThan(0)
   })
 
   it("does not divide by zero when maxHP is 0, flooring effective max at 1", () => {
-    render(<StatsBar character={makeCharacter(0, 0)} />)
+    render(() => <StatsBar character={makeCharacter(0, 0)} />)
     expect(screen.getByText(/\/1/)).toBeInTheDocument()
   })
 
   it("handles missing hitPoints by defaulting to 0/1", () => {
     const character = { ...createDefaultCharacter(), hitPoints: undefined }
     // @ts-expect-error hitPoints is required on Character; this simulates a stored record that lost it
-    render(<StatsBar character={character} />)
+    render(() => <StatsBar character={character} />)
     expect(screen.getByText(/\/1/)).toBeInTheDocument()
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<StatsBar character={makeCharacter(8, 10)} />)
+    const { container } = render(() => <StatsBar character={makeCharacter(8, 10)} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
 
   it("has no accessibility violations with temporary HP, conditions and spellcasting shown", async () => {
     const character = { ...makeSpellcaster(), hitPoints: { current: 8, maximum: 10, temporary: 5 }, conditions: ["Poisoned"] }
-    const { container } = render(<StatsBar character={character} />)
+    const { container } = render(() => <StatsBar character={character} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -70,7 +70,7 @@ describe("StatsBar", () => {
   describe("temporary HP", () => {
     it("shows temporary HP as an addition between current and maximum", () => {
       const character = { ...createDefaultCharacter(), hitPoints: { current: 8, maximum: 10, temporary: 5 } }
-      render(<StatsBar character={character} />)
+      render(() => <StatsBar character={character} />)
       expect(screen.getByTestId("current-hp")).toHaveTextContent("8")
       expect(screen.getByText("+5")).toBeInTheDocument()
       expect(screen.getByText("/10")).toBeInTheDocument()
@@ -80,7 +80,7 @@ describe("StatsBar", () => {
   describe("conditions", () => {
     it("lists each active condition by name", () => {
       const character = { ...makeCharacter(8, 10), conditions: ["Poisoned", "Prone"] }
-      render(<StatsBar character={character} />)
+      render(() => <StatsBar character={character} />)
       expect(screen.getByText("Poisoned")).toBeInTheDocument()
       expect(screen.getByText("Prone")).toBeInTheDocument()
     })
@@ -98,14 +98,14 @@ describe("StatsBar", () => {
           armorStats: { baseAC: 13, armorType: "light" as const },
         }],
       }
-      render(<StatsBar character={character} />)
+      render(() => <StatsBar character={character} />)
       // 13 base + DEX +2 = 15, not the stale armorClass: 99
       expect(screen.getByText("15")).toBeInTheDocument()
     })
 
     it("shows the manually-entered armorClass when useCalculatedArmorClass is false", () => {
       const character = { ...createDefaultCharacter(), armorClass: 17, useCalculatedArmorClass: false }
-      render(<StatsBar character={character} />)
+      render(() => <StatsBar character={character} />)
       expect(screen.getByText("17")).toBeInTheDocument()
     })
 
@@ -116,14 +116,41 @@ describe("StatsBar", () => {
         abilityScores: { ...createDefaultCharacter().abilityScores, dexterity: 16 },
         useCalculatedInitiative: true,
       }
-      render(<StatsBar character={character} />)
+      render(() => <StatsBar character={character} />)
       expect(screen.getByText("+3")).toBeInTheDocument()
     })
 
     it("shows the manually-entered initiative when useCalculatedInitiative is false (default)", () => {
       const character = { ...createDefaultCharacter(), initiative: 5 }
-      render(<StatsBar character={character} />)
+      render(() => <StatsBar character={character} />)
       expect(screen.getByText("+5")).toBeInTheDocument()
+    })
+  })
+
+  describe("custom spell hit and DC", () => {
+    it("shows the manually-entered spell attack bonus and save DC when they are not calculated", () => {
+      const character = {
+        ...makeSpellcaster(),
+        useCalculatedSpellAttackBonus: false,
+        spellAttackBonus: 9,
+        useCalculatedSpellSaveDC: false,
+        spellSaveDC: 19,
+      }
+      render(() => <StatsBar character={character} />)
+      expect(screen.getByText("+9")).toBeInTheDocument()
+      expect(screen.getByText("DC 19")).toBeInTheDocument()
+    })
+  })
+
+  describe("stored values that are missing", () => {
+    it("falls back to AC 10 and initiative +0 when custom values were never stored", () => {
+      const character = { ...createDefaultCharacter(), useCalculatedArmorClass: false, useCalculatedInitiative: false }
+      const sparse: Partial<typeof character> = character
+      delete sparse.armorClass
+      delete sparse.initiative
+      render(() => <StatsBar character={character} />)
+      expect(screen.getByText("10")).toBeInTheDocument()
+      expect(screen.getByText("+0")).toBeInTheDocument()
     })
   })
 
@@ -131,19 +158,19 @@ describe("StatsBar", () => {
     beforeEach(() => cleanupPortals())
 
     it("renders a focusable tooltip trigger on the spell hit/DC section when spellcasting ability is set", () => {
-      render(<StatsBar character={makeSpellcaster()} />)
+      render(() => <StatsBar character={makeSpellcaster()} />)
       // triggerFocusable sets role="group" together with tabIndex 0, so the
       // accessible role is a direct proxy for "focusable trigger is present".
       expect(screen.getByRole("group")).toBeInTheDocument()
     })
 
     it("does not render a focusable tooltip trigger when no spellcasting ability is set", () => {
-      render(<StatsBar character={makeCharacter(8, 10)} />)
+      render(() => <StatsBar character={makeCharacter(8, 10)} />)
       expect(screen.queryByRole("group")).not.toBeInTheDocument()
     })
 
     it("shows spell hit and DC formula in tooltip when focused", async () => {
-      render(<StatsBar character={makeSpellcaster()} />)
+      render(() => <StatsBar character={makeSpellcaster()} />)
       fireEvent.focus(screen.getByRole("group"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // WIS 18 → +4, Prof +3 → Hit +7, DC 15
@@ -160,7 +187,7 @@ describe("StatsBar", () => {
           modifiers: { abilityScores: { wisdom: 2 } },
         }],
       }
-      render(<StatsBar character={character} />)
+      render(() => <StatsBar character={character} />)
       fireEvent.focus(screen.getByRole("group"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // WIS 18+2=20 → +5, Prof +3 → Hit +8, DC 16 — the tooltip's own arithmetic must match

@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js"
+import { createSignal, Match, Switch } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import Menu from "lucide-solid/icons/menu"
 import Users from "lucide-solid/icons/users"
@@ -12,7 +12,7 @@ import LogOut from "lucide-solid/icons/log-out"
 import LogIn from "lucide-solid/icons/log-in"
 import FileText from "lucide-solid/icons/file-text"
 
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Modal, ModalContent, ModalDescription, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,9 +20,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { theme, setTheme } from "@/lib/theme"
 import { useAuth } from "@/lib/auth-context"
+import { hasUnsyncedChanges } from "@/lib/firebase-storage"
+import { hasCharactersAwaitingUpload } from "@/lib/local-user-data"
 import { useToast } from "@/hooks/use-toast"
 import { parsePdfCharacterSheet, mergeWithDefault } from "@/lib/pdf-parser"
 import { reconcileImportedCharacter, reconcileImportedCharacters, freshenCalculatedFields } from "@/lib/character-import-reconciliation"
@@ -43,6 +45,15 @@ export function HeaderMenu(props: HeaderMenuProps) {
   const [isOpen, setIsOpen] = createSignal(false)
   const [isImportOpen, setIsImportOpen] = createSignal(false)
   const [isPdfParsing, setIsPdfParsing] = createSignal(false)
+  // "unsynced": asking whether to discard changes the account has not received.
+  // "failed": the device's data could not be removed, so the user is still signed in.
+  // Kept apart from whether the dialog is open, so its text stays put while it animates closed.
+  const [signOutDialog, setSignOutDialog] = createSignal<"unsynced" | "failed">("unsynced")
+  const [isSignOutDialogOpen, setIsSignOutDialogOpen] = createSignal(false)
+  const showSignOutDialog = (kind: "unsynced" | "failed") => {
+    setSignOutDialog(kind)
+    setIsSignOutDialogOpen(true)
+  }
   let fileInputRef!: HTMLInputElement
   let pdfInputRef!: HTMLInputElement
 
@@ -137,6 +148,27 @@ export function HeaderMenu(props: HeaderMenuProps) {
     }
   }
 
+  const signOutNow = async () => {
+    try {
+      await logout()
+      window.location.reload()
+    } catch {
+      // logout has already logged the error
+      showSignOutDialog("failed")
+    }
+  }
+
+  // Signing out removes all of the user's data from this device, which would silently discard
+  // anything the account has not received yet, so that case asks first.
+  const handleSignOut = async () => {
+    setIsOpen(false)
+    if (hasCharactersAwaitingUpload() || await hasUnsyncedChanges()) {
+      showSignOutDialog("unsynced")
+    } else {
+      await signOutNow()
+    }
+  }
+
   const handleBackToLogin = async () => {
     localStorage.removeItem("dnd-skip-auth")
     setIsOpen(false)
@@ -184,7 +216,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
           {user() ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={logout}>
+              <DropdownMenuItem onSelect={handleSignOut}>
                 <LogOut class="h-4 w-4 mr-2" aria-hidden="true" />
                 Sign Out
               </DropdownMenuItem>
@@ -248,6 +280,38 @@ export function HeaderMenu(props: HeaderMenuProps) {
               </label>
             </div>
           </div>
+        </ModalContent>
+      </Modal>
+
+      <Modal open={isSignOutDialogOpen()} onOpenChange={setIsSignOutDialogOpen}>
+        <ModalContent data-test="sign-out-dialog">
+          <Switch>
+            <Match when={signOutDialog() === "unsynced"}>
+              <ModalHeader>
+                <ModalTitle>Sign out and lose unsynced changes?</ModalTitle>
+                <ModalDescription>
+                  Some changes on this device have not reached your account yet. Signing out removes all of your data
+                  from this device, so those changes will be lost.
+                </ModalDescription>
+              </ModalHeader>
+              <ModalFooter class="gap-2 sm:gap-0">
+                <Button data-test="sign-out-cancel" variant="outline" onClick={() => setIsSignOutDialogOpen(false)}>Cancel</Button>
+                <Button data-test="sign-out-discard" variant="destructive" onClick={signOutNow}>Sign out and discard changes</Button>
+              </ModalFooter>
+            </Match>
+            <Match when={signOutDialog() === "failed"}>
+              <ModalHeader>
+                <ModalTitle>Sign-out did not finish</ModalTitle>
+                <ModalDescription>
+                  Your offline data could not be removed from this device, so you are still signed in. Close any
+                  other TabulaPersonae tabs, reload this page, and sign out again.
+                </ModalDescription>
+              </ModalHeader>
+              <ModalFooter>
+                <Button data-test="sign-out-reload" onClick={() => window.location.reload()}>Reload</Button>
+              </ModalFooter>
+            </Match>
+          </Switch>
         </ModalContent>
       </Modal>
     </div>

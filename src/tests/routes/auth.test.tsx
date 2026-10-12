@@ -29,7 +29,6 @@ function setupAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
     user: () => null,
     loading: () => false,
     skipAuth: () => false,
-    setSkipAuth: vi.fn(),
     signIn: vi.fn().mockResolvedValue(undefined),
     signUp: vi.fn().mockResolvedValue(undefined),
     logout: vi.fn().mockResolvedValue(undefined),
@@ -54,13 +53,7 @@ beforeEach(() => {
   setupAuth()
 })
 
-afterEach(async () => {
-  // A consent modal still open here is closed the way a user would. Tearing it down while open
-  // leaves Kobalte hiding everything outside it (aria-hidden) in the tests that render afterwards.
-  if (dialogIsOpen()) {
-    fireEvent.click(screen.getByRole("button", { name: /decline/i }))
-    await waitFor(() => expect(dialogIsOpen()).toBe(false))
-  }
+afterEach(() => {
   cleanup()
   cleanupPortals()
 })
@@ -73,7 +66,7 @@ afterEach(async () => {
 
 describe("Auth page — sign-up legal notice", () => {
   it("shows Terms of Use and Privacy Policy links once sign-up tab is selected", async () => {
-    render(<Auth />)
+    render(() => <Auth />)
     fireEvent.click(screen.getByRole("button", { name: /sign up/i }))
 
     const termsLink = await screen.findByRole("link", { name: /terms of use/i })
@@ -83,7 +76,7 @@ describe("Auth page — sign-up legal notice", () => {
   })
 
   it("hides the legal notice when sign-in tab is selected", () => {
-    render(<Auth />)
+    render(() => <Auth />)
     expect(screen.queryByText(/by creating an account/i)).not.toBeInTheDocument()
   })
 })
@@ -100,14 +93,14 @@ describe("Auth page — ConsentModal shown during sign-up", () => {
   }
 
   it("opens the consent modal when sign-up form is submitted", async () => {
-    render(<Auth />)
+    render(() => <Auth />)
     fillAndSubmitSignUp()
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
     expect(screen.getByText(/terms of use.*privacy policy/i)).toBeInTheDocument()
   })
 
   it("modal contains Terms of Use and Privacy Policy links", async () => {
-    render(<Auth />)
+    render(() => <Auth />)
     fillAndSubmitSignUp()
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
 
@@ -120,7 +113,7 @@ describe("Auth page — ConsentModal shown during sign-up", () => {
   it("closes modal and calls signUp when user clicks I Agree", async () => {
     const signUp = vi.fn().mockResolvedValue(undefined)
     setupAuth({ signUp })
-    render(<Auth />)
+    render(() => <Auth />)
     fillAndSubmitSignUp()
 
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
@@ -131,7 +124,7 @@ describe("Auth page — ConsentModal shown during sign-up", () => {
   })
 
   it("saves terms acceptance to localStorage when user agrees", async () => {
-    render(<Auth />)
+    render(() => <Auth />)
     fillAndSubmitSignUp()
 
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
@@ -143,7 +136,7 @@ describe("Auth page — ConsentModal shown during sign-up", () => {
   it("closes modal without calling signUp when user clicks Decline", async () => {
     const signUp = vi.fn()
     setupAuth({ signUp })
-    render(<Auth />)
+    render(() => <Auth />)
     fillAndSubmitSignUp()
 
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
@@ -154,7 +147,7 @@ describe("Auth page — ConsentModal shown during sign-up", () => {
   })
 
   it("does not save terms acceptance when user declines", async () => {
-    render(<Auth />)
+    render(() => <Auth />)
     fillAndSubmitSignUp()
 
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
@@ -169,14 +162,14 @@ describe("Auth page — ConsentModal shown during sign-up", () => {
 
 describe("Auth page — ConsentModal shown for Continue without account", () => {
   it("opens consent modal when terms have not been accepted", async () => {
-    render(<Auth />)
+    render(() => <Auth />)
     fireEvent.click(screen.getByRole("button", { name: /continue without account/i }))
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
   })
 
   it("skips consent modal when terms were previously accepted", () => {
     localStorage.setItem("dnd-terms-accepted", "true")
-    render(<Auth />)
+    render(() => <Auth />)
     fireEvent.click(screen.getByRole("button", { name: /continue without account/i }))
     expect(dialogIsOpen()).toBe(false)
     expect(localStorage.getItem("dnd-skip-auth")).toBe("true")
@@ -184,7 +177,7 @@ describe("Auth page — ConsentModal shown for Continue without account", () => 
   })
 
   it("saves terms acceptance and sets skip-auth flag when user agrees", async () => {
-    render(<Auth />)
+    render(() => <Auth />)
     fireEvent.click(screen.getByRole("button", { name: /continue without account/i }))
 
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
@@ -196,7 +189,7 @@ describe("Auth page — ConsentModal shown for Continue without account", () => 
   })
 
   it("does not set skip-auth when user declines", async () => {
-    render(<Auth />)
+    render(() => <Auth />)
     fireEvent.click(screen.getByRole("button", { name: /continue without account/i }))
 
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
@@ -227,7 +220,7 @@ describe("Auth page — signing in", () => {
   it("signs in with the entered email and password, without asking for consent", async () => {
     const signIn = vi.fn().mockResolvedValue(undefined)
     setupAuth({ signIn })
-    render(<Auth />)
+    render(() => <Auth />)
 
     fillCredentials("user@test.com", "password123")
     submitForm()
@@ -247,7 +240,7 @@ describe("Auth page — signing in", () => {
     ["auth/some-new-code", "An error occurred. Please try again."],
   ])("explains a %s failure as \"%s\"", async (code, message) => {
     setupAuth({ signIn: vi.fn().mockRejectedValue(makeAuthError(code)) })
-    render(<Auth />)
+    render(() => <Auth />)
 
     fillCredentials("user@test.com", "password123")
     submitForm()
@@ -257,7 +250,7 @@ describe("Auth page — signing in", () => {
 
   it("shows the generic message for a failure that carries no code", async () => {
     setupAuth({ signIn: vi.fn().mockRejectedValue(new Error("network down")) })
-    render(<Auth />)
+    render(() => <Auth />)
 
     fillCredentials("user@test.com", "password123")
     submitForm()
@@ -268,7 +261,7 @@ describe("Auth page — signing in", () => {
   it("clears the previous error when the form is submitted again", async () => {
     const signIn = vi.fn().mockRejectedValueOnce(makeAuthError("auth/wrong-password")).mockResolvedValue(undefined)
     setupAuth({ signIn })
-    render(<Auth />)
+    render(() => <Auth />)
     fillCredentials("user@test.com", "password123")
     submitForm()
     expect(await screen.findByRole("alert")).toBeInTheDocument()
@@ -281,7 +274,7 @@ describe("Auth page — signing in", () => {
   it("disables the form's buttons and shows progress until sign-in finishes", async () => {
     let finishSignIn: () => void = () => {}
     setupAuth({ signIn: vi.fn(() => new Promise<void>((resolve) => { finishSignIn = resolve })) })
-    render(<Auth />)
+    render(() => <Auth />)
     fillCredentials("user@test.com", "password123")
 
     submitForm()
@@ -316,7 +309,7 @@ describe("Auth page — sign-up validation", () => {
   ])("rejects $label without creating an account", async ({ password, confirm, message }) => {
     const signUp = vi.fn()
     setupAuth({ signUp })
-    render(<Auth />)
+    render(() => <Auth />)
 
     await signUpWith(password, confirm)
 
@@ -328,7 +321,7 @@ describe("Auth page — sign-up validation", () => {
   it("accepts a password of exactly 6 characters", async () => {
     const signUp = vi.fn().mockResolvedValue(undefined)
     setupAuth({ signUp })
-    render(<Auth />)
+    render(() => <Auth />)
 
     await signUpWith("123456", "123456")
 
@@ -337,7 +330,7 @@ describe("Auth page — sign-up validation", () => {
 
   it("explains why the account could not be created", async () => {
     setupAuth({ signUp: vi.fn().mockRejectedValue(makeAuthError("auth/email-already-in-use")) })
-    render(<Auth />)
+    render(() => <Auth />)
 
     await signUpWith("password123", "password123")
 
@@ -345,7 +338,7 @@ describe("Auth page — sign-up validation", () => {
   })
 
   it("offers password reset only on the sign-in tab", () => {
-    render(<Auth />)
+    render(() => <Auth />)
     expect(screen.getByTestId("auth-reset-password-button")).toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId("auth-signup-tab"))
@@ -362,7 +355,7 @@ describe("Auth page — password reset", () => {
   it("asks for an email address before sending anything", () => {
     const resetPassword = vi.fn()
     setupAuth({ resetPassword })
-    render(<Auth />)
+    render(() => <Auth />)
 
     fireEvent.click(screen.getByTestId("auth-reset-password-button"))
 
@@ -373,7 +366,7 @@ describe("Auth page — password reset", () => {
   it("sends the reset email to the entered address and confirms it", async () => {
     const resetPassword = vi.fn().mockResolvedValue(undefined)
     setupAuth({ resetPassword })
-    render(<Auth />)
+    render(() => <Auth />)
     fireEvent.input(screen.getByTestId("auth-email-input"), { target: { value: "user@test.com" } })
 
     fireEvent.click(screen.getByTestId("auth-reset-password-button"))
@@ -384,7 +377,7 @@ describe("Auth page — password reset", () => {
 
   it("explains why the reset email could not be sent, and does not claim it was", async () => {
     setupAuth({ resetPassword: vi.fn().mockRejectedValue(makeAuthError("auth/invalid-email")) })
-    render(<Auth />)
+    render(() => <Auth />)
     fireEvent.input(screen.getByTestId("auth-email-input"), { target: { value: "not-an-email" } })
 
     fireEvent.click(screen.getByTestId("auth-reset-password-button"))
@@ -403,13 +396,13 @@ describe("Auth page — redirect", () => {
     { label: "chose to continue without an account", auth: { skipAuth: () => true } },
   ])("sends a visitor who $label to the home page", ({ auth }) => {
     setupAuth(auth)
-    render(<Auth />)
+    render(() => <Auth />)
 
     expect(mockNavigate).toHaveBeenCalledWith("/")
   })
 
   it("stays on the page for a signed-out visitor", () => {
-    render(<Auth />)
+    render(() => <Auth />)
 
     expect(mockNavigate).not.toHaveBeenCalled()
     expect(screen.getByTestId("auth-submit-button")).toBeInTheDocument()
@@ -417,7 +410,7 @@ describe("Auth page — redirect", () => {
 
   it("renders nothing and does not redirect while the sign-in state is still unknown", () => {
     setupAuth({ loading: () => true, user: () => createTestUser() })
-    render(<Auth />)
+    render(() => <Auth />)
 
     expect(screen.queryByTestId("auth-submit-button")).not.toBeInTheDocument()
     expect(mockNavigate).not.toHaveBeenCalled()
@@ -428,7 +421,7 @@ describe("Auth page — redirect", () => {
 
 describe("Auth page — ConsentModal requires an explicit choice", () => {
   it("stays open when Escape is pressed", async () => {
-    render(<Auth />)
+    render(() => <Auth />)
     fireEvent.click(screen.getByTestId("auth-skip-button"))
     await waitFor(() => expect(dialogIsOpen()).toBe(true))
 
@@ -442,7 +435,7 @@ describe("Auth page — ConsentModal requires an explicit choice", () => {
 describe("Auth page — accessibility", () => {
   it("has no accessibility violations", async () => {
     setupAuth()
-    const { container } = render(<Auth />)
+    const { container } = render(() => <Auth />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

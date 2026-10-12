@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
+import { Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle } from "@/components/ui/modal"
 
 import { render, screen, waitFor, cleanup, cleanupPortals } from "../../test-utils"
 
@@ -40,7 +41,7 @@ function Harness(props: { onSelectA?: () => void; onSelectB?: () => void }) {
 
 async function openMenu(props: { onSelectA?: () => void; onSelectB?: () => void } = {}) {
   const user = userEvent.setup()
-  render(<Harness {...props} />)
+  render(() => <Harness {...props} />)
   await user.click(screen.getByRole("button", { name: "Open menu" }))
   await waitFor(() => expect(screen.getByRole("menu")).toBeInTheDocument())
   return user
@@ -58,7 +59,7 @@ describe("DropdownMenu", () => {
   })
 
   it("does not render menu content until the trigger is clicked", () => {
-    render(<Harness />)
+    render(() => <Harness />)
     expect(screen.queryByRole("menu")).not.toBeInTheDocument()
   })
 
@@ -117,17 +118,70 @@ describe("DropdownMenu", () => {
 
   describe("accessibility", () => {
     it("has no accessibility violations when closed", async () => {
-      const { container } = render(<Harness />)
+      const { container } = render(() => <Harness />)
       const results = await axe(container)
       expect(results.violations).toHaveLength(0)
     })
 
     it("has no accessibility violations when open", async () => {
-      const { container } = render(<Harness />)
+      const { container } = render(() => <Harness />)
       const user = userEvent.setup()
       await user.click(screen.getByRole("button", { name: "Open menu" }))
       await waitFor(() => expect(screen.getByRole("menu")).toBeInTheDocument())
       const results = await axe(container)
+      expect(results.violations).toHaveLength(0)
+    })
+  })
+
+  // Regression: as a modal Kobalte menu it marked the rest of the page aria-hidden while leaving
+  // it focusable, and put focus-trap sentinels inside role="menu" — both WCAG 2.1 A failures that
+  // a scan of the trigger's container alone could not see.
+  describe("as a non-modal menu", () => {
+    const WCAG_A_AA = { runOnly: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }
+
+    it("leaves the rest of the page exposed to assistive tech while open", async () => {
+      const user = userEvent.setup()
+      render(() => (
+        <>
+          <Harness />
+          <button type="button">Elsewhere</button>
+        </>
+      ))
+      await user.click(screen.getByRole("button", { name: "Open menu" }))
+      await waitFor(() => expect(screen.getByRole("menu")).toBeInTheDocument())
+
+      // A role query ignores anything that is aria-hidden
+      expect(screen.getByRole("button", { name: "Elsewhere" })).toBeInTheDocument()
+    })
+
+    it("has no WCAG A/AA violations anywhere on the page while open, menu included", async () => {
+      const user = userEvent.setup()
+      render(() => <Harness />)
+      await user.click(screen.getByRole("button", { name: "Open menu" }))
+      await waitFor(() => expect(screen.getByRole("menu")).toBeInTheDocument())
+
+      const results = await axe(document.body, WCAG_A_AA)
+      expect(results.violations).toHaveLength(0)
+    })
+
+    it("stays exposed when opened from inside a modal dialog, which hides everything else outside it", async () => {
+      const user = userEvent.setup()
+      render(() => (
+        <Modal open>
+          <ModalContent>
+            <ModalHeader>
+              <ModalTitle>Edit item</ModalTitle>
+              <ModalDescription>Pick an option</ModalDescription>
+            </ModalHeader>
+            <Harness />
+          </ModalContent>
+        </Modal>
+      ))
+      await user.click(await screen.findByRole("button", { name: "Open menu" }))
+
+      // Found by role, so neither the menu nor anything around it is aria-hidden
+      expect(await screen.findByRole("menuitem", { name: "Item A" })).toBeInTheDocument()
+      const results = await axe(document.body, WCAG_A_AA)
       expect(results.violations).toHaveLength(0)
     })
   })

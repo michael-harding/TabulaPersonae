@@ -35,14 +35,14 @@ afterEach(() => {
 })
 
 async function renderAndLoad() {
-  render(<PublicCharacterSheet />)
+  render(() => <PublicCharacterSheet />)
   await waitFor(() => expect(screen.queryByText(/loading character/i)).not.toBeInTheDocument())
 }
 
 describe("PublicCharacterSheet — loading state", () => {
   it("shows the loading spinner while the fetch is in flight", () => {
     mockGetPublic.mockImplementation(() => new Promise(() => {}))
-    render(<PublicCharacterSheet />)
+    render(() => <PublicCharacterSheet />)
     expect(screen.getByText(/loading character/i)).toBeInTheDocument()
   })
 })
@@ -109,7 +109,7 @@ describe("PublicCharacterSheet", () => {
     })
 
     it("has no accessibility violations", async () => {
-      const { container } = render(<PublicCharacterSheet />)
+      const { container } = render(() => <PublicCharacterSheet />)
       await waitFor(() => expect(screen.queryByText(/loading character/i)).not.toBeInTheDocument())
       const results = await axe(container)
       expect(results.violations).toHaveLength(0)

@@ -7,7 +7,6 @@ export const mockStorageManager = {
   saveCharacter: vi.fn().mockResolvedValue(true),
   getCharacter: vi.fn().mockResolvedValue(null),
   deleteCharacter: vi.fn().mockResolvedValue(true),
-  syncToFirebase: vi.fn().mockResolvedValue(true),
   isAuthenticated: true,
   storageType: "firebase",
 }

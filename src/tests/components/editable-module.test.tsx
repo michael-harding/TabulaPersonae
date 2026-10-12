@@ -9,7 +9,7 @@ import { render, screen, fireEvent } from "../test-utils"
 const icon = <span>icon</span>
 
 function renderView(overrides: Partial<ComponentProps<typeof EditableModule>> = {}) {
-  return render(
+  return render(() => (
     <EditableModule data-test="test-module"
       icon={icon}
       title="Test Section"
@@ -20,7 +20,7 @@ function renderView(overrides: Partial<ComponentProps<typeof EditableModule>> = 
       onCancel={vi.fn()}
       {...overrides}
     />
-  )
+  ))
 }
 
 describe("EditableModule", () => {
@@ -35,11 +35,11 @@ describe("EditableModule", () => {
     })
 
     it("renders children", () => {
-      render(
+      render(() => (
         <EditableModule data-test="test-module" icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
           <span>child content</span>
         </EditableModule>
-      )
+      ))
       expect(screen.getByText("child content")).toBeInTheDocument()
     })
 
@@ -63,7 +63,7 @@ describe("EditableModule", () => {
     })
 
     it("does not render headerExtra when editing", () => {
-      render(
+      render(() => (
         <EditableModule data-test="test-module"
           icon={icon}
           title="S"
@@ -74,7 +74,7 @@ describe("EditableModule", () => {
           onCancel={vi.fn()}
           headerExtra={<span>extra content</span>}
         />
-      )
+      ))
       expect(screen.queryByText("extra content")).not.toBeInTheDocument()
     })
 
@@ -82,7 +82,7 @@ describe("EditableModule", () => {
 
   describe("edit mode (isEditing=true)", () => {
     function renderEdit(overrides: Partial<ComponentProps<typeof EditableModule>> = {}) {
-      return render(
+      return render(() => (
         <EditableModule data-test="test-module"
           icon={icon}
           title="Test Section"
@@ -93,7 +93,7 @@ describe("EditableModule", () => {
           onCancel={vi.fn()}
           {...overrides}
         />
-      )
+      ))
     }
 
     it("renders Save and Cancel buttons", () => {
@@ -177,16 +177,16 @@ describe("EditableModule", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(
+    const { container } = render(() => (
       <EditableModule data-test="test-module" icon={icon} title="Test Section" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()} />
-    )
+    ))
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
 
   describe("readOnly mode", () => {
     function renderReadOnly(overrides: Partial<ComponentProps<typeof EditableModule>> = {}) {
-      return render(
+      return render(() => (
         <ReadOnlyProvider value={true}>
           <EditableModule data-test="test-module"
             icon={icon}
@@ -199,7 +199,7 @@ describe("EditableModule", () => {
             {...overrides}
           />
         </ReadOnlyProvider>
-      )
+      ))
     }
 
     it("does not render the Edit button", () => {
@@ -213,13 +213,13 @@ describe("EditableModule", () => {
     })
 
     it("still renders children content", () => {
-      render(
+      render(() => (
         <ReadOnlyProvider value={true}>
           <EditableModule data-test="test-module" icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
             <span>display content</span>
           </EditableModule>
         </ReadOnlyProvider>
-      )
+      ))
       expect(screen.getByText("display content")).toBeInTheDocument()
     })
   })

@@ -20,7 +20,7 @@ import X from "lucide-solid/icons/x"
 import { useTabConfig } from "@/lib/tab-config-context"
 import { MODULE_REGISTRY, ALL_MODULE_IDS } from "@/lib/module-registry"
 import type { TabConfig, ModuleId } from "@/lib/tab-config-types"
-import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
+import { cn, HOVER_ACCENT, TOUCH_TARGET_BOX } from "@/lib/utils"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
@@ -52,7 +52,7 @@ function SortableModuleRow(props: SortableModuleRowProps) {
       style={maybeTransformStyle(sortable.transform)}
       class={cn(
         "flex items-center gap-2 rounded transition-colors",
-        sortable.isActiveDraggable ? "opacity-25" : "hover:bg-accent",
+        sortable.isActiveDraggable ? "opacity-25" : HOVER_ACCENT,
       )}
       data-sem="draggable-module"
     >

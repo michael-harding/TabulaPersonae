@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SwitchButton } from "@/components/ui/switch-button"
 import { useReadOnly } from "@/lib/read-only-context"
-import { cn, TOUCH_TARGET } from "@/lib/utils"
+import { cn, HOVER_ACCENT, TOUCH_TARGET } from "@/lib/utils"
 
 interface SheetSettingsModuleProps {
   character: Character
@@ -158,7 +158,7 @@ function SheetSettingsContent(props: SheetSettingsModuleProps) {
                     type="button"
                     data-test="share-url-copy-button"
                     aria-label="Copy share link"
-                    class={cn(TOUCH_TARGET, "h-9 px-3 rounded-md border text-xs hover:bg-accent transition-colors whitespace-nowrap")}
+                    class={cn(TOUCH_TARGET, HOVER_ACCENT, "h-9 px-3 rounded-md border text-xs transition-colors whitespace-nowrap")}
                     onClick={() => {
                       navigator.clipboard.writeText(getUrl())
                         .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })

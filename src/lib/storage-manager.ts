@@ -92,27 +92,11 @@ export function useStorageManager() {
       return u ? deleteCharacterFromFirebase(id) : localAdapter.deleteCharacter(id)
     }
 
-    const syncToFirebase = async (): Promise<boolean> => {
-      if (!u) return false
-      try {
-        const localCharacters = await localAdapter.getCharacters()
-        for (const character of localCharacters) {
-          await saveCharacterToFirebase(character, u.uid)
-        }
-        localStorage.setItem('dnd-characters', '[]')
-        return true
-      } catch (error) {
-        console.error('Failed to sync to Firebase:', error)
-        return false
-      }
-    }
-
     return {
       saveCharacter,
       getCharacters,
       getCharacter,
       deleteCharacter,
-      syncToFirebase,
       isAuthenticated: !!u,
       storageType: u ? 'firebase' : 'local',
     }

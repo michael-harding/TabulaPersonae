@@ -10,7 +10,7 @@ afterEach(() => {
 
 describe("Teapot page", () => {
   it("renders the 418 heading and message", () => {
-    render(<Teapot />)
+    render(() => <Teapot />)
     expect(screen.getByRole("heading", { name: "418" })).toBeInTheDocument()
     expect(screen.getByText(/i'm a teapot/i)).toBeInTheDocument()
   })
@@ -18,7 +18,7 @@ describe("Teapot page", () => {
 
 describe("Teapot page — accessibility", () => {
   it("has no accessibility violations", async () => {
-    const { container } = render(<Teapot />)
+    const { container } = render(() => <Teapot />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

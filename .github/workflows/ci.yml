@@ -7,7 +7,7 @@ on:
 
 jobs:
   verify:
-    name: Lint, typecheck, unit/integration tests
+    name: Lint, typecheck, unit/integration tests with coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,29 +21,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm test
-
-  coverage:
-    name: Coverage report (informational)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # TESTING.md §4 sets 80%/90% coverage targets, but several critical modules
-      # (auth-context.tsx, firebase-storage.ts, storage-manager.ts, character-storage.ts,
-      # character-import-reconciliation.ts) are currently below the 90% bar — see the
-      # constitutional-alignment plan's Phase 2. This job reports real numbers without
-      # blocking merges until that gap is closed; continue-on-error is the documented
-      # enforcement decision required by §4, to be revisited once Phase 2 lands.
+      # TESTING.md §4 requires the enforcement decision to be recorded here: the coverage
+      # thresholds block merges. They are defined in vitest.config.ts (80% overall, 90% for auth,
+      # the storage/data layer and core domain logic), and this command fails when any is missed.
+      # It runs the whole unit/integration suite, so there is no separate `pnpm test` step.
       - run: pnpm test:coverage
-        continue-on-error: true
 
   e2e:
     name: Playwright accessibility & visual regression
