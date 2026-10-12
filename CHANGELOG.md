@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Animations and transitions are reduced to near-instant when the device is set to reduce motion
 - Moving between pages now moves keyboard and screen reader focus to the new page's content
 - Equipment quantity can be adjusted with −/+ buttons directly in the inventory list
-- Every pull request and push to `main` now runs lint, type check, unit/integration tests, a coverage report, and the Playwright E2E, accessibility and visual regression suites in GitHub Actions
 
 ### Changed
 - Buttons, checkboxes, steppers, chips and other controls now have a touch target of at least 44×44px, without changing how large they look
@@ -21,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skill proficiency and expertise are toggled with "Prof" and "Exp" chips instead of checkboxes when editing Skills & Proficiencies
 - The Inspiration checkbox in the Basic Info header was removed; the toggle beside the character's name is now the only one
 - The offline/sync indicator is now a button, so it can be reached and expanded from the keyboard and announces whether it is expanded
+- An open menu no longer locks the page behind it: the page can still be scrolled, and clicking anywhere else closes the menu
 - Damage resistances, immunities and vulnerabilities in Skills & Proficiencies are now picked from the standard damage types, with a "Custom…" entry in the same menu for anything else (e.g. "Nonmagical Bludgeoning"). Entries saved earlier in a different case ("fire") are tidied to the standard spelling when the character loads, and duplicates that differed only by case are merged
 
 ### Fixed
@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Importing a D&D Beyond PDF whose Heroic Inspiration box is set to "Off" no longer imports the character as inspired
 - If cloud sync cannot start (for example, because its configuration is missing), the app now opens signed out and works from on-device storage instead of failing to start; trying to sign in reports the problem
 - The icon beside "Toggle Theme" now updates when the theme changes while the menu is open
+- A save that fails is now reported with an error message instead of passing silently — this covers edits on the character sheet, new characters, imported characters and deleting a character. A character that could not be deleted reappears in the list
+- Signing out now removes all of your data from the device, including the offline copy of your characters kept for use without a connection; previously that copy, and some per-character settings, stayed behind. If you have changes that have not synced yet, you are warned that they will be lost before anything is removed
+- Signing in no longer discards characters created without an account when they cannot be added to it: they stay on the device, you are told how many, and they are tried again the next time the app loads
+- Importing a character from the character sheet while offline now opens it straight away instead of appearing to do nothing
+- An open suggestion list (such as Class or Species) is now announced correctly by screen readers: the field points to its list, and the list has a name
+- Dropdown selects (Alignment, Item Type, Rarity, Feature Type and the rest) are now announced as a labelled choice with a named list of options, and the highlighted option is announced while moving through it with the arrow keys. Several that had no label of their own (Alignment, spell Level, Item Type, Attack Using, Armor Type, Rarity and an item's Recharge On) are now connected to the label shown beside them
+- In the item editor, a weapon's Damage Type field and a shield's fixed AC Bonus are now connected to the labels shown beside them, so screen readers announce what each one is
+- While a menu such as Add Condition or the header menu is open, the rest of the page is no longer hidden from screen readers while still being reachable with Tab
+- Section headers in Actions, Spells and Features, and module rows in Tab Settings, keep readable text while the pointer is over them in the light theme
 
 ## [v1.6.1] - 2026-10-08
 

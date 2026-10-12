@@ -195,7 +195,10 @@ export function Combobox(props: ComboboxProps) {
           ref={listRef}
           id={listId}
           role="listbox"
-          aria-label={props["aria-label"] ?? "Options"}
+          // Named like its input: by the same aria-label, or, when the input is named by a
+          // <label for={id}>, by pointing at the input. "Options" is only for a combobox given neither.
+          aria-label={props["aria-label"] ?? (props.id == null ? "Options" : undefined)}
+          aria-labelledby={props["aria-label"] == null && props.id != null ? props.id : undefined}
           class="absolute z-50 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md mt-1"
         >
           <For each={filtered()}>

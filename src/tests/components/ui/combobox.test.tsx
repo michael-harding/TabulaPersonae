@@ -18,6 +18,22 @@ describe("Combobox", () => {
     expect(screen.getByRole("combobox", { name: "Class" })).toBeInTheDocument()
   })
 
+  it.each([
+    ["the <label for> that names the input", () => (
+      <>
+        <label for="class">Class</label>
+        <Combobox id="class" options={OPTIONS} />
+      </>
+    ), "Class"],
+    ["the input's aria-label", () => <Combobox options={OPTIONS} aria-label="Class" />, "Class"],
+    ["a generic name when the combobox was given neither", () => <Combobox options={OPTIONS} />, "Options"],
+  ])("names its list by %s", (_label, ui, name) => {
+    render(ui)
+    fireEvent.focus(screen.getByRole("combobox"))
+
+    expect(screen.getByRole("listbox", { name })).toBeInTheDocument()
+  })
+
   describe("second click closes the list", () => {
     // A real click on the input: mousedown, focus (only if not already focused), click.
     const realClick = (el: HTMLElement) => {

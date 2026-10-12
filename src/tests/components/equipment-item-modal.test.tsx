@@ -171,6 +171,26 @@ describe("EquipmentItemModal", () => {
       expect(screen.getByRole("checkbox", { name: /proficient with this weapon/i })).toBeChecked()
     })
 
+    // Regression: the "Damage Type" label was not connected to its field, which had no name at all.
+    it("names the damage type field by its visible label", () => {
+      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("item-type"))
+      fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
+
+      expect(screen.getByRole("combobox", { name: "Damage Type" })).toBe(screen.getByTestId("weapon-damage-type"))
+    })
+
+    it("has no accessibility violations with the weapon fields shown and the damage type list open", async () => {
+      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("item-type"))
+      fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
+      fireEvent.focus(screen.getByTestId("weapon-damage-type"))
+      expect(screen.getByRole("listbox", { name: "Damage Type" })).toBeInTheDocument()
+
+      const results = await axe(screen.getByRole("dialog"))
+      expect(results.violations).toHaveLength(0)
+    })
+
     it("saves entered weapon stats", () => {
       const onSave = vi.fn()
       render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
@@ -219,6 +239,28 @@ describe("EquipmentItemModal", () => {
       fireEvent.click(screen.getByRole("option", { name: /^shield/i }))
       expect(screen.queryByTestId("armor-base-ac")).not.toBeInTheDocument()
       expect(screen.getByText("+2 (fixed)")).toBeInTheDocument()
+    })
+
+    // Regression: "AC Bonus" was a <label> with nothing to label, since a shield's bonus is fixed text.
+    it("connects the AC Bonus label to a shield's fixed bonus", () => {
+      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("item-type"))
+      fireEvent.click(screen.getByRole("option", { name: "Armor" }))
+      fireEvent.click(screen.getByTestId("armor-type"))
+      fireEvent.click(screen.getByRole("option", { name: /^shield/i }))
+
+      expect(screen.getByLabelText("AC Bonus")).toHaveTextContent("+2 (fixed)")
+    })
+
+    it("has no accessibility violations with a shield's fixed bonus shown", async () => {
+      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("item-type"))
+      fireEvent.click(screen.getByRole("option", { name: "Armor" }))
+      fireEvent.click(screen.getByTestId("armor-type"))
+      fireEvent.click(screen.getByRole("option", { name: /^shield/i }))
+
+      const results = await axe(screen.getByRole("dialog"))
+      expect(results.violations).toHaveLength(0)
     })
 
     it("saves the selected armor type", () => {

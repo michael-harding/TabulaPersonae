@@ -335,8 +335,9 @@ function EquipmentForm(props: EquipmentFormProps) {
               />
             </div>
             <div>
-              <Label>Damage Type</Label>
+              <Label for="weapon-damage-type">Damage Type</Label>
               <Combobox
+                id="weapon-damage-type"
                 data-test="weapon-damage-type"
                 value={formData.weaponStats?.damageType ?? ""}
                 onValueChange={(v) => setFormData("weaponStats", "damageType", v)}
@@ -409,8 +410,10 @@ function EquipmentForm(props: EquipmentFormProps) {
               when={formData.armorStats?.armorType !== "shield"}
               fallback={
                 <div>
-                  <Label>AC Bonus</Label>
-                  <p class="text-sm text-muted-foreground mt-2">+2 (fixed)</p>
+                  {/* A shield's bonus is fixed, so there is no field to label. <output> is the
+                      element for a read-only value that a <label> is allowed to point at. */}
+                  <Label for="armor-ac-bonus">AC Bonus</Label>
+                  <output id="armor-ac-bonus" class="block text-sm text-muted-foreground mt-2">+2 (fixed)</output>
                 </div>
               }
             >
