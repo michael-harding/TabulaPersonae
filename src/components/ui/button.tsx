@@ -15,6 +15,8 @@ const buttonVariants = cva(
         outline: "border border-input hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
+        // An icon-only delete/remove control (pair with size `bareIcon`): muted until hovered.
+        ghostDestructive: "text-muted-foreground hover:text-destructive",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -22,6 +24,9 @@ const buttonVariants = cva(
         sm: "h-9 rounded-md px-3",
         lg: "h-11 rounded-md px-8",
         icon: "h-11 w-11",
+        // No padding or fixed size: the button is its content in a box that is itself 44×44, so
+        // neighbouring icon buttons cannot overlap (see TOUCH_TARGET_BOX).
+        bareIcon: "min-h-11 min-w-11 shrink-0 p-0",
       },
     },
     defaultVariants: {

@@ -12,8 +12,7 @@ import { toast } from '@/hooks/use-toast'
 
 import { clearFirestoreCache, getFirebaseAuth } from './firebase'
 import { saveCharacterToFirebase } from './firebase-storage'
-import type { Character } from './character-types'
-import { clearLocalUserData, readLocalCharacters, writeLocalCharacters } from './local-user-data'
+import { clearLocalUserData, readLocalCharacters, removeLocalCharacters } from './local-user-data'
 
 export interface AuthContextType {
   user: () => User | null
@@ -43,21 +42,25 @@ export function useAuth() {
 export { AuthContext }
 
 // Moves characters created without an account into the account that has just signed in. A
-// character leaves this device's storage only once its upload has succeeded.
+// character leaves this device's storage only once its upload has succeeded. Every write is
+// handed to Firestore before this first waits for anything, so they are all queued ahead of
+// whatever reads the account's characters in response to the sign-in.
 async function uploadLocalCharacters(userId: string) {
-  // Offline, Firestore holds each write pending until the server answers, so waiting for them
-  // would keep the app on its loading screen. They are uploaded on the next load with a connection.
+  // Offline, Firestore holds each write pending until the server answers, so none of them could
+  // be confirmed and removed from this device. They are uploaded on the next load with a connection.
   if (!navigator.onLine) return
 
   const localChars = readLocalCharacters()
   if (localChars.length === 0) return
 
-  const notUploaded: Character[] = []
-  for (const char of localChars) {
-    if (!(await saveCharacterToFirebase(char, userId))) notUploaded.push(char)
-  }
-  writeLocalCharacters(notUploaded)
+  const results = await Promise.all(localChars.map(async (char) => {
+    // Taken first: saving can give a character without an id a new one.
+    const { id } = char
+    return { id, uploaded: await saveCharacterToFirebase(char, userId) }
+  }))
+  removeLocalCharacters(results.filter((result) => result.uploaded).map((result) => result.id))
 
+  const notUploaded = results.filter((result) => !result.uploaded)
   if (notUploaded.length > 0) {
     const count = notUploaded.length === 1 ? '1 character' : `${notUploaded.length} characters`
     toast({
@@ -80,14 +83,17 @@ export const AuthProvider: ParentComponent = (props) => {
   if (!isSkipAuth) {
     try {
       let wasSignedIn = false
-      const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
+      // Nothing here may wait: each event has to be fully applied before the next one arrives, or
+      // a sign-in still waiting would overwrite the sign-out that followed it.
+      const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (firebaseUser) => {
         if (firebaseUser) {
-          try {
-            await uploadLocalCharacters(firebaseUser.uid)
-          } catch (error) {
-            // e.g. the browser refuses the write. Signing in must still complete.
+          // Not awaited: signing in must complete even if the upload never does (Firestore can
+          // be unreachable while the browser reports a connection).
+          // unknown: a rejected promise can carry any value
+          uploadLocalCharacters(firebaseUser.uid).catch((error: unknown) => {
+            // e.g. the browser refuses the write
             console.error('Failed to upload characters stored on this device:', error)
-          }
+          })
         }
         setUser(firebaseUser)
         setLoading(false)

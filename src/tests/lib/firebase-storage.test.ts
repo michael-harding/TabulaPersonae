@@ -174,6 +174,23 @@ describe('saveCharacterToFirebase', () => {
     consoleError.mockRestore()
   })
 
+  // The failed save must not replace the record with what it knew when it started: a save made
+  // since may have added fields, and forgetting them would leave them undeletable.
+  it('still deletes a field a later save added, when an earlier overlapping save is rejected', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let rejectFirst!: (error: Error) => void
+    mockSetDoc.mockReturnValueOnce(new Promise<void>((_resolve, reject) => { rejectFirst = reject }))
+    const first = saveCharacterToFirebase(character('overlap-1'), userId)
+    await saveCharacterToFirebase(character('overlap-1', { sheetColor: '#ff0000' }), userId)
+    rejectFirst(new Error('permission-denied'))
+    expect(await first).toBe(false)
+
+    await saveCharacterToFirebase(character('overlap-1', { sheetColor: undefined }), userId)
+
+    expect(lastWrite().written.sheetColor).toBe('__delete__')
+    consoleError.mockRestore()
+  })
+
   it('does not treat another user\'s document as loaded', async () => {
     mockGetDoc.mockResolvedValue(docSnap('foreign-1', { userId: 'someone-else', sheetColor: '#ff0000' }))
     expect(await getCharacterFromFirebase('foreign-1', userId)).toBeNull()

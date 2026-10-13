@@ -12,6 +12,10 @@ const DEVICE_KEYS = new Set(['dnd-terms-accepted'])
 // reads or writes the key.
 const LOCAL_CHARACTERS_KEY = 'dnd-characters'
 
+// The tab layout of someone using the app without an account (see tab-config-context.tsx). After
+// signing in it stays here only until the account has received it.
+export const LOCAL_TAB_CONFIG_KEY = 'dnd-tab-config'
+
 /**
  * The characters stored on this device, brought up to the current data shape. Synchronous on
  * purpose: a caller that reads, changes and writes the list without awaiting in between cannot
@@ -33,6 +37,17 @@ export function writeLocalCharacters(characters: Character[]): void {
   localStorage.setItem(LOCAL_CHARACTERS_KEY, JSON.stringify(characters))
 }
 
+/**
+ * Removes the characters with these ids from the device, leaving the others. It works on the list
+ * as it is now, not on one read earlier, and writes nothing when none of them is stored — so it
+ * cannot put back characters that were removed in the meantime (see clearLocalUserData).
+ */
+export function removeLocalCharacters(ids: string[]): void {
+  const characters = readLocalCharacters()
+  const remaining = characters.filter((character) => !ids.includes(character.id))
+  if (remaining.length < characters.length) writeLocalCharacters(remaining)
+}
+
 /** Removes everything in localStorage that belongs to the signed-in user. */
 export function clearLocalUserData(): void {
   // Collected first: removing an item shifts the indexes of those after it.
@@ -46,9 +61,10 @@ export function clearLocalUserData(): void {
 }
 
 /**
- * Whether characters created without an account are still waiting on this device to be added to
- * the signed-in account (see uploadLocalCharacters in auth-context.tsx). They exist nowhere else.
+ * Whether characters or a tab layout created without an account are still waiting on this device
+ * to be added to the signed-in account (see uploadLocalCharacters in auth-context.tsx and
+ * TabConfigProvider). They exist nowhere else.
  */
-export function hasCharactersAwaitingUpload(): boolean {
-  return readLocalCharacters().length > 0
+export function hasLocalDataAwaitingUpload(): boolean {
+  return readLocalCharacters().length > 0 || localStorage.getItem(LOCAL_TAB_CONFIG_KEY) != null
 }

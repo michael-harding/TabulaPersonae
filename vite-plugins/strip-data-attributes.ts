@@ -12,6 +12,7 @@
 const STRIPPED = new Set(['data-test', 'data-sem'])
 
 interface JSXAttributePath {
+  // unknown: only a JSXIdentifier's name is a string; a JSXNamespacedName's is another node
   node: { name: { type: string; name?: unknown } }
   remove(): void
 }

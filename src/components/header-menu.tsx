@@ -24,7 +24,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { theme, setTheme } from "@/lib/theme"
 import { useAuth } from "@/lib/auth-context"
 import { hasUnsyncedChanges } from "@/lib/firebase-storage"
-import { hasCharactersAwaitingUpload } from "@/lib/local-user-data"
+import { hasLocalDataAwaitingUpload } from "@/lib/local-user-data"
 import { useToast } from "@/hooks/use-toast"
 import { parsePdfCharacterSheet, mergeWithDefault } from "@/lib/pdf-parser"
 import { reconcileImportedCharacter, reconcileImportedCharacters, freshenCalculatedFields } from "@/lib/character-import-reconciliation"
@@ -187,7 +187,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
   // anything the account has not received yet, so that case asks first.
   const handleSignOut = async () => {
     setIsOpen(false)
-    if (hasCharactersAwaitingUpload() || await hasUnsyncedChanges()) {
+    if (hasLocalDataAwaitingUpload() || await hasUnsyncedChanges()) {
       showSignOutDialog("unsynced")
     } else {
       await signOutNow()
@@ -197,7 +197,12 @@ export function HeaderMenu(props: HeaderMenuProps) {
   const handleBackToLogin = async () => {
     localStorage.removeItem("dnd-skip-auth")
     setIsOpen(false)
-    await logout()
+    try {
+      await logout()
+    } catch {
+      // logout has already logged the error. Leaving guest mode goes ahead regardless: signing
+      // out removes nothing of a guest's, so there is nothing half-done to stay and report.
+    }
     window.location.reload()
   }
 

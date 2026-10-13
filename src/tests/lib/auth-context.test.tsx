@@ -56,6 +56,10 @@ Object.defineProperty(window, "location", {
   writable: true,
 })
 
+// Lets work that AuthProvider started without waiting for it run to completion. The storage it
+// calls is mocked, so that work settles within microtasks.
+const backgroundWork = () => new Promise<void>((resolve) => { setTimeout(resolve) })
+
 // Renders AuthProvider and captures both the onAuthStateChanged callback
 // (to simulate login/logout events) and the useAuth() return value.
 function renderProvider() {
@@ -65,8 +69,12 @@ function renderProvider() {
   mockOnAuthStateChanged.mockImplementation((_auth, nextOrObserver) => {
     // The SDK accepts either a callback or an observer object; AuthProvider passes a callback.
     if (typeof nextOrObserver !== "function") throw new Error("Expected AuthProvider to pass onAuthStateChanged a callback")
-    // AuthProvider's callback is async, so awaiting it lets a test wait for the login handling to finish.
-    authStateCallback = async (user) => { await nextOrObserver(user) }
+    // AuthProvider handles the event before this returns its promise; awaiting the promise also
+    // waits for the upload the event started, which AuthProvider itself does not wait for.
+    authStateCallback = async (user) => {
+      nextOrObserver(user)
+      await backgroundWork()
+    }
     return vi.fn()
   })
 
@@ -136,13 +144,68 @@ describe("AuthProvider — sync local characters on login", () => {
     expect(mockSaveCharacterToFirebase).not.toHaveBeenCalled()
   })
 
-  it("sets user signal after sync completes", async () => {
+  // e.g. the browser reports a connection but Firestore cannot be reached: the upload never settles
+  it("signs in without waiting for the upload", () => {
     localStorage.setItem(CHARS_KEY, JSON.stringify([char1]))
+    mockSaveCharacterToFirebase.mockReturnValue(new Promise(() => {}))
     const { authStateCallback, capturedAuth } = renderProvider()
 
     expect(capturedAuth.user()).toBeNull()
-    await authStateCallback(testUser)
+    void authStateCallback(testUser)
+
     expect(capturedAuth.user()).toBe(testUser)
+    expect(capturedAuth.loading()).toBe(false)
+    expect(localStorage.getItem(CHARS_KEY)).toBe(JSON.stringify([char1]))
+  })
+
+  // Whatever loads the account's characters in response to the sign-in must find these writes
+  // already made.
+  it("starts every upload at once, before the sign-in is reported", () => {
+    localStorage.setItem(CHARS_KEY, JSON.stringify([char1, char2]))
+    const { authStateCallback, capturedAuth } = renderProvider()
+    const userWhenUploadStarted: (User | null)[] = []
+    mockSaveCharacterToFirebase.mockImplementation(() => {
+      userWhenUploadStarted.push(capturedAuth.user())
+      return new Promise(() => {})
+    })
+
+    void authStateCallback(testUser)
+
+    expect(userWhenUploadStarted).toEqual([null, null])
+  })
+
+  describe("when the page is signed out while the upload is still running", () => {
+    let finishUpload!: (uploaded: boolean) => void
+
+    beforeEach(() => {
+      localStorage.setItem(CHARS_KEY, JSON.stringify([char1]))
+      mockSaveCharacterToFirebase.mockReturnValue(new Promise((resolve) => { finishUpload = resolve }))
+    })
+
+    it("stays signed out, and reloads, once the upload finishes", async () => {
+      const { authStateCallback, capturedAuth } = renderProvider()
+      void authStateCallback(testUser)
+
+      void authStateCallback(null)
+      finishUpload(true)
+      await backgroundWork()
+
+      expect(capturedAuth.user()).toBeNull()
+      expect(reload).toHaveBeenCalledOnce()
+    })
+
+    // Signing out removes the user's data from the device; an upload that then fails must not
+    // leave its characters behind for whoever signs in next.
+    it("does not put the characters back on a device that signing out has cleared", async () => {
+      const { authStateCallback } = renderProvider()
+      void authStateCallback(testUser)
+
+      localStorage.clear()
+      finishUpload(false)
+      await backgroundWork()
+
+      expect(localStorage.getItem(CHARS_KEY)).toBeNull()
+    })
   })
 
   it("does not sync or modify localStorage when firebaseUser is null (logout event)", async () => {

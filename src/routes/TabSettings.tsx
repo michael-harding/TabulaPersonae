@@ -71,9 +71,9 @@ function SortableModuleRow(props: SortableModuleRowProps) {
         data-test={`remove-module-${props.moduleId}`}
         verb="Remove"
         subject={MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}
-        variant="ghost"
+        variant="ghostDestructive"
+        size="bareIcon"
         onConfirm={props.onRemove}
-        class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive")}
       >
         <X class="h-4 w-4" aria-hidden="true" />
       </ConfirmButton>
@@ -189,10 +189,11 @@ function SortableTabRow(props: SortableTabRowProps) {
                 data-test={`tab-delete-${props.tab.id}`}
                 verb="Delete"
                 subject="tab"
-                variant="ghost"
+                variant="ghostDestructive"
+                size="bareIcon"
                 onConfirm={props.onDelete}
                 disabled={props.disableDelete}
-                class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive transition-colors disabled:pointer-events-auto disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground")}
+                class="disabled:pointer-events-auto disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
               >
                 <Trash2 class="h-4 w-4" aria-hidden="true" />
               </ConfirmButton>

@@ -1,8 +1,9 @@
 import { createDefaultCharacter } from "@/lib/character-types"
 import {
   clearLocalUserData,
-  hasCharactersAwaitingUpload,
+  hasLocalDataAwaitingUpload,
   readLocalCharacters,
+  removeLocalCharacters,
   writeLocalCharacters,
 } from "@/lib/local-user-data"
 
@@ -68,7 +69,7 @@ describe("clearLocalUserData", () => {
   })
 })
 
-describe("hasCharactersAwaitingUpload", () => {
+describe("hasLocalDataAwaitingUpload", () => {
   it.each([
     ["nothing is stored", null, false],
     ["the stored list is empty", "[]", false],
@@ -79,7 +80,14 @@ describe("hasCharactersAwaitingUpload", () => {
     // null: nothing is stored under the key
     if (stored != null) localStorage.setItem("dnd-characters", stored)
 
-    expect(hasCharactersAwaitingUpload()).toBe(expected)
+    expect(hasLocalDataAwaitingUpload()).toBe(expected)
+  })
+
+  // A signed-in user's tab layout is only on the device while its upload is pending or has failed.
+  it("is true when a tab layout is still stored on the device, even with no characters", () => {
+    localStorage.setItem("dnd-tab-config", "{}")
+
+    expect(hasLocalDataAwaitingUpload()).toBe(true)
   })
 })
 
@@ -140,5 +148,28 @@ describe("writeLocalCharacters", () => {
     writeLocalCharacters([])
 
     expect(localStorage.getItem(CHARS_KEY)).toBe("[]")
+  })
+})
+
+describe("removeLocalCharacters", () => {
+  it("removes the characters with the given ids and keeps the rest", () => {
+    localStorage.setItem(CHARS_KEY, JSON.stringify([thorin, gandalf]))
+
+    removeLocalCharacters([thorin.id])
+
+    expect(readLocalCharacters()).toEqual([gandalf])
+  })
+
+  // The store may have been cleared (sign-out) since the caller read it; it must stay cleared.
+  it.each([
+    ["nothing is stored", null],
+    ["none of the ids is stored", JSON.stringify([gandalf])],
+  ])("writes nothing when %s", (_label, stored) => {
+    // null: nothing is stored under the key
+    if (stored != null) localStorage.setItem(CHARS_KEY, stored)
+
+    removeLocalCharacters([thorin.id])
+
+    expect(localStorage.getItem(CHARS_KEY)).toBe(stored)
   })
 })

@@ -46,7 +46,7 @@ describe("Button", () => {
     expect(button.className).toBe(cn(buttonVariants({ variant: "default", size: "default" })))
   })
 
-  it.each(["default", "secondary", "outline", "ghost", "link", "destructive"] as const)(
+  it.each(["default", "secondary", "outline", "ghost", "ghostDestructive", "link", "destructive"] as const)(
     "applies classes for the %s variant",
     (variant) => {
       render(() => (
@@ -59,7 +59,7 @@ describe("Button", () => {
     }
   )
 
-  it.each(["default", "sm", "lg", "icon"] as const)("applies classes for the %s size", (size) => {
+  it.each(["default", "sm", "lg", "icon", "bareIcon"] as const)("applies classes for the %s size", (size) => {
     render(() => (
       <Button data-test={`size-${size}`} size={size}>
         {size}
@@ -67,6 +67,15 @@ describe("Button", () => {
     ))
     const button = screen.getByTestId(`size-${size}`)
     expect(button.className).toBe(cn(buttonVariants({ variant: "default", size })))
+  })
+
+  // The look of an icon-only delete button: just the icon, in a box that is itself the 44px
+  // touch target, turning red on hover with no background behind it.
+  it("renders a bare icon as a 44px box with no padding, fixed size or hover background", () => {
+    render(() => <Button data-test="bare" variant="ghostDestructive" size="bareIcon" aria-label="Delete" />)
+    const button = screen.getByTestId("bare")
+    expect(button).toHaveClass("min-h-11", "min-w-11", "shrink-0", "p-0", "text-muted-foreground", "hover:text-destructive")
+    expect(button.className).not.toMatch(/(^| )(h-\d+|w-\d+|px-\d+|py-\d+|hover:bg-\S+)( |$)/)
   })
 
   it("renders the given type attribute", () => {

@@ -563,6 +563,18 @@ describe("HeaderMenu account", () => {
     expect(logout).not.toHaveBeenCalled()
   })
 
+  // Signing out removes it along with everything else, and the account never received it.
+  it("also warns when a tab layout kept on the device has not been uploaded", async () => {
+    const logout = vi.fn().mockResolvedValue(undefined)
+    signedInWith(logout)
+    localStorage.setItem("dnd-tab-config", "{}")
+
+    await chooseSignOut()
+
+    expect(await screen.findByRole("dialog", { name: "Sign out and lose unsynced changes?" })).toBeInTheDocument()
+    expect(logout).not.toHaveBeenCalled()
+  })
+
   describe("when the device's data cannot be removed", () => {
     const logout = vi.fn()
 
@@ -631,6 +643,20 @@ describe("HeaderMenu account", () => {
     await waitFor(() => expect(reload).toHaveBeenCalledOnce())
     expect(localStorage.getItem("dnd-skip-auth")).toBeNull()
     expect(logout).toHaveBeenCalledOnce()
+  })
+
+  // e.g. Firebase failed to initialize, so there is no session to sign out of. A guest has no
+  // account data on the device for a failed sign-out to leave behind.
+  it("still leaves local-only mode through Back to Login when signing out fails", async () => {
+    const logout = vi.fn().mockRejectedValue(new Error("Firebase is unavailable"))
+    mockUseAuth.mockReturnValue(createMockAuth({ skipAuth: () => true, logout }))
+    localStorage.setItem("dnd-skip-auth", "true")
+    const user = await openMenu()
+
+    await user.click(await screen.findByRole("menuitem", { name: "Back to Login" }))
+
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce())
+    expect(localStorage.getItem("dnd-skip-auth")).toBeNull()
   })
 })
 

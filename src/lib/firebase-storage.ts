@@ -60,8 +60,11 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
           mergeFields: [...written, ...cleared].map((field) => new FieldPath(field)),
         });
       } catch (error) {
-        // The deletes may not have been applied, so keep those fields on record to retry.
-        knownFields.set(character.id, new Set([...previous, ...written]));
+        // The deletes may not have been applied, so keep those fields on record to retry. Added
+        // to the record as it is now, not as it was when this save began: a save made since may
+        // have put fields on it that neither `previous` nor `written` holds.
+        const current = knownFields.get(character.id) ?? [];
+        knownFields.set(character.id, new Set([...current, ...previous, ...written]));
         throw error;
       }
     } else {

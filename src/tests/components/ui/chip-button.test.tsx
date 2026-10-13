@@ -63,16 +63,14 @@ describe("ChipButton", () => {
       <>
         <ChipButton data-test="secondary" action="remove" variant="secondary" onClick={vi.fn()}>A</ChipButton>
         <ChipButton data-test="outline" action="add" variant="outline" onClick={vi.fn()}>B</ChipButton>
-        <ChipButton data-test="removable" action="remove" variant="removable" onClick={vi.fn()}>C</ChipButton>
-        <ChipButton data-test="removable-secondary" action="remove" variant="removableSecondary" onClick={vi.fn()}>D</ChipButton>
-        <ChipButton data-test="removable-outline" action="remove" variant="removableOutline" onClick={vi.fn()}>E</ChipButton>
+        <ChipButton data-test="removable-secondary" action="remove" variant="removableSecondary" onClick={vi.fn()}>C</ChipButton>
+        <ChipButton data-test="removable-outline" action="remove" variant="removableOutline" onClick={vi.fn()}>D</ChipButton>
       </>
     ))
     const pill = (id: string) => screen.getByTestId(id).querySelector("span")!
     expect(pill("secondary")).toHaveClass("group-hover:bg-secondary/80", "group-hover:border-secondary-foreground")
     expect(pill("secondary")).not.toHaveClass("group-hover:border-destructive")
     expect(pill("outline")).toHaveClass("group-hover:bg-accent", "group-hover:border-accent-foreground")
-    expect(pill("removable")).toHaveClass("bg-primary", "group-hover:bg-primary/80", "group-hover:border-destructive")
     expect(pill("removable-secondary")).toHaveClass("bg-secondary", "group-hover:bg-secondary/80", "group-hover:border-destructive")
     expect(pill("removable-outline")).toHaveClass("text-foreground", "group-hover:bg-accent", "group-hover:border-destructive")
     expect(pill("removable-outline")).not.toHaveClass("bg-secondary")

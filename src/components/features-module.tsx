@@ -1,4 +1,4 @@
-import { createSignal, untrack, For, Index, Show, type ParentProps } from "solid-js"
+import { createSignal, untrack, For, Index, Show } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
 import Leaf from "lucide-solid/icons/leaf"
 import Star from "lucide-solid/icons/star"
@@ -31,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ModifierGroup } from "@/components/ui/modifier-group"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { useReadOnly } from "@/lib/read-only-context"
@@ -273,18 +274,6 @@ function computeInitialEffectGroups(effects: FeatureEffects): Record<EffectGroup
   }
 }
 
-function EffectGroup(props: ParentProps<{ label: string; testId: string; open: boolean; onOpenChange: (open: boolean) => void }>) {
-  return (
-    <Collapsible open={props.open} onOpenChange={props.onOpenChange}>
-      <CollapsibleTrigger data-test={props.testId} class="flex w-full items-center justify-between text-xs font-medium text-muted-foreground">
-        <span>{props.label}</span>
-        <ChevronDown class="h-3.5 w-3.5 transition-transform ui-expanded:rotate-180" aria-hidden="true" />
-      </CollapsibleTrigger>
-      <CollapsibleContent class="pt-2">{props.children}</CollapsibleContent>
-    </Collapsible>
-  )
-}
-
 function LevelEffectRow(props: {
   featureType:
     | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
@@ -332,9 +321,9 @@ function LevelEffectRow(props: {
           data-test={`level-effect-${props.index}-remove-button`}
           verb="Remove"
           subject={`level ${props.tier.level} entry`}
-          variant="ghost"
+          variant="ghostDestructive"
+          size="bareIcon"
           onConfirm={props.onRemove}
-          class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive")}
         >
           <Trash2 class="h-4 w-4" aria-hidden="true" />
         </ConfirmButton>
@@ -520,9 +509,9 @@ function LevelEffectRow(props: {
 
       <Show when={props.featureType === 'Ability Scores'}>
         <div class="space-y-3">
-          <EffectGroup
+          <ModifierGroup
             label="Ability Score"
-            testId={`level-effect-${props.index}-effect-group-bonus`}
+            data-test={`level-effect-${props.index}-effect-group-bonus`}
             open={props.effectGroupsOpen().bonus}
             onOpenChange={(open) => props.onEffectGroupOpenChange('bonus', open)}
           >
@@ -542,10 +531,10 @@ function LevelEffectRow(props: {
                 )}
               </For>
             </div>
-          </EffectGroup>
-          <EffectGroup
+          </ModifierGroup>
+          <ModifierGroup
             label="Ability Score Floor (minimum score, 0 = none)"
-            testId={`level-effect-${props.index}-effect-group-floor`}
+            data-test={`level-effect-${props.index}-effect-group-floor`}
             open={props.effectGroupsOpen().floor}
             onOpenChange={(open) => props.onEffectGroupOpenChange('floor', open)}
           >
@@ -566,10 +555,10 @@ function LevelEffectRow(props: {
                 )}
               </For>
             </div>
-          </EffectGroup>
-          <EffectGroup
+          </ModifierGroup>
+          <ModifierGroup
             label="Ability Score Max Cap (maximum score, 0 = none)"
-            testId={`level-effect-${props.index}-effect-group-cap`}
+            data-test={`level-effect-${props.index}-effect-group-cap`}
             open={props.effectGroupsOpen().cap}
             onOpenChange={(open) => props.onEffectGroupOpenChange('cap', open)}
           >
@@ -590,10 +579,10 @@ function LevelEffectRow(props: {
                 )}
               </For>
             </div>
-          </EffectGroup>
-          <EffectGroup
+          </ModifierGroup>
+          <ModifierGroup
             label="Ability Score Base Max (raises the normal maximum, default 20)"
-            testId={`level-effect-${props.index}-effect-group-basemax`}
+            data-test={`level-effect-${props.index}-effect-group-basemax`}
             open={props.effectGroupsOpen().baseMax}
             onOpenChange={(open) => props.onEffectGroupOpenChange('baseMax', open)}
           >
@@ -614,7 +603,7 @@ function LevelEffectRow(props: {
                 )}
               </For>
             </div>
-          </EffectGroup>
+          </ModifierGroup>
         </div>
       </Show>
     </div>
@@ -969,9 +958,9 @@ function FeatureForm(props: FeatureFormProps) {
                         data-test={`rolled-hp-level-${index + 1}-remove`}
                         verb="Remove"
                         subject={`level ${index + 1} roll`}
-                        variant="ghost"
+                        variant="ghostDestructive"
+                        size="bareIcon"
                         onConfirm={() => removeRolledLevel(index)}
-                        class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive")}
                       >
                         <Trash2 class="h-4 w-4" aria-hidden="true" />
                       </ConfirmButton>
@@ -1236,9 +1225,9 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                     data-test={`feature-delete-${feature.id}`}
                                     verb="Delete"
                                     subject={feature.name}
-                                    variant="ghost"
+                                    variant="ghostDestructive"
+                                    size="bareIcon"
                                     onConfirm={() => handleDelete(section.field, feature.id)}
-                                    class={cn(TOUCH_TARGET_BOX, "h-auto w-auto p-0 text-muted-foreground hover:bg-transparent hover:text-destructive")}
                                   >
                                     <Trash2 class="h-4 w-4" aria-hidden="true" />
                                   </ConfirmButton>
