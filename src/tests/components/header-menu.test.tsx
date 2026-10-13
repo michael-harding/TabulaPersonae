@@ -49,8 +49,7 @@ const char2: Character = { ...createDefaultCharacter(), id: "id-2", name: "Arago
 
 const defaultProps = {
   characters: [char1, char2],
-  onImportCharacter: vi.fn<(character: Character) => void>(),
-  onImportMultiple: vi.fn(),
+  onImport: vi.fn<(characters: Character[]) => Promise<boolean>>(),
   onAllCharacters: vi.fn(),
 }
 
@@ -65,6 +64,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockUseAuth.mockReturnValue(createMockAuth({ user: () => createTestUser({ email: "user@test.com" }) }))
   mockHasUnsyncedChanges.mockResolvedValue(false)
+  defaultProps.onImport.mockResolvedValue(true)
   themeControl.set("system")
   cleanup()
   cleanupPortals()
@@ -174,14 +174,14 @@ describe("HeaderMenu import reconciliation", () => {
     return user
   }
 
-  it("reconciles a single-character JSON import before calling onImportCharacter", async () => {
+  it("reconciles a single-character JSON import before calling onImport", async () => {
     const user = await openImportModal()
     const raw = { ...createDefaultCharacter(), id: "c1", armorClass: 15 }
     const file = new File([JSON.stringify(raw)], "char.json", { type: "application/json" })
     const input = screen.getByLabelText(/Choose JSON File/i)
     await user.upload(input, file)
-    await waitFor(() => expect(defaultProps.onImportCharacter).toHaveBeenCalled())
-    const imported = defaultProps.onImportCharacter.mock.calls[0][0]
+    await waitFor(() => expect(defaultProps.onImport).toHaveBeenCalled())
+    const [imported] = defaultProps.onImport.mock.calls[0][0]
     expect(imported.useCalculatedArmorClass).toBe(false)
     expect(imported.armorClass).toBe(15)
   })
@@ -206,13 +206,13 @@ describe("HeaderMenu import reconciliation", () => {
     const file = new File([JSON.stringify(raw)], "char.json", { type: "application/json" })
     const input = screen.getByLabelText(/Choose JSON File/i)
     await user.upload(input, file)
-    await waitFor(() => expect(defaultProps.onImportCharacter).toHaveBeenCalled())
-    const imported = defaultProps.onImportCharacter.mock.calls[0][0]
+    await waitFor(() => expect(defaultProps.onImport).toHaveBeenCalled())
+    const [imported] = defaultProps.onImport.mock.calls[0][0]
     expect(imported.classFeatures?.some((f) => f.name === "Spellcasting")).toBe(true)
     expect(imported.useCalculatedSpellSaveDC).toBe(true)
   })
 
-  it("reconciles each character in a multi-character JSON import before calling onImportMultiple", async () => {
+  it("reconciles each character in a multi-character JSON import before calling onImport", async () => {
     const user = await openImportModal()
     const raw = [
       { ...createDefaultCharacter(), id: "c1", armorClass: 15 },
@@ -221,8 +221,8 @@ describe("HeaderMenu import reconciliation", () => {
     const file = new File([JSON.stringify(raw)], "chars.json", { type: "application/json" })
     const input = screen.getByLabelText(/Choose JSON File/i)
     await user.upload(input, file)
-    await waitFor(() => expect(defaultProps.onImportMultiple).toHaveBeenCalled())
-    const imported = defaultProps.onImportMultiple.mock.calls[0][0]
+    await waitFor(() => expect(defaultProps.onImport).toHaveBeenCalled())
+    const imported = defaultProps.onImport.mock.calls[0][0]
     expect(imported).toHaveLength(2)
     expect(imported[0].useCalculatedArmorClass).toBe(false)
     expect(imported[1].useCalculatedArmorClass).toBe(false)
@@ -237,12 +237,12 @@ describe("HeaderMenu import reconciliation", () => {
     const file = new File([JSON.stringify(raw)], "chars.json", { type: "application/json" })
     const input = screen.getByLabelText(/Choose JSON File/i)
     await user.upload(input, file)
-    await waitFor(() => expect(defaultProps.onImportMultiple).toHaveBeenCalled())
-    const imported = defaultProps.onImportMultiple.mock.calls[0][0]
+    await waitFor(() => expect(defaultProps.onImport).toHaveBeenCalled())
+    const imported = defaultProps.onImport.mock.calls[0][0]
     expect(imported.map((c: Character) => c.id)).toEqual(["c1"])
   })
 
-  it("reconciles a PDF import before calling onImportCharacter", async () => {
+  it("reconciles a PDF import before calling onImport", async () => {
     const { parsePdfCharacterSheet, mergeWithDefault } = await import("@/lib/pdf-parser")
     vi.mocked(parsePdfCharacterSheet).mockResolvedValueOnce({})
     vi.mocked(mergeWithDefault).mockReturnValueOnce({ ...createDefaultCharacter(), armorClass: 15 })
@@ -251,8 +251,8 @@ describe("HeaderMenu import reconciliation", () => {
     const file = new File(["x"], "sheet.pdf", { type: "application/pdf" })
     const input = screen.getByLabelText(/Choose PDF File/i)
     await user.upload(input, file)
-    await waitFor(() => expect(defaultProps.onImportCharacter).toHaveBeenCalled())
-    const imported = defaultProps.onImportCharacter.mock.calls[0][0]
+    await waitFor(() => expect(defaultProps.onImport).toHaveBeenCalled())
+    const [imported] = defaultProps.onImport.mock.calls[0][0]
     expect(imported.useCalculatedArmorClass).toBe(false)
     expect(imported.armorClass).toBe(15)
   })
@@ -346,8 +346,7 @@ describe("HeaderMenu import failures", () => {
     await importJsonText(text)
 
     await waitFor(() => expect(toast).toHaveBeenCalledExactlyOnceWith({ title: "Import Failed", description, variant: "destructive" }))
-    expect(defaultProps.onImportCharacter).not.toHaveBeenCalled()
-    expect(defaultProps.onImportMultiple).not.toHaveBeenCalled()
+    expect(defaultProps.onImport).not.toHaveBeenCalled()
   })
 
   it("confirms a successful single import by name", async () => {
@@ -382,9 +381,69 @@ describe("HeaderMenu import failures", () => {
       variant: "destructive",
     }))
     expect(consoleError).toHaveBeenCalledWith("PDF import error:", failure)
-    expect(defaultProps.onImportCharacter).not.toHaveBeenCalled()
+    expect(defaultProps.onImport).not.toHaveBeenCalled()
     expect(screen.getByText(/Choose PDF File/i)).toBeInTheDocument()
     consoleError.mockRestore()
+  })
+})
+
+describe("HeaderMenu import confirmation", () => {
+  const frodo = { ...createDefaultCharacter(), id: "c1", name: "Frodo" }
+  const jsonImported = { title: "Import Successful", description: "Imported Frodo successfully!" }
+  const pdfImported = { title: "PDF Import Successful", description: "Imported Frodo from PDF!" }
+
+  // The save's result, settled by the test: offline, a signed-in user's save stays pending.
+  function pendingSave() {
+    let settle!: (saved: boolean) => void
+    defaultProps.onImport.mockReturnValue(new Promise<boolean>((resolve) => { settle = resolve }))
+    return { settle: (saved: boolean) => settle(saved) }
+  }
+
+  async function importFile(kind: "json" | "pdf") {
+    const user = await openMenu()
+    await user.click(await screen.findByText("Import Character"))
+    if (kind === "json") {
+      await user.upload(await screen.findByLabelText(/Choose JSON File/i), new File([JSON.stringify(frodo)], "import.json", { type: "application/json" }))
+    } else {
+      const { parsePdfCharacterSheet, mergeWithDefault } = await import("@/lib/pdf-parser")
+      vi.mocked(parsePdfCharacterSheet).mockResolvedValueOnce({})
+      vi.mocked(mergeWithDefault).mockReturnValueOnce(frodo)
+      await user.upload(await screen.findByLabelText(/Choose PDF File/i), new File(["x"], "sheet.pdf", { type: "application/pdf" }))
+    }
+    await waitFor(() => expect(defaultProps.onImport).toHaveBeenCalledOnce())
+  }
+
+  // Kobalte keeps a closed dialog in the DOM in jsdom; it is open only while data-expanded is set
+  const importDialogClosed = () => waitFor(() => expect(screen.getByTestId("import-dialog")).not.toHaveAttribute("data-expanded"))
+
+  describe.each([
+    { kind: "json", confirmation: jsonImported },
+    { kind: "pdf", confirmation: pdfImported },
+  ] as const)("of a $kind file", ({ kind, confirmation }) => {
+    it("closes the dialog without waiting for the save, and confirms only once it has succeeded", async () => {
+      const save = pendingSave()
+
+      await importFile(kind)
+
+      await importDialogClosed()
+      expect(toast).not.toHaveBeenCalled()
+
+      save.settle(true)
+
+      await waitFor(() => expect(toast).toHaveBeenCalledExactlyOnceWith(confirmation))
+    })
+
+    // The handler given as onImport tells the user about the failure itself (saveImportedCharacters)
+    it("does not call the import successful, or unparseable, when it could not be saved", async () => {
+      const save = pendingSave()
+      await importFile(kind)
+
+      save.settle(false)
+
+      await importDialogClosed()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(toast).not.toHaveBeenCalled()
+    })
   })
 })
 
@@ -527,6 +586,17 @@ describe("HeaderMenu account", () => {
       await user.click(await screen.findByTestId("sign-out-reload"))
 
       expect(reload).toHaveBeenCalledOnce()
+    })
+
+    // Firestore was shut down before its data could not be removed, so nothing can be read or
+    // saved until the page reloads: the dialog must not leave the user on a page that looks usable.
+    it("reloads when the dialog is dismissed without its button", async () => {
+      const user = await chooseSignOut()
+      await screen.findByRole("dialog", { name: "Sign-out did not finish" })
+
+      await user.keyboard("{Escape}")
+
+      await waitFor(() => expect(reload).toHaveBeenCalledOnce())
     })
 
     it("reports the same failure after the user chose to discard unsynced changes", async () => {

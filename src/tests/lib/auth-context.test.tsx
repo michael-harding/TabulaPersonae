@@ -48,6 +48,14 @@ const char2 = { ...createDefaultCharacter(), id: "char-2", name: "Gandalf" }
 const CHARS_KEY = "dnd-characters"
 const ACTIVE_KEY = "dnd-active-character"
 
+// window.location.reload is non-configurable in jsdom by default — redefine once.
+const reload = vi.fn()
+Object.defineProperty(window, "location", {
+  value: { ...window.location, reload },
+  configurable: true,
+  writable: true,
+})
+
 // Renders AuthProvider and captures both the onAuthStateChanged callback
 // (to simulate login/logout events) and the useAuth() return value.
 function renderProvider() {
@@ -253,7 +261,7 @@ describe("AuthProvider — unreadable local characters on login", () => {
 
     expect(capturedAuth.user()).toBe(testUser)
     expect(capturedAuth.loading()).toBe(false)
-    expect(consoleError).toHaveBeenCalledWith("Failed to upload characters stored on this device:", expect.any(SyntaxError))
+    expect(consoleError).toHaveBeenCalledWith("Failed to read characters stored on this device:", expect.any(SyntaxError))
     expect(localStorage.getItem(CHARS_KEY)).toBe("{not json")
     expect(mockSaveCharacterToFirebase).not.toHaveBeenCalled()
     consoleError.mockRestore()
@@ -281,15 +289,19 @@ describe("AuthProvider — logout removes the signed-in user's data from the dev
     expect(localStorage.getItem("theme")).toBe("dark")
   })
 
-  it("deletes Firestore's offline data before signing out", async () => {
+  // The cache is the step that can fail, so it goes first: nothing else is removed until it has
+  // succeeded, and the user is signed out only once everything is gone.
+  it("deletes Firestore's offline data first, then the rest of the user's data, then signs out", async () => {
     const auth = await signedIn()
+    localStorage.setItem("dnd-tab-config", "value")
     const calls: string[] = []
-    mockClearFirestoreCache.mockImplementation(async () => { calls.push("clear cache") })
-    mockSignOut.mockImplementation(async () => { calls.push("sign out") })
+    const record = (step: string) => { calls.push(`${step}, local data ${localStorage.getItem("dnd-tab-config") == null ? "removed" : "present"}`) }
+    mockClearFirestoreCache.mockImplementation(async () => { record("clear cache") })
+    mockSignOut.mockImplementation(async () => { record("sign out") })
 
     await auth.logout()
 
-    expect(calls).toEqual(["clear cache", "sign out"])
+    expect(calls).toEqual(["clear cache, local data present", "sign out, local data removed"])
   })
 
   describe("when the offline data cannot be deleted", () => {
@@ -314,13 +326,15 @@ describe("AuthProvider — logout removes the signed-in user's data from the dev
       expect(errorSpy).toHaveBeenCalledWith("Sign out error:", failure)
     })
 
-    it("has still removed what it could from localStorage", async () => {
+    it("leaves the rest of their data on the device, since they are still signed in", async () => {
       const auth = await signedIn()
       localStorage.setItem("dnd-last-synced-char-1", "value")
+      localStorage.setItem(CHARS_KEY, JSON.stringify([char1]))
 
       await expect(auth.logout()).rejects.toBe(failure)
 
-      expect(localStorage.getItem("dnd-last-synced-char-1")).toBeNull()
+      expect(localStorage.getItem("dnd-last-synced-char-1")).toBe("value")
+      expect(localStorage.getItem(CHARS_KEY)).toBe(JSON.stringify([char1]))
     })
   })
 
@@ -338,6 +352,40 @@ describe("AuthProvider — logout removes the signed-in user's data from the dev
     expect(localStorage.getItem("dnd-collapsible-spells-char-1")).toBe("[1]")
     expect(mockClearFirestoreCache).not.toHaveBeenCalled()
     expect(mockSignOut).toHaveBeenCalledOnce()
+  })
+})
+
+// Signing out deletes Firestore's cache, which shuts Firestore down in every open tab (see
+// clearFirestoreCache). A tab that was signed in cannot go on without a reload, whichever tab the
+// sign-out came from.
+describe("AuthProvider — the page is signed out while it is open", () => {
+  it("reloads a page that was signed in", async () => {
+    const { authStateCallback, capturedAuth } = renderProvider()
+    await authStateCallback(testUser)
+    expect(reload).not.toHaveBeenCalled()
+
+    await authStateCallback(null)
+
+    expect(reload).toHaveBeenCalledOnce()
+    expect(capturedAuth.user()).toBeNull()
+  })
+
+  it("does not reload a page that was never signed in", async () => {
+    const { authStateCallback, capturedAuth } = renderProvider()
+
+    await authStateCallback(null)
+
+    expect(reload).not.toHaveBeenCalled()
+    expect(capturedAuth.loading()).toBe(false)
+  })
+
+  it("does not reload when the signed-in state is reported again", async () => {
+    const { authStateCallback } = renderProvider()
+
+    await authStateCallback(testUser)
+    await authStateCallback(testUser)
+
+    expect(reload).not.toHaveBeenCalled()
   })
 })
 

@@ -11,7 +11,8 @@ vi.mock("firebase/auth", () => ({
 
 vi.mock("firebase/firestore", () => ({
   initializeFirestore: vi.fn(() => ({ name: "db" })),
-  persistentLocalCache: vi.fn(() => ({})),
+  persistentLocalCache: vi.fn((settings) => ({ kind: "persistent", ...settings })),
+  persistentMultipleTabManager: vi.fn(() => ({ kind: "persistentMultipleTab" })),
   terminate: vi.fn(),
   clearIndexedDbPersistence: vi.fn(),
 }))
@@ -31,6 +32,17 @@ describe("firebase", () => {
 
     expect(getFirebaseAuth()).toEqual({ name: "auth" })
     expect(getDb()).toEqual({ name: "db" })
+  })
+
+  // One cache and one queue of unsent writes for every open tab: signing out deletes that cache,
+  // and the check for unsynced changes has to see the writes made in the other tabs.
+  it("keeps its offline cache in a form that every open tab shares", async () => {
+    const { initializeFirestore } = await import("firebase/firestore")
+    await import("@/lib/firebase")
+
+    expect(initializeFirestore).toHaveBeenCalledWith({ name: "app" }, {
+      localCache: { kind: "persistent", tabManager: { kind: "persistentMultipleTab" } },
+    })
   })
 
   it("loads without throwing when initialization fails, and logs the failure", async () => {

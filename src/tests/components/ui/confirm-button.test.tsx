@@ -58,10 +58,22 @@ describe("ConfirmButton", () => {
     expect(button()).not.toHaveAttribute("data-armed")
   })
 
-  it("ignores the second click of an accidental double click (detail > 1)", () => {
+  // Regression: `detail` is the OS's click count, which keeps rising for every click inside the
+  // system double-click interval. With that interval set long (an accessibility setting) each
+  // deliberate second click arrived as detail 2, 3, … and was swallowed until the button disarmed.
+  it("confirms a deliberate second click that the OS still counts as part of a double click", () => {
     const { onConfirm, button } = renderButton()
     fireEvent.click(button(), { detail: 1 })
     now += CONFIRM_GUARD_MS + 1
+    fireEvent.click(button(), { detail: 2 })
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(button()).not.toHaveAttribute("data-armed")
+  })
+
+  it("ignores the second click of an accidental double click", () => {
+    const { onConfirm, button } = renderButton()
+    fireEvent.click(button(), { detail: 1 })
+    now += 150
     fireEvent.click(button(), { detail: 2 })
     expect(onConfirm).not.toHaveBeenCalled()
     expect(button()).toHaveAttribute("data-armed")

@@ -13,7 +13,7 @@ import { toast } from '@/hooks/use-toast'
 import { clearFirestoreCache, getFirebaseAuth } from './firebase'
 import { saveCharacterToFirebase } from './firebase-storage'
 import type { Character } from './character-types'
-import { clearLocalUserData } from './local-user-data'
+import { clearLocalUserData, readLocalCharacters, writeLocalCharacters } from './local-user-data'
 
 export interface AuthContextType {
   user: () => User | null
@@ -24,7 +24,9 @@ export interface AuthContextType {
   /**
    * Signs out. For a signed-in user this first removes all of their data from the device, and the
    * page must be reloaded afterwards (Firestore has been shut down to clear its cache). It
-   * rejects, leaving the user signed in, if the offline data could not be removed.
+   * rejects if the offline data could not be removed, leaving the user signed in and the rest of
+   * their data in place — but Firestore may already be shut down, so the page must be reloaded
+   * then too.
    */
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
@@ -40,8 +42,6 @@ export function useAuth() {
 
 export { AuthContext }
 
-const LOCAL_CHARACTERS_KEY = 'dnd-characters'
-
 // Moves characters created without an account into the account that has just signed in. A
 // character leaves this device's storage only once its upload has succeeded.
 async function uploadLocalCharacters(userId: string) {
@@ -49,15 +49,14 @@ async function uploadLocalCharacters(userId: string) {
   // would keep the app on its loading screen. They are uploaded on the next load with a connection.
   if (!navigator.onLine) return
 
-  const stored = localStorage.getItem(LOCAL_CHARACTERS_KEY)
-  const localChars: Character[] = stored ? JSON.parse(stored) : []
+  const localChars = readLocalCharacters()
   if (localChars.length === 0) return
 
   const notUploaded: Character[] = []
   for (const char of localChars) {
     if (!(await saveCharacterToFirebase(char, userId))) notUploaded.push(char)
   }
-  localStorage.setItem(LOCAL_CHARACTERS_KEY, JSON.stringify(notUploaded))
+  writeLocalCharacters(notUploaded)
 
   if (notUploaded.length > 0) {
     const count = notUploaded.length === 1 ? '1 character' : `${notUploaded.length} characters`
@@ -80,17 +79,23 @@ export const AuthProvider: ParentComponent = (props) => {
 
   if (!isSkipAuth) {
     try {
+      let wasSignedIn = false
       const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
         if (firebaseUser) {
           try {
             await uploadLocalCharacters(firebaseUser.uid)
           } catch (error) {
-            // e.g. the stored characters are not valid JSON. Signing in must still complete.
+            // e.g. the browser refuses the write. Signing in must still complete.
             console.error('Failed to upload characters stored on this device:', error)
           }
         }
         setUser(firebaseUser)
         setLoading(false)
+        // Signed out while the page was open — here, or in another tab. Either way the sign-out
+        // deleted Firestore's cache, which shuts Firestore down in every tab (see
+        // clearFirestoreCache), so this page can read and save nothing until it is reloaded.
+        if (wasSignedIn && firebaseUser == null) window.location.reload()
+        wasSignedIn = firebaseUser != null
       })
       onCleanup(unsubscribe)
     } catch (error) {
@@ -125,9 +130,10 @@ export const AuthProvider: ParentComponent = (props) => {
       // Without an account (skip-auth) the characters exist only on this device and stay there.
       if (user()) {
         // Before signOut, so the user is never signed out with their data left behind: if the
-        // cache cannot be cleared this throws and they remain signed in.
-        clearLocalUserData()
+        // cache cannot be cleared this throws and they remain signed in. The cache goes first
+        // because it is the step that can fail, and nothing else is removed unless it succeeds.
         await clearFirestoreCache()
+        clearLocalUserData()
       }
       await signOut(getFirebaseAuth())
     } catch (error) {

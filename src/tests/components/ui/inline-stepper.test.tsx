@@ -18,6 +18,11 @@ describe("InlineStepper", () => {
     expect(screen.getByRole("group", { name: "Rope quantity" })).toHaveTextContent("2")
   })
 
+  it("labels its top-level node for debugging", () => {
+    renderStepper()
+    expect(screen.getByTestId("qty")).toHaveAttribute("data-sem", "inline-stepper")
+  })
+
   it("decreases and increases by one", () => {
     const { onChange } = renderStepper()
     fireEvent.click(screen.getByRole("button", { name: "Decrease Rope quantity" }))

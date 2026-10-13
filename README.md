@@ -18,7 +18,7 @@ A D&D 5e/5.5e character sheet web app built with SolidJS and Firebase.
 - **Installable / offline-ready** — PWA with service worker caching
 - **Dark mode** — system-aware theme toggle
 - **Accessibility** — WCAG 2.1 AA target, enforced with axe-core in component tests and axe-playwright in E2E tests
-- **Automated testing** — Vitest unit/integration tests with enforced coverage thresholds, Playwright E2E and visual regression tests (Chromium + Firefox), and Vitest benchmarks; lint, typecheck, and the test suites run in GitHub Actions on every pull request
+- **Automated testing** — Vitest unit/integration tests with enforced coverage thresholds, Playwright E2E and visual regression tests (Chromium + Firefox), and Vitest benchmarks; lint, typecheck, the unit/integration suite and the E2E suite run in GitHub Actions on every pull request, while visual regression is run locally (its baselines are tied to the machine that captured them)
 
 ## Tech Stack
 
@@ -87,7 +87,7 @@ pnpm dev
 | `pnpm test:coverage` | Unit tests with coverage; fails below 80% overall or 90% for auth, storage, and core character logic |
 | `pnpm test:bench` | Run Vitest benchmarks |
 | `pnpm test:e2e` | Run Playwright E2E tests (functional + accessibility + performance) |
-| `pnpm test:visual` | Run Playwright visual regression tests |
+| `pnpm test:visual` | Run Playwright visual regression tests (local only; not run in CI) |
 | `pnpm test:visual:update` | Update Playwright visual snapshots |
 | `pnpm test:visual:chromium` | Visual tests, Chromium only |
 | `pnpm test:visual:firefox` | Visual tests, Firefox only |

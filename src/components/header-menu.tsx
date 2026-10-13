@@ -33,8 +33,11 @@ import type { Character } from "@/lib/character-types"
 
 interface HeaderMenuProps {
   characters: Character[]
-  onImportCharacter: (character: Character) => void
-  onImportMultiple: (characters: Character[]) => void
+  /**
+   * Saves the imported characters and opens the first. Resolves whether every one was saved, and
+   * tells the user itself when one was not (see saveImportedCharacters).
+   */
+  onImport: (characters: Character[]) => Promise<boolean>
   onAllCharacters: () => void
   currentCharacter?: Character
 }
@@ -53,6 +56,13 @@ export function HeaderMenu(props: HeaderMenuProps) {
   const showSignOutDialog = (kind: "unsynced" | "failed") => {
     setSignOutDialog(kind)
     setIsSignOutDialogOpen(true)
+  }
+  // By the time sign-out has failed Firestore is already shut down (see logout in
+  // auth-context.tsx), so nothing can be read or saved until the page reloads. Closing that dialog
+  // any other way than its Reload button therefore reloads as well.
+  const handleSignOutDialogOpenChange = (open: boolean) => {
+    if (!open && signOutDialog() === "failed") window.location.reload()
+    else setIsSignOutDialogOpen(open)
   }
   let fileInputRef!: HTMLInputElement
   let pdfInputRef!: HTMLInputElement
@@ -88,6 +98,15 @@ export function HeaderMenu(props: HeaderMenuProps) {
     }
   }
 
+  // Confirms an import only once its save has succeeded, so "Import Successful" is never followed
+  // by "Import not saved". The dialog does not wait for it: offline, a signed-in user's save stays
+  // pending until the server answers (see notifyIfFailed).
+  const confirmWhenSaved = (saved: Promise<boolean>, confirmation: { title: string; description: string }) => {
+    saved.then((succeeded) => {
+      if (succeeded) toast(confirmation)
+    })
+  }
+
   const handleFileImport = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0]
     if (!file) return
@@ -102,12 +121,16 @@ export function HeaderMenu(props: HeaderMenuProps) {
             return
           }
           const reconciled = reconcileImportedCharacters(migrateCharacters(valid))
-          props.onImportMultiple(reconciled)
-          toast({ title: "Import Successful", description: `Imported ${reconciled.length} characters successfully!` })
+          confirmWhenSaved(props.onImport(reconciled), {
+            title: "Import Successful",
+            description: `Imported ${reconciled.length} characters successfully!`,
+          })
         } else if (data && typeof data === "object" && data.id) {
           const reconciled = reconcileImportedCharacter(migrateCharacter(data))
-          props.onImportCharacter(reconciled)
-          toast({ title: "Import Successful", description: `Imported ${reconciled.name || "character"} successfully!` })
+          confirmWhenSaved(props.onImport([reconciled]), {
+            title: "Import Successful",
+            description: `Imported ${reconciled.name || "character"} successfully!`,
+          })
         } else {
           toast({ title: "Import Failed", description: "Invalid character file format", variant: "destructive" })
         }
@@ -128,8 +151,10 @@ export function HeaderMenu(props: HeaderMenuProps) {
       const parsed = await parsePdfCharacterSheet(file)
       const merged = mergeWithDefault(parsed)
       const character = reconcileImportedCharacter(migrateCharacter(merged))
-      await props.onImportCharacter(character)
-      toast({ title: "PDF Import Successful", description: `Imported ${character.name || "character"} from PDF!` })
+      confirmWhenSaved(props.onImport([character]), {
+        title: "PDF Import Successful",
+        description: `Imported ${character.name || "character"} from PDF!`,
+      })
       setIsImportOpen(false)
     } catch (error) {
       toast({ title: "PDF Import Failed", description: "Could not parse the PDF. Make sure it's a D&D Beyond character sheet.", variant: "destructive" })
@@ -234,7 +259,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
       </DropdownMenu>
 
       <Modal open={isImportOpen()} onOpenChange={setIsImportOpen}>
-        <ModalContent>
+        <ModalContent data-test="import-dialog">
           <ModalHeader>
             <ModalTitle>Import Characters</ModalTitle>
           </ModalHeader>
@@ -283,7 +308,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
         </ModalContent>
       </Modal>
 
-      <Modal open={isSignOutDialogOpen()} onOpenChange={setIsSignOutDialogOpen}>
+      <Modal open={isSignOutDialogOpen()} onOpenChange={handleSignOutDialogOpenChange}>
         <ModalContent data-test="sign-out-dialog">
           <Switch>
             <Match when={signOutDialog() === "unsynced"}>

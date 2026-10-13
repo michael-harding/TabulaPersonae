@@ -9,7 +9,7 @@ import { type Character, createDefaultCharacter } from "@/lib/character-types"
 import { calculateEquippedAC, getEffectiveMaxHp } from "@/lib/character-utils"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
-import { notifyIfFailed } from "@/lib/save-feedback"
+import { notifyIfFailed, saveImportedCharacters } from "@/lib/save-feedback"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
@@ -49,29 +49,11 @@ export default function Home() {
     navigate(`/character/${newCharacter.id}`)
   }
 
-  const handleImportCharacter = (character: Character) => {
-    const imported = { ...character, id: crypto.randomUUID() }
-    setCharacters((prev) => [...prev, imported])
-    notifyIfFailed(storageManager().saveCharacter(imported), {
-      title: "Import not saved",
-      description: `${imported.name || "The imported character"} could not be saved.`,
-    })
-    navigate(`/character/${imported.id}`)
-  }
-
-  const handleImportMultiple = (importedCharacters: Character[]) => {
-    const withNewIds = importedCharacters.map((char) => ({ ...char, id: crypto.randomUUID() }))
-    setCharacters((prev) => [...prev, ...withNewIds])
-    notifyIfFailed(saveAll(withNewIds), {
-      title: "Import not saved",
-      description: "One or more of the imported characters could not be saved.",
-    })
-    if (withNewIds.length > 0) navigate(`/character/${withNewIds[0].id}`)
-  }
-
-  const saveAll = async (toSave: Character[]) => {
-    const results = await Promise.all(toSave.map((char) => storageManager().saveCharacter(char)))
-    return results.every(Boolean)
+  const handleImport = (toImport: Character[]) => {
+    const { imported, saved } = saveImportedCharacters(toImport, storageManager().saveCharacter)
+    setCharacters((prev) => [...prev, ...imported])
+    if (imported.length > 0) navigate(`/character/${imported[0].id}`)
+    return saved
   }
 
   const handleDeleteCharacter = async (characterId: string) => {
@@ -102,8 +84,7 @@ export default function Home() {
           <div class="flex justify-end mb-4">
             <HeaderMenu
               characters={characters()}
-              onImportCharacter={handleImportCharacter}
-              onImportMultiple={handleImportMultiple}
+              onImport={handleImport}
               onAllCharacters={() => navigate("/")}
             />
           </div>

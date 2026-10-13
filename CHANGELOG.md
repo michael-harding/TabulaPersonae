@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Inspiration checkbox in the Basic Info header was removed; the toggle beside the character's name is now the only one
 - The offline/sync indicator is now a button, so it can be reached and expanded from the keyboard and announces whether it is expanded
 - An open menu no longer locks the page behind it: the page can still be scrolled, and clicking anywhere else closes the menu
+- "Import Successful" now appears once the imported characters have actually been saved, rather than as soon as the file is read, so it is never followed by "Import not saved". The imported character still opens straight away
+- With the app open in several tabs while signed in, every tab now works offline and shares the same offline data; previously only the first tab opened did
 - Damage resistances, immunities and vulnerabilities in Skills & Proficiencies are now picked from the standard damage types, with a "Custom…" entry in the same menu for anything else (e.g. "Nonmagical Bludgeoning"). Entries saved earlier in a different case ("fire") are tidied to the standard spelling when the character loads, and duplicates that differed only by case are merged
 
 ### Fixed
@@ -31,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - If cloud sync cannot start (for example, because its configuration is missing), the app now opens signed out and works from on-device storage instead of failing to start; trying to sign in reports the problem
 - The icon beside "Toggle Theme" now updates when the theme changes while the menu is open
 - A save that fails is now reported with an error message instead of passing silently — this covers edits on the character sheet, new characters, imported characters and deleting a character. A character that could not be deleted reappears in the list
-- Signing out now removes all of your data from the device, including the offline copy of your characters kept for use without a connection; previously that copy, and some per-character settings, stayed behind. If you have changes that have not synced yet, you are warned that they will be lost before anything is removed
+- Signing out now removes all of your data from the device, including the offline copy of your characters kept for use without a connection; previously that copy, and some per-character settings, stayed behind. If you have changes that have not synced yet, you are warned that they will be lost before anything is removed, including changes made in another open tab. Other open tabs are signed out with it and reload. If the offline copy cannot be removed, nothing else is removed either and you stay signed in
+- Importing a file with several characters while using the app without an account now keeps all of them; previously only the last one was saved and the app could open a "not found" page
 - Signing in no longer discards characters created without an account when they cannot be added to it: they stay on the device, you are told how many, and they are tried again the next time the app loads
 - Importing a character from the character sheet while offline now opens it straight away instead of appearing to do nothing
 - An open suggestion list (such as Class or Species) is now announced correctly by screen readers: the field points to its list, and the list has a name

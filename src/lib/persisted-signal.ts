@@ -16,13 +16,15 @@ export function createPersistedSetSignal<T extends string | number>(
   const signal = createSignal<Set<T>>(read(untrack(key)))
   const [get, set] = signal
 
-  // Declared before the write below, so that on a key change the new key's set is loaded before
-  // anything is written under it.
   createEffect(on(key, (k) => { set(read(k)) }, { defer: true }))
 
-  createEffect(() => {
-    localStorage.setItem(key(), JSON.stringify([...get()]))
-  })
+  // Tracks the set only, never the key: a key change must reach storage solely through the reload
+  // above. Were this to re-run on the key too, nothing would guarantee it ran after the reload
+  // (Solid does not keep subscribers in declaration order), and it could store the previous
+  // key's set under the new key.
+  createEffect(on(get, (value) => {
+    localStorage.setItem(untrack(key), JSON.stringify([...value]))
+  }))
 
   return signal
 }

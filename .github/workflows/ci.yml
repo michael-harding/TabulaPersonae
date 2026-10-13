@@ -28,7 +28,7 @@ jobs:
       - run: pnpm test:coverage
 
   e2e:
-    name: Playwright accessibility & visual regression
+    name: Playwright end-to-end & accessibility
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +40,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium firefox
+      # Chromium is the only browser the e2e suite uses (playwright.config.ts).
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
-      - run: pnpm test:visual
+      # `pnpm test:visual` is deliberately not run here. Its baselines are pixel-exact screenshots
+      # taken on a developer machine, and the app's text is set in the system font, so they only
+      # match where they were captured. Visual regression is checked locally before each PR.

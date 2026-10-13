@@ -90,10 +90,38 @@ describe("useStorageManager — unauthenticated (user: null)", () => {
     expect(mockDeleteFromFirebase).not.toHaveBeenCalled()
   })
 
-  it("getCharacters returns [] when the stored data is not valid JSON", async () => {
+  // Regression: the list used to be read, awaited, then written, so saves started together all
+  // read the same list and only the last one's character survived.
+  it("keeps every character when several are saved at once", async () => {
+    const second = { ...testCharacter, id: "char-2", name: "Gandalf" }
+    const third = { ...testCharacter, id: "char-3", name: "Bilbo" }
+    const manager = renderManager()
+
+    const results = await Promise.all([testCharacter, second, third].map((character) => manager.saveCharacter(character)))
+
+    expect(results).toEqual([true, true, true])
+    expect(storedCharacters()).toEqual([testCharacter, second, third])
+  })
+
+  it("keeps a character saved while another is being deleted", async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([testCharacter]))
+    const second = { ...testCharacter, id: "char-2", name: "Gandalf" }
+    const manager = renderManager()
+
+    await Promise.all([manager.deleteCharacter("char-1"), manager.saveCharacter(second)])
+
+    expect(storedCharacters()).toEqual([second])
+  })
+
+  it("getCharacters returns [] and logs when the stored data is not valid JSON", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
     localStorage.setItem(STORAGE_KEY, "{not json")
     const manager = renderManager()
+
     expect(await manager.getCharacters()).toEqual([])
+
+    expect(consoleError).toHaveBeenCalledWith("Failed to read characters stored on this device:", expect.any(SyntaxError))
+    consoleError.mockRestore()
   })
 
   it("getCharacter finds a stored character by id", async () => {

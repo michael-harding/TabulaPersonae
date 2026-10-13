@@ -10,7 +10,7 @@ import { type Character } from "@/lib/character-types"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import { subscribeToCharacter } from "@/lib/firebase-storage"
-import { notifyIfFailed } from "@/lib/save-feedback"
+import { notifyIfFailed, saveImportedCharacters } from "@/lib/save-feedback"
 import { useSyncState } from "@/lib/sync-context"
 import { useTabConfig } from "@/lib/tab-config-context"
 import { MODULE_REGISTRY } from "@/lib/module-registry"
@@ -103,27 +103,10 @@ export default function CharacterSheet() {
     })
   }
 
-  const handleImportCharacter = (char: Character) => {
-    const imported = { ...char, id: crypto.randomUUID() }
-    notifyIfFailed(storageManager().saveCharacter(imported), {
-      title: "Import not saved",
-      description: `${imported.name || "The imported character"} could not be saved.`,
-    })
-    navigate(`/character/${imported.id}`)
-  }
-
-  const handleImportMultiple = (importedCharacters: Character[]) => {
-    const withNewIds = importedCharacters.map((char) => ({ ...char, id: crypto.randomUUID() }))
-    notifyIfFailed(saveAll(withNewIds), {
-      title: "Import not saved",
-      description: "One or more of the imported characters could not be saved.",
-    })
-    if (withNewIds.length > 0) navigate(`/character/${withNewIds[0].id}`)
-  }
-
-  const saveAll = async (toSave: Character[]) => {
-    const results = await Promise.all(toSave.map((char) => storageManager().saveCharacter(char)))
-    return results.every(Boolean)
+  const handleImport = (toImport: Character[]) => {
+    const { imported, saved } = saveImportedCharacters(toImport, storageManager().saveCharacter)
+    if (imported.length > 0) navigate(`/character/${imported[0].id}`)
+    return saved
   }
 
   return (
@@ -184,8 +167,7 @@ export default function CharacterSheet() {
 
                   <HeaderMenu
                     characters={characters()}
-                    onImportCharacter={handleImportCharacter}
-                    onImportMultiple={handleImportMultiple}
+                    onImport={handleImport}
                     onAllCharacters={() => navigate("/")}
                     currentCharacter={charStore.data ?? undefined}
                   />

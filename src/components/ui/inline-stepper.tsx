@@ -26,7 +26,7 @@ export function InlineStepper(props: InlineStepperProps) {
   const atMin = () => props.min != null && props.value <= props.min
   const atMax = () => props.max != null && props.value >= props.max
   return (
-    <div role="group" aria-label={props.label} data-test={props["data-test"]} class="inline-flex items-center gap-1">
+    <div role="group" aria-label={props.label} data-sem="inline-stepper" data-test={props["data-test"]} class="inline-flex items-center gap-1">
       <Button
         data-test={`${props["data-test"]}-decrease`}
         variant="outline"

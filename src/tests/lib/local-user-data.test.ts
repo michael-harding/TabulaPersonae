@@ -1,11 +1,23 @@
-import { clearLocalUserData, hasCharactersAwaitingUpload } from "@/lib/local-user-data"
+import { createDefaultCharacter } from "@/lib/character-types"
+import {
+  clearLocalUserData,
+  hasCharactersAwaitingUpload,
+  readLocalCharacters,
+  writeLocalCharacters,
+} from "@/lib/local-user-data"
+
+const CHARS_KEY = "dnd-characters"
+const thorin = { ...createDefaultCharacter(), id: "char-1", name: "Thorin" }
+const gandalf = { ...createDefaultCharacter(), id: "char-2", name: "Gandalf" }
 
 beforeEach(() => {
   localStorage.clear()
+  vi.spyOn(console, "error").mockImplementation(() => {})
 })
 
 afterEach(() => {
   localStorage.clear()
+  vi.restoreAllMocks()
 })
 
 describe("clearLocalUserData", () => {
@@ -68,5 +80,65 @@ describe("hasCharactersAwaitingUpload", () => {
     if (stored != null) localStorage.setItem("dnd-characters", stored)
 
     expect(hasCharactersAwaitingUpload()).toBe(expected)
+  })
+})
+
+describe("readLocalCharacters", () => {
+  it("returns the stored characters", () => {
+    localStorage.setItem(CHARS_KEY, JSON.stringify([thorin, gandalf]))
+
+    expect(readLocalCharacters()).toEqual([thorin, gandalf])
+    expect(console.error).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ["nothing is stored", null],
+    ["the stored list is empty", "[]"],
+    ["the stored value is not a list", '{"id":"char-1"}'],
+  ])("returns [] without logging when %s", (_label, stored) => {
+    // null: nothing is stored under the key
+    if (stored != null) localStorage.setItem(CHARS_KEY, stored)
+
+    expect(readLocalCharacters()).toEqual([])
+    expect(console.error).not.toHaveBeenCalled()
+  })
+
+  it("returns [] and logs when the stored value is not valid JSON, leaving it as it was", () => {
+    localStorage.setItem(CHARS_KEY, "{not json")
+
+    expect(readLocalCharacters()).toEqual([])
+
+    expect(console.error).toHaveBeenCalledExactlyOnceWith("Failed to read characters stored on this device:", expect.any(SyntaxError))
+    expect(localStorage.getItem(CHARS_KEY)).toBe("{not json")
+  })
+
+  it("drops entries that are not objects", () => {
+    localStorage.setItem(CHARS_KEY, JSON.stringify([thorin, "not a character", null]))
+
+    expect(readLocalCharacters()).toEqual([thorin])
+  })
+
+  it("migrates a character saved by an older version", () => {
+    const legacy = { ...thorin }
+    delete legacy.useCalculatedArmorClass
+    localStorage.setItem(CHARS_KEY, JSON.stringify([legacy]))
+
+    expect(readLocalCharacters()[0].useCalculatedArmorClass).toBe(true)
+  })
+})
+
+describe("writeLocalCharacters", () => {
+  it("replaces the stored list with the one given", () => {
+    localStorage.setItem(CHARS_KEY, JSON.stringify([thorin]))
+
+    writeLocalCharacters([gandalf])
+
+    expect(readLocalCharacters()).toEqual([gandalf])
+  })
+
+  it("stores an empty list as a list, not as nothing", () => {
+    writeLocalCharacters([])
+
+    expect(localStorage.getItem(CHARS_KEY)).toBe("[]")
   })
 })

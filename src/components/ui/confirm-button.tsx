@@ -4,8 +4,11 @@ import { Button, type ButtonProps } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 // Clicks arriving sooner than this after arming are treated as the tail of an accidental double
-// click rather than a deliberate confirmation. A held key is not covered by this — its repeats
-// can start after the window — so auto-repeated keydowns are swallowed in onKeyDown instead.
+// click rather than a deliberate confirmation. Elapsed time is the only test: the click event's
+// own count (`detail`) follows the system's double-click interval, which some users set to
+// several seconds, and would then swallow every deliberate second click. A held key is not
+// covered by this — its repeats can start after the window — so auto-repeated keydowns are
+// swallowed in onKeyDown instead.
 export const CONFIRM_GUARD_MS = 500
 // An armed button reverts on its own so a forgotten "Confirm" can't be hit much later by accident.
 export const CONFIRM_TIMEOUT_MS = 4000
@@ -62,8 +65,7 @@ export function ConfirmButton(props: ConfirmButtonProps) {
       arm()
       return
     }
-    // `detail` counts rapid successive clicks; >1 means this is part of a double click.
-    if (e.detail > 1 || performance.now() - armedAt < CONFIRM_GUARD_MS) return
+    if (performance.now() - armedAt < CONFIRM_GUARD_MS) return
     disarm()
     local.onConfirm()
   }

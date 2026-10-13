@@ -82,6 +82,31 @@ describe("createPersistedSetSignal", () => {
       dispose()
     })
 
+    // Regression: the write used to subscribe to the key as well, and relied on running after the
+    // reload. Solid re-queues an effect at the end of the key's subscribers each time it re-runs,
+    // so once one module's set had changed, another module's write ran before its own reload and
+    // stored the previous character's set under the new character's key.
+    it("keeps each character's own state when several modules share the character id", () => {
+      const stateKey = (module: string, characterId: string) => `test-persisted-${module}-${characterId}`
+      localStorage.setItem(stateKey("spells", "char-1"), JSON.stringify([]))
+      localStorage.setItem(stateKey("spells", "char-2"), JSON.stringify(["y"]))
+      const [characterId, setCharacterId] = createSignal("char-1")
+      const actions = setup(() => stateKey("actions", characterId()))
+      const spells = setup(() => stateKey("spells", characterId()))
+      // Only the first module changes, which is what moves its write behind the second's reload
+      actions.set(new Set(["x"]))
+
+      setCharacterId("char-2")
+
+      expect(stored(stateKey("spells", "char-2"))).toEqual(["y"])
+      expect([...spells.get()]).toEqual(["y"])
+      expect([...actions.get()]).toEqual(["x", "y"])
+      expect(stored(stateKey("actions", "char-1"))).toEqual(["x"])
+      expect(stored(stateKey("spells", "char-1"))).toEqual([])
+      actions.dispose()
+      spells.dispose()
+    })
+
     it("writes later changes under the new key only", () => {
       const [key, setKey] = createSignal(KEY_A)
       const { set, dispose } = setup(key)
