@@ -18,7 +18,7 @@ export default defineConfig({
       exclude: ['src/tests/**', '**/*.d.ts', 'src/index.tsx'],
       // TESTING.md §4: 80% overall, 90% for auth, the storage/data layer, and core
       // domain logic (character data transforms). `pnpm test:coverage` fails when any of
-      // these is missed, and CI runs it as a required step (see .github/workflows/ci.yml).
+      // these is missed.
       thresholds: {
         lines: 80,
         functions: 80,
