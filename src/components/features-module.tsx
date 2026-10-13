@@ -1334,7 +1334,10 @@ export function FeaturesModule(props: FeaturesModuleProps) {
             open={isAddOpen() === section.kind}
             onOpenChange={(open) => { if (!open) setIsAddOpen(null) }}
           >
-            <ModalContent class="max-w-md">
+            {/* Feature Type's dropdown opens in place and is clipped by the modal's own scroll
+                container, so the modal must be tall enough to show it while only that field is
+                rendered. content-start keeps the header and form together at the top. */}
+            <ModalContent class="max-w-md min-h-[540px] content-start">
               <Show when={isAddOpen() === section.kind}>
                 <ModalHeader>
                   <ModalTitle>Add {section.singular}</ModalTitle>
