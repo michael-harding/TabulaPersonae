@@ -23,19 +23,22 @@ vi.mock('@/lib/auth-context', () => ({
 
 import { axe } from "vitest-axe"
 import { createSignal } from 'solid-js'
-import { render, screen, fireEvent } from '../test-utils'
+
 import { OfflineIndicator, formatAge } from '@/components/offline-indicator'
-import { createNetworkStatus } from '@/lib/network-status'
+import { createNetworkStatus, type SyncStatus } from '@/lib/network-status'
 import { useAuth } from '@/lib/auth-context'
 import { useSyncState } from '@/lib/sync-context'
+
+import { render, screen, fireEvent } from '../test-utils'
+import { createMockAuth } from '../mocks/auth'
 
 const mockCreateNetworkStatus = vi.mocked(createNetworkStatus)
 const mockUseAuth = vi.mocked(useAuth)
 const mockUseSyncState = vi.mocked(useSyncState)
 
-function makeNetworkStatus(initialStatus: Parameters<typeof createSignal>[0]) {
-  const [status, setStatus] = createSignal(initialStatus)
-  return { status, setStatus }
+function makeNetworkStatus(initialStatus: SyncStatus): ReturnType<typeof createNetworkStatus> {
+  const [status] = createSignal(initialStatus)
+  return { status }
 }
 
 describe('OfflineIndicator', () => {
@@ -67,61 +70,60 @@ describe('OfflineIndicator', () => {
 
   describe('visibility', () => {
     it('renders nothing when status is online', () => {
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online') as any)
-      const { container } = render(<OfflineIndicator />)
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online'))
+      const { container } = render(() => <OfflineIndicator />)
       expect(container.firstChild).toBeNull()
     })
 
     it('renders nothing when user is unauthenticated even if offline', () => {
-      mockUseAuth.mockReturnValueOnce({
-        user: () => null,
-        loading: () => false,
-        skipAuth: () => false,
-        signIn: vi.fn(),
-        signUp: vi.fn(),
-        logout: vi.fn(),
-        resetPassword: vi.fn(),
-      } as any)
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('offline') as any)
-      const { container } = render(<OfflineIndicator />)
+      mockUseAuth.mockReturnValueOnce(createMockAuth())
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('offline'))
+      const { container } = render(() => <OfflineIndicator />)
       expect(container.firstChild).toBeNull()
     })
   })
 
   describe('offline state', () => {
     beforeEach(() => {
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('offline') as any)
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('offline'))
     })
 
     it('renders with gold background', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.bg-yellow-500')).toBeTruthy()
+      render(() => <OfflineIndicator />)
+      expect(screen.getByTestId('offline-indicator')).toHaveClass('bg-yellow-500')
     })
 
     it('renders collapsed by default', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       expect(pill.classList.contains('max-w-xs')).toBe(false)
     })
 
+    it('contains only phrasing content (no block <div>) inside the button', () => {
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
+      expect(pill.tagName).toBe('BUTTON')
+      expect(pill.querySelector('div')).toBeNull()
+    })
+
     it('expands on mouseenter', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(pill.classList.contains('max-w-xs')).toBe(true)
     })
 
     it('collapses on mouseleave', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       fireEvent.mouseLeave(pill)
       expect(pill.classList.contains('max-w-xs')).toBe(false)
     })
 
     it('toggles expanded on click', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.click(pill)
       expect(pill.classList.contains('max-w-xs')).toBe(true)
       fireEvent.click(pill)
@@ -129,8 +131,8 @@ describe('OfflineIndicator', () => {
     })
 
     it('shows "Offline" label when expanded', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Offline')).toBeInTheDocument()
     })
@@ -140,8 +142,8 @@ describe('OfflineIndicator', () => {
         syncState: () => ({ hasPendingWrites: true, updatedAt: null }),
         setSyncState: vi.fn(),
       })
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Not yet synced')).toBeInTheDocument()
     })
@@ -151,8 +153,8 @@ describe('OfflineIndicator', () => {
         syncState: () => ({ hasPendingWrites: true, updatedAt: new Date(Date.now() - 90_000) }),
         setSyncState: vi.fn(),
       })
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('1 min ago')).toBeInTheDocument()
     })
@@ -162,8 +164,8 @@ describe('OfflineIndicator', () => {
         syncState: () => ({ hasPendingWrites: false, updatedAt: new Date(Date.now() - 90_000) }),
         setSyncState: vi.fn(),
       })
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('1 min ago')).toBeInTheDocument()
     })
@@ -171,53 +173,53 @@ describe('OfflineIndicator', () => {
 
   describe('syncing state', () => {
     beforeEach(() => {
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('syncing') as any)
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('syncing'))
     })
 
     it('renders with blue background', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.bg-blue-500')).toBeTruthy()
+      render(() => <OfflineIndicator />)
+      expect(screen.getByTestId('offline-indicator')).toHaveClass('bg-blue-500')
     })
 
     it('shows "Syncing…" label when expanded', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Syncing…')).toBeInTheDocument()
     })
 
     it('renders the spinning icon', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.animate-spin')).toBeTruthy()
+      render(() => <OfflineIndicator />)
+      expect(screen.getByTestId('offline-indicator-spinner')).toHaveClass('animate-spin')
     })
   })
 
   describe('synced state', () => {
     beforeEach(() => {
-      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('synced') as any)
+      mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('synced'))
     })
 
     it('renders with green background', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.bg-green-500')).toBeTruthy()
+      render(() => <OfflineIndicator />)
+      expect(screen.getByTestId('offline-indicator')).toHaveClass('bg-green-500')
     })
 
     it('shows "Synced" label when expanded', () => {
-      const { container } = render(<OfflineIndicator />)
-      const pill = container.querySelector('.rounded-full')!
+      render(() => <OfflineIndicator />)
+      const pill = screen.getByTestId('offline-indicator')
       fireEvent.mouseEnter(pill)
       expect(screen.getByText('Synced')).toBeInTheDocument()
     })
 
     it('does not render spinning icon', () => {
-      const { container } = render(<OfflineIndicator />)
-      expect(container.querySelector('.animate-spin')).toBeNull()
+      render(() => <OfflineIndicator />)
+      expect(screen.queryByTestId('offline-indicator-spinner')).toBeNull()
     })
   })
 
   it("has no accessibility violations", async () => {
-    mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online') as any)
-    const { container } = render(<OfflineIndicator />)
+    mockCreateNetworkStatus.mockImplementation(() => makeNetworkStatus('online'))
+    const { container } = render(() => <OfflineIndicator />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

@@ -2,20 +2,20 @@ vi.mock('firebase/firestore', () => ({
   waitForPendingWrites: vi.fn(),
 }))
 
-// @/lib/firebase is mocked globally in setup.tsx as { auth: {}, db: {} }
+// @/lib/firebase is mocked globally in setup.tsx: getFirebaseAuth() and getDb() return {}
 
 vi.unmock('@/lib/network-status')
 
 import { createRoot } from 'solid-js'
 import { waitForPendingWrites } from 'firebase/firestore'
+
 import { createNetworkStatus } from '@/lib/network-status'
 
 const mockWaitForPendingWrites = vi.mocked(waitForPendingWrites)
 
 function makeStatus() {
   let status!: ReturnType<typeof createNetworkStatus>
-  let dispose!: () => void
-  dispose = createRoot(d => {
+  const dispose = createRoot(d => {
     status = createNetworkStatus()
     return d
   })

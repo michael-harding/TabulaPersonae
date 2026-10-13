@@ -1,17 +1,4 @@
-import { createSignal, createMemo, Show, For } from "solid-js"
-import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
-import { useHpDisplay } from "@/hooks/use-hp-display"
-import { useCalculatedValue } from "@/hooks/use-calculated-value"
-import { EditableModule } from "@/components/editable-module"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { PipTracker } from "@/components/ui/pip-tracker"
-import { StepperInput } from "@/components/ui/stepper-input"
-import { CalculatedValue } from "@/components/ui/calculated-value"
-import { CalculatedValueSelect } from "@/components/ui/calculated-value-select"
-import { useReadOnly } from "@/lib/read-only-context"
+import { createSignal, createEffect, createMemo, on, untrack, Show } from "solid-js"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
 import Plus from "lucide-solid/icons/plus"
@@ -19,7 +6,20 @@ import Minus from "lucide-solid/icons/minus"
 import Skull from "lucide-solid/icons/skull"
 import CheckCircle from "lucide-solid/icons/check-circle"
 import XCircle from "lucide-solid/icons/x-circle"
-import X from "lucide-solid/icons/x"
+
+import type { Character } from "@/lib/character-types"
+import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
+import { useHpDisplay } from "@/hooks/use-hp-display"
+import { useCalculatedValue } from "@/hooks/use-calculated-value"
+import { EditableModule } from "@/components/editable-module"
+import { ChipListEditor } from "@/components/ui/chip-list-editor"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { PipTracker } from "@/components/ui/pip-tracker"
+import { StepperInput } from "@/components/ui/stepper-input"
+import { CalculatedValue } from "@/components/ui/calculated-value"
+import { CalculatedValueSelect } from "@/components/ui/calculated-value-select"
+import { useReadOnly } from "@/lib/read-only-context"
 
 interface CombatStatsModuleProps {
   character: Character
@@ -76,7 +76,11 @@ const toEdit = (c: Character) => {
 export function CombatStatsModule(props: CombatStatsModuleProps) {
   const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(toEdit(props.character))
+  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
+  // The sheet swaps characters in place, so in-progress edits must not carry over to the next one.
+  createEffect(on(() => props.character.id, () => {
+    setEdited(toEdit(props.character))
+  }, { defer: true }))
   const current = () => (isEditing() ? edited() : props.character)
 
   const persist = () => {
@@ -150,24 +154,14 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     hpPercentage, hpColor, tempHpWidth, tempHpLeft,
   } = useHpDisplay(() => props.character)
 
-  const toggleCondition = (condition: string) => {
+  const setConditions = (conditions: string[]) => {
     if (isReadOnly) return
-    const current = props.character.conditions ?? []
-    const next = current.includes(condition)
-      ? current.filter((c) => c !== condition)
-      : [...current, condition]
-    const updated = { ...props.character, conditions: next }
-    props.onUpdate(updated)
+    props.onUpdate({ ...props.character, conditions })
   }
 
-  const toggleConditionImmunity = (condition: string) => {
+  const setConditionImmunities = (conditionImmunities: string[]) => {
     if (isReadOnly) return
-    const own = props.character.conditionImmunities ?? []
-    const next = own.includes(condition)
-      ? own.filter((c) => c !== condition)
-      : [...own, condition]
-    const updated = { ...props.character, conditionImmunities: next }
-    props.onUpdate(updated)
+    props.onUpdate({ ...props.character, conditionImmunities })
   }
 
   const effectiveConditionImmunities = createMemo(() => getEffectiveConditionImmunities(props.character))
@@ -312,7 +306,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     <EditableModule
       data-sem="combat-stats-module"
       data-test="combat-stats-module"
-      icon={<ShieldIcon class="h-5 w-5 text-primary" />}
+      icon={<ShieldIcon class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Combat Stats"
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
@@ -325,16 +319,16 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <Label class="flex items-center gap-2">
-              <Heart class="h-4 w-4 text-destructive" />
+              <Heart class="h-4 w-4 text-destructive" aria-hidden="true" />
               Hit Points
             </Label>
             <Show when={!isEditing() && !isReadOnly}>
               <div class="flex gap-1">
                 <Button data-test="hp-decrease-button" size="sm" variant="outline" aria-label="Decrease HP" onClick={() => adjustHitPoints(-1)} disabled={currentHP() <= 0}>
-                  <Minus class="h-3 w-3" />
+                  <Minus class="h-3 w-3" aria-hidden="true" />
                 </Button>
                 <Button data-test="hp-increase-button" size="sm" variant="outline" aria-label="Increase HP" onClick={() => adjustHitPoints(1)} disabled={currentHP() >= maxHP()}>
-                  <Plus class="h-3 w-3" />
+                  <Plus class="h-3 w-3" aria-hidden="true" />
                 </Button>
               </div>
             </Show>
@@ -365,7 +359,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               <Show when={!isReadOnly}>
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-muted-foreground">Temp HP:</span>
-                  <StepperInput
+                  <StepperInput data-test="temp-hp-quick-stepper"
                     min={0}
                     value={props.character.hitPoints?.temporary ?? 0}
                     onChange={(v) => {
@@ -381,16 +375,16 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             <div class="flex flex-wrap items-end justify-center gap-4">
               <div class="space-y-1">
                 <Label class="text-xs">Current</Label>
-                <StepperInput min={0} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} aria-label="Current hit points" />
+                <StepperInput data-test="current-hp-stepper" min={0} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} aria-label="Current hit points" />
               </div>
-              <CalculatedValue label="Maximum" editable={isEditing()} min={1} {...maximumHpField.binding()} />
+              <CalculatedValue data-test="max-hp" label="Maximum" editable={isEditing()} min={1} {...maximumHpField.binding()} />
               <div class="space-y-1">
                 <Label class="text-xs">Temporary</Label>
-                <StepperInput min={0} value={edited().hitPoints?.temporary ?? 0} onChange={(v) => updateHP("temporary", v)} aria-label="Temporary hit points" />
+                <StepperInput data-test="temp-hp-stepper" min={0} value={edited().hitPoints?.temporary ?? 0} onChange={(v) => updateHP("temporary", v)} aria-label="Temporary hit points" />
               </div>
               <div class="space-y-1">
                 <Label class="text-xs">Temp Max HP</Label>
-                <StepperInput min={-999} value={edited().hitPoints?.temporaryMaximum ?? 0} onChange={(v) => updateHP("temporaryMaximum", v)} aria-label="Temporary maximum hit points" />
+                <StepperInput data-test="temp-max-hp-stepper" min={-999} value={edited().hitPoints?.temporaryMaximum ?? 0} onChange={(v) => updateHP("temporaryMaximum", v)} aria-label="Temporary maximum hit points" />
               </div>
             </div>
           </Show>
@@ -400,13 +394,13 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
         <Show when={currentHP() === 0}>
           <div class="space-y-3">
             <Label class="flex items-center gap-2">
-              <Skull class="h-4 w-4 text-destructive" />
+              <Skull class="h-4 w-4 text-destructive" aria-hidden="true" />
               Death Saves
             </Label>
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
                 <div class="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-1">
-                  <CheckCircle class="h-3 w-3" /> Successes
+                  <CheckCircle class="h-3 w-3" aria-hidden="true" /> Successes
                 </div>
                 <PipTracker
                   total={3}
@@ -414,7 +408,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   onToggle={(n) => toggleDeathSave("successes", n)}
                   filledClass="bg-green-500 border-green-500 hover:bg-green-400"
                   emptyClass="bg-background border-green-500 hover:bg-green-100"
-                  filledIcon={<CheckCircle class="h-4 w-4 text-white" />}
+                  filledIcon={<CheckCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Success (click to remove)"
                   availableTitle="Click to add success"
                   readOnly={isReadOnly}
@@ -422,7 +416,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               </div>
               <div class="space-y-2">
                 <div class="text-sm font-medium text-red-600 dark:text-red-400 flex items-center gap-1">
-                  <XCircle class="h-3 w-3" /> Failures
+                  <XCircle class="h-3 w-3" aria-hidden="true" /> Failures
                 </div>
                 <PipTracker
                   total={3}
@@ -430,7 +424,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   onToggle={(n) => toggleDeathSave("failures", n)}
                   filledClass="bg-red-500 border-red-500 hover:bg-red-400"
                   emptyClass="bg-background border-red-500 hover:bg-red-100"
-                  filledIcon={<XCircle class="h-4 w-4 text-white" />}
+                  filledIcon={<XCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Failure (click to remove)"
                   availableTitle="Click to add failure"
                   readOnly={isReadOnly}
@@ -447,148 +441,42 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
         </Show>
 
         {/* Conditions */}
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <Label class="text-sm text-muted-foreground">Conditions</Label>
-            <Show when={!isReadOnly}>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  as="button"
-                  data-test="add-condition-button"
-                  class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
-                  title="Add condition"
-                >
-                  <Plus class="h-3 w-3" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <For each={CONDITIONS}>
-                    {(condition) => (
-                      <DropdownMenuItem
-                        onSelect={() => toggleCondition(condition)}
-                        class={(props.character.conditions ?? []).includes(condition) ? "text-primary font-medium" : ""}
-                      >
-                        {condition}
-                        <Show when={(props.character.conditions ?? []).includes(condition)}>
-                          <span class="ml-auto text-primary">✓</span>
-                        </Show>
-                      </DropdownMenuItem>
-                    )}
-                  </For>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </Show>
-          </div>
-          <div class="flex flex-wrap gap-1.5 min-h-[1.5rem]">
-            <Show
-              when={(props.character.conditions ?? []).length > 0}
-              fallback={<span class="text-xs text-muted-foreground italic">None</span>}
-            >
-              <For each={props.character.conditions ?? []}>
-                {(condition) => (
-                  <Show
-                    when={!isReadOnly}
-                    fallback={
-                      <span class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-destructive text-destructive-foreground">
-                        {condition}
-                      </span>
-                    }
-                  >
-                    <button
-                      type="button"
-                      data-test={`remove-condition-${condition}`}
-                      onClick={() => toggleCondition(condition)}
-                      class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors"
-                      title="Click to remove"
-                    >
-                      {condition}
-                      <X class="h-2.5 w-2.5" />
-                    </button>
-                  </Show>
-                )}
-              </For>
-            </Show>
-          </div>
-        </div>
+        <ChipListEditor
+          label="Conditions"
+          labelClass="text-sm text-muted-foreground"
+          itemLabel="condition"
+          data-test="condition"
+          variant="destructive"
+          emptyText="None"
+          editing={!isReadOnly}
+          options={CONDITIONS}
+          values={props.character.conditions ?? []}
+          onChange={setConditions}
+        />
 
         {/* Condition Immunities */}
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <Label class="text-sm text-muted-foreground">Condition Immunities</Label>
-            <Show when={!isReadOnly}>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  as="button"
-                  data-test="add-condition-immunity-button"
-                  class="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
-                  title="Add condition immunity"
-                >
-                  <Plus class="h-3 w-3" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <For each={CONDITIONS}>
-                    {(condition) => (
-                      <DropdownMenuItem
-                        onSelect={() => toggleConditionImmunity(condition)}
-                        class={(props.character.conditionImmunities ?? []).includes(condition) ? "text-primary font-medium" : ""}
-                      >
-                        {condition}
-                        <Show when={(props.character.conditionImmunities ?? []).includes(condition)}>
-                          <span class="ml-auto text-primary">✓</span>
-                        </Show>
-                      </DropdownMenuItem>
-                    )}
-                  </For>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </Show>
-          </div>
-          <div class="flex flex-wrap gap-1.5 min-h-[1.5rem]">
-            <Show
-              when={effectiveConditionImmunities().own.length + effectiveConditionImmunities().granted.length > 0}
-              fallback={<span class="text-xs text-muted-foreground italic">None</span>}
-            >
-              <For each={[...effectiveConditionImmunities().own, ...effectiveConditionImmunities().granted]}>
-                {(condition) => {
-                  const isOwn = () => effectiveConditionImmunities().own.includes(condition)
-                  const grantedTooltip = () => {
-                    const source = effectiveConditionImmunities().grantedBy[condition]
-                    return source === "equipment" ? "Granted by an equipped item" : `Granted by ${source} — edit in Features`
-                  }
-                  return (
-                    <Show
-                      when={!isReadOnly && isOwn()}
-                      fallback={
-                        <span
-                          class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground"
-                          title={isOwn() ? undefined : grantedTooltip()}
-                        >
-                          {condition}
-                        </span>
-                      }
-                    >
-                      <button
-                        type="button"
-                        data-test={`remove-condition-immunity-${condition}`}
-                        onClick={() => toggleConditionImmunity(condition)}
-                        class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                        title="Click to remove"
-                      >
-                        {condition}
-                        <X class="h-2.5 w-2.5" />
-                      </button>
-                    </Show>
-                  )
-                }}
-              </For>
-            </Show>
-          </div>
-        </div>
+        <ChipListEditor
+          label="Condition Immunities"
+          labelClass="text-sm text-muted-foreground"
+          itemLabel="condition immunity"
+          data-test="condition-immunity"
+          emptyText="None"
+          editing={!isReadOnly}
+          options={CONDITIONS}
+          values={effectiveConditionImmunities().own}
+          grantedValues={effectiveConditionImmunities().granted}
+          grantedTooltip={(condition) => {
+            const source = effectiveConditionImmunities().grantedBy[condition]
+            return source === "equipment" ? "Granted by an equipped item" : `Granted by ${source} — edit in Features`
+          }}
+          onChange={setConditionImmunities}
+        />
 
         {/* Other Combat Stats */}
         <div class="grid grid-cols-2 gap-4">
           {/* AC */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="armor-class"
               label="Armor Class"
               editable={isEditing()}
               {...acField.binding()}
@@ -597,7 +485,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
           {/* Initiative */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="initiative"
               label="Initiative"
               editable={isEditing()}
               {...initiativeField.binding()}
@@ -607,7 +495,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
           {/* Speed */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="speed"
               label="Speed"
               editable={isEditing()}
               {...speedField.binding()}
@@ -625,17 +513,17 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               }
             >
               <div class="grid grid-cols-2 gap-1 mt-2">
-                <CalculatedValue variant="compact" label="Fly" editable={isEditing()} min={0} {...flySpeedField.binding()} format={(n) => `${n} ft`} />
-                <CalculatedValue variant="compact" label="Swim" editable={isEditing()} min={0} {...swimSpeedField.binding()} format={(n) => `${n} ft`} />
-                <CalculatedValue variant="compact" label="Climb" editable={isEditing()} min={0} {...climbSpeedField.binding()} format={(n) => `${n} ft`} />
-                <CalculatedValue variant="compact" label="Burrow" editable={isEditing()} min={0} {...burrowSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="fly-speed" variant="compact" label="Fly" editable={isEditing()} min={0} {...flySpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="swim-speed" variant="compact" label="Swim" editable={isEditing()} min={0} {...swimSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="climb-speed" variant="compact" label="Climb" editable={isEditing()} min={0} {...climbSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="burrow-speed" variant="compact" label="Burrow" editable={isEditing()} min={0} {...burrowSpeedField.binding()} format={(n) => `${n} ft`} />
               </div>
             </Show>
           </div>
 
           {/* Proficiency Bonus */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="proficiency-bonus"
               label="Proficiency Bonus"
               editable={isEditing()}
               {...profBonusField.binding()}
@@ -645,7 +533,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
           {/* Passive Perception — both editions */}
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="passive-perception"
               label={passivePerceptionLabel()}
               editable={isEditing()}
               {...passivePerceptionField.binding()}
@@ -655,7 +543,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           {/* Size — 2024 only */}
           <Show when={edition() === "2024"}>
             <div class="text-center">
-              <CalculatedValueSelect label="Size" editable={isEditing()} options={SIZES} {...sizeField.binding()} />
+              <CalculatedValueSelect data-test="size" label="Size" editable={isEditing()} options={SIZES} {...sizeField.binding()} />
             </div>
           </Show>
         </div>

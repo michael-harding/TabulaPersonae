@@ -1,5 +1,6 @@
-import { createSignal, createEffect, splitProps } from "solid-js"
+import { createSignal, createEffect, splitProps, untrack } from "solid-js"
 import type { ComponentProps } from "solid-js"
+
 import { Input } from "@/components/ui/input"
 
 type NumericInputProps = Omit<ComponentProps<"input">, "value" | "onChange" | "onInput" | "onBlur" | "min" | "max"> & {
@@ -16,12 +17,12 @@ export function NumericInput(props: NumericInputProps) {
   const parse = (s: string) => (local.parser ?? parseInt)(s)
   const clamp = (n: number) => {
     let v = n
-    if (local.min !== undefined) v = Math.max(local.min, v)
-    if (local.max !== undefined) v = Math.min(local.max, v)
+    if (local.min != null) v = Math.max(local.min, v)
+    if (local.max != null) v = Math.min(local.max, v)
     return v
   }
 
-  const [raw, setRaw] = createSignal(String(local.value))
+  const [raw, setRaw] = createSignal(untrack(() => String(local.value)))
   // Tracks whether the user has actually typed since the field was last synced from props — not
   // just whether the parsed value happens to equal local.value, since a field showing a synthetic
   // default (e.g. `value ?? 0` for "not yet set") needs typing that same number to still count as a
@@ -46,6 +47,7 @@ export function NumericInput(props: NumericInputProps) {
   return (
     <Input
       {...rest}
+      data-sem="numeric-input"
       type="number"
       min={local.min}
       max={local.max}

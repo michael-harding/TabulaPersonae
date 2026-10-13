@@ -1,13 +1,16 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+import type { ComponentProps } from "solid-js"
+
 import { EditableModule } from "@/components/editable-module"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
+import { render, screen, fireEvent } from "../test-utils"
+
 const icon = <span>icon</span>
 
-function renderView(overrides: Record<string, any> = {}) {
-  return render(
-    <EditableModule
+function renderView(overrides: Partial<ComponentProps<typeof EditableModule>> = {}) {
+  return render(() => (
+    <EditableModule data-test="test-module"
       icon={icon}
       title="Test Section"
       isEditing={false}
@@ -17,7 +20,7 @@ function renderView(overrides: Record<string, any> = {}) {
       onCancel={vi.fn()}
       {...overrides}
     />
-  )
+  ))
 }
 
 describe("EditableModule", () => {
@@ -32,11 +35,11 @@ describe("EditableModule", () => {
     })
 
     it("renders children", () => {
-      render(
-        <EditableModule icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
+      render(() => (
+        <EditableModule data-test="test-module" icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
           <span>child content</span>
         </EditableModule>
-      )
+      ))
       expect(screen.getByText("child content")).toBeInTheDocument()
     })
 
@@ -60,8 +63,8 @@ describe("EditableModule", () => {
     })
 
     it("does not render headerExtra when editing", () => {
-      render(
-        <EditableModule
+      render(() => (
+        <EditableModule data-test="test-module"
           icon={icon}
           title="S"
           isEditing={true}
@@ -71,16 +74,16 @@ describe("EditableModule", () => {
           onCancel={vi.fn()}
           headerExtra={<span>extra content</span>}
         />
-      )
+      ))
       expect(screen.queryByText("extra content")).not.toBeInTheDocument()
     })
 
   })
 
   describe("edit mode (isEditing=true)", () => {
-    function renderEdit(overrides: Record<string, any> = {}) {
-      return render(
-        <EditableModule
+    function renderEdit(overrides: Partial<ComponentProps<typeof EditableModule>> = {}) {
+      return render(() => (
+        <EditableModule data-test="test-module"
           icon={icon}
           title="Test Section"
           isEditing={true}
@@ -90,7 +93,7 @@ describe("EditableModule", () => {
           onCancel={vi.fn()}
           {...overrides}
         />
-      )
+      ))
     }
 
     it("renders Save and Cancel buttons", () => {
@@ -119,15 +122,15 @@ describe("EditableModule", () => {
     })
 
     it("applies contentClass to the card content", () => {
-      const { container } = renderEdit({ contentClass: "my-custom-class" })
-      expect(container.querySelector(".my-custom-class")).toBeInTheDocument()
+      renderEdit({ contentClass: "my-custom-class" })
+      expect(screen.getByTestId("test-module-content")).toHaveClass("my-custom-class")
     })
 
     it("calls onSaveKeepEditing (not onSave) on Ctrl+S", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderEdit({ onSave, onSaveKeepEditing })
-      fireEvent.keyDown(container.querySelector('[data-sem="card"]')!, { key: "s", ctrlKey: true })
+      renderEdit({ onSave, onSaveKeepEditing })
+      fireEvent.keyDown(screen.getByTestId("test-module"), { key: "s", ctrlKey: true })
       expect(onSaveKeepEditing).toHaveBeenCalledTimes(1)
       expect(onSave).not.toHaveBeenCalled()
     })
@@ -135,8 +138,8 @@ describe("EditableModule", () => {
     it("calls onSaveKeepEditing (not onSave) on Cmd+S", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderEdit({ onSave, onSaveKeepEditing })
-      fireEvent.keyDown(container.querySelector('[data-sem="card"]')!, { key: "s", metaKey: true })
+      renderEdit({ onSave, onSaveKeepEditing })
+      fireEvent.keyDown(screen.getByTestId("test-module"), { key: "s", metaKey: true })
       expect(onSaveKeepEditing).toHaveBeenCalledTimes(1)
       expect(onSave).not.toHaveBeenCalled()
     })
@@ -144,8 +147,8 @@ describe("EditableModule", () => {
     it("calls onSave (not onSaveKeepEditing) on Ctrl+Enter", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderEdit({ onSave, onSaveKeepEditing })
-      fireEvent.keyDown(container.querySelector('[data-sem="card"]')!, { key: "Enter", ctrlKey: true })
+      renderEdit({ onSave, onSaveKeepEditing })
+      fireEvent.keyDown(screen.getByTestId("test-module"), { key: "Enter", ctrlKey: true })
       expect(onSave).toHaveBeenCalledTimes(1)
       expect(onSaveKeepEditing).not.toHaveBeenCalled()
     })
@@ -153,8 +156,8 @@ describe("EditableModule", () => {
     it("does not save on plain 's' or 'Enter' without a modifier key", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderEdit({ onSave, onSaveKeepEditing })
-      const card = container.querySelector('[data-sem="card"]')!
+      renderEdit({ onSave, onSaveKeepEditing })
+      const card = screen.getByTestId("test-module")
       fireEvent.keyDown(card, { key: "s" })
       fireEvent.keyDown(card, { key: "Enter" })
       expect(onSave).not.toHaveBeenCalled()
@@ -164,8 +167,8 @@ describe("EditableModule", () => {
     it("ignores Ctrl+S / Ctrl+Enter when not editing", () => {
       const onSave = vi.fn()
       const onSaveKeepEditing = vi.fn()
-      const { container } = renderView({ onSave, onSaveKeepEditing })
-      const card = container.querySelector('[data-sem="card"]')!
+      renderView({ onSave, onSaveKeepEditing })
+      const card = screen.getByTestId("test-module")
       fireEvent.keyDown(card, { key: "s", ctrlKey: true })
       fireEvent.keyDown(card, { key: "Enter", ctrlKey: true })
       expect(onSave).not.toHaveBeenCalled()
@@ -174,18 +177,18 @@ describe("EditableModule", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(
-      <EditableModule icon={icon} title="Test Section" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()} />
-    )
+    const { container } = render(() => (
+      <EditableModule data-test="test-module" icon={icon} title="Test Section" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()} />
+    ))
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
 
   describe("readOnly mode", () => {
-    function renderReadOnly(overrides: Record<string, any> = {}) {
-      return render(
+    function renderReadOnly(overrides: Partial<ComponentProps<typeof EditableModule>> = {}) {
+      return render(() => (
         <ReadOnlyProvider value={true}>
-          <EditableModule
+          <EditableModule data-test="test-module"
             icon={icon}
             title="Test Section"
             isEditing={false}
@@ -196,7 +199,7 @@ describe("EditableModule", () => {
             {...overrides}
           />
         </ReadOnlyProvider>
-      )
+      ))
     }
 
     it("does not render the Edit button", () => {
@@ -210,13 +213,13 @@ describe("EditableModule", () => {
     })
 
     it("still renders children content", () => {
-      render(
+      render(() => (
         <ReadOnlyProvider value={true}>
-          <EditableModule icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
+          <EditableModule data-test="test-module" icon={icon} title="S" isEditing={false} onEdit={vi.fn()} onSave={vi.fn()} onSaveKeepEditing={vi.fn()} onCancel={vi.fn()}>
             <span>display content</span>
           </EditableModule>
         </ReadOnlyProvider>
-      )
+      ))
       expect(screen.getByText("display content")).toBeInTheDocument()
     })
   })

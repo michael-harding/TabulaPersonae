@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
-import { roll, d4, d6, d8, d10, d12, d20, rollMany, parseDiceString, DIE_SIZES, type DieSize } from "@/lib/dice"
+
+import { roll, rollMany, parseDiceString, DIE_SIZES, type DieSize } from "@/lib/dice"
 
 describe("dice utilities", () => {
   describe("roll", () => {
@@ -14,19 +15,6 @@ describe("dice utilities", () => {
     it.each(DIE_SIZES)("d%i always returns an integer", (sides) => {
       for (let i = 0; i < 20; i++) {
         expect(Number.isInteger(roll(sides as DieSize))).toBe(true)
-      }
-    })
-  })
-
-  describe("individual die functions", () => {
-    const cases: [() => number, number][] = [
-      [d4, 4], [d6, 6], [d8, 8], [d10, 10], [d12, 12], [d20, 20],
-    ]
-    it.each(cases)("%s returns a value in [1, %i]", (fn, max) => {
-      for (let i = 0; i < 50; i++) {
-        const r = fn()
-        expect(r).toBeGreaterThanOrEqual(1)
-        expect(r).toBeLessThanOrEqual(max)
       }
     })
   })

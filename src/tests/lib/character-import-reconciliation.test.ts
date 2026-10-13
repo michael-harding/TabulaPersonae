@@ -1,12 +1,8 @@
 import { reconcileImportedCharacter, reconcileImportedCharacters, freshenCalculatedFields } from "@/lib/character-import-reconciliation"
-import { createDefaultCharacter } from "@/lib/character-types"
+import { migrateCharacter } from "@/lib/character-migrations"
+import { createDefaultCharacter, type Character } from "@/lib/character-types"
 
 describe("reconcileImportedCharacter", () => {
-  it("passes through non-object input unchanged", () => {
-    expect(reconcileImportedCharacter(null)).toBeNull()
-    expect(reconcileImportedCharacter(undefined)).toBeUndefined()
-  })
-
   it("marks every already-consistent default-character field as calculated", () => {
     const result = reconcileImportedCharacter(createDefaultCharacter())
     expect(result.useCalculatedArmorClass).toBe(true)
@@ -18,12 +14,12 @@ describe("reconcileImportedCharacter", () => {
 
   describe("armorClass", () => {
     it("marks calculated when the imported value matches the formula", () => {
-      const character: any = { ...createDefaultCharacter(), armorClass: 10 }
+      const character: Character = { ...createDefaultCharacter(), armorClass: 10 }
       expect(reconcileImportedCharacter(character).useCalculatedArmorClass).toBe(true)
     })
 
     it("marks custom and preserves the value when it doesn't match", () => {
-      const character: any = { ...createDefaultCharacter(), armorClass: 15 }
+      const character: Character = { ...createDefaultCharacter(), armorClass: 15 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedArmorClass).toBe(false)
       expect(result.armorClass).toBe(15)
@@ -32,12 +28,12 @@ describe("reconcileImportedCharacter", () => {
 
   describe("initiative", () => {
     it("treats a matching value of 0 as calculated, not absent", () => {
-      const character: any = { ...createDefaultCharacter(), initiative: 0 }
+      const character: Character = { ...createDefaultCharacter(), initiative: 0 }
       expect(reconcileImportedCharacter(character).useCalculatedInitiative).toBe(true)
     })
 
     it("marks custom and preserves a mismatched value", () => {
-      const character: any = { ...createDefaultCharacter(), initiative: 3 }
+      const character: Character = { ...createDefaultCharacter(), initiative: 3 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedInitiative).toBe(false)
       expect(result.initiative).toBe(3)
@@ -46,12 +42,12 @@ describe("reconcileImportedCharacter", () => {
 
   describe("proficiencyBonus", () => {
     it("marks calculated when it matches getProficiencyBonus(level)", () => {
-      const character: any = { ...createDefaultCharacter(), level: 5, proficiencyBonus: 3 }
+      const character: Character = { ...createDefaultCharacter(), level: 5, proficiencyBonus: 3 }
       expect(reconcileImportedCharacter(character).useCalculatedProficiencyBonus).toBe(true)
     })
 
     it("marks custom and preserves a mismatched value", () => {
-      const character: any = { ...createDefaultCharacter(), level: 5, proficiencyBonus: 2 }
+      const character: Character = { ...createDefaultCharacter(), level: 5, proficiencyBonus: 2 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedProficiencyBonus).toBe(false)
       expect(result.proficiencyBonus).toBe(2)
@@ -60,43 +56,43 @@ describe("reconcileImportedCharacter", () => {
 
   describe("passive scores", () => {
     it("marks passivePerception calculated when it matches", () => {
-      const character: any = { ...createDefaultCharacter(), passivePerception: 10 }
+      const character: Character = { ...createDefaultCharacter(), passivePerception: 10 }
       expect(reconcileImportedCharacter(character).useCalculatedPassivePerception).toBe(true)
     })
 
     it("marks passivePerception custom and preserves a mismatched value", () => {
-      const character: any = { ...createDefaultCharacter(), passivePerception: 15 }
+      const character: Character = { ...createDefaultCharacter(), passivePerception: 15 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedPassivePerception).toBe(false)
       expect(result.passivePerception).toBe(15)
     })
 
     it("leaves the toggle untouched when passivePerception is absent", () => {
-      const character: any = { ...createDefaultCharacter() }
+      const character: Character = { ...createDefaultCharacter() }
       delete character.passivePerception
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedPassivePerception).toBeUndefined()
     })
 
     it("marks passiveInsight calculated when it matches", () => {
-      const character: any = { ...createDefaultCharacter(), passiveInsight: 10 }
+      const character: Character = { ...createDefaultCharacter(), passiveInsight: 10 }
       expect(reconcileImportedCharacter(character).useCalculatedPassiveInsight).toBe(true)
     })
 
     it("marks passiveInsight custom when it mismatches", () => {
-      const character: any = { ...createDefaultCharacter(), passiveInsight: 13 }
+      const character: Character = { ...createDefaultCharacter(), passiveInsight: 13 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedPassiveInsight).toBe(false)
       expect(result.passiveInsight).toBe(13)
     })
 
     it("marks passiveInvestigation calculated when it matches", () => {
-      const character: any = { ...createDefaultCharacter(), passiveInvestigation: 10 }
+      const character: Character = { ...createDefaultCharacter(), passiveInvestigation: 10 }
       expect(reconcileImportedCharacter(character).useCalculatedPassiveInvestigation).toBe(true)
     })
 
     it("marks passiveInvestigation custom when it mismatches", () => {
-      const character: any = { ...createDefaultCharacter(), passiveInvestigation: 13 }
+      const character: Character = { ...createDefaultCharacter(), passiveInvestigation: 13 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedPassiveInvestigation).toBe(false)
       expect(result.passiveInvestigation).toBe(13)
@@ -105,12 +101,12 @@ describe("reconcileImportedCharacter", () => {
 
   describe("attunementLimit", () => {
     it("marks calculated when it matches BASE_ATTUNEMENT_LIMIT", () => {
-      const character: any = { ...createDefaultCharacter(), attunementLimit: 3 }
+      const character: Character = { ...createDefaultCharacter(), attunementLimit: 3 }
       expect(reconcileImportedCharacter(character).useCalculatedAttunementLimit).toBe(true)
     })
 
     it("marks custom and preserves a mismatched value", () => {
-      const character: any = { ...createDefaultCharacter(), attunementLimit: 5 }
+      const character: Character = { ...createDefaultCharacter(), attunementLimit: 5 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedAttunementLimit).toBe(false)
       expect(result.attunementLimit).toBe(5)
@@ -119,12 +115,12 @@ describe("reconcileImportedCharacter", () => {
 
   describe("carryingCapacity", () => {
     it("marks calculated when it matches strength * 15", () => {
-      const character: any = { ...createDefaultCharacter(), carryingCapacity: 150 }
+      const character: Character = { ...createDefaultCharacter(), carryingCapacity: 150 }
       expect(reconcileImportedCharacter(character).useCalculatedCarryingCapacity).toBe(true)
     })
 
     it("marks custom and preserves a mismatched value", () => {
-      const character: any = { ...createDefaultCharacter(), carryingCapacity: 100 }
+      const character: Character = { ...createDefaultCharacter(), carryingCapacity: 100 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedCarryingCapacity).toBe(false)
       expect(result.carryingCapacity).toBe(100)
@@ -133,7 +129,7 @@ describe("reconcileImportedCharacter", () => {
 
   describe("spellcasting stats", () => {
     it("marks non-caster defaults (8/0/0) as calculated", () => {
-      const character: any = {
+      const character: Character = {
         ...createDefaultCharacter(),
         spellcastingAbility: "",
         spellSaveDC: 8,
@@ -149,7 +145,7 @@ describe("reconcileImportedCharacter", () => {
     it("marks a matching caster's stats as calculated when a Class Feature grants the ability", () => {
       // spellcastingAbility is only ever consulted via a Class Feature grant now — the raw field
       // alone (with no granting feature) can never produce a "calculated" match.
-      const character: any = {
+      const character: Character = {
         ...createDefaultCharacter(),
         classFeatures: [{
           id: "f-1", name: "Spellcasting", description: "", source: "class-feature",
@@ -167,7 +163,7 @@ describe("reconcileImportedCharacter", () => {
     })
 
     it("marks a mismatched caster's stats as custom and preserves the values", () => {
-      const character: any = {
+      const character: Character = {
         ...createDefaultCharacter(),
         classFeatures: [{
           id: "f-1", name: "Spellcasting", description: "", source: "class-feature",
@@ -188,7 +184,7 @@ describe("reconcileImportedCharacter", () => {
     })
 
     it("treats a raw spellcastingAbility with no granting Class Feature as a custom override, not a calculated match", () => {
-      const character: any = {
+      const character: Character = {
         ...createDefaultCharacter(),
         spellcastingAbility: "intelligence",
         spellSaveDC: 13,
@@ -206,9 +202,11 @@ describe("reconcileImportedCharacter", () => {
     })
 
     it("falls back to the non-caster calculation when spellcastingAbility is entirely missing", () => {
-      const character: any = { ...createDefaultCharacter(), spellSaveDC: 8, spellAttackBonus: 0 }
-      delete character.spellcastingAbility
-      const result = reconcileImportedCharacter(character)
+      // A file missing a required field only reaches reconciliation through migrateCharacter,
+      // which is where untyped file contents become a `Character` (see header-menu.tsx).
+      const fileContents: Partial<Character> = { ...createDefaultCharacter(), spellSaveDC: 8, spellAttackBonus: 0 }
+      delete fileContents.spellcastingAbility
+      const result = reconcileImportedCharacter(migrateCharacter(fileContents))
       expect(result.useCalculatedSpellSaveDC).toBe(true)
       expect(result.useCalculatedSpellAttackBonus).toBe(true)
     })
@@ -216,7 +214,7 @@ describe("reconcileImportedCharacter", () => {
 
   describe("ability score overrides", () => {
     it("marks calculated when the override matches the base+item formula", () => {
-      const character: any = { ...createDefaultCharacter() }
+      const character: Character = { ...createDefaultCharacter() }
       character.abilityScores = { ...character.abilityScores, strength: 16 }
       character.abilityScoreOverrides = { strength: 16 }
       const result = reconcileImportedCharacter(character)
@@ -224,7 +222,7 @@ describe("reconcileImportedCharacter", () => {
     })
 
     it("marks custom and preserves the override when it mismatches", () => {
-      const character: any = { ...createDefaultCharacter() }
+      const character: Character = { ...createDefaultCharacter() }
       character.abilityScores = { ...character.abilityScores, strength: 14 }
       character.abilityScoreOverrides = { strength: 18 }
       const result = reconcileImportedCharacter(character)
@@ -236,10 +234,18 @@ describe("reconcileImportedCharacter", () => {
       const result = reconcileImportedCharacter(createDefaultCharacter())
       expect(result.useCalculatedAbilityScores).toBeUndefined()
     })
+
+    it.each([
+      ["an empty overrides object", {}],
+      ["an override that is not a finite number", { strength: Number.NaN }],
+    ])("leaves useCalculatedAbilityScores untouched for %s", (_label, abilityScoreOverrides) => {
+      const character: Character = { ...createDefaultCharacter(), abilityScoreOverrides }
+      expect(reconcileImportedCharacter(character).useCalculatedAbilityScores).toBeUndefined()
+    })
   })
 
   it("reconciles ability scores before the scalar pass, so a stale flag can't produce a wrong armor class result", () => {
-    const character: any = { ...createDefaultCharacter() }
+    const character: Character = { ...createDefaultCharacter() }
     character.abilityScores = { ...character.abilityScores, dexterity: 10 }
     character.abilityScoreOverrides = { dexterity: 16 }
     character.useCalculatedAbilityScores = { dexterity: true } // stale: claims calculated despite an override being present
@@ -252,17 +258,62 @@ describe("reconcileImportedCharacter", () => {
   })
 })
 
-describe("reconcileImportedCharacters", () => {
-  it("maps an array of raw characters", () => {
-    const character: any = { ...createDefaultCharacter(), armorClass: 15 }
-    const [result] = reconcileImportedCharacters([character])
-    expect(result.useCalculatedArmorClass).toBe(false)
+describe("reconcileImportedCharacter — fields an import can omit", () => {
+  // A character built by hand or by an older export may lack fields the type calls required.
+  // `Partial` records that these are deliberately missing; reconciliation still receives a Character.
+  function withoutFields(...fields: (keyof Character)[]): Character {
+    const partial: Partial<Character> = { ...createDefaultCharacter() }
+    for (const field of fields) delete partial[field]
+    return partial as Character
+  }
+
+  it("compares proficiencyBonus against level 1 when the level is missing", () => {
+    const result = reconcileImportedCharacter({ ...withoutFields("level"), proficiencyBonus: 2 })
+    expect(result.useCalculatedProficiencyBonus).toBe(true)
   })
 
-  it("returns [] for non-array input", () => {
-    expect(reconcileImportedCharacters(null)).toEqual([])
-    expect(reconcileImportedCharacters(undefined)).toEqual([])
-    expect(reconcileImportedCharacters("not an array")).toEqual([])
+  it("compares passive scores against a +2 proficiency bonus and no skill proficiency when both are missing", () => {
+    // WIS 10 / INT 10, not proficient: 10 + 0 = 10 for all three, whatever the bonus
+    const character = { ...withoutFields("proficiencyBonus", "skills"), passivePerception: 10, passiveInsight: 10, passiveInvestigation: 12 }
+    const result = reconcileImportedCharacter(character)
+    expect(result.useCalculatedPassivePerception).toBe(true)
+    expect(result.useCalculatedPassiveInsight).toBe(true)
+    expect(result.useCalculatedPassiveInvestigation).toBe(false)
+  })
+
+  it("adds the assumed +2 proficiency bonus for a skill marked proficient when the bonus is missing", () => {
+    const base = withoutFields("proficiencyBonus")
+    const proficient = { proficient: true, expertise: false }
+    const character: Character = {
+      ...base,
+      skills: { ...base.skills, perception: proficient, insight: proficient, investigation: proficient },
+      passivePerception: 12,
+      passiveInsight: 12,
+      passiveInvestigation: 12,
+    }
+    const result = reconcileImportedCharacter(character)
+    expect(result.useCalculatedPassivePerception).toBe(true)
+    expect(result.useCalculatedPassiveInsight).toBe(true)
+    expect(result.useCalculatedPassiveInvestigation).toBe(true)
+  })
+
+  it("returns the character exactly as imported, and logs, when reconciliation throws", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    const failure = new Error("unreadable field")
+    const character = createDefaultCharacter()
+    Object.defineProperty(character, "abilityScoreOverrides", { get: () => { throw failure }, enumerable: true })
+
+    expect(reconcileImportedCharacter(character)).toBe(character)
+    expect(consoleError).toHaveBeenCalledWith("Failed to reconcile calculated fields on imported character:", failure)
+    consoleError.mockRestore()
+  })
+})
+
+describe("reconcileImportedCharacters", () => {
+  it("maps an array of raw characters", () => {
+    const character: Character = { ...createDefaultCharacter(), armorClass: 15 }
+    const [result] = reconcileImportedCharacters([character])
+    expect(result.useCalculatedArmorClass).toBe(false)
   })
 })
 
@@ -270,7 +321,7 @@ describe("freshenCalculatedFields", () => {
   // A spellcaster whose Class Feature grants intelligence (16, +3 mod) as the spellcasting
   // ability. Default proficiencyBonus (2) -> spellSaveDC 13, spellAttackBonus 5, spellModifier 3.
   function makeCaster() {
-    const character: any = {
+    const character: Character = {
       ...createDefaultCharacter(),
       classFeatures: [{
         id: "f-1", name: "Spellcasting", description: "", source: "class-feature",
@@ -309,7 +360,7 @@ describe("freshenCalculatedFields", () => {
   })
 
   it("does not touch initiative/proficiencyBonus when their toggle is absent — those default to custom, not calculated", () => {
-    const character: any = { ...createDefaultCharacter(), initiative: 7, proficiencyBonus: 99 }
+    const character: Character = { ...createDefaultCharacter(), initiative: 7, proficiencyBonus: 99 }
     delete character.useCalculatedInitiative
     delete character.useCalculatedProficiencyBonus
     const fresh = freshenCalculatedFields(character)

@@ -2,9 +2,9 @@ import { A } from "@solidjs/router"
 
 export default function PrivacyPolicy() {
   return (
-    <div class="max-w-2xl mx-auto px-4 py-8 space-y-6 text-sm text-foreground">
+    <div data-sem="privacy-policy-route" class="max-w-2xl mx-auto px-4 py-8 space-y-6 text-sm text-foreground">
       <div>
-        <A href="/auth" class="text-primary hover:underline text-xs">&larr; Back</A>
+        <A href="/auth" class="text-primary hover:underline text-xs" data-test="back-to-auth-link">&larr; Back</A>
       </div>
       <h1 class="text-2xl font-bold">Privacy Policy</h1>
       <p class="text-muted-foreground">Effective date: May 19, 2026</p>

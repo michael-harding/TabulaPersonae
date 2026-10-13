@@ -8,19 +8,28 @@ import {
   addDoc,
   setDoc,
   deleteDoc,
+  deleteField,
+  FieldPath,
   onSnapshot,
   query,
   where,
   orderBy,
-  Timestamp
+  Timestamp,
+  waitForPendingWrites
 } from 'firebase/firestore';
-import { db } from './firebase';
+
+import { getDb } from './firebase';
 import type { Character } from './character-types';
 import { migrateCharacter } from './character-migrations';
 import { isValidTabConfig } from './tab-config-types';
 import type { UserTabConfig } from './tab-config-types';
 
 const CHARACTERS_COLLECTION = 'characters';
+
+// The top-level fields each character's document held when this client last read or wrote it.
+// A save uses it to tell a field the user has cleared since (delete it) from one this client has
+// never seen — set by another device or a newer app version — which must be left alone.
+const knownFields = new Map<string, Set<string>>();
 
 export async function saveCharacterToFirebase(character: Character, userId: string): Promise<boolean> {
   try {
@@ -31,15 +40,41 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
     characterData.updatedAt = Timestamp.now();
 
     if (character.id) {
-      const characterRef = doc(db, CHARACTERS_COLLECTION, character.id);
-      await setDoc(characterRef, characterData, { merge: true });
+      const characterRef = doc(getDb(), CHARACTERS_COLLECTION, character.id);
+      const written = Object.keys(characterData);
+      const previous = knownFields.get(character.id) ?? new Set<string>();
+      // The JSON round-trip above drops cleared (undefined) fields, so they have to be deleted
+      // explicitly or their old values would stay in Firestore.
+      const cleared = [...previous].filter((field) => !(field in characterData));
+      for (const field of cleared) characterData[field] = deleteField();
+
+      // Recorded before the write settles: offline it stays pending until the server answers,
+      // and a save made meanwhile must already count these fields as present.
+      knownFields.set(character.id, new Set(written));
+      try {
+        // A mask of top-level fields rather than `merge: true` or a plain overwrite: each listed
+        // field is replaced whole (`merge` deep-merges nested maps, keeping keys removed from
+        // them), and fields not listed are untouched (an overwrite would drop them). FieldPath
+        // keeps a field name containing a dot from being read as a nested path.
+        await setDoc(characterRef, characterData, {
+          mergeFields: [...written, ...cleared].map((field) => new FieldPath(field)),
+        });
+      } catch (error) {
+        // The deletes may not have been applied, so keep those fields on record to retry. Added
+        // to the record as it is now, not as it was when this save began: a save made since may
+        // have put fields on it that neither `previous` nor `written` holds.
+        const current = knownFields.get(character.id) ?? [];
+        knownFields.set(character.id, new Set([...current, ...previous, ...written]));
+        throw error;
+      }
     } else {
       const newCharacterData = {
         ...characterData,
         id: '',
       };
-      const docRef = await addDoc(collection(db, CHARACTERS_COLLECTION), newCharacterData);
+      const docRef = await addDoc(collection(getDb(), CHARACTERS_COLLECTION), newCharacterData);
       character.id = docRef.id;
+      knownFields.set(docRef.id, new Set(Object.keys(newCharacterData)));
     }
 
     return true;
@@ -52,7 +87,7 @@ export async function saveCharacterToFirebase(character: Character, userId: stri
 export async function getCharactersFromFirebase(userId: string): Promise<Character[]> {
   try {
     const q = query(
-      collection(db, CHARACTERS_COLLECTION),
+      collection(getDb(), CHARACTERS_COLLECTION),
       where('userId', '==', userId),
       orderBy('updatedAt', 'desc')
     );
@@ -64,6 +99,7 @@ export async function getCharactersFromFirebase(userId: string): Promise<Charact
 
     querySnapshot.forEach((doc) => {
       const data = doc.data();
+      knownFields.set(doc.id, new Set(Object.keys(data)));
       characters.push(migrateCharacter({
         ...data,
         id: doc.id,
@@ -79,7 +115,7 @@ export async function getCharactersFromFirebase(userId: string): Promise<Charact
 
 export async function getCharacterFromFirebase(id: string, userId: string): Promise<Character | null> {
   try {
-    const characterRef = doc(db, CHARACTERS_COLLECTION, id);
+    const characterRef = doc(getDb(), CHARACTERS_COLLECTION, id);
     const characterSnap = navigator.onLine
       ? await getDoc(characterRef)
       : await getDocFromCache(characterRef);
@@ -91,6 +127,7 @@ export async function getCharacterFromFirebase(id: string, userId: string): Prom
         return null;
       }
 
+      knownFields.set(characterSnap.id, new Set(Object.keys(data)));
       return migrateCharacter({
         ...data,
         id: characterSnap.id,
@@ -120,7 +157,7 @@ export function subscribeToCharacter(
   const stored = localStorage.getItem(lastSyncedKey(id))
   let lastConfirmedAt: Date | null = stored ? new Date(stored) : null
 
-  const characterRef = doc(db, CHARACTERS_COLLECTION, id)
+  const characterRef = doc(getDb(), CHARACTERS_COLLECTION, id)
   return onSnapshot(
     characterRef,
     { includeMetadataChanges: true },
@@ -156,7 +193,7 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
   // Set to JSON.stringify(character) to return a character, or "null" to simulate not-found.
   if (import.meta.env.DEV) {
     const seed = localStorage.getItem(`dnd-public-char-${id}`)
-    if (seed !== null) {
+    if (seed != null) {
       try {
         const parsed = JSON.parse(seed) as Character | null
         if (parsed && !parsed.isPublic) return null
@@ -165,7 +202,7 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
     }
   }
   try {
-    const characterRef = doc(db, CHARACTERS_COLLECTION, id)
+    const characterRef = doc(getDb(), CHARACTERS_COLLECTION, id)
     const characterSnap = navigator.onLine
       ? await getDoc(characterRef)
       : await getDocFromCache(characterRef)
@@ -179,10 +216,11 @@ export async function getPublicCharacterFromFirebase(id: string): Promise<Charac
   }
 }
 
-export async function deleteCharacterFromFirebase(id: string, userId: string): Promise<boolean> {
+export async function deleteCharacterFromFirebase(id: string): Promise<boolean> {
   try {
-    const characterRef = doc(db, CHARACTERS_COLLECTION, id);
+    const characterRef = doc(getDb(), CHARACTERS_COLLECTION, id);
     await deleteDoc(characterRef);
+    knownFields.delete(id);
     return true;
   } catch (error) {
     console.error('Failed to delete character from Firebase:', error);
@@ -194,7 +232,7 @@ const USER_SETTINGS_COLLECTION = 'userSettings';
 
 export async function saveTabConfigToFirebase(config: UserTabConfig, userId: string): Promise<boolean> {
   try {
-    const settingsRef = doc(db, USER_SETTINGS_COLLECTION, userId);
+    const settingsRef = doc(getDb(), USER_SETTINGS_COLLECTION, userId);
     await setDoc(settingsRef, { tabConfig: config }, { merge: true });
     return true;
   } catch (error) {
@@ -205,7 +243,7 @@ export async function saveTabConfigToFirebase(config: UserTabConfig, userId: str
 
 export async function getTabConfigFromFirebase(userId: string): Promise<UserTabConfig | null> {
   try {
-    const settingsRef = doc(db, USER_SETTINGS_COLLECTION, userId);
+    const settingsRef = doc(getDb(), USER_SETTINGS_COLLECTION, userId);
     const snap = navigator.onLine
       ? await getDoc(settingsRef)
       : await getDocFromCache(settingsRef);
@@ -215,11 +253,35 @@ export async function getTabConfigFromFirebase(userId: string): Promise<UserTabC
     return isValidTabConfig(raw) ? raw : null;
   } catch (error) {
     const fe = error as { code?: string; message?: string }
-    if (fe?.code === 'unavailable') {
-      console.debug('Tab config not in Firestore cache (offline):', fe.message)
-    } else {
+    // `unavailable` is an offline cache miss — expected, so there is no error to report.
+    if (fe?.code !== 'unavailable') {
       console.error('Failed to get tab config from Firebase:', error)
     }
     return null;
+  }
+}
+
+// How long to give writes that are already on their way to the server before calling them unsynced.
+const PENDING_WRITES_GRACE_MS = 1500;
+// With no connection nothing can arrive; this only leaves time for "there are none" to come back.
+const PENDING_WRITES_OFFLINE_GRACE_MS = 100;
+
+/**
+ * Whether this device holds changes of any kind (edits, deletes, settings) that the server has
+ * not confirmed. If that cannot be determined the answer is `true`, so the caller warns.
+ */
+export async function hasUnsyncedChanges(): Promise<boolean> {
+  try {
+    const graceMs = navigator.onLine ? PENDING_WRITES_GRACE_MS : PENDING_WRITES_OFFLINE_GRACE_MS;
+    let timer: ReturnType<typeof setTimeout> | undefined; // undefined until the race below starts it
+    const stillPending = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(true), graceMs);
+    });
+    // Resolves at once when nothing is waiting, otherwise when the server has confirmed everything.
+    const confirmed = waitForPendingWrites(getDb()).then(() => false);
+    return await Promise.race([confirmed, stillPending]).finally(() => clearTimeout(timer));
+  } catch (error) {
+    console.error('Failed to check for unsynced changes:', error);
+    return true;
   }
 }

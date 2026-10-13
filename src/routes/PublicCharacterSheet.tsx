@@ -1,15 +1,16 @@
 import { createSignal, createEffect, onCleanup, Show, For } from "solid-js"
 import { useParams, useSearchParams, A } from "@solidjs/router"
+import Scroll from "lucide-solid/icons/scroll"
+import Lock from "lucide-solid/icons/lock"
+
 import { type Character } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
 import { MODULE_REGISTRY, PUBLIC_SAFE_MODULE_IDS } from "@/lib/module-registry"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { StatsBar } from "@/components/stats-bar"
-import Scroll from "lucide-solid/icons/scroll"
-import Lock from "lucide-solid/icons/lock"
 
 const PUBLIC_TAB_CONFIG = {
   tabs: DEFAULT_TAB_CONFIG.tabs
@@ -59,9 +60,9 @@ export default function PublicCharacterSheet() {
     <Show
       when={!isLoading()}
       fallback={
-        <div class="flex flex-1 items-center justify-center bg-background">
+        <div data-sem="public-character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
-            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" aria-hidden="true" />
             <p class="text-muted-foreground">Loading character...</p>
           </div>
         </div>
@@ -70,39 +71,39 @@ export default function PublicCharacterSheet() {
       <Show
         when={character()}
         fallback={
-          <div class="flex flex-1 items-center justify-center bg-background">
+          <div data-sem="public-character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
             <div class="text-center space-y-2">
-              <Scroll class="h-12 w-12 mx-auto text-muted-foreground" />
-              <p class="text-lg font-semibold">Character not found or not shared publicly.</p>
-              <A href="/" class="text-sm text-primary underline underline-offset-2">Go to TabulaPersonae</A>
+              <Scroll class="h-12 w-12 mx-auto text-muted-foreground" aria-hidden="true" />
+              <h1 class="text-lg font-semibold">Character not found or not shared publicly.</h1>
+              <A href="/" class="text-sm text-primary underline underline-offset-2" data-test="go-to-app-link">Go to TabulaPersonae</A>
             </div>
           </div>
         }
       >
         {(getChar) => (
           <ReadOnlyProvider value={true}>
-            <div class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
+            <div data-sem="public-character-sheet-route" class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
               <StatsBar character={getChar()} />
 
               <header class="border-b bg-card">
                 <div class="max-w-7xl mx-auto px-4 py-4">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                      <Scroll class="h-8 w-8 text-primary" />
+                      <Scroll class="h-8 w-8 text-primary" aria-hidden="true" />
                       <div>
                         <div class="flex items-center gap-2">
                           <h1 class="text-2xl font-bold text-foreground">{getChar().name || "Unnamed Character"}</h1>
-                          <Badge variant="secondary" class="flex items-center gap-1 text-xs">
-                            <Lock class="h-3 w-3" />
+                          <Chip variant="secondary" class="flex items-center gap-1 text-xs">
+                            <Lock class="h-3 w-3" aria-hidden="true" />
                             Read-only
-                          </Badge>
+                          </Chip>
                         </div>
                         <p class="text-sm text-muted-foreground">
                           Level {getChar().level} {getChar().race} {getChar().class}
                         </p>
                       </div>
                     </div>
-                    <A href="/" class="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    <A href="/" class="text-sm text-muted-foreground hover:text-foreground transition-colors" data-test="app-home-link">
                       TabulaPersonae ↗
                     </A>
                   </div>
@@ -114,7 +115,7 @@ export default function PublicCharacterSheet() {
                   <div class="flex items-center border-b border-border">
                     <TabsList class="border-b-0 flex-1">
                       <For each={PUBLIC_TAB_CONFIG.tabs}>
-                        {(tab) => <TabsTrigger value={tab.id}>{tab.label}</TabsTrigger>}
+                        {(tab) => <TabsTrigger value={tab.id} data-test={`tab-trigger-${tab.id}`}>{tab.label}</TabsTrigger>}
                       </For>
                     </TabsList>
                   </div>

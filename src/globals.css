@@ -87,6 +87,18 @@
   }
 }
 
+/* ACCESSIBILITY.md §10: disable/substantially reduce motion for users who have opted into
+   reduced motion, rather than relying on every individual transition/animation utility to
+   remember to respect the preference. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .markdown-content {
   & p { margin-bottom: 0.5em; }
   & p:last-child { margin-bottom: 0; }

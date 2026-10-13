@@ -1,9 +1,10 @@
 import { Show, type JSX } from "solid-js"
+import Pen from "lucide-solid/icons/pen"
+import PenOff from "lucide-solid/icons/pen-off"
+
 import { Combobox } from "@/components/ui/combobox"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
-import Pen from "lucide-solid/icons/pen"
-import PenOff from "lucide-solid/icons/pen-off"
 
 interface CalculatedValueSelectProps {
   label: string
@@ -19,6 +20,8 @@ interface CalculatedValueSelectProps {
   calculatedTooltip: string
   options: string[]
   class?: string
+  /** Page-unique; also prefixes the label/display/toggle ids. */
+  "data-test": string
 }
 
 export function CalculatedValueSelect(props: CalculatedValueSelectProps) {
@@ -30,9 +33,10 @@ export function CalculatedValueSelect(props: CalculatedValueSelectProps) {
   return (
     <div
       data-sem="calculated-value"
+      data-test={props["data-test"]}
       class={`flex ${left() ? "flex-row items-center" : "flex-col items-center"} gap-1 ${props.class ?? ""}`}
     >
-      <span class={`inline-flex items-center gap-1 ${props.labelClass ?? "text-sm text-muted-foreground"}`}>
+      <span data-test={`${props["data-test"]}-label`} class={`inline-flex items-center gap-1 ${props.labelClass ?? "text-sm text-muted-foreground"}`}>
         <Show when={props.icon}>{props.icon}</Show>
         {props.label}
       </span>
@@ -41,7 +45,7 @@ export function CalculatedValueSelect(props: CalculatedValueSelectProps) {
           when={showInput()}
           fallback={
             <Tooltip content={tooltipContent()} triggerFocusable>
-              <div class={props.editable ? "text-xl font-bold text-primary" : "text-2xl font-bold text-primary"}>
+              <div data-test={`${props["data-test"]}-display`} class={props.editable ? "text-xl font-bold text-primary" : "text-2xl font-bold text-primary"}>
                 {displayValue() || "—"}
               </div>
             </Tooltip>
@@ -52,7 +56,7 @@ export function CalculatedValueSelect(props: CalculatedValueSelectProps) {
         <Show when={props.editable}>
           <Button
             type="button"
-            data-test="calculated-value-toggle"
+            data-test={`${props["data-test"]}-toggle`}
             variant="ghost"
             size="icon"
             class="shrink-0"

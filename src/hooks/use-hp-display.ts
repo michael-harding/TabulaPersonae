@@ -1,4 +1,5 @@
 import { createMemo, type Accessor } from "solid-js"
+
 import type { Character } from "@/lib/character-types"
 import { getEffectiveMaxHp } from "@/lib/character-utils"
 

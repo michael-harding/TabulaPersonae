@@ -1,6 +1,7 @@
-import { createSignal, createMemo, For, onMount, onCleanup, JSX } from "solid-js"
+import { createSignal, createEffect, createMemo, createUniqueId, on, untrack, For, onMount, onCleanup, JSX } from "solid-js"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Check from "lucide-solid/icons/check"
+
 import { cn } from "@/lib/utils"
 
 type ComboboxProps = {
@@ -10,12 +11,14 @@ type ComboboxProps = {
   placeholder?: string
   disabled?: boolean
   class?: string
+  /** Set on the text input, so a `<Label for={id}>` names the combobox. */
+  id?: string
   "aria-label"?: string
   "data-test"?: string
 }
 
 export function Combobox(props: ComboboxProps) {
-  const [inputValue, setInputValue] = createSignal(props.value ?? "")
+  const [inputValue, setInputValue] = createSignal(untrack(() => props.value ?? ""))
   const [open, setOpen] = createSignal(false)
   // Only filter after the user has typed; on initial focus, show all options
   const [filtering, setFiltering] = createSignal(false)
@@ -25,19 +28,18 @@ export function Combobox(props: ComboboxProps) {
   let listRef!: HTMLUListElement
 
   // Sync external value changes into the input
-  let prevProp = props.value
-  const syncValue = () => {
-    if (props.value !== prevProp) {
-      prevProp = props.value
-      setInputValue(props.value ?? "")
-    }
-  }
+  createEffect(on(() => props.value, (value) => { setInputValue(value ?? "") }, { defer: true }))
 
   const filtered = createMemo(() => {
     if (!filtering()) return props.options
     const q = inputValue().toLowerCase()
     return props.options.filter((o) => o.toLowerCase().includes(q))
   })
+
+  const listId = createUniqueId()
+  // The list is only rendered while there is something to show, so that is when the input is
+  // expanded and has a list to control.
+  const listShown = () => open() && filtered().length > 0
 
   const handleSelect = (option: string) => {
     setInputValue(option)
@@ -48,7 +50,6 @@ export function Combobox(props: ComboboxProps) {
   }
 
   const handleInput: JSX.EventHandler<HTMLInputElement, InputEvent> = (e) => {
-    syncValue()
     setInputValue(e.currentTarget.value)
     setFiltering(true)
     setOpen(true)
@@ -114,6 +115,27 @@ export function Combobox(props: ComboboxProps) {
     }
   }
 
+  // A second click on the input (or chevron) closes the list, so it can be dismissed without
+  // moving the pointer off the control it covers. The first click on an unfocused input opens the
+  // list via onFocus, so only clicks that start on the already-focused input toggle it.
+  let toggleOnClick: boolean | null = null
+  const handleInputMouseDown = () => {
+    toggleOnClick = document.activeElement === inputRef ? !open() : null
+  }
+  const handleInputClick = () => {
+    if (toggleOnClick == null) return
+    setOpen(toggleOnClick)
+    if (!toggleOnClick) { setFiltering(false); setActiveIndex(-1) }
+    toggleOnClick = null
+  }
+  const handleChevronClick = () => {
+    // Read the state before focusing, because focusing an unfocused input opens the list.
+    const wasOpen = open()
+    inputRef.focus()
+    setOpen(!wasOpen)
+    if (wasOpen) { setFiltering(false); setActiveIndex(-1) }
+  }
+
   const handleOutsideClick = (e: MouseEvent) => {
     if (!containerRef?.contains(e.target as Node)) {
       setOpen(false)
@@ -127,43 +149,56 @@ export function Combobox(props: ComboboxProps) {
 
   return (
     <div data-sem="combobox" ref={containerRef} class={cn("relative", props.class)}>
+      {/* The input and chevron overhang the 1px top/bottom border (-my-px) so each is a full 44px
+          tall hit target rather than 42px inside the border (ACCESSIBILITY.md touch targets). */}
       <div
-        class="flex h-10 w-full items-center rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+        class="flex h-11 w-full items-center rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
       >
         <input
           ref={inputRef}
           type="text"
           role="combobox"
-          aria-expanded={open()}
+          id={props.id}
+          aria-expanded={listShown()}
+          aria-controls={listShown() ? listId : undefined}
           aria-label={props["aria-label"]}
           data-test={props["data-test"]}
           aria-autocomplete="list"
           aria-activedescendant={activeIndex() >= 0 ? `combobox-option-${activeIndex()}` : undefined}
           value={inputValue()}
           onInput={handleInput}
-          onFocus={() => { syncValue(); setFiltering(false); setOpen(true) }}
+          onFocus={() => { setFiltering(false); setOpen(true) }}
+          onMouseDown={handleInputMouseDown}
+          onClick={handleInputClick}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           placeholder={props.placeholder}
           disabled={props.disabled}
-          class="flex-1 h-full bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          class="-my-px h-[calc(100%+2px)] flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
           tabIndex={-1}
           disabled={props.disabled}
-          onClick={() => { inputRef.focus(); setOpen(!open()) }}
-          class="px-2 flex items-center text-muted-foreground hover:text-foreground disabled:pointer-events-none"
+          // preventDefault keeps focus in the input instead of moving it to this (unfocusable-by-Tab) button.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={handleChevronClick}
+          class="-my-px flex h-[calc(100%+2px)] w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground disabled:pointer-events-none"
           aria-label="Toggle options"
         >
           <ChevronDown class="h-4 w-4 opacity-50" />
         </button>
       </div>
 
-      {open() && filtered().length > 0 && (
+      {listShown() && (
         <ul
           ref={listRef}
+          id={listId}
           role="listbox"
+          // Named like its input: by the same aria-label, or, when the input is named by a
+          // <label for={id}>, by pointing at the input. "Options" is only for a combobox given neither.
+          aria-label={props["aria-label"] ?? (props.id == null ? "Options" : undefined)}
+          aria-labelledby={props["aria-label"] == null && props.id != null ? props.id : undefined}
           class="absolute z-50 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md mt-1"
         >
           <For each={filtered()}>

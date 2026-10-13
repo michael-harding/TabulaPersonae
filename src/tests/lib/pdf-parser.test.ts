@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
+
 import {
   parseIntField,
   parseCheckbox,
@@ -500,7 +501,6 @@ describe("pdf-parser", () => {
         expect(classFeatures[0].actionKind).toBe("action")
       })
       it("leaves actionKind undefined when no pipe sub-items have action patterns", () => {
-        const text = "=== FEATURES ===\n* Darkvision • PHB-2024 195\nPassive trait."
         const { speciesTraits } = parseFeaturesTraitsText("=== SPECIES TRAITS ===\n* Darkvision • PHB-2024 195\nPassive trait.")
         expect(speciesTraits[0].actionKind).toBeUndefined()
       })
@@ -601,9 +601,15 @@ describe("pdf-parser", () => {
     })
 
     describe("heroicInspiration", () => {
-      it("is true when Inspiration field is non-empty", () => {
-        // D&D Beyond Inspiration is a button — set = non-empty, unset = empty string
+      // D&D Beyond's Inspiration field is a checkbox: its value is the name of its "on" state
+      // (Inspired) when ticked, and Off or nothing at all when not.
+      it("is true when the Inspiration checkbox holds its on state", () => {
+        expect(mapFieldsToCharacter({ Inspiration: "Inspired" }).heroicInspiration).toBe(true)
         expect(mapFieldsToCharacter({ Inspiration: "Yes" }).heroicInspiration).toBe(true)
+      })
+      it("is false when the Inspiration checkbox is explicitly Off", () => {
+        expect(mapFieldsToCharacter({ Inspiration: "Off" }).heroicInspiration).toBe(false)
+        expect(mapFieldsToCharacter({ Inspiration: "off" }).heroicInspiration).toBe(false)
       })
       it("is false when Inspiration field is empty", () => {
         expect(mapFieldsToCharacter({ Inspiration: "" }).heroicInspiration).toBe(false)
@@ -655,8 +661,8 @@ describe("pdf-parser", () => {
         expect(result.abilityScores?.charisma).toBe(15)
         expect(result.savingThrows?.wisdom).toBe(true)
         expect(result.savingThrows?.strength).toBe(false)
-        expect(result.skills?.athletics.proficient).toBe(true)
-        expect(result.skills?.acrobatics.proficient).toBe(false)
+        expect(result.skills?.athletics?.proficient).toBe(true)
+        expect(result.skills?.acrobatics?.proficient).toBe(false)
         expect(result.armorClass).toBe(18)
         expect(result.initiative).toBe(0)
         expect(result.speed).toBe(30)
@@ -696,19 +702,19 @@ describe("pdf-parser", () => {
       expect(result.edition).toBe("2024")
     })
     it("deep-merges abilityScores", () => {
-      const result = mergeWithDefault({ abilityScores: { strength: 15 } as any })
+      const result = mergeWithDefault({ abilityScores: { strength: 15 } })
       expect(result.abilityScores.strength).toBe(15)
       expect(result.abilityScores.dexterity).toBe(10)
     })
     it("deep-merges individual skills without wiping others", () => {
       const result = mergeWithDefault({
-        skills: { athletics: { proficient: true, expertise: false } } as any,
+        skills: { athletics: { proficient: true, expertise: false } },
       })
       expect(result.skills.athletics.proficient).toBe(true)
       expect(result.skills.acrobatics.proficient).toBe(false)
     })
     it("deep-merges spellSlots", () => {
-      const result = mergeWithDefault({ spellSlots: { 1: { total: 4, used: 2 } } as any })
+      const result = mergeWithDefault({ spellSlots: { 1: { total: 4, used: 2 } } })
       expect(result.spellSlots[1]).toEqual({ total: 4, used: 2 })
       expect(result.spellSlots[2]).toEqual({ total: 0, used: 0 })
     })

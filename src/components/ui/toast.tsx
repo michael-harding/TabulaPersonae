@@ -1,5 +1,6 @@
 import { ComponentProps, splitProps } from "solid-js"
 import X from "lucide-solid/icons/x"
+
 import { cn } from "@/lib/utils"
 import { toastVariants, type ToastVariant } from "@/hooks/use-toast"
 
@@ -31,7 +32,8 @@ export function ToastClose(props: ComponentProps<"button"> & { onDismiss?: () =>
   return (
     <button
       type="button"
-      onClick={local.onDismiss}
+      onClick={() => local.onDismiss?.()}
+      aria-label="Dismiss"
       class={cn(
         "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100",
         local.class

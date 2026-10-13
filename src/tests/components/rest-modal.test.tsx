@@ -1,9 +1,11 @@
 import { createSignal } from "solid-js"
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Reaction, Feature, Equipment } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Feature, Equipment } from "@/lib/character-types"
+
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return {
@@ -29,10 +31,6 @@ function makeAttack(overrides: Partial<Attack> = {}): Attack {
 
 function makeBonusAction(overrides: Partial<BonusAction> = {}): BonusAction {
   return { id: "b1", name: "Second Wind", type: "class-feature", description: "", ...overrides }
-}
-
-function makeReaction(overrides: Partial<Reaction> = {}): Reaction {
-  return { id: "r1", name: "Shield", type: "class-feature", description: "", trigger: "Hit", ...overrides }
 }
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
@@ -70,7 +68,7 @@ describe("RestModal", () => {
         </>
       )
     }
-    render(<Wrapper />)
+    render(() => <Wrapper />)
     fireEvent.click(screen.getByRole("button", { name: "Open" }))
   }
 

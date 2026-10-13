@@ -1,37 +1,21 @@
-import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
+import { createSignal, createEffect, createMemo, on, untrack, For, Show } from "solid-js"
+import BookOpen from "lucide-solid/icons/book-open"
+
 import type { Character } from "@/lib/character-types"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, SKILL_ABILITY_MAP, SKILL_DISPLAY_NAMES, ABILITY_DISPLAY_NAMES, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
+import { ChipListEditor } from "@/components/ui/chip-list-editor"
+import { Chip } from "@/components/ui/chip"
+import { ToggleChip } from "@/components/ui/chip-button"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip } from "@/components/ui/tooltip"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
-import BookOpen from "lucide-solid/icons/book-open"
-import Plus from "lucide-solid/icons/plus"
-import X from "lucide-solid/icons/x"
+import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
-const SKILL_ABILITY_MAP: Record<keyof Character["skills"], keyof Character["abilityScores"]> = {
-  acrobatics: "dexterity", animalHandling: "wisdom", arcana: "intelligence",
-  athletics: "strength", deception: "charisma", history: "intelligence",
-  insight: "wisdom", intimidation: "charisma", investigation: "intelligence",
-  medicine: "wisdom", nature: "intelligence", perception: "wisdom",
-  performance: "charisma", persuasion: "charisma", religion: "intelligence",
-  sleightOfHand: "dexterity", stealth: "dexterity", survival: "wisdom",
-}
-
-const SKILL_DISPLAY_NAMES: Record<keyof Character["skills"], string> = {
-  acrobatics: "Acrobatics", animalHandling: "Animal Handling", arcana: "Arcana",
-  athletics: "Athletics", deception: "Deception", history: "History",
-  insight: "Insight", intimidation: "Intimidation", investigation: "Investigation",
-  medicine: "Medicine", nature: "Nature", perception: "Perception",
-  performance: "Performance", persuasion: "Persuasion", religion: "Religion",
-  sleightOfHand: "Sleight of Hand", stealth: "Stealth", survival: "Survival",
-}
+// The Prof/Exp pills are the same compact shape whether displayed (Chip) or toggled (ToggleChip).
+const COMPACT_PILL = "text-xs px-1 py-0"
 
 type AbilityKey = keyof Character["abilityScores"]
 type SkillKey = keyof Character["skills"]
@@ -41,77 +25,10 @@ interface SkillsProficienciesModuleProps {
   onUpdate: (character: Character) => void
 }
 
-function EditableTagList(props: {
-  label: string
-  itemLabel: string
-  placeholder: string
-  emptyText?: string
-  ownValues: string[]
-  grantedValues: string[]
-  grantedTooltip?: (value: string) => string
-  editing: boolean
-  onAdd: (value: string) => void
-  onRemove: (value: string) => void
-}) {
-  const [newValue, setNewValue] = createSignal("")
-  const add = () => {
-    const trimmed = newValue().trim()
-    if (!trimmed) return
-    props.onAdd(trimmed)
-    setNewValue("")
-  }
-  return (
-    <div>
-      <h2 class="font-semibold mb-3">{props.label}</h2>
-      <div class="flex flex-wrap gap-2 mb-3">
-        <For each={props.ownValues}>
-          {(value) => (
-            <Badge variant="outline" class="gap-1">
-              {value}
-              <Show when={props.editing}>
-                <Tooltip content={`Remove ${props.itemLabel}`}>
-                  <Button variant="ghost" size="sm" aria-label={`Remove ${props.itemLabel}`} class="h-auto p-0 hover:bg-transparent" onClick={() => props.onRemove(value)}>
-                    <X class="h-3 w-3" />
-                  </Button>
-                </Tooltip>
-              </Show>
-            </Badge>
-          )}
-        </For>
-        <For each={props.grantedValues}>
-          {(value) => (
-            <Badge variant="secondary" class="gap-1" title={props.grantedTooltip?.(value) ?? "Granted automatically"}>
-              {value}
-            </Badge>
-          )}
-        </For>
-        <Show when={props.emptyText && props.ownValues.length === 0 && props.grantedValues.length === 0}>
-          <span class="text-muted-foreground text-sm">{props.emptyText}</span>
-        </Show>
-      </div>
-      <Show when={props.editing}>
-        <div class="flex gap-2">
-          <Input
-            placeholder={props.placeholder}
-            value={newValue()}
-            onInput={(e) => setNewValue(e.currentTarget.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-            class="flex-1"
-          />
-          <Tooltip content={`Add ${props.itemLabel}`}>
-            <Button onClick={add} size="sm" aria-label={`Add ${props.itemLabel}`} disabled={!newValue().trim()}>
-              <Plus class="h-4 w-4" />
-            </Button>
-          </Tooltip>
-        </div>
-      </Show>
-    </div>
-  )
-}
-
 // The A/D pip pair for a skill's effective advantage/disadvantage state — used for both the
 // edit-mode toggle buttons and the read-mode badge, so the two never drift out of sync.
 function SkillAdvantagePips(props: {
+  testKey: string
   state: SkillAdvantageState
   isManualOverride: boolean
   advantageSources: string[]
@@ -130,32 +47,40 @@ function SkillAdvantagePips(props: {
   return (
     <>
       <Show when={props.editable}>
-        <Tooltip content={tooltip("advantage")}>
-          <button
-            type="button"
-            title="Advantage"
-            aria-label="Advantage"
-            onClick={props.onToggleAdvantage}
-            class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-white text-white"}`}
-          >A</button>
-        </Tooltip>
-        <Tooltip content={tooltip("disadvantage")}>
-          <button
-            type="button"
-            title="Disadvantage"
-            aria-label="Disadvantage"
-            onClick={props.onToggleDisadvantage}
-            class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none cursor-pointer ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-white text-white"}`}
-          >D</button>
-        </Tooltip>
+        <div class="flex items-center">
+          <Tooltip content={tooltip("advantage")}>
+            <button
+              type="button"
+              aria-label="Advantage"
+              aria-pressed={props.state === "advantage"}
+              data-test={`skill-advantage-${props.testKey}`}
+              onClick={() => props.onToggleAdvantage()}
+              class={cn(TOUCH_TARGET_BOX, "cursor-pointer")}
+            >
+              <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "advantage" ? "bg-green-600 text-white" : "border border-foreground text-foreground"}`}>A</span>
+            </button>
+          </Tooltip>
+          <Tooltip content={tooltip("disadvantage")}>
+            <button
+              type="button"
+              aria-label="Disadvantage"
+              aria-pressed={props.state === "disadvantage"}
+              data-test={`skill-disadvantage-${props.testKey}`}
+              onClick={() => props.onToggleDisadvantage()}
+              class={cn(TOUCH_TARGET_BOX, "cursor-pointer")}
+            >
+              <span class={`inline-flex items-center justify-center w-4 h-4 rounded-full text-xs font-bold leading-none ${props.state === "disadvantage" ? "bg-destructive text-destructive-foreground" : "border border-foreground text-foreground"}`}>D</span>
+            </button>
+          </Tooltip>
+        </div>
       </Show>
       <Show when={!props.editable && props.state === "advantage"}>
-        <Tooltip content={tooltip("advantage")}>
+        <Tooltip content={tooltip("advantage")} triggerFocusable>
           <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-xs font-bold leading-none">A</span>
         </Tooltip>
       </Show>
       <Show when={!props.editable && props.state === "disadvantage"}>
-        <Tooltip content={tooltip("disadvantage")}>
+        <Tooltip content={tooltip("disadvantage")} triggerFocusable>
           <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs font-bold leading-none">D</span>
         </Tooltip>
       </Show>
@@ -165,7 +90,7 @@ function SkillAdvantagePips(props: {
 
 export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(props.character)
+  const [edited, setEdited] = createSignal(untrack(() => props.character))
 
   createEffect(on(() => props.character.id, () => setEdited(props.character)))
 
@@ -293,18 +218,15 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
 
   type TagListField = "languages" | "otherProficiencies" | "damageResistances" | "damageImmunities" | "damageVulnerabilities"
 
-  const addTag = (field: TagListField, value: string) => {
-    setEdited((prev) => ({ ...prev, [field]: [...(prev[field] ?? []), value] }))
-  }
-  const removeTag = (field: TagListField, value: string) => {
-    setEdited((prev) => ({ ...prev, [field]: (prev[field] ?? []).filter((v) => v !== value) }))
+  const setTags = (field: TagListField, values: string[]) => {
+    setEdited((prev) => ({ ...prev, [field]: values }))
   }
 
   return (
     <EditableModule
       data-sem="skills-proficiencies-module"
       data-test="skills-proficiencies-module"
-      icon={<BookOpen class="h-5 w-5 text-primary" />}
+      icon={<BookOpen class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Skills & Proficiencies"
       isEditing={isEditing()}
       onEdit={() => { setEdited(props.character); setIsEditing(true) }}
@@ -332,43 +254,33 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 }
                 return (
                   <div class="flex items-center justify-between p-2 rounded border">
-                    <Show
-                      when={isEditing()}
-                      fallback={
-                        <div class="flex items-center gap-2">
-                          <span class="text-sm font-medium">{ABILITY_ABBREVIATIONS[ability]}</span>
-                          <Show when={isProficient()}>
-                            <Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge>
-                          </Show>
-                        </div>
-                      }
-                    >
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-medium">{ABILITY_ABBREVIATIONS[ability]}</span>
                       <Show
-                        when={effectiveSave().granted}
+                        when={isEditing()}
                         fallback={
-                          <Checkbox
-                            checked={isProficient()}
-                            onChange={() => toggleSavingThrow(ability)}
-                            label={ABILITY_ABBREVIATIONS[ability]}
-                            labelClass="text-sm font-medium cursor-pointer"
-                            containerClass="gap-2"
-                          />
+                          <Show when={isProficient()}>
+                            <Chip variant="secondary" class={COMPACT_PILL}>Prof</Chip>
+                          </Show>
                         }
                       >
-                        <Tooltip content={`Granted by ${effectiveSave().grantedBy}`} triggerFocusable>
-                          <Checkbox
-                            checked={isProficient()}
-                            disabled
-                            onChange={() => toggleSavingThrow(ability)}
-                            label={ABILITY_ABBREVIATIONS[ability]}
-                            labelClass="text-sm font-medium cursor-pointer"
-                            containerClass="gap-2"
-                          />
+                        <Tooltip content={effectiveSave().granted ? `Granted by ${effectiveSave().grantedBy}` : "Proficiency (adds proficiency bonus)"} toggleOnClick={effectiveSave().granted}>
+                          <ToggleChip
+                            data-test={`saving-throw-${ability}`}
+                            aria-label={`${ABILITY_DISPLAY_NAMES[ability]} saving throw proficient`}
+                            variant="secondary"
+                            pillClass={COMPACT_PILL}
+                            pressed={isProficient()}
+                            locked={effectiveSave().granted}
+                            onClick={() => toggleSavingThrow(ability)}
+                          >
+                            Prof
+                          </ToggleChip>
                         </Tooltip>
                       </Show>
-                    </Show>
+                    </div>
                     <Tooltip content={saveTooltip()} triggerFocusable>
-                      <span class="font-semibold">{formatModifier(modifier())}</span>
+                      <span data-test={`saving-throw-modifier-${ability}`} class="font-semibold">{formatModifier(modifier())}</span>
                     </Tooltip>
                   </div>
                 )
@@ -382,7 +294,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
         {/* Skills */}
         <div>
           <h2 class="font-semibold mb-3">Skills</h2>
-          <div class="columns-1 sm:columns-2 md:columns-3" style="column-gap: 1rem; column-rule: 1px solid var(--border)">
+          <div class="columns-1 sm:columns-2 md:columns-3" style={{"column-gap":"1rem","column-rule":"1px solid var(--border)"}}>
             <For each={Object.keys(SKILL_DISPLAY_NAMES) as SkillKey[]}>
               {(skillKey) => {
                 const ability = SKILL_ABILITY_MAP[skillKey]
@@ -397,40 +309,48 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                   return formula
                 }
                 return (
-                  <div class="break-inside-avoid flex items-center justify-between p-1 rounded hover:bg-gray-500 [&:nth-child(3n)]:mb-3">
-                    <div class="flex items-center gap-3 w-full transition-colors duration-150">
-                      <Show when={isEditing()}>
-                        <div class="flex gap-1">
-                          <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"}>
-                            <Checkbox
-                              aria-label="Proficient"
-                              checked={effectiveSkill().proficient}
-                              disabled={effectiveSkill().granted}
-                              onChange={() => toggleSkillProf(skillKey)}
-                              class="border-secondary data-[checked]:bg-secondary"
-                            />
-                          </Tooltip>
-                          <Tooltip content={effectiveSkill().expertiseGranted ? `Granted by ${effectiveSkill().grantedBy}` : "Expertise (doubles proficiency bonus)"}>
-                            <Checkbox
-                              aria-label="Expertise"
-                              checked={effectiveSkill().expertise}
-                              disabled={effectiveSkill().expertiseGranted}
-                              onChange={() => toggleSkillExp(skillKey)}
-                            />
-                          </Tooltip>
-                        </div>
-                      </Show>
-                      <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                          <span
-                            class={`font-medium ${isEditing() ? "cursor-pointer" : ""}`}
-                            onClick={() => isEditing() && toggleSkillProf(skillKey)}
-                          >{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Badge variant="secondary" class="text-xs px-1 py-0">Prof</Badge></Show><Show when={effectiveSkill().expertise}><Badge variant="default" class="text-xs px-1 py-0">Exp</Badge></Show></span></Show></span>
+                  <div data-sem="skill-block" class={cn("break-inside-avoid flex items-center justify-between rounded even:bg-[color-mix(in_oklch,var(--foreground)_3%,transparent)] hover:bg-[color-mix(in_oklch,var(--foreground)_5%,transparent)] [&:nth-child(3n)]:mb-3", isEditing() ? "px-1" : "p-1")}>
+                    <div class="flex items-center gap-3 w-full min-w-0 transition-colors duration-150">
+                      <div class="flex-1 min-w-0">
+                        {/* The toggle chips drop to a second line when the column is too narrow for name + chips + A/D pips. */}
+                        <div class="flex flex-wrap items-center gap-x-2">
+                          <span data-test={`skill-name-${skillKey}`} class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Chip variant="secondary" class={COMPACT_PILL}>Prof</Chip></Show><Show when={effectiveSkill().expertise}><Chip variant="default" class={COMPACT_PILL}>Exp</Chip></Show></span></Show></span>
+                          <Show when={isEditing()}>
+                            <div class="flex items-center gap-1">
+                              <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"} toggleOnClick={effectiveSkill().granted}>
+                                <ToggleChip
+                                  data-test={`skill-proficient-${skillKey}`}
+                                  aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} proficient`}
+                                  variant="secondary"
+                                  pillClass={COMPACT_PILL}
+                                  pressed={effectiveSkill().proficient}
+                                  locked={effectiveSkill().granted}
+                                  onClick={() => toggleSkillProf(skillKey)}
+                                >
+                                  Prof
+                                </ToggleChip>
+                              </Tooltip>
+                              <Tooltip content={effectiveSkill().expertiseGranted ? `Granted by ${effectiveSkill().grantedBy}` : "Expertise (doubles proficiency bonus)"} toggleOnClick={effectiveSkill().expertiseGranted}>
+                                <ToggleChip
+                                  data-test={`skill-expertise-${skillKey}`}
+                                  aria-label={`${SKILL_DISPLAY_NAMES[skillKey]} expertise`}
+                                  variant="default"
+                                  pillClass={COMPACT_PILL}
+                                  pressed={effectiveSkill().expertise}
+                                  locked={effectiveSkill().expertiseGranted}
+                                  onClick={() => toggleSkillExp(skillKey)}
+                                >
+                                  Exp
+                                </ToggleChip>
+                              </Tooltip>
+                            </div>
+                          </Show>
                         </div>
                       </div>
                     </div>
-                    <div class="flex items-center gap-1 justify-end min-w-[3rem]">
+                    <div class="flex shrink-0 items-center gap-1 justify-end min-w-[3rem]">
                       <SkillAdvantagePips
+                        testKey={skillKey}
                         state={effectiveAdvantage().state}
                         isManualOverride={effectiveAdvantage().isManualOverride}
                         advantageSources={effectiveAdvantage().advantageSources}
@@ -440,7 +360,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                         onToggleDisadvantage={() => toggleSkillDisadvantage(skillKey)}
                       />
                       <Tooltip content={skillTooltip()} triggerFocusable>
-                        <span class="font-semibold">{formatModifier(modifier())}</span>
+                        <span data-test={`skill-modifier-${skillKey}`} class="font-semibold">{formatModifier(modifier())}</span>
                       </Tooltip>
                     </div>
                   </div>
@@ -459,7 +379,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             <For each={passiveStats}>
               {(stat) => (
                 <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                  <CalculatedValue
+                  <CalculatedValue data-test={`passive-${stat.skillKey}`}
                     label={stat.label}
                     labelClass="text-xs text-muted-foreground"
                     editable={isEditing()}
@@ -488,7 +408,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 return (
                   <Show when={isEditing() || senseField.resolvedValue() !== 0}>
                     <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                      <CalculatedValue
+                      <CalculatedValue data-test={`sense-${sense}`}
                         label={SENSE_LABELS[sense]}
                         labelClass="text-xs text-muted-foreground"
                         editable={isEditing()}
@@ -508,88 +428,101 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
 
         {/* Damage Resistances / Immunities / Vulnerabilities */}
         <div class="space-y-4">
-          <EditableTagList
+          <ChipListEditor
+            heading
+            variant="outline"
+            data-test="damage-resistances"
             label="Damage Resistances"
             itemLabel="resistance"
-            placeholder="Add resistance (e.g. Fire)"
+            options={DAMAGE_TYPE_OPTIONS}
+            allowCustom
             emptyText="No resistances"
-            ownValues={effectiveDamageResistances().own}
+            values={effectiveDamageResistances().own}
             grantedValues={effectiveDamageResistances().granted}
             grantedTooltip={(v) => {
               const source = effectiveDamageResistances().grantedBy[v]
               return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
             }}
             editing={isEditing()}
-            onAdd={(v) => addTag("damageResistances", v)}
-            onRemove={(v) => removeTag("damageResistances", v)}
+            onChange={(next) => setTags("damageResistances", next)}
           />
-          <EditableTagList
+          <ChipListEditor
+            heading
+            variant="outline"
+            data-test="damage-immunities"
             label="Damage Immunities"
             itemLabel="immunity"
-            placeholder="Add immunity (e.g. Poison)"
+            options={DAMAGE_TYPE_OPTIONS}
+            allowCustom
             emptyText="No immunities"
-            ownValues={effectiveDamageImmunities().own}
+            values={effectiveDamageImmunities().own}
             grantedValues={effectiveDamageImmunities().granted}
             grantedTooltip={(v) => {
               const source = effectiveDamageImmunities().grantedBy[v]
               return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
             }}
             editing={isEditing()}
-            onAdd={(v) => addTag("damageImmunities", v)}
-            onRemove={(v) => removeTag("damageImmunities", v)}
+            onChange={(next) => setTags("damageImmunities", next)}
           />
-          <EditableTagList
+          <ChipListEditor
+            heading
+            variant="outline"
+            data-test="damage-vulnerabilities"
             label="Damage Vulnerabilities"
             itemLabel="vulnerability"
-            placeholder="Add vulnerability (e.g. Cold)"
+            options={DAMAGE_TYPE_OPTIONS}
+            allowCustom
             emptyText="No vulnerabilities"
-            ownValues={effectiveDamageVulnerabilities().own}
+            values={effectiveDamageVulnerabilities().own}
             grantedValues={effectiveDamageVulnerabilities().granted}
             grantedTooltip={(v) => {
               const source = effectiveDamageVulnerabilities().grantedBy[v]
               return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
             }}
             editing={isEditing()}
-            onAdd={(v) => addTag("damageVulnerabilities", v)}
-            onRemove={(v) => removeTag("damageVulnerabilities", v)}
+            onChange={(next) => setTags("damageVulnerabilities", next)}
           />
         </div>
 
         <Separator />
 
         {/* Languages */}
-        <EditableTagList
+        <ChipListEditor
+            heading
+            variant="outline"
+          data-test="languages"
           label="Languages"
           itemLabel="language"
           placeholder="Add language"
-          ownValues={effectiveLanguages().own}
+          values={effectiveLanguages().own}
           grantedValues={effectiveLanguages().granted}
           grantedTooltip={(v) => {
             const source = effectiveLanguages().grantedBy[v]
             return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
           }}
           editing={isEditing()}
-          onAdd={(v) => addTag("languages", v)}
-          onRemove={(v) => removeTag("languages", v)}
+          onChange={(next) => setTags("languages", next)}
         />
 
         <Separator />
 
         {/* Other Proficiencies */}
-        <EditableTagList
+        <ChipListEditor
+            heading
+            variant="outline"
+          data-test="other-proficiencies"
           label="Other Proficiencies"
           itemLabel="proficiency"
           placeholder="Add proficiency (weapons, tools, etc.)"
           emptyText="No additional proficiencies"
-          ownValues={effectiveProficiencies().own}
+          values={effectiveProficiencies().own}
           grantedValues={effectiveProficiencies().granted}
           grantedTooltip={(v) => {
             const source = effectiveProficiencies().grantedBy[v]
             return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
           }}
           editing={isEditing()}
-          onAdd={(v) => addTag("otherProficiencies", v)}
-          onRemove={(v) => removeTag("otherProficiencies", v)}
+          onChange={(next) => setTags("otherProficiencies", next)}
         />
 
     </EditableModule>

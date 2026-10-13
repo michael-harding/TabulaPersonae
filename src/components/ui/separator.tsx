@@ -1,4 +1,5 @@
 import { ComponentProps, splitProps } from "solid-js"
+
 import { cn } from "@/lib/utils"
 
 type SeparatorProps = ComponentProps<"div"> & {

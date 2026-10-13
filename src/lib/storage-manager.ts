@@ -1,4 +1,5 @@
 import { createMemo } from 'solid-js'
+
 import { useAuth } from './auth-context'
 import {
   saveCharacterToFirebase,
@@ -7,7 +8,7 @@ import {
   deleteCharacterFromFirebase,
 } from './firebase-storage'
 import type { Character } from './character-types'
-import { migrateCharacters } from './character-migrations'
+import { readLocalCharacters, writeLocalCharacters } from './local-user-data'
 
 interface StorageAdapter {
   saveCharacter(character: Character): Promise<boolean>
@@ -17,11 +18,12 @@ interface StorageAdapter {
 }
 
 class LocalStorageAdapter implements StorageAdapter {
-  private STORAGE_KEY = 'dnd-characters'
-
+  // Nothing may be awaited between reading the list and writing it back (here and in
+  // deleteCharacter): saves started together would all read the same list, and the last write
+  // would drop the others' characters.
   async saveCharacter(character: Character): Promise<boolean> {
     try {
-      const characters = await this.getCharacters()
+      const characters = readLocalCharacters()
       const existingIndex = characters.findIndex((c) => c.id === character.id)
 
       if (existingIndex >= 0) {
@@ -30,7 +32,7 @@ class LocalStorageAdapter implements StorageAdapter {
         characters.push(character)
       }
 
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(characters))
+      writeLocalCharacters(characters)
       return true
     } catch (error) {
       console.error('Failed to save character to localStorage:', error)
@@ -39,25 +41,16 @@ class LocalStorageAdapter implements StorageAdapter {
   }
 
   async getCharacters(): Promise<Character[]> {
-    const stored = localStorage.getItem(this.STORAGE_KEY)
-    if (!stored) return []
-    try {
-      return migrateCharacters(JSON.parse(stored))
-    } catch {
-      return []
-    }
+    return readLocalCharacters()
   }
 
   async getCharacter(id: string): Promise<Character | null> {
-    const characters = await this.getCharacters()
-    return characters.find((c) => c.id === id) || null
+    return readLocalCharacters().find((c) => c.id === id) || null
   }
 
   async deleteCharacter(id: string): Promise<boolean> {
     try {
-      const characters = await this.getCharacters()
-      const filtered = characters.filter((c) => c.id !== id)
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(filtered))
+      writeLocalCharacters(readLocalCharacters().filter((c) => c.id !== id))
       return true
     } catch (error) {
       console.error('Failed to delete character from localStorage:', error)
@@ -88,22 +81,7 @@ export function useStorageManager() {
     }
 
     const deleteCharacter = async (id: string): Promise<boolean> => {
-      return u ? deleteCharacterFromFirebase(id, u.uid) : localAdapter.deleteCharacter(id)
-    }
-
-    const syncToFirebase = async (): Promise<boolean> => {
-      if (!u) return false
-      try {
-        const localCharacters = await localAdapter.getCharacters()
-        for (const character of localCharacters) {
-          await saveCharacterToFirebase(character, u.uid)
-        }
-        localStorage.setItem('dnd-characters', '[]')
-        return true
-      } catch (error) {
-        console.error('Failed to sync to Firebase:', error)
-        return false
-      }
+      return u ? deleteCharacterFromFirebase(id) : localAdapter.deleteCharacter(id)
     }
 
     return {
@@ -111,7 +89,6 @@ export function useStorageManager() {
       getCharacters,
       getCharacter,
       deleteCharacter,
-      syncToFirebase,
       isAuthenticated: !!u,
       storageType: u ? 'firebase' : 'local',
     }

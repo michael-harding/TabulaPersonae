@@ -1,11 +1,11 @@
 import { createContext, useContext, createSignal, createEffect, onCleanup, ParentComponent } from 'solid-js'
+
 import { useAuth } from '@/lib/auth-context'
 import { DEFAULT_TAB_CONFIG, isValidTabConfig } from '@/lib/tab-config-types'
 import type { UserTabConfig } from '@/lib/tab-config-types'
 import { saveTabConfigToFirebase, getTabConfigFromFirebase } from '@/lib/firebase-storage'
+import { LOCAL_TAB_CONFIG_KEY } from '@/lib/local-user-data'
 import { toast } from '@/hooks/use-toast'
-
-const TAB_CONFIG_KEY = 'dnd-tab-config'
 
 interface TabConfigContextType {
   tabConfig: () => UserTabConfig
@@ -39,21 +39,21 @@ export const TabConfigProvider: ParentComponent = (props) => {
     onCleanup(() => { cancelled = true })
     ;(async () => {
       if (u) {
-        const localRaw = localStorage.getItem(TAB_CONFIG_KEY)
+        const localRaw = localStorage.getItem(LOCAL_TAB_CONFIG_KEY)
         if (localRaw) {
           const localConfig = parseLocalConfig(localRaw)
           const existingFirebaseConfig = await getTabConfigFromFirebase(u.uid)
           if (cancelled) return
           if (existingFirebaseConfig) {
             // Cloud already has a config — prefer it and discard the anonymous local copy
-            localStorage.removeItem(TAB_CONFIG_KEY)
+            localStorage.removeItem(LOCAL_TAB_CONFIG_KEY)
             setTabConfig(existingFirebaseConfig)
           } else {
             // No cloud config yet — migrate the local anonymous config
             const saved = await saveTabConfigToFirebase(localConfig, u.uid)
             if (cancelled) return
             if (saved) {
-              localStorage.removeItem(TAB_CONFIG_KEY)
+              localStorage.removeItem(LOCAL_TAB_CONFIG_KEY)
             } else {
               toast({
                 title: 'Settings sync failed',
@@ -69,7 +69,7 @@ export const TabConfigProvider: ParentComponent = (props) => {
           setTabConfig(firebaseConfig ?? DEFAULT_TAB_CONFIG)
         }
       } else {
-        const stored = localStorage.getItem(TAB_CONFIG_KEY)
+        const stored = localStorage.getItem(LOCAL_TAB_CONFIG_KEY)
         setTabConfig(stored ? parseLocalConfig(stored) : DEFAULT_TAB_CONFIG)
       }
     })()
@@ -88,7 +88,7 @@ export const TabConfigProvider: ParentComponent = (props) => {
         })
       }
     } else {
-      localStorage.setItem(TAB_CONFIG_KEY, JSON.stringify(config))
+      localStorage.setItem(LOCAL_TAB_CONFIG_KEY, JSON.stringify(config))
     }
   }
 

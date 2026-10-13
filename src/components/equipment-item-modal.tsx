@@ -1,5 +1,8 @@
 import { createSignal, createEffect, on, For, Show } from "solid-js"
 import { createStore, reconcile, unwrap } from "solid-js/store"
+import Save from "lucide-solid/icons/save"
+import Gem from "lucide-solid/icons/gem"
+
 import type { AbilityScores, ActionKind, Equipment, ItemModifiers, ItemRarity, SenseType, Skills } from "@/lib/character-types"
 import {
   DAMAGE_TYPE_OPTIONS,
@@ -21,13 +24,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ModifierGroup } from "@/components/ui/modifier-group"
-import { FreeTextListEditor } from "@/components/ui/free-text-list-editor"
-import Plus from "lucide-solid/icons/plus"
-import Save from "lucide-solid/icons/save"
-import Gem from "lucide-solid/icons/gem"
-import X from "lucide-solid/icons/x"
+import { ChipListEditor } from "@/components/ui/chip-list-editor"
 
 export const RARITY_OPTIONS: { value: ItemRarity; label: string }[] = [
   { value: "common", label: "Common" },
@@ -203,67 +201,6 @@ function hasChargesValues(d: EquipmentFormData): boolean {
   return d.charges !== 0 || d.maxUses !== 0 || d.rechargeOn !== ""
 }
 
-function tagPickerTestId(label: string): string {
-  return `tag-picker-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`
-}
-
-function TagPickerField(props: { label: string; options: string[]; selected: string[]; onChange: (next: string[]) => void }) {
-  const toggle = (tag: string) => {
-    props.onChange(
-      props.selected.includes(tag) ? props.selected.filter((t) => t !== tag) : [...props.selected, tag]
-    )
-  }
-  return (
-    <div data-sem="tag-picker-field">
-      <div class="flex items-center justify-between">
-        <Label class="text-xs">{props.label}</Label>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            as="button"
-            data-test={tagPickerTestId(props.label)}
-            class="inline-flex items-center justify-center h-5 w-5 rounded-full border border-dashed border-muted-foreground/50 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
-            title={`Add ${props.label}`}
-          >
-            <Plus class="h-3 w-3" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <For each={props.options}>
-              {(option) => (
-                <DropdownMenuItem
-                  onSelect={() => toggle(option)}
-                  class={props.selected.includes(option) ? "text-primary font-medium" : ""}
-                >
-                  {option}
-                  <Show when={props.selected.includes(option)}>
-                    <span class="ml-auto text-primary">✓</span>
-                  </Show>
-                </DropdownMenuItem>
-              )}
-            </For>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div class="flex flex-wrap gap-1 mt-1 min-h-[1.25rem]">
-        <Show when={props.selected.length > 0} fallback={<span class="text-xs text-muted-foreground italic">None</span>}>
-          <For each={props.selected}>
-            {(tag) => (
-              <button
-                type="button"
-                onClick={() => toggle(tag)}
-                class="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                title="Click to remove"
-              >
-                {tag}
-                <X class="h-2.5 w-2.5" />
-              </button>
-            )}
-          </For>
-        </Show>
-      </div>
-    </div>
-  )
-}
-
 const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 
 const EQUIPMENT_TYPES: { value: EquipmentType; label: string }[] = [
@@ -288,8 +225,16 @@ const ARMOR_TYPE_OPTIONS: { value: "light" | "medium" | "heavy" | "shield"; labe
   { value: "shield", label: "Shield (+2 stacks with armor)" },
 ]
 
+// formDataFromItem copies some fields by reference (weaponStats, armorStats, modifier lists).
+// When the item comes from the character's Solid store, those are reactive proxies, and
+// structuredClone throws on a proxy. Unwrap to the raw data first, then deep-copy so form edits
+// never write through to the store.
+function cloneFormData(data: EquipmentFormData): EquipmentFormData {
+  return structuredClone(unwrap(data))
+}
+
 function EquipmentForm(props: EquipmentFormProps) {
-  const [formData, setFormData] = createStore<EquipmentFormData>(structuredClone(props.initialData))
+  const [formData, setFormData] = createStore<EquipmentFormData>(cloneFormData(props.initialData))
   const [openAbilityScores, setOpenAbilityScores] = createSignal(hasAbilityScoreValues(props.initialData))
   const [openSavingThrows, setOpenSavingThrows] = createSignal(hasSavingThrowValues(props.initialData))
   const [openResistances, setOpenResistances] = createSignal(hasResistanceValues(props.initialData))
@@ -303,7 +248,7 @@ function EquipmentForm(props: EquipmentFormProps) {
     on(
       () => props.initialData,
       (init) => {
-        setFormData(reconcile(structuredClone(init)))
+        setFormData(reconcile(cloneFormData(init)))
         setOpenAbilityScores(hasAbilityScoreValues(init))
         setOpenSavingThrows(hasSavingThrowValues(init))
         setOpenResistances(hasResistanceValues(init))
@@ -345,9 +290,9 @@ function EquipmentForm(props: EquipmentFormProps) {
       </div>
 
       <div>
-        <Label>Item Type</Label>
+        <Label for="item-type">Item Type</Label>
         <Select value={formData.type} onValueChange={handleTypeChange}>
-          <SelectTrigger data-test="item-type">
+          <SelectTrigger id="item-type" data-test="item-type">
             <SelectValue placeholder="Select type" />
           </SelectTrigger>
           <SelectContent>
@@ -390,8 +335,9 @@ function EquipmentForm(props: EquipmentFormProps) {
               />
             </div>
             <div>
-              <Label>Damage Type</Label>
+              <Label for="weapon-damage-type">Damage Type</Label>
               <Combobox
+                id="weapon-damage-type"
                 data-test="weapon-damage-type"
                 value={formData.weaponStats?.damageType ?? ""}
                 onValueChange={(v) => setFormData("weaponStats", "damageType", v)}
@@ -412,12 +358,12 @@ function EquipmentForm(props: EquipmentFormProps) {
               />
             </div>
             <div>
-              <Label>Attack Using</Label>
+              <Label for="weapon-attack-ability">Attack Using</Label>
               <Select
                 value={formData.weaponStats?.attackAbility ?? "str"}
                 onValueChange={(v) => setFormData("weaponStats", "attackAbility", v as "str" | "dex" | "finesse")}
               >
-                <SelectTrigger data-test="weapon-attack-ability">
+                <SelectTrigger id="weapon-attack-ability" data-test="weapon-attack-ability">
                   <SelectValue placeholder="Select ability" />
                 </SelectTrigger>
                 <SelectContent>
@@ -445,12 +391,12 @@ function EquipmentForm(props: EquipmentFormProps) {
           <p class="text-sm font-medium">Armor Stats</p>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <Label>Armor Type</Label>
+              <Label for="armor-type">Armor Type</Label>
               <Select
                 value={formData.armorStats?.armorType ?? "light"}
                 onValueChange={(v) => setFormData("armorStats", "armorType", v as "light" | "medium" | "heavy" | "shield")}
               >
-                <SelectTrigger data-test="armor-type">
+                <SelectTrigger id="armor-type" data-test="armor-type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -464,8 +410,10 @@ function EquipmentForm(props: EquipmentFormProps) {
               when={formData.armorStats?.armorType !== "shield"}
               fallback={
                 <div>
-                  <Label>AC Bonus</Label>
-                  <p class="text-sm text-muted-foreground mt-2">+2 (fixed)</p>
+                  {/* A shield's bonus is fixed, so there is no field to label. <output> is the
+                      element for a read-only value that a <label> is allowed to point at. */}
+                  <Label for="armor-ac-bonus">AC Bonus</Label>
+                  <output id="armor-ac-bonus" class="block text-sm text-muted-foreground mt-2">+2 (fixed)</output>
                 </div>
               }
             >
@@ -486,17 +434,25 @@ function EquipmentForm(props: EquipmentFormProps) {
 
       <ModifierGroup label="Advantage/Disadvantage" data-test="modifier-group-skill-effects" open={openSkillEffects()} onOpenChange={setOpenSkillEffects}>
         <div class="grid grid-cols-1 gap-3">
-          <TagPickerField
+          <ChipListEditor
             label="Grants Advantage On"
-            options={SKILL_KEYS.filter((k) => !formData.modifierSkillDisadvantage.includes(k)).map((k) => SKILL_DISPLAY_NAMES[k])}
-            selected={formData.modifierSkillAdvantage.map((k) => SKILL_DISPLAY_NAMES[k])}
-            onChange={(labels) => setFormData("modifierSkillAdvantage", SKILL_KEYS.filter((k) => labels.includes(SKILL_DISPLAY_NAMES[k])))}
+            itemLabel="skill advantage"
+            data-test="modifier-skill-advantage"
+            emptyText="None"
+            options={SKILL_KEYS.filter((k) => !formData.modifierSkillDisadvantage.includes(k))}
+            optionLabel={(k) => SKILL_DISPLAY_NAMES[k]}
+            values={formData.modifierSkillAdvantage}
+            onChange={(next) => setFormData("modifierSkillAdvantage", SKILL_KEYS.filter((skill) => next.includes(skill)))}
           />
-          <TagPickerField
+          <ChipListEditor
             label="Grants Disadvantage On"
-            options={SKILL_KEYS.filter((k) => !formData.modifierSkillAdvantage.includes(k)).map((k) => SKILL_DISPLAY_NAMES[k])}
-            selected={formData.modifierSkillDisadvantage.map((k) => SKILL_DISPLAY_NAMES[k])}
-            onChange={(labels) => setFormData("modifierSkillDisadvantage", SKILL_KEYS.filter((k) => labels.includes(SKILL_DISPLAY_NAMES[k])))}
+            itemLabel="skill disadvantage"
+            data-test="modifier-skill-disadvantage"
+            emptyText="None"
+            options={SKILL_KEYS.filter((k) => !formData.modifierSkillAdvantage.includes(k))}
+            optionLabel={(k) => SKILL_DISPLAY_NAMES[k]}
+            values={formData.modifierSkillDisadvantage}
+            onChange={(next) => setFormData("modifierSkillDisadvantage", SKILL_KEYS.filter((skill) => next.includes(skill)))}
           />
         </div>
       </ModifierGroup>
@@ -513,16 +469,16 @@ function EquipmentForm(props: EquipmentFormProps) {
       <Show when={formData.magic}>
         <div class="space-y-3 border rounded-md p-3 bg-muted/30">
           <p class="text-sm font-medium flex items-center gap-1">
-            <Gem class="h-3.5 w-3.5" />
+            <Gem class="h-3.5 w-3.5" aria-hidden="true" />
             Magic Item Details
           </p>
           <div>
-            <Label>Rarity</Label>
+            <Label for="item-rarity">Rarity</Label>
             <Select
               value={formData.rarity}
               onValueChange={(v) => setFormData("rarity", v as ItemRarity)}
             >
-              <SelectTrigger data-test="item-rarity">
+              <SelectTrigger id="item-rarity" data-test="item-rarity">
                 <SelectValue placeholder="Select rarity" />
               </SelectTrigger>
               <SelectContent>
@@ -653,12 +609,12 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
               <Show when={formData.maxUses > 0}>
                 <div>
-                  <Label>Recharge On</Label>
+                  <Label for="item-recharge-on">Recharge On</Label>
                   <Select
                     value={formData.rechargeOn}
                     onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
                   >
-                    <SelectTrigger data-test="item-recharge-on">
+                    <SelectTrigger id="item-recharge-on" data-test="item-recharge-on">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
@@ -672,20 +628,20 @@ function EquipmentForm(props: EquipmentFormProps) {
             </ModifierGroup>
 
             <ModifierGroup label="Languages & Proficiencies" data-test="modifier-group-languages" open={openLanguages()} onOpenChange={setOpenLanguages}>
-              <FreeTextListEditor
+              <ChipListEditor
                 label="Languages Granted"
-                ariaLabel="Add language"
+                itemLabel="language"
                 placeholder="Add language"
                 values={formData.modifierLanguages}
-                onChange={(v) => setFormData("modifierLanguages", v)}
+                onChange={(next) => setFormData("modifierLanguages", next)}
                 data-test="modifier-languages"
               />
-              <FreeTextListEditor
+              <ChipListEditor
                 label="Proficiencies Granted"
-                ariaLabel="Add proficiency"
+                itemLabel="proficiency"
                 placeholder="Add proficiency (weapons, tools, etc.)"
                 values={formData.modifierProficiencies}
-                onChange={(v) => setFormData("modifierProficiencies", v)}
+                onChange={(next) => setFormData("modifierProficiencies", next)}
                 data-test="modifier-proficiencies"
               />
             </ModifierGroup>
@@ -733,29 +689,41 @@ function EquipmentForm(props: EquipmentFormProps) {
 
             <ModifierGroup label="Resistances & Immunities" data-test="modifier-group-resistances" open={openResistances()} onOpenChange={setOpenResistances}>
               <div class="grid grid-cols-1 gap-3">
-                <TagPickerField
+                <ChipListEditor
                   label="Damage Resistances"
+                  itemLabel="damage resistance"
+                  data-test="modifier-damage-resistances"
+                  emptyText="None"
                   options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData.modifierResistances}
-                  onChange={(v) => setFormData("modifierResistances", v)}
+                  values={formData.modifierResistances}
+                  onChange={(next) => setFormData("modifierResistances", next)}
                 />
-                <TagPickerField
+                <ChipListEditor
                   label="Damage Immunities"
+                  itemLabel="damage immunity"
+                  data-test="modifier-damage-immunities"
+                  emptyText="None"
                   options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData.modifierImmunities}
-                  onChange={(v) => setFormData("modifierImmunities", v)}
+                  values={formData.modifierImmunities}
+                  onChange={(next) => setFormData("modifierImmunities", next)}
                 />
-                <TagPickerField
+                <ChipListEditor
                   label="Damage Vulnerabilities"
+                  itemLabel="damage vulnerability"
+                  data-test="modifier-damage-vulnerabilities"
+                  emptyText="None"
                   options={DAMAGE_TYPE_OPTIONS}
-                  selected={formData.modifierVulnerabilities}
-                  onChange={(v) => setFormData("modifierVulnerabilities", v)}
+                  values={formData.modifierVulnerabilities}
+                  onChange={(next) => setFormData("modifierVulnerabilities", next)}
                 />
-                <TagPickerField
+                <ChipListEditor
                   label="Condition Immunities"
+                  itemLabel="condition immunity"
+                  data-test="modifier-condition-immunities"
+                  emptyText="None"
                   options={CONDITIONS}
-                  selected={formData.modifierConditionImmunities}
-                  onChange={(v) => setFormData("modifierConditionImmunities", v)}
+                  values={formData.modifierConditionImmunities}
+                  onChange={(next) => setFormData("modifierConditionImmunities", next)}
                 />
               </div>
             </ModifierGroup>
@@ -848,7 +816,7 @@ function EquipmentForm(props: EquipmentFormProps) {
 
       <div class="flex gap-2 pt-4">
         <Button data-test="equipment-modal-submit" onClick={() => props.onSubmit(unwrap(formData))} class="gap-2">
-          <Save class="h-4 w-4" />
+          <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Item" : "Add Item"}
         </Button>
         <Button data-test="equipment-modal-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>

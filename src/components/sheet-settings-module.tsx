@@ -1,13 +1,15 @@
 import { For, Show, createResource, createSignal } from "solid-js"
 import QRCode from "qrcode"
+import Settings2 from "lucide-solid/icons/settings-2"
+import Pipette from "lucide-solid/icons/pipette"
+import Share2 from "lucide-solid/icons/share-2"
+
 import type { Character } from "@/lib/character-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SwitchButton } from "@/components/ui/switch-button"
 import { useReadOnly } from "@/lib/read-only-context"
-import Settings2 from "lucide-solid/icons/settings-2"
-import Pipette from "lucide-solid/icons/pipette"
-import Share2 from "lucide-solid/icons/share-2"
+import { cn, HOVER_ACCENT, TOUCH_TARGET } from "@/lib/utils"
 
 interface SheetSettingsModuleProps {
   character: Character
@@ -25,7 +27,15 @@ const PRESET_COLORS = [
 
 export function SheetSettingsModule(props: SheetSettingsModuleProps) {
   const isReadOnly = useReadOnly()
-  if (isReadOnly) return null
+  return (
+    <Show when={!isReadOnly}>
+      <SheetSettingsContent {...props} />
+    </Show>
+  )
+}
+
+// Split out so none of this — the share-link QR resource in particular — is set up in read-only mode.
+function SheetSettingsContent(props: SheetSettingsModuleProps) {
   const edition = () => props.character.edition ?? "2024"
   const sheetColor = () => props.character.sheetColor
   const shareUrl = () =>
@@ -42,7 +52,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
     <Card data-sem="sheet-settings-module">
       <CardHeader class="pb-3">
         <CardTitle class="flex items-center gap-2 text-base">
-          <Settings2 class="h-5 w-5 text-primary" />
+          <Settings2 class="h-5 w-5 text-primary" aria-hidden="true" />
           Sheet Settings
         </CardTitle>
       </CardHeader>
@@ -66,6 +76,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                 {(preset) => (
                   <button
                     type="button"
+                    data-test={`sheet-color-preset-${preset.name.toLowerCase()}`}
                     aria-label={`${preset.name} theme color`}
                     class="w-11 h-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => props.onUpdate({ ...props.character, sheetColor: preset.hex })}
@@ -90,12 +101,13 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                 >
                   <input
                     type="color"
+                    data-test="sheet-color-custom-input"
                     aria-label="Custom theme color"
                     value={isCustomColor() ? sheetColor()! : "#6366f1"}
                     onInput={(e) => props.onUpdate({ ...props.character, sheetColor: e.currentTarget.value })}
                     class="absolute inset-0 w-full h-full cursor-pointer border-none p-0 opacity-0"
                   />
-                  <Pipette class="h-3 w-3 text-white drop-shadow pointer-events-none" />
+                  <Pipette class="h-3 w-3 text-white drop-shadow pointer-events-none" aria-hidden="true" />
                 </span>
               </label>
             </div>
@@ -103,8 +115,9 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
             <Show when={sheetColor()}>
               <button
                 type="button"
+                data-test="sheet-color-reset-button"
                 aria-label="Reset sheet color"
-                class="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
+                class={cn(TOUCH_TARGET, "text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline")}
                 onClick={() => props.onUpdate({ ...props.character, sheetColor: undefined })}
               >
                 Reset
@@ -115,7 +128,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
 
         <div class="border-t pt-4 mt-1">
           <div class="flex items-center gap-2 mb-3">
-            <Share2 class="h-4 w-4 text-primary" />
+            <Share2 class="h-4 w-4 text-primary" aria-hidden="true" />
             <Label class="text-sm font-medium">Public Sharing</Label>
           </div>
           <div class="flex items-center gap-3 mb-3">
@@ -134,6 +147,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                 <div class="flex items-center gap-2">
                   <input
                     type="text"
+                    data-test="share-url-input"
                     readOnly
                     value={getUrl()}
                     aria-label="Share URL"
@@ -142,8 +156,9 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                   />
                   <button
                     type="button"
+                    data-test="share-url-copy-button"
                     aria-label="Copy share link"
-                    class="h-9 px-3 rounded-md border text-xs hover:bg-accent transition-colors whitespace-nowrap"
+                    class={cn(TOUCH_TARGET, HOVER_ACCENT, "h-9 px-3 rounded-md border text-xs transition-colors whitespace-nowrap")}
                     onClick={() => {
                       navigator.clipboard.writeText(getUrl())
                         .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
@@ -154,7 +169,7 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
                   </button>
                 </div>
                 <Show when={qrDataUrl.error}>
-                  <p class="text-xs text-destructive">Failed to generate QR code.</p>
+                  <p role="alert" class="text-xs text-destructive">Failed to generate QR code.</p>
                 </Show>
                 <Show when={qrDataUrl()}>
                   <img

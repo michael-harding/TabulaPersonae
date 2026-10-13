@@ -1,5 +1,5 @@
 import type { Character, Equipment, Feature, SenseType } from "./character-types"
-import { calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import { ABILITY_KEYS, calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
 const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass",
@@ -17,6 +17,24 @@ const CALCULATED_VALUE_FLAGS = [
 
 const FEATURE_LIST_FIELDS = ["classFeatures", "speciesTraits", "feats", "backgroundFeatures"] as const
 
+// Free text until these became a menu of the standard damage types plus custom entries.
+const DAMAGE_TYPE_LIST_FIELDS = ["damageResistances", "damageImmunities", "damageVulnerabilities"] as const
+
+/**
+ * A character record as read back from storage or an import file. Any earlier version of the app
+ * may have written it, so every field of the current model may be missing.
+ */
+type StoredCharacter = Partial<Character>
+
+// `unknown`: the value comes straight from JSON.parse or Firestore, so nothing is known about it.
+// This guard is where stored data starts being trusted. It checks that the value is an object and
+// not an array. It does not check the type of each field: a hand-edited file can still hold a
+// string where a number belongs, exactly as it could before this was typed. Validating every field
+// belongs with the schema-version migration work.
+function isStoredCharacter(value: unknown): value is StoredCharacter {
+  return typeof value === "object" && value != null && !Array.isArray(value)
+}
+
 /**
  * Spellcasting ability and hit die size used to be plain `character.spellcastingAbility`/
  * `hitDice`/`hitDiceSize` fields; they're now derived exclusively from a Class Feature/Species
@@ -28,11 +46,13 @@ const FEATURE_LIST_FIELDS = ["classFeatures", "speciesTraits", "feats", "backgro
  * its effects (spellcastingAbility is checked before hitDiceSize) — combining them risks the edit
  * form silently dropping one on save.
  */
-function importLegacyFeatureGrants(raw: any): Feature[] | undefined {
+function importLegacyFeatureGrants(raw: StoredCharacter): Feature[] | undefined {
   const activeEffects = getActiveFeatureEffects(raw)
   const additions: Feature[] = []
 
-  if (raw.spellcastingAbility && !activeEffects.spellcastingAbility) {
+  // The legacy value is copied into a new Feature, so it must be a real ability: anything else
+  // (which never worked as a spellcasting ability anyway) would be written out as an invalid effect.
+  if (raw.spellcastingAbility && ABILITY_KEYS.includes(raw.spellcastingAbility) && !activeEffects.spellcastingAbility) {
     additions.push({
       id: crypto.randomUUID(),
       name: "Spellcasting",
@@ -111,15 +131,20 @@ function backfillEquipmentUses(equipment: Equipment[]): Equipment[] | undefined 
  * Features without featureType too). Genuinely legacy JSON-imported/stored characters still hit
  * this gate correctly, since they lack the flags.
  */
-export function migrateCharacter(raw: any): Character {
-  if (!raw || typeof raw !== "object") return raw as Character
+// `unknown`: `raw` is persisted character JSON (localStorage, Firebase, an import file) that
+// nothing has looked at yet. isStoredCharacter above is what turns it into a typed value.
+export function migrateCharacter(raw: unknown): Character {
+  if (!isStoredCharacter(raw)) {
+    const received = Array.isArray(raw) ? "an array" : raw == null ? String(raw) : `a ${typeof raw}`
+    throw new TypeError(`Cannot migrate a character record that is not an object (received ${received})`)
+  }
 
   const patch: Record<string, unknown> = {}
 
   if (!CALCULATED_VALUE_FLAGS.every((flag) => flag in raw)) {
     const backfill = (flag: (typeof CALCULATED_VALUE_FLAGS)[number], storedValue: unknown, calculatedValue: unknown) => {
       if (flag in raw) return
-      patch[flag] = storedValue === undefined || storedValue === calculatedValue
+      patch[flag] = storedValue == null || storedValue === calculatedValue
     }
 
     backfill("useCalculatedArmorClass", raw.armorClass, calculateEquippedAC(raw).ac)
@@ -136,7 +161,7 @@ export function migrateCharacter(raw: any): Character {
       const useCalculatedSenses: Partial<Record<SenseType, boolean>> = {}
       for (const sense of SENSE_TYPES) {
         const stored = raw.senses?.[sense]
-        useCalculatedSenses[sense] = stored === undefined || stored === senseTotals[sense]
+        useCalculatedSenses[sense] = stored == null || stored === senseTotals[sense]
       }
       patch.useCalculatedSenses = useCalculatedSenses
     }
@@ -152,13 +177,28 @@ export function migrateCharacter(raw: any): Character {
   }
 
   if (Array.isArray(raw.equipment)) {
-    const backfilledEquipment = backfillEquipmentUses(raw.equipment as Equipment[])
+    const backfilledEquipment = backfillEquipmentUses(raw.equipment)
     if (backfilledEquipment) patch.equipment = backfilledEquipment
   }
 
-  return Object.keys(patch).length > 0 ? { ...raw, ...patch } : (raw as Character)
+  for (const field of DAMAGE_TYPE_LIST_FIELDS) {
+    // Lists saved as free text can hold "fire" where the menu and feature/equipment grants say
+    // "Fire", which would show as a second, different entry. Only the casing of real values is
+    // changed; a missing list is left missing.
+    const stored: unknown = raw[field] // legacy data — may be absent or not a string list
+    if (!Array.isArray(stored) || !stored.every((value) => typeof value === "string")) continue
+    const normalized = normalizeDamageTypes(stored)
+    if (normalized !== stored) patch[field] = normalized
+  }
+
+  // Trusted, not checked: a record this app wrote has every required field (id, name, ...), so once
+  // the fields added since are backfilled it is a complete `Character`. See isStoredCharacter.
+  const migrated = Object.keys(patch).length > 0 ? { ...raw, ...patch } : raw
+  return migrated as Character
 }
 
+// `unknown`: the parsed contents of a storage key or import file, before any check.
+// Entries that are not objects cannot be characters and are dropped.
 export function migrateCharacters(raw: unknown): Character[] {
-  return Array.isArray(raw) ? raw.map(migrateCharacter) : []
+  return Array.isArray(raw) ? raw.filter(isStoredCharacter).map(migrateCharacter) : []
 }

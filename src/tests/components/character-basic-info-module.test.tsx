@@ -1,8 +1,10 @@
 import { axe } from "vitest-axe"
-import { render, screen, fireEvent } from "../test-utils"
+
 import { CharacterBasicInfoModule } from "@/components/character-basic-info-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
+
+import { render, screen, fireEvent } from "../test-utils"
 
 const emptyCharacter = createDefaultCharacter()
 
@@ -27,12 +29,12 @@ function clickEditButton() {
 describe("CharacterBasicInfoModule", () => {
   describe("view mode", () => {
     it("shows 'Unnamed Character' when name is empty", () => {
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
       expect(screen.getByText("Unnamed Character")).toBeInTheDocument()
     })
 
     it("shows populated character values", () => {
-      render(<CharacterBasicInfoModule character={populatedCharacter} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={populatedCharacter} onUpdate={vi.fn()} />)
       expect(screen.getByText("Aragorn")).toBeInTheDocument()
       expect(screen.getByText("Human")).toBeInTheDocument()
       expect(screen.getByText("Ranger")).toBeInTheDocument()
@@ -42,35 +44,32 @@ describe("CharacterBasicInfoModule", () => {
     })
 
     it("shows level", () => {
-      render(<CharacterBasicInfoModule character={populatedCharacter} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={populatedCharacter} onUpdate={vi.fn()} />)
       expect(screen.getByText("10")).toBeInTheDocument()
     })
 
     it("shows 'Not specified' for unset optional fields", () => {
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
       expect(screen.getAllByText("Not specified").length).toBeGreaterThan(0)
     })
 
-    it("calls onUpdate when heroic inspiration checkbox is toggled", () => {
-      const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
-      const checkbox = screen.getByLabelText(/heroic inspiration/i)
-      fireEvent.click(checkbox)
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ heroicInspiration: true })
-      )
-    })
   })
 
   describe("edit mode", () => {
     it("shows name input when edit button is clicked", () => {
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByLabelText(/character name/i)).toBeInTheDocument()
     })
 
+    it("names the Class combobox via its visible label", () => {
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByRole("combobox", { name: "Class" })).toBeInTheDocument()
+    })
+
     it("shows save and cancel buttons in the header when editing", () => {
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument()
@@ -78,7 +77,7 @@ describe("CharacterBasicInfoModule", () => {
 
     it("calls onUpdate with updated name on save", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
       fireEvent.input(screen.getByLabelText(/character name/i), {
         target: { value: "Legolas" },
@@ -91,7 +90,7 @@ describe("CharacterBasicInfoModule", () => {
 
     it("calls onUpdate with updated level on save", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
       const levelInput = screen.getByLabelText(/^level$/i)
       fireEvent.input(levelInput, { target: { value: "5" } })
@@ -104,7 +103,7 @@ describe("CharacterBasicInfoModule", () => {
 
     it("persists edits on Ctrl+S without leaving edit mode", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
       const nameInput = screen.getByLabelText(/character name/i)
       fireEvent.input(nameInput, { target: { value: "Legolas" } })
@@ -117,7 +116,7 @@ describe("CharacterBasicInfoModule", () => {
 
     it("does not call onUpdate when cancel is clicked", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
       fireEvent.input(screen.getByLabelText(/character name/i), {
         target: { value: "Gimli" },
@@ -127,7 +126,7 @@ describe("CharacterBasicInfoModule", () => {
     })
 
     it("reverts to original name after cancel", () => {
-      render(<CharacterBasicInfoModule character={populatedCharacter} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={populatedCharacter} onUpdate={vi.fn()} />)
       clickEditButton()
       fireEvent.input(screen.getByLabelText(/character name/i), {
         target: { value: "Changed" },
@@ -137,14 +136,14 @@ describe("CharacterBasicInfoModule", () => {
     })
 
     it("returns to view mode after save", () => {
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(screen.queryByLabelText(/character name/i)).not.toBeInTheDocument()
     })
 
     it("returns to view mode after cancel", () => {
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
       expect(screen.queryByLabelText(/character name/i)).not.toBeInTheDocument()
@@ -153,54 +152,42 @@ describe("CharacterBasicInfoModule", () => {
 
   describe("race vs species label", () => {
     it("shows 'Race' label in 2014 mode", () => {
-      render(<CharacterBasicInfoModule character={char2014} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={char2014} onUpdate={vi.fn()} />)
       expect(screen.getByText("Race")).toBeInTheDocument()
     })
 
     it("shows 'Species' label in 2024 mode", () => {
-      render(<CharacterBasicInfoModule character={char2024} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={char2024} onUpdate={vi.fn()} />)
       expect(screen.getByText("Species")).toBeInTheDocument()
-    })
-  })
-
-  describe("inspiration label", () => {
-    it("shows 'Inspiration' label in 2014 mode", () => {
-      render(<CharacterBasicInfoModule character={char2014} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Inspiration")).toBeInTheDocument()
-    })
-
-    it("shows 'Heroic Inspiration' label in 2024 mode", () => {
-      render(<CharacterBasicInfoModule character={char2024} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Heroic Inspiration")).toBeInTheDocument()
     })
   })
 
   describe("subclass (2024 only)", () => {
     it("shows subclass value in 2024 view mode", () => {
-      render(<CharacterBasicInfoModule character={char2024} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={char2024} onUpdate={vi.fn()} />)
       expect(screen.getByText("Champion")).toBeInTheDocument()
     })
 
     it("shows 'Not specified' for empty subclass in 2024 mode", () => {
-      render(<CharacterBasicInfoModule character={{ ...emptyCharacter, edition: "2024" }} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={{ ...emptyCharacter, edition: "2024" }} onUpdate={vi.fn()} />)
       // There will be multiple "Not specified" entries; subclass is one of them
       expect(screen.getAllByText("Not specified").length).toBeGreaterThan(0)
     })
 
     it("does not render subclass section in 2014 mode", () => {
-      render(<CharacterBasicInfoModule character={char2014} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={char2014} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Subclass")).not.toBeInTheDocument()
     })
 
     it("shows subclass input in edit mode for 2024", () => {
-      render(<CharacterBasicInfoModule character={char2024} onUpdate={vi.fn()} />)
+      render(() => <CharacterBasicInfoModule character={char2024} onUpdate={vi.fn()} />)
       clickEditButton()
       expect(screen.getByLabelText(/subclass/i)).toBeInTheDocument()
     })
 
     it("saves updated subclass on save", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={char2024} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={char2024} onUpdate={onUpdate} />)
       clickEditButton()
       fireEvent.input(screen.getByLabelText(/subclass/i), { target: { value: "Battlemaster" } })
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
@@ -211,7 +198,7 @@ describe("CharacterBasicInfoModule", () => {
   describe("combobox fields", () => {
     it("saves a custom race value typed into the race combobox", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
       const inputs = screen.getAllByRole("combobox")
       const raceInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/race|species/i))!
@@ -224,7 +211,7 @@ describe("CharacterBasicInfoModule", () => {
 
     it("saves a custom class value typed into the class combobox", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
       const inputs = screen.getAllByRole("combobox")
       const classInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/class/i))!
@@ -237,7 +224,7 @@ describe("CharacterBasicInfoModule", () => {
 
     it("saves a predefined race option selected from the dropdown", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
       const inputs = screen.getAllByRole("combobox")
       const raceInput = inputs.find((el) => (el as HTMLInputElement).placeholder?.match(/race|species/i))!
@@ -251,7 +238,7 @@ describe("CharacterBasicInfoModule", () => {
   describe("XP field in edit mode", () => {
     it("calls onUpdate with updated experiencePoints when XP changes", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
       const xpInput = screen.getByLabelText(/experience points/i)
       fireEvent.input(xpInput, { target: { value: "6500" } })
@@ -266,14 +253,9 @@ describe("CharacterBasicInfoModule", () => {
   describe("alignment selection", () => {
     it("calls onUpdate with updated alignment when an alignment option is selected", () => {
       const onUpdate = vi.fn()
-      render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)
       clickEditButton()
-      // The alignment SelectTrigger is the only button with aria-haspopup="listbox"
-      // When alignment is "" (empty), SelectValue renders "" so the button has no text name
-      const alignmentTrigger = screen.getAllByRole("button").find(
-        (btn) => btn.getAttribute("aria-haspopup") === "listbox"
-      )!
-      fireEvent.click(alignmentTrigger)
+      fireEvent.click(screen.getByRole("combobox", { name: "Alignment" }))
       fireEvent.click(screen.getByRole("option", { name: "Chaotic Good" }))
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
       expect(onUpdate).toHaveBeenCalledWith(
@@ -283,37 +265,28 @@ describe("CharacterBasicInfoModule", () => {
   })
 
   it("has no accessibility violations", async () => {
-    const { container } = render(<CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+    const { container } = render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
 
   describe("readOnly mode", () => {
-    it("does not render the heroic inspiration checkbox", () => {
-      render(
-        <ReadOnlyProvider value={true}>
-          <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />
-        </ReadOnlyProvider>
-      )
-      expect(screen.queryByLabelText(/heroic inspiration/i)).not.toBeInTheDocument()
-      expect(screen.queryByLabelText(/^inspiration$/i)).not.toBeInTheDocument()
-    })
 
     it("still renders the character name display", () => {
-      render(
+      render(() => (
         <ReadOnlyProvider value={true}>
           <CharacterBasicInfoModule character={populatedCharacter} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
-      )
+      ))
       expect(screen.getByText("Aragorn")).toBeInTheDocument()
     })
 
     it("does not render the Edit button", () => {
-      render(
+      render(() => (
         <ReadOnlyProvider value={true}>
           <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
-      )
+      ))
       expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument()
     })
   })

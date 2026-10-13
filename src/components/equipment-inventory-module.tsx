@@ -1,4 +1,15 @@
 import { createSignal, For, Show } from "solid-js"
+import Package from "lucide-solid/icons/package"
+import Plus from "lucide-solid/icons/plus"
+import Edit from "lucide-solid/icons/edit"
+import Trash2 from "lucide-solid/icons/trash-2"
+import Search from "lucide-solid/icons/search"
+import Scale from "lucide-solid/icons/scale"
+import Gem from "lucide-solid/icons/gem"
+import Coins from "lucide-solid/icons/coins"
+import TriangleAlert from "lucide-solid/icons/triangle-alert"
+import Zap from "lucide-solid/icons/zap"
+
 import type { AbilityScores, Character, Equipment, SenseType } from "@/lib/character-types"
 import {
   SENSE_LABELS,
@@ -19,26 +30,18 @@ import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
+import { InlineStepper } from "@/components/ui/inline-stepper"
 import { cascadeDecrement } from "@/lib/currency-utils"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import Package from "lucide-solid/icons/package"
-import Plus from "lucide-solid/icons/plus"
-import Edit from "lucide-solid/icons/edit"
-import Trash2 from "lucide-solid/icons/trash-2"
-import Search from "lucide-solid/icons/search"
-import Scale from "lucide-solid/icons/scale"
-import Gem from "lucide-solid/icons/gem"
-import Coins from "lucide-solid/icons/coins"
-import TriangleAlert from "lucide-solid/icons/triangle-alert"
-import Zap from "lucide-solid/icons/zap"
 import { useReadOnly } from "@/lib/read-only-context"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { EquipmentItemModal, ACTION_KIND_OPTIONS, hasOtherModifierFields } from "@/components/equipment-item-modal"
@@ -170,17 +173,17 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <Package class="h-5 w-5 text-primary" />
+            <Package class="h-5 w-5 text-primary" aria-hidden="true" />
             Equipment & Inventory
           </div>
           <div class="flex items-center gap-2">
-            <Badge variant="outline" class="gap-1">
-              <Scale class="h-3 w-3" />
+            <Chip variant="outline" class="gap-1">
+              <Scale class="h-3 w-3" aria-hidden="true" />
               {totalWeight()} lbs
-            </Badge>
+            </Chip>
             <Show when={!isReadOnly}>
-              <Button size="sm" class="gap-2" onClick={openAdd}>
-                <Plus class="h-4 w-4" />
+              <Button data-test="add-equipment-button" size="sm" class="gap-2" onClick={openAdd}>
+                <Plus class="h-4 w-4" aria-hidden="true" />
                 Add Item
               </Button>
             </Show>
@@ -189,9 +192,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       </CardHeader>
       <CardContent class="space-y-4">
         {/* Carrying Capacity */}
-        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div data-test="carrying-capacity-row" class="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span>Carrying Capacity: {totalWeight()} /</span>
-          <CalculatedValue
+          <CalculatedValue data-test="carrying-capacity"
             label="Carrying Capacity"
             labelClass="sr-only"
             editable={!isReadOnly}
@@ -200,7 +203,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
           />
           <span>lbs</span>
           <Show when={overCarryingCapacity()}>
-            <Tooltip content="Over carrying capacity">
+            <Tooltip content="Over carrying capacity" triggerFocusable>
               <TriangleAlert class="h-3.5 w-3.5 text-amber-500" aria-label="Over carrying capacity" />
             </Tooltip>
           </Show>
@@ -209,11 +212,11 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         {/* Coins */}
         <div>
           <h2 class="font-semibold mb-2 text-sm flex items-center gap-2">
-            <Coins class="h-4 w-4 text-primary" />
+            <Coins class="h-4 w-4 text-primary" aria-hidden="true" />
             Currency
           </h2>
           <div class="flex flex-wrap gap-2">
-            {(["cp", "sp", "ep", "gp", "pp"] as const).map((denom) => (
+            <For each={["cp", "sp", "ep", "gp", "pp"] as const}>{(denom) => (
               <div class="text-center space-y-1">
                 <Label class="text-xs font-medium text-muted-foreground">{denom.toUpperCase()}</Label>
                 <Show
@@ -225,6 +228,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                   }
                 >
                   <CurrencyInput
+                    data-test={`currency-${denom}`}
                     aria-label={`${denom.toUpperCase()} currency`}
                     min={0}
                     value={props.character.coins?.[denom] ?? 0}
@@ -243,21 +247,21 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                   />
                 </Show>
               </div>
-            ))}
+            )}</For>
           </div>
         </div>
 
         <Separator />
 
         {/* Magic Items */}
-        <div data-sem="magic-items-section">
+        <div data-sem="magic-items-section" data-test="magic-items-section">
           <h2 class="font-semibold text-sm flex items-center gap-2 mb-2">
-            <Gem class="h-4 w-4 text-primary" />
+            <Gem class="h-4 w-4 text-primary" aria-hidden="true" />
             Magic Items
           </h2>
-          <div class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
+          <div data-test="attunement-limit-row" class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
             <span>{attunedCount()}/</span>
-            <CalculatedValue
+            <CalculatedValue data-test="attunement-limit"
               label="Attunement Limit"
               labelClass="sr-only"
               editable={!isReadOnly}
@@ -266,7 +270,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
             />
             <span>attuned</span>
             <Show when={overAttunementLimit()}>
-              <Tooltip content="Over attunement limit">
+              <Tooltip content="Over attunement limit" triggerFocusable>
                 <TriangleAlert class="h-3.5 w-3.5 text-amber-500" aria-label="Over attunement limit" />
               </Tooltip>
             </Show>
@@ -279,37 +283,42 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
                         <Show when={!isReadOnly} fallback={<span class="font-medium text-sm">{item.name}</span>}>
-                          <Checkbox
-                            checked={item.equipped ?? false}
-                            onChange={() => toggleEquipped(item.id)}
-                            title="Toggle equipped"
-                            aria-label={`Toggle equipped: ${item.name}`}
-                            label={item.name}
-                            labelClass="font-medium text-sm cursor-pointer select-none"
-                          />
+                          <Tooltip content="Toggle equipped">
+                            <Checkbox
+                              data-test={`magic-item-toggle-equipped-${item.id}`}
+                              checked={item.equipped ?? false}
+                              onChange={() => toggleEquipped(item.id)}
+                              aria-label={`Toggle equipped: ${item.name}`}
+                              flush
+                              label={item.name}
+                              labelClass="font-medium text-sm cursor-pointer select-none"
+                            />
+                          </Tooltip>
                         </Show>
                         <Show when={item.type && item.type !== "other"}>
-                          <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
+                          <Chip variant="outline" class="text-xs capitalize">{item.type}</Chip>
                         </Show>
                         <Show when={item.actionKind}>
-                          <Badge variant="outline" class="text-xs flex items-center gap-1">
-                            <Zap class="h-3 w-3" />
+                          <Chip variant="outline" class="text-xs flex items-center gap-1">
+                            <Zap class="h-3 w-3" aria-hidden="true" />
                             {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
-                          </Badge>
+                          </Chip>
                         </Show>
                         <Show when={item.rarity}>
-                          <Badge variant="outline" class="text-xs capitalize">{item.rarity?.replace("-", " ")}</Badge>
+                          <Chip variant="outline" class="text-xs capitalize">{item.rarity?.replace("-", " ")}</Chip>
                         </Show>
                         <Show when={item.requiresAttunement}>
                           <Show when={!isReadOnly}>
-                            <Checkbox checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} title="Toggle attuned" aria-label="Toggle attuned" />
+                            <Tooltip content="Toggle attuned">
+                              <Checkbox data-test={`magic-item-toggle-attuned-${item.id}`} checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} aria-label="Toggle attuned" />
+                            </Tooltip>
                           </Show>
                           <Show when={item.attuned}>
-                            <Badge variant="secondary" class="text-xs">Attuned</Badge>
+                            <Chip variant="secondary" class="text-xs">Attuned</Chip>
                           </Show>
                         </Show>
                         <Show when={item.equipped}>
-                          <Badge variant="secondary" class="text-xs">Equipped</Badge>
+                          <Chip variant="secondary" class="text-xs">Equipped</Chip>
                         </Show>
                       </div>
                       <Show when={item.weaponStats}>
@@ -413,12 +422,13 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           <Show
                             when={effectiveEquipmentMaxUses(item) <= 5}
                             fallback={
-                              <StepperInput
+                              <StepperInput data-test={`magic-item-uses-stepper-${item.id}`}
                                 value={remainingUses(effectiveEquipmentUses(item), effectiveEquipmentMaxUses(item))}
                                 min={0}
                                 max={effectiveEquipmentMaxUses(item)}
                                 onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
                                 readOnly={isReadOnly}
+                                aria-label={`${item.name} uses remaining`}
                               />
                             }
                           >
@@ -435,16 +445,16 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       </Show>
                     </div>
                     <Show when={!isReadOnly}>
-                      <div class="flex items-center gap-1 shrink-0 ml-2">
+                      <div class="flex items-center gap-2 shrink-0 ml-2">
                         <Tooltip content={`Edit ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
-                            <Edit class="h-4 w-4" />
+                          <Button data-test={`magic-item-edit-${item.id}`} variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
+                            <Edit class="h-4 w-4" aria-hidden="true" />
                           </Button>
                         </Tooltip>
                         <Tooltip content={`Delete ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
-                            <Trash2 class="h-4 w-4" />
-                          </Button>
+                          <ConfirmButton data-test={`magic-item-delete-${item.id}`} variant="ghost" size="sm" verb="Delete" subject={item.name} onConfirm={() => handleDeleteItem(item.id)}>
+                            <Trash2 class="h-4 w-4" aria-hidden="true" />
+                          </ConfirmButton>
                         </Tooltip>
                       </div>
                     </Show>
@@ -458,8 +468,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
         <Separator />
 
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
+            data-test="equipment-search-input"
             placeholder="Search equipment..."
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
@@ -473,9 +484,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
             <div class="flex flex-wrap gap-1 mb-4">
               <For each={equippedItems()}>
                 {(item) => (
-                  <Badge variant="secondary" class="text-xs">
+                  <Chip variant="secondary" class="text-xs">
                     {item.name}{item.quantity > 1 && ` (${item.quantity})`}
-                  </Badge>
+                  </Chip>
                 )}
               </For>
             </div>
@@ -499,38 +510,40 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                     <div class="flex-1">
                       <div class="flex items-center gap-2 flex-wrap">
                         <div class="flex items-center gap-2">
-                          <Show when={!isReadOnly}>
-                            <Checkbox
-                              checked={item.equipped || false}
-                              onChange={() => toggleEquipped(item.id)}
-                              title="Toggle equipped"
-                              aria-label={`Toggle equipped: ${item.name}`}
-                            />
+                          {/* The item name is the equipped checkbox's label (wrapped in the card's heading). */}
+                          <Show when={!isReadOnly} fallback={<h3 data-test={`equipment-item-name-${item.id}`} class="font-medium">{item.name}</h3>}>
+                            <Tooltip content="Toggle equipped">
+                              <Checkbox
+                                data-test={`equipment-toggle-equipped-${item.id}`}
+                                checked={item.equipped || false}
+                                onChange={() => toggleEquipped(item.id)}
+                                aria-label={`Toggle equipped: ${item.name}`}
+                                flush
+                                label={item.name}
+                                labelHeading="h3"
+                                labelTestId={`equipment-item-name-${item.id}`}
+                                labelClass="font-medium cursor-pointer select-none"
+                              />
+                            </Tooltip>
                           </Show>
-                          <h3
-                            class={`font-medium ${isReadOnly ? "" : "cursor-pointer"}`}
-                            onClick={() => !isReadOnly && toggleEquipped(item.id)}
-                          >
-                            {item.name}
-                          </h3>
                         </div>
                         <Show when={item.type && item.type !== "other"}>
-                          <Badge variant="outline" class="text-xs capitalize">{item.type}</Badge>
+                          <Chip variant="outline" class="text-xs capitalize">{item.type}</Chip>
                         </Show>
                         <Show when={item.actionKind}>
-                          <Badge variant="outline" class="text-xs flex items-center gap-1">
-                            <Zap class="h-3 w-3" />
+                          <Chip variant="outline" class="text-xs flex items-center gap-1">
+                            <Zap class="h-3 w-3" aria-hidden="true" />
                             {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
-                          </Badge>
+                          </Chip>
                         </Show>
                         <Show when={item.magic}>
-                          <Badge variant="outline" class="text-xs gap-1">
-                            <Gem class="h-3 w-3" />
+                          <Chip variant="outline" class="text-xs gap-1">
+                            <Gem class="h-3 w-3" aria-hidden="true" />
                             Magic
-                          </Badge>
+                          </Chip>
                         </Show>
                         <Show when={item.equipped}>
-                          <Badge variant="secondary" class="text-xs">Equipped</Badge>
+                          <Chip variant="secondary" class="text-xs">Equipped</Chip>
                         </Show>
                       </div>
                       <Show when={item.weaponStats}>
@@ -566,14 +579,14 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                     <Show when={!isReadOnly}>
                       <div class="flex items-center gap-2">
                         <Tooltip content={`Edit ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
-                            <Edit class="h-4 w-4" />
+                          <Button data-test={`equipment-edit-${item.id}`} variant="ghost" size="sm" aria-label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
+                            <Edit class="h-4 w-4" aria-hidden="true" />
                           </Button>
                         </Tooltip>
                         <Tooltip content={`Delete ${item.name}`}>
-                          <Button variant="ghost" size="sm" aria-label={`Delete ${item.name}`} onClick={() => handleDeleteItem(item.id)}>
-                            <Trash2 class="h-4 w-4" />
-                          </Button>
+                          <ConfirmButton data-test={`equipment-delete-${item.id}`} variant="ghost" size="sm" verb="Delete" subject={item.name} onConfirm={() => handleDeleteItem(item.id)}>
+                            <Trash2 class="h-4 w-4" aria-hidden="true" />
+                          </ConfirmButton>
                         </Tooltip>
                       </div>
                     </Show>
@@ -587,26 +600,13 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           when={!isReadOnly}
                           fallback={<span class="w-8 text-center">{item.quantity}</span>}
                         >
-                          <div class="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              disabled={item.quantity <= 1}
-                              class="h-6 w-6 p-0"
-                            >
-                              -
-                            </Button>
-                            <span class="w-8 text-center">{item.quantity}</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              class="h-6 w-6 p-0"
-                            >
-                              +
-                            </Button>
-                          </div>
+                          <InlineStepper
+                            data-test={`equipment-quantity-${item.id}`}
+                            label={`${item.name} quantity`}
+                            value={item.quantity}
+                            min={1}
+                            onChange={(v) => updateQuantity(item.id, v)}
+                          />
                         </Show>
                       </div>
                       <Show when={item.weight && item.weight > 0}>
@@ -622,12 +622,13 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       <Show
                         when={effectiveEquipmentMaxUses(item) <= 5}
                         fallback={
-                          <StepperInput
+                          <StepperInput data-test={`equipment-uses-stepper-${item.id}`}
                             value={remainingUses(effectiveEquipmentUses(item), effectiveEquipmentMaxUses(item))}
                             min={0}
                             max={effectiveEquipmentMaxUses(item)}
                             onChange={(v) => updateItemUses(item.id, spentFromRemaining(v, effectiveEquipmentMaxUses(item)))}
                             readOnly={isReadOnly}
+                            aria-label={`${item.name} uses remaining`}
                           />
                         }
                       >

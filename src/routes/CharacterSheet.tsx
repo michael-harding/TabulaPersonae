@@ -1,22 +1,25 @@
 import { createSignal, createMemo, createEffect, onCleanup, Show, For } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { useParams, useNavigate } from "@solidjs/router"
-import { type Character } from "@/lib/character-types"
-import { useStorageManager } from "@/lib/storage-manager"
-import { useAuth } from "@/lib/auth-context"
-import { subscribeToCharacter } from "@/lib/firebase-storage"
-import { useSyncState } from "@/lib/sync-context"
-import { useTabConfig } from "@/lib/tab-config-context"
-import { MODULE_REGISTRY } from "@/lib/module-registry"
 import Scroll from "lucide-solid/icons/scroll"
 import Sunrise from "lucide-solid/icons/sunrise"
 import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Settings from "lucide-solid/icons/settings"
+
+import { type Character } from "@/lib/character-types"
+import { useStorageManager } from "@/lib/storage-manager"
+import { useAuth } from "@/lib/auth-context"
+import { subscribeToCharacter } from "@/lib/firebase-storage"
+import { notifyIfFailed, saveImportedCharacters } from "@/lib/save-feedback"
+import { useSyncState } from "@/lib/sync-context"
+import { useTabConfig } from "@/lib/tab-config-context"
+import { MODULE_REGISTRY } from "@/lib/module-registry"
 import { Tooltip } from "@/components/ui/tooltip"
 import { RestModal } from "@/components/rest-modal"
 import { HeaderMenu } from "@/components/header-menu"
 import { StatsBar } from "@/components/stats-bar"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 export default function CharacterSheet() {
   const params = useParams()
@@ -86,40 +89,33 @@ export default function CharacterSheet() {
     })
   })
 
-  const updateCharacter = async (updated: Character) => {
+  // None of these wait for the save before showing its result: offline, a signed-in user's write
+  // stays pending until the server answers (see notifyIfFailed).
+  const updateCharacter = (updated: Character) => {
     let next = updated
     if (next.hitPoints.current === 1) {
       next = { ...next, deathSaves: { successes: 0, failures: 0 } }
     }
     setCharStore("data", reconcile(next))
-    try {
-      await storageManager().saveCharacter(next)
-    } catch (error) {
-      console.error("Failed to save character:", error)
-      alert("Failed to save character.")
-    }
+    notifyIfFailed(storageManager().saveCharacter(next), {
+      title: "Character not saved",
+      description: "Your latest change could not be saved. It may be lost if you reload or leave this page.",
+    })
   }
 
-  const handleImportCharacter = async (char: Character) => {
-    const imported = { ...char, id: crypto.randomUUID() }
-    const success = await storageManager().saveCharacter(imported)
-    if (!success) throw new Error("Failed to save imported character")
-    navigate(`/character/${imported.id}`)
-  }
-
-  const handleImportMultiple = async (importedCharacters: Character[]) => {
-    const withNewIds = importedCharacters.map((char) => ({ ...char, id: crypto.randomUUID() }))
-    await Promise.all(withNewIds.map((char) => storageManager().saveCharacter(char)))
-    if (withNewIds.length > 0) navigate(`/character/${withNewIds[0].id}`)
+  const handleImport = (toImport: Character[]) => {
+    const { imported, saved } = saveImportedCharacters(toImport, storageManager().saveCharacter)
+    if (imported.length > 0) navigate(`/character/${imported[0].id}`)
+    return saved
   }
 
   return (
     <Show
       when={!isLoading() && !authLoading()}
       fallback={
-        <div class="flex flex-1 items-center justify-center bg-background">
+        <div data-sem="character-sheet-route" class="flex flex-1 items-center justify-center bg-background">
           <div class="text-center">
-            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+            <Scroll class="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" aria-hidden="true" />
             <p class="text-muted-foreground">Loading character...</p>
           </div>
         </div>
@@ -127,14 +123,14 @@ export default function CharacterSheet() {
     >
       <Show when={charStore.data}>
         {(getChar) => (
-          <div class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
+          <div data-sem="character-sheet-route" class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
             <StatsBar character={getChar()} />
 
             <header class="border-b bg-card">
               <div class="max-w-7xl mx-auto px-4 py-4">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-4">
-                    <Scroll class="h-8 w-8 text-primary" />
+                    <Scroll class="h-8 w-8 text-primary" aria-hidden="true" />
                     <div class="flex items-center gap-3">
                       <div>
                         <h1 class="text-2xl font-bold text-foreground">{getChar().name || "Unnamed Character"}</h1>
@@ -149,8 +145,9 @@ export default function CharacterSheet() {
                           onClick={() => updateCharacter({ ...getChar(), heroicInspiration: !getChar().heroicInspiration })}
                           class={`ml-2 transition-colors ${getChar().heroicInspiration ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`}
                           style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}
+                          data-test="toggle-heroic-inspiration"
                         >
-                          <Sunrise class={`h-11 w-11 ${getChar().heroicInspiration ? "fill-yellow-400" : "fill-none"}`} stroke-width={2} />
+                          <Sunrise class={`h-11 w-11 ${getChar().heroicInspiration ? "fill-yellow-400" : "fill-none"}`} stroke-width={2} aria-hidden="true" />
                         </button>
                       </Tooltip>
                       <Tooltip content="Take a Rest">
@@ -160,8 +157,9 @@ export default function CharacterSheet() {
                           onClick={() => setIsRestOpen(true)}
                           class="ml-2 text-muted-foreground hover:text-orange-400 transition-colors"
                           style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}
+                          data-test="take-a-rest-button"
                         >
-                          <FlameKindling class="h-11 w-11" stroke-width={2} />
+                          <FlameKindling class="h-11 w-11" stroke-width={2} aria-hidden="true" />
                         </button>
                       </Tooltip>
                     </div>
@@ -169,8 +167,7 @@ export default function CharacterSheet() {
 
                   <HeaderMenu
                     characters={characters()}
-                    onImportCharacter={handleImportCharacter}
-                    onImportMultiple={handleImportMultiple}
+                    onImport={handleImport}
                     onAllCharacters={() => navigate("/")}
                     currentCharacter={charStore.data ?? undefined}
                   />
@@ -183,7 +180,7 @@ export default function CharacterSheet() {
                 <div class="flex items-center border-b border-border">
                   <TabsList class="border-b-0 flex-1">
                     <For each={tabConfig().tabs}>
-                      {(tab) => <TabsTrigger value={tab.id}>{tab.label}</TabsTrigger>}
+                      {(tab) => <TabsTrigger value={tab.id} data-test={`tab-trigger-${tab.id}`}>{tab.label}</TabsTrigger>}
                     </For>
                   </TabsList>
                   <Tooltip content="Configure Tabs">
@@ -191,9 +188,10 @@ export default function CharacterSheet() {
                       type="button"
                       aria-label="Configure tabs"
                       onClick={() => navigate('/settings/tabs')}
-                      class="px-3 py-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      class={cn(TOUCH_TARGET_BOX, "text-muted-foreground hover:text-foreground transition-colors")}
+                      data-test="configure-tabs-button"
                     >
-                      <Settings class="h-4 w-4" />
+                      <Settings class="h-4 w-4" aria-hidden="true" />
                     </button>
                   </Tooltip>
                 </div>

@@ -1,20 +1,4 @@
-import { createSignal, createMemo, For, Show } from "solid-js"
-import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS } from "@/lib/character-utils"
-import { EditableModule } from "@/components/editable-module"
-import { CalculatedValue } from "@/components/ui/calculated-value"
-import { useCalculatedValue } from "@/hooks/use-calculated-value"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { NumericInput } from "@/components/ui/numeric-input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Combobox } from "@/components/ui/combobox"
-import { Badge } from "@/components/ui/badge"
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { createSignal, createEffect, createMemo, on, untrack, For, Show } from "solid-js"
 import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
 import Clock from "lucide-solid/icons/clock"
@@ -23,9 +7,28 @@ import Zap from "lucide-solid/icons/zap"
 import Shield from "lucide-solid/icons/shield"
 import Sparkles from "lucide-solid/icons/sparkles"
 import ChevronDown from "lucide-solid/icons/chevron-down"
+
+import { createPersistedSetSignal } from "@/lib/persisted-signal"
+import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, DAMAGE_TYPE_OPTIONS } from "@/lib/character-utils"
+import { EditableModule } from "@/components/editable-module"
+import { CalculatedValue } from "@/components/ui/calculated-value"
+import { useCalculatedValue } from "@/hooks/use-calculated-value"
+import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
+import { Input } from "@/components/ui/input"
+import { NumericInput } from "@/components/ui/numeric-input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
+import { Chip } from "@/components/ui/chip"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { ActionCard } from "@/components/action-card"
 import { useReadOnly } from "@/lib/read-only-context"
+import { cn, HOVER_ACCENT } from "@/lib/utils"
 
 interface ActionsModuleProps {
   character: Character
@@ -80,13 +83,10 @@ interface ActionFormProps {
   onCancel: () => void
 }
 
-const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
-
 const ACTION_TYPE_LABELS = ACTION_TYPES.map((t) => t.label)
-const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
 
 function ActionForm(props: ActionFormProps) {
-  const kindLabel = KIND_LABELS[props.kind]
+  const kindLabel = () => KIND_LABELS[props.kind]
   const isEditing = () => !!props.initialData?.name
   const [formData, setFormData] = createSignal<ActionFormData>({
     name: props.initialData?.name ?? "",
@@ -111,7 +111,7 @@ function ActionForm(props: ActionFormProps) {
   return (
     <div class="space-y-4">
       <div>
-        <Label for="action-name">{kindLabel} Name</Label>
+        <Label for="action-name">{kindLabel()} Name</Label>
         <Input id="action-name" autofocus value={formData().name}
           onInput={(e) => setFormData(p => ({ ...p, name: e.currentTarget.value }))}
           placeholder={props.kind === "reaction" ? "e.g., Shield, Opportunity Attack" : props.kind === "bonus-action" ? "e.g., Second Wind, Cunning Action" : "e.g., Lay on Hands, Breath Weapon"} />
@@ -186,21 +186,21 @@ function ActionForm(props: ActionFormProps) {
         <Label for="action-description">Description</Label>
         <Textarea id="action-description" value={formData().description}
           onInput={(e) => setFormData(p => ({ ...p, description: e.currentTarget.value }))}
-          placeholder={`Describe what this ${kindLabel.toLowerCase()} does...`} rows={3} />
+          placeholder={`Describe what this ${kindLabel().toLowerCase()} does...`} rows={3} />
       </div>
 
       <div class="flex gap-2 justify-end">
         <Show when={props.onDelete}>
-          <Button variant="destructive" onClick={props.onDelete} class="mr-auto">Delete</Button>
+          <ConfirmButton data-test="action-form-delete" variant="destructive" verb="Delete" onConfirm={() => props.onDelete?.()} class="mr-auto">Delete</ConfirmButton>
         </Show>
         <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel}</Button>
+        <Button onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel()}</Button>
       </div>
     </div>
   )
 }
 
-function spellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
+function createSpellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
   const slotKey = spell.level as keyof Character['spellSlots']
   const slots = () => getSpellSlots()[slotKey]
   const canCast = () => spell.level > 0 && (!!spell.freeCast || (!!slots() && slots().used < slots().total))
@@ -243,7 +243,11 @@ const toEdit = (c: Character): ActionsEditState => {
 export function ActionsModule(props: ActionsModuleProps) {
   const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(toEdit(props.character))
+  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
+  // The sheet swaps characters in place, so in-progress edits must not carry over to the next one.
+  createEffect(on(() => props.character.id, () => {
+    setEdited(toEdit(props.character))
+  }, { defer: true }))
   const [isActionModalOpen, setIsActionModalOpen] = createSignal(false)
   const [isBonusActionModalOpen, setIsBonusActionModalOpen] = createSignal(false)
   const [isReactionModalOpen, setIsReactionModalOpen] = createSignal(false)
@@ -271,13 +275,14 @@ export function ActionsModule(props: ActionsModuleProps) {
   const closeOtherModal = () => { setIsOtherModalOpen(false); setEditingOther(null) }
   const [upcastSpellId, setUpcastSpellId] = createSignal<string | null>(null)
   const [expandedSections, setExpandedSections] = createPersistedSetSignal<ActionSection>(
-    `dnd-collapsible-actions-${props.character.id}`,
+    () => `dnd-collapsible-actions-${props.character.id}`,
     ['actions', 'bonus-actions', 'reactions', 'other']
   )
   const toggleSection = (section: ActionSection, open: boolean) => {
     setExpandedSections(prev => {
       const next = new Set(prev)
-      open ? next.add(section) : next.delete(section)
+      if (open) next.add(section)
+      else next.delete(section)
       return next
     })
   }
@@ -507,7 +512,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   }
 
   const renderSpell = (spell: Spell) => {
-    const { canCast, upcastLevels, hasHigherSlots } = spellAccessors(spell, () => props.character.spellSlots)
+    const { canCast, upcastLevels, hasHigherSlots } = createSpellAccessors(spell, () => props.character.spellSlots)
     return (
       <ActionCard
         name={spell.name}
@@ -562,9 +567,9 @@ export function ActionsModule(props: ActionsModuleProps) {
   )
 
   return (
-    <EditableModule
+    <EditableModule data-test="actions-module"
       data-sem="actions-module"
-      icon={<Sword class="h-5 w-5 text-primary" />}
+      icon={<Sword class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Actions & Attacks"
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
@@ -575,30 +580,30 @@ export function ActionsModule(props: ActionsModuleProps) {
     >
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="spell-attack"
               label="Spell Attack"
               labelClass="text-sm font-medium"
-              icon={<Zap class="h-4 w-4 text-primary" />}
+              icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
               editable={isEditing()}
               {...spellAttackField.binding()}
               format={formatModifier}
             />
           </div>
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="spell-modifier"
               label="Spell Modifier"
               labelClass="text-sm font-medium"
-              icon={<Zap class="h-4 w-4 text-primary" />}
+              icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
               editable={isEditing()}
               {...spellModifierField.binding()}
               format={formatModifier}
             />
           </div>
           <div class="text-center">
-            <CalculatedValue
+            <CalculatedValue data-test="spell-save-dc"
               label="Spell Save DC"
               labelClass="text-sm font-medium"
-              icon={<Shield class="h-4 w-4 text-primary" />}
+              icon={<Shield class="h-4 w-4 text-primary" aria-hidden="true" />}
               editable={isEditing()}
               {...spellSaveDCField.binding()}
             />
@@ -612,15 +617,15 @@ export function ActionsModule(props: ActionsModuleProps) {
         {/* Actions */}
         <Collapsible open={expandedSections().has('actions')} onOpenChange={(open: boolean) => toggleSection('actions', open)}>
           <div class="flex items-center justify-between pr-1">
-            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
-              <Target class="h-5 w-5 text-primary" />
+            <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
+              <Target class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Actions</span>
-              <Badge variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featuresByKind().actions.length + equipmentByKind().actions.length}</Badge>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+              <Chip variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featuresByKind().actions.length + equipmentByKind().actions.length}</Chip>
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddAction}>
-                <Plus class="h-3 w-3" />
+                <Plus class="h-3 w-3" aria-hidden="true" />
                 Add Action
               </Button>
             </Show>
@@ -673,15 +678,15 @@ export function ActionsModule(props: ActionsModuleProps) {
         {/* Bonus Actions */}
         <Collapsible open={expandedSections().has('bonus-actions')} onOpenChange={(open: boolean) => toggleSection('bonus-actions', open)}>
           <div class="flex items-center justify-between pr-1">
-            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
-              <Clock class="h-5 w-5 text-primary" />
+            <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
+              <Clock class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Bonus Actions</span>
-              <Badge variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featuresByKind().bonuses.length + equipmentByKind().bonuses.length}</Badge>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+              <Chip variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featuresByKind().bonuses.length + equipmentByKind().bonuses.length}</Chip>
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-bonus-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddBonusAction}>
-                <Plus class="h-3 w-3" />
+                <Plus class="h-3 w-3" aria-hidden="true" />
                 Add Bonus Action
               </Button>
             </Show>
@@ -721,15 +726,15 @@ export function ActionsModule(props: ActionsModuleProps) {
         {/* Reactions */}
         <Collapsible open={expandedSections().has('reactions')} onOpenChange={(open: boolean) => toggleSection('reactions', open)}>
           <div class="flex items-center justify-between pr-1">
-            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
-              <Shield class="h-5 w-5 text-primary" />
+            <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
+              <Shield class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Reactions</span>
-              <Badge variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featuresByKind().reactions.length + equipmentByKind().reactions.length}</Badge>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+              <Chip variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featuresByKind().reactions.length + equipmentByKind().reactions.length}</Chip>
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-reaction-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddReaction}>
-                <Plus class="h-3 w-3" />
+                <Plus class="h-3 w-3" aria-hidden="true" />
                 Add Reaction
               </Button>
             </Show>
@@ -770,15 +775,15 @@ export function ActionsModule(props: ActionsModuleProps) {
         {/* Other */}
         <Collapsible open={expandedSections().has('other')} onOpenChange={(open: boolean) => toggleSection('other', open)}>
           <div class="flex items-center justify-between pr-1">
-            <CollapsibleTrigger class="flex flex-1 items-center gap-2 p-3 rounded-md hover:bg-accent transition-colors text-left">
-              <Sparkles class="h-5 w-5 text-primary" />
+            <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
+              <Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Other</span>
-              <Badge variant="secondary">{featuresByKind().others.length + (props.character.otherActions?.length ?? 0) + equipmentByKind().others.length}</Badge>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" />
+              <Chip variant="secondary">{featuresByKind().others.length + (props.character.otherActions?.length ?? 0) + equipmentByKind().others.length}</Chip>
+              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-other-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddOther}>
-                <Plus class="h-3 w-3" />
+                <Plus class="h-3 w-3" aria-hidden="true" />
                 Add Other
               </Button>
             </Show>

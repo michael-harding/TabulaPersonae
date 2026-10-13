@@ -1,4 +1,6 @@
-import { createSignal, createEffect, on, For, Show } from "solid-js"
+import { createSignal, createEffect, on, untrack, For, Show } from "solid-js"
+import User from "lucide-solid/icons/user"
+
 import type { Character } from "@/lib/character-types"
 import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
@@ -6,8 +8,6 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
-import User from "lucide-solid/icons/user"
-import { useReadOnly } from "@/lib/read-only-context"
 
 interface CharacterBasicInfoModuleProps {
   character: Character
@@ -46,10 +46,11 @@ const toEdit = (c: Character) => ({
   experiencePoints: c.experiencePoints || 0,
 })
 
+type EditState = ReturnType<typeof toEdit>
+
 export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
-  const isReadOnly = useReadOnly()
   const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(toEdit(props.character))
+  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
   createEffect(on(() => props.character.id, () => {
     setEdited(toEdit(props.character))
   }))
@@ -57,9 +58,8 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
   const edition = () => props.character.edition ?? "2024"
   const raceLabel = () => edition() === "2014" ? "Race" : "Species"
   const raceList = () => edition() === "2014" ? RACES : SPECIES
-  const inspirationLabel = () => edition() === "2014" ? "Inspiration" : "Heroic Inspiration"
 
-  const updateField = (field: keyof Character, value: any) => { // Character fields are heterogeneous; a union of all field types is not usable as an assignment target
+  const updateField = <K extends keyof EditState>(field: K, value: EditState[K]) => {
     setEdited((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -72,30 +72,13 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
     <EditableModule
       data-sem="character-basic-info-module"
       data-test="character-basic-info-module"
-      icon={<User class="h-5 w-5 text-primary" />}
+      icon={<User class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Character Information"
       isEditing={isEditing()}
       onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
       onSave={handleSave}
       onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}
-      headerExtra={
-        <Show when={!isReadOnly}>
-          <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2">
-              <Label for="heroic-inspiration-toggle" class="text-xs font-medium">{inspirationLabel()}</Label>
-              <input
-                id="heroic-inspiration-toggle"
-                type="checkbox"
-                checked={!!props.character.heroicInspiration}
-                onChange={(e) => props.onUpdate({ ...props.character, heroicInspiration: e.currentTarget.checked })}
-                class="accent-primary h-4 w-4"
-                style={{ "accent-color": "#eab308" }}
-              />
-            </div>
-          </div>
-        </Show>
-      }
       contentClass="space-y-4"
     >
         {isEditing() ? (
@@ -111,11 +94,11 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
               </div>
               <div>
                 <Label for="race">{raceLabel()}</Label>
-                <Combobox value={edited().race} onValueChange={(v) => updateField("race", v)} options={raceList()} placeholder={`Select ${raceLabel().toLowerCase()}`} />
+                <Combobox id="race" data-test="race-combobox" value={edited().race} onValueChange={(v) => updateField("race", v)} options={raceList()} placeholder={`Select ${raceLabel().toLowerCase()}`} />
               </div>
               <div>
                 <Label for="class">Class</Label>
-                <Combobox value={edited().class} onValueChange={(v) => updateField("class", v)} options={CLASSES} placeholder="Select class" />
+                <Combobox id="class" data-test="class-combobox" value={edited().class} onValueChange={(v) => updateField("class", v)} options={CLASSES} placeholder="Select class" />
               </div>
               <Show when={edition() === "2024"}>
                 <div>
@@ -130,7 +113,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
               <div>
                 <Label for="alignment">Alignment</Label>
                 <Select value={edited().alignment} onValueChange={(v) => updateField("alignment", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select alignment" /></SelectTrigger>
+                  <SelectTrigger id="alignment"><SelectValue placeholder="Select alignment" /></SelectTrigger>
                   <SelectContent>
                     <For each={ALIGNMENTS}>{(a) => <SelectItem value={a}>{a}</SelectItem>}</For>
                   </SelectContent>

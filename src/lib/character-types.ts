@@ -225,15 +225,15 @@ interface ActionBase extends UseableEntry {
   trigger?: string
 }
 
-export interface Attack extends ActionBase {}
+export type Attack = ActionBase
 
-export interface BonusAction extends ActionBase {}
+export type BonusAction = ActionBase
 
 export interface Reaction extends ActionBase {
   trigger: string
 }
 
-export interface OtherAction extends ActionBase {}
+export type OtherAction = ActionBase
 
 export interface Character {
   id: string

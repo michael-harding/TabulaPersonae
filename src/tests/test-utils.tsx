@@ -1,16 +1,24 @@
-import { render } from "@solidjs/testing-library"
+import { render, fireEvent, screen, waitFor } from "@solidjs/testing-library"
 import type { JSX } from "solid-js"
+
+import { CONFIRM_GUARD_MS } from "@/components/ui/confirm-button"
 
 type RenderOptions = NonNullable<Parameters<typeof render>[1]>
 
-const customRender = (ui: JSX.Element, options?: Omit<RenderOptions, "wrapper">) =>
-  render(() => ui, options)
+// Takes a function, not an element: `render(() => <X />)`. The component must be created inside
+// the root that cleanup() disposes; an element built at the call site is created outside it, so
+// its effects and listeners would outlive the test.
+const customRender = (ui: () => JSX.Element, options?: Omit<RenderOptions, "wrapper">) =>
+  render(ui, options)
 
 // Kobalte portals modal/menu/select content into body-level divs. In jsdom,
 // CSS transitions never fire so portals can accumulate between tests. Identify
 // portals by their contained ARIA role rather than by aria-hidden — the latter
 // also matches the testing-library app container (which Kobalte marks
 // aria-hidden while a modal is open) and would wrongly delete it.
+//
+// In an afterEach, call cleanup() first: the automatic cleanup runs after a file's own afterEach
+// hooks, and disposing a component whose portal node was already removed here throws.
 export function cleanupPortals() {
   const portalSelectors = ['[role="dialog"]', '[role="menu"]', '[role="listbox"]', '[role="tooltip"]']
   Array.from(document.body.children).forEach((child) => {
@@ -26,6 +34,26 @@ export function cleanupPortals() {
   Array.from(document.body.children).forEach((child) => {
     ;(child as HTMLElement).removeAttribute("aria-hidden")
   })
+}
+
+/** Taps a tooltip-only element (Tooltip's `toggleOnClick`) and asserts the tooltip it shows. */
+export async function expectTapTooltip(el: Element, text: string | RegExp) {
+  cleanupPortals()
+  fireEvent.click(el)
+  await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent(text))
+}
+
+// Performs the deliberate two-click confirmation a ConfirmButton requires: arm, wait out the
+// accidental-double-click guard, confirm.
+export function confirmClick(el: Element) {
+  fireEvent.click(el, { detail: 1 })
+  const armedAt = performance.now()
+  const now = vi.spyOn(performance, "now").mockReturnValue(armedAt + CONFIRM_GUARD_MS + 1)
+  try {
+    fireEvent.click(el, { detail: 1 })
+  } finally {
+    now.mockRestore()
+  }
 }
 
 export * from "@solidjs/testing-library"

@@ -86,6 +86,11 @@ function dedupUnion(...lists: (string[] | undefined)[]): string[] {
 
 export const ABILITY_KEYS: (keyof AbilityScores)[] = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
 
+export const ABILITY_DISPLAY_NAMES: Record<keyof AbilityScores, string> = {
+  strength: "Strength", dexterity: "Dexterity", constitution: "Constitution",
+  intelligence: "Intelligence", wisdom: "Wisdom", charisma: "Charisma",
+}
+
 export const ABILITY_ABBREVIATIONS: Record<keyof AbilityScores, string> = {
   strength: "STR", dexterity: "DEX", constitution: "CON", intelligence: "INT", wisdom: "WIS", charisma: "CHA",
 }
@@ -117,9 +122,9 @@ export function inferFeatureType(actionKind: ActionKind | undefined, levelEffect
   if (effects?.spellcastingAbility) return 'Spellcasting Ability'
   if (
     effects?.hitDiceSize ||
-    effects?.hitPointsMode !== undefined ||
-    effects?.hitPointsFlatValue !== undefined ||
-    effects?.hitPointsPerLevelAmount !== undefined ||
+    effects?.hitPointsMode != null ||
+    effects?.hitPointsFlatValue != null ||
+    effects?.hitPointsPerLevelAmount != null ||
     (effects?.hitPointsRolledLevels?.length ?? 0) > 0
   ) return 'Hit Points'
   if (effects?.size) return 'Size'
@@ -127,22 +132,22 @@ export function inferFeatureType(actionKind: ActionKind | undefined, levelEffect
   if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
   if (effects?.otherProficiencies?.length) return 'Other Proficiency'
   if (
-    effects?.speed !== undefined ||
-    effects?.flySpeed !== undefined ||
-    effects?.swimSpeed !== undefined ||
-    effects?.climbSpeed !== undefined ||
-    effects?.burrowSpeed !== undefined
+    effects?.speed != null ||
+    effects?.flySpeed != null ||
+    effects?.swimSpeed != null ||
+    effects?.climbSpeed != null ||
+    effects?.burrowSpeed != null
   ) return 'Speed'
-  if (effects?.senses && Object.values(effects.senses).some((v) => v !== undefined)) return 'Senses'
+  if (effects?.senses && Object.values(effects.senses).some((v) => v != null)) return 'Senses'
   if (effects?.resistances?.length || effects?.immunities?.length || effects?.vulnerabilities?.length) return 'Damage Resistance/Immunity/Vulnerability'
   if (effects?.conditionImmunities?.length) return 'Condition Immunity'
   if (effects?.languages?.length) return 'Language'
-  if (effects?.carryingCapacityBonus !== undefined || effects?.carryingCapacityMultiplier !== undefined) return 'Carrying Capacity'
-  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v !== undefined)) return 'Ability Scores'
-  if (effects?.hpBonusPerLevel !== undefined) return 'Max HP Bonus'
+  if (effects?.carryingCapacityBonus != null || effects?.carryingCapacityMultiplier != null) return 'Carrying Capacity'
+  if (effects?.abilityScores && Object.values(effects.abilityScores).some((v) => v != null)) return 'Ability Scores'
+  if (effects?.abilityScoreFloors && Object.values(effects.abilityScoreFloors).some((v) => v != null)) return 'Ability Scores'
+  if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v != null)) return 'Ability Scores'
+  if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v != null)) return 'Ability Scores'
+  if (effects?.hpBonusPerLevel != null) return 'Max HP Bonus'
   return ''
 }
 
@@ -203,11 +208,11 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
         totals.abilityScores[ability] += abilityAmount
         totals.abilityScoreGrants[ability].push({ source: item.name, amount: abilityAmount })
       }
-      if (mods.abilityScoreFloors?.[ability] !== undefined && mods.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
+      if (mods.abilityScoreFloors?.[ability] != null && mods.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
         totals.abilityScoreFloors[ability] = mods.abilityScoreFloors[ability]
         totals.abilityScoreFloorSources[ability] = item.name
       }
-      if (mods.abilityScoreMaxCaps?.[ability] !== undefined && mods.abilityScoreMaxCaps[ability]! < (totals.abilityScoreMaxCaps[ability] ?? Infinity)) {
+      if (mods.abilityScoreMaxCaps?.[ability] != null && mods.abilityScoreMaxCaps[ability]! < (totals.abilityScoreMaxCaps[ability] ?? Infinity)) {
         totals.abilityScoreMaxCaps[ability] = mods.abilityScoreMaxCaps[ability]
         totals.abilityScoreMaxCapSources[ability] = item.name
       }
@@ -225,7 +230,7 @@ export function getEquipmentModifierTotals(equipment: Equipment[] | undefined): 
     totals.climbSpeed += Number(mods.climbSpeed ?? 0)
     totals.burrowSpeed += Number(mods.burrowSpeed ?? 0)
     totals.carryingCapacityBonus += Number(mods.carryingCapacityBonus ?? 0)
-    if (mods.carryingCapacityMultiplier !== undefined) {
+    if (mods.carryingCapacityMultiplier != null) {
       totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, mods.carryingCapacityMultiplier)
     }
     resistanceLists.push(mods.resistances ?? [])
@@ -391,9 +396,9 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
           totals.hitDiceSizeSourceFeatureId = feature.id
         }
         if (
-          effects.hitPointsMode !== undefined ||
-          effects.hitPointsFlatValue !== undefined ||
-          effects.hitPointsPerLevelAmount !== undefined ||
+          effects.hitPointsMode != null ||
+          effects.hitPointsFlatValue != null ||
+          effects.hitPointsPerLevelAmount != null ||
           (effects.hitPointsRolledLevels?.length ?? 0) > 0
         ) {
           totals.hitPointsMode = effects.hitPointsMode
@@ -456,26 +461,26 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
             totals.abilityScores[ability] += abilityAmount
             totals.abilityScoreGrants[ability].push({ source: sourceLabel, amount: abilityAmount })
           }
-          if (effects.abilityScoreFloors?.[ability] !== undefined && effects.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
+          if (effects.abilityScoreFloors?.[ability] != null && effects.abilityScoreFloors[ability]! > (totals.abilityScoreFloors[ability] ?? -Infinity)) {
             totals.abilityScoreFloors[ability] = effects.abilityScoreFloors[ability]
             totals.abilityScoreFloorSources[ability] = sourceLabel
           }
-          if (effects.abilityScoreMaxCaps?.[ability] !== undefined && effects.abilityScoreMaxCaps[ability]! < (totals.abilityScoreMaxCaps[ability] ?? Infinity)) {
+          if (effects.abilityScoreMaxCaps?.[ability] != null && effects.abilityScoreMaxCaps[ability]! < (totals.abilityScoreMaxCaps[ability] ?? Infinity)) {
             totals.abilityScoreMaxCaps[ability] = effects.abilityScoreMaxCaps[ability]
             totals.abilityScoreMaxCapSources[ability] = sourceLabel
           }
-          if (effects.abilityScoreBaseMax?.[ability] !== undefined && effects.abilityScoreBaseMax[ability]! > (totals.abilityScoreBaseMax[ability] ?? -Infinity)) {
+          if (effects.abilityScoreBaseMax?.[ability] != null && effects.abilityScoreBaseMax[ability]! > (totals.abilityScoreBaseMax[ability] ?? -Infinity)) {
             totals.abilityScoreBaseMax[ability] = effects.abilityScoreBaseMax[ability]
             totals.abilityScoreBaseMaxSources[ability] = sourceLabel
           }
         }
-        if (effects.speed !== undefined) { totals.speed = effects.speed; totals.speedSource = sourceLabel }
-        if (effects.flySpeed !== undefined) { totals.flySpeed = effects.flySpeed; totals.flySpeedSource = sourceLabel }
-        if (effects.swimSpeed !== undefined) { totals.swimSpeed = effects.swimSpeed; totals.swimSpeedSource = sourceLabel }
-        if (effects.climbSpeed !== undefined) { totals.climbSpeed = effects.climbSpeed; totals.climbSpeedSource = sourceLabel }
-        if (effects.burrowSpeed !== undefined) { totals.burrowSpeed = effects.burrowSpeed; totals.burrowSpeedSource = sourceLabel }
+        if (effects.speed != null) { totals.speed = effects.speed; totals.speedSource = sourceLabel }
+        if (effects.flySpeed != null) { totals.flySpeed = effects.flySpeed; totals.flySpeedSource = sourceLabel }
+        if (effects.swimSpeed != null) { totals.swimSpeed = effects.swimSpeed; totals.swimSpeedSource = sourceLabel }
+        if (effects.climbSpeed != null) { totals.climbSpeed = effects.climbSpeed; totals.climbSpeedSource = sourceLabel }
+        if (effects.burrowSpeed != null) { totals.burrowSpeed = effects.burrowSpeed; totals.burrowSpeedSource = sourceLabel }
         totals.carryingCapacityBonus += Number(effects.carryingCapacityBonus ?? 0)
-        if (effects.carryingCapacityMultiplier !== undefined) {
+        if (effects.carryingCapacityMultiplier != null) {
           totals.carryingCapacityMultiplier = Math.max(totals.carryingCapacityMultiplier, effects.carryingCapacityMultiplier)
         }
         // Safe to fold over every qualifying tier like every other field here only because the
@@ -583,10 +588,12 @@ export function getEffectiveSkillAdvantage(
   return { state, isManualOverride: false, advantageSources, disadvantageSources }
 }
 
-type AbilityScoreCharacter = Pick<
-  Character,
-  "abilityScores" | "equipment" | "abilityScoreOverrides" | "useCalculatedAbilityScores"
-> & FeatureEffectCharacter
+// abilityScores and equipment are optional because the calculations already fall back when they
+// are missing (a base score of 10, no items), which character-migrations.ts relies on for records
+// saved before those fields were guaranteed.
+type AbilityScoreCharacter = Partial<Pick<Character, "abilityScores" | "equipment">>
+  & Pick<Character, "abilityScoreOverrides" | "useCalculatedAbilityScores">
+  & FeatureEffectCharacter
 
 function getCalculatedAbilityScoreFromTotals(
   character: AbilityScoreCharacter,
@@ -647,7 +654,7 @@ export function getPassiveScore(
   return 10 + getSkillModifier(abilityScore, proficiencyBonus, isProficient, hasExpertise)
 }
 
-type SensesCharacter = Pick<Character, "equipment"> & FeatureEffectCharacter
+type SensesCharacter = Partial<Pick<Character, "equipment">> & FeatureEffectCharacter
 
 // No fallback to a hardcoded base — like getEffectiveMovementSpeeds, a sense only has a real
 // answer once a Species Trait or item grants it. character.senses is never read here; it's
@@ -670,7 +677,7 @@ export interface MovementSpeeds {
   burrow: number
 }
 
-type MovementCharacter = Pick<Character, "equipment"> & FeatureEffectCharacter
+type MovementCharacter = Partial<Pick<Character, "equipment">> & FeatureEffectCharacter
 
 // No fallback to a hardcoded "30 ft" baseline — a species's walking speed only has a real answer
 // once a Species Trait (or, failing that, a manual custom override — see useCalculatedSpeed in
@@ -868,7 +875,7 @@ export function calculateMaxHitPoints(character: BaseHitPointsCharacter): { hp: 
 
     breakdown = `${hitDiceSize} (Level 1 d${hitDiceSize} Hit Die)${formatTerm(conMod, "Constitution")}`
     if (additionalLevels > 0) {
-      const perLevelLabel = featureTotals.hitPointsPerLevelAmount !== undefined ? `${perLevelAmount} HP/level` : `${perLevelAmount} avg d${hitDiceSize}`
+      const perLevelLabel = featureTotals.hitPointsPerLevelAmount != null ? `${perLevelAmount} HP/level` : `${perLevelAmount} avg d${hitDiceSize}`
       breakdown += ` + ${additionalLevels} × (${perLevelLabel}${formatTerm(conMod, "Constitution")})`
     }
     hp = hitDiceSize + conMod + additionalLevels * (perLevelAmount + conMod)
@@ -898,58 +905,18 @@ export function getEffectiveMaxHp(character?: MaxHpCharacter): number {
   return Math.max(1, baseHp + (hitPoints?.temporaryMaximum ?? 0))
 }
 
-export function getSpellSaveDC(character: Character): number
-export function getSpellSaveDC(
-  spellcastingAbility: keyof AbilityScores,
-  abilityScores: AbilityScores,
-  proficiencyBonus: number,
-): number
-export function getSpellSaveDC(
-  characterOrAbility: Character | keyof AbilityScores,
-  abilityScores?: AbilityScores,
-  proficiencyBonus?: number,
-): number {
-  // If first parameter is a Character object
-  if (typeof characterOrAbility === "object" && "spellcastingAbility" in characterOrAbility) {
-    const character = characterOrAbility
-    const ability = getEffectiveSpellcastingAbility(character)
-    if (!ability) return 8
-    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
-    return 8 + (character.proficiencyBonus || 2) + abilityMod
-  }
-
-  // Original function signature
-  const spellcastingAbility = characterOrAbility as keyof AbilityScores
-  if (!spellcastingAbility || !abilityScores) return 8
-  const abilityMod = getAbilityModifier(abilityScores[spellcastingAbility])
-  return 8 + (proficiencyBonus || 2) + abilityMod
+export function getSpellSaveDC(character: Character): number {
+  const ability = getEffectiveSpellcastingAbility(character)
+  if (!ability) return 8
+  const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
+  return 8 + (character.proficiencyBonus || 2) + abilityMod
 }
 
-export function getSpellAttackBonus(character: Character): number
-export function getSpellAttackBonus(
-  spellcastingAbility: keyof AbilityScores,
-  abilityScores: AbilityScores,
-  proficiencyBonus: number,
-): number
-export function getSpellAttackBonus(
-  characterOrAbility: Character | keyof AbilityScores,
-  abilityScores?: AbilityScores,
-  proficiencyBonus?: number,
-): number {
-  // If first parameter is a Character object
-  if (typeof characterOrAbility === "object" && "spellcastingAbility" in characterOrAbility) {
-    const character = characterOrAbility
-    const ability = getEffectiveSpellcastingAbility(character)
-    if (!ability) return 0
-    const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
-    return (character.proficiencyBonus || 2) + abilityMod
-  }
-
-  // Original function signature
-  const spellcastingAbility = characterOrAbility as keyof AbilityScores
-  if (!spellcastingAbility || !abilityScores) return 0
-  const abilityMod = getAbilityModifier(abilityScores[spellcastingAbility])
-  return (proficiencyBonus || 2) + abilityMod
+export function getSpellAttackBonus(character: Character): number {
+  const ability = getEffectiveSpellcastingAbility(character)
+  if (!ability) return 0
+  const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
+  return (character.proficiencyBonus || 2) + abilityMod
 }
 
 export function computeSpellModifier(character: Character): number {
@@ -1022,6 +989,25 @@ export function safeFeatures(raw: Feature[] | string | undefined): Feature[] {
 export const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
 export const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
 
+/**
+ * Puts a list of damage types into its standard form: a value matching one of DAMAGE_TYPE_OPTIONS
+ * in any case becomes that option ("fire" → "Fire"), anything else is kept as typed, and blanks
+ * and case-insensitive duplicates are dropped. Returns `values` itself when nothing changes.
+ */
+export function normalizeDamageTypes(values: string[]): string[] {
+  const seen = new Set<string>()
+  const normalized: string[] = []
+  for (const value of values) {
+    const trimmed = value.trim()
+    const key = trimmed.toLowerCase()
+    if (!trimmed || seen.has(key)) continue
+    seen.add(key)
+    normalized.push(DAMAGE_TYPE_OPTIONS.find((option) => option.toLowerCase() === key) ?? trimmed)
+  }
+  const unchanged = normalized.length === values.length && normalized.every((value, i) => value === values[i])
+  return unchanged ? values : normalized
+}
+
 export const CONDITIONS = [
   "Blinded", "Charmed", "Deafened", "Exhaustion", "Frightened",
   "Grappled", "Incapacitated", "Invisible", "Paralyzed", "Petrified",
@@ -1065,7 +1051,7 @@ export function getEquippedWeaponAttacks(
 
   return equipment
     .filter((item): item is Equipment & { weaponStats: NonNullable<Equipment["weaponStats"]> } =>
-      item.equipped && item.type === "weapon" && item.weaponStats !== undefined
+      item.equipped && item.type === "weapon" && item.weaponStats != null
     )
     .map((item) => {
       const { damage, damageType, weaponRange, attackAbility, proficient } = item.weaponStats
@@ -1101,8 +1087,7 @@ export function formatTerm(amount: number, label: string): string {
 }
 
 export function calculateEquippedAC(
-  character: Pick<Character, "equipment" | "abilityScores" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
-    & FeatureEffectCharacter
+  character: AbilityScoreCharacter
 ): { ac: number; breakdown: string; isEquippedArmor: boolean } {
   const equipment = character.equipment ?? []
   const itemTotals = getEquipmentModifierTotals(equipment)
@@ -1112,7 +1097,7 @@ export function calculateEquippedAC(
 
   const equippedArmor = equipment.filter(
     (item): item is Equipment & { armorStats: NonNullable<Equipment["armorStats"]> } =>
-      item.equipped && item.type === "armor" && item.armorStats !== undefined
+      item.equipped && item.type === "armor" && item.armorStats != null
   )
 
   const bodyArmor = equippedArmor.find((item) => item.armorStats.armorType !== "shield")

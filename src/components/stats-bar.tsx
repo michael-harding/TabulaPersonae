@@ -1,12 +1,13 @@
 import { Show, For, createMemo } from "solid-js"
-import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
-import { Tooltip } from "@/components/ui/tooltip"
-import { useHpDisplay } from "@/hooks/use-hp-display"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Zap from "lucide-solid/icons/zap"
 import Sword from "lucide-solid/icons/sword"
 import Heart from "lucide-solid/icons/heart"
+
+import type { Character } from "@/lib/character-types"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
+import { Tooltip } from "@/components/ui/tooltip"
+import { useHpDisplay } from "@/hooks/use-hp-display"
 
 interface StatsBarProps {
   character: Character
@@ -61,7 +62,7 @@ export function StatsBar(props: StatsBarProps) {
         <div class="flex items-center gap-3 flex-wrap min-w-0">
           {/* AC */}
           <div class="flex items-center gap-1 shrink-0">
-            <ShieldIcon class="h-3.5 w-3.5 text-primary" />
+            <ShieldIcon class="h-3.5 w-3.5 text-primary" aria-hidden="true" />
             <span class="text-xs text-muted-foreground">AC</span>
             <span class="text-sm font-bold">{ac()}</span>
           </div>
@@ -70,7 +71,7 @@ export function StatsBar(props: StatsBarProps) {
 
           {/* Initiative */}
           <div class="flex items-center gap-1 shrink-0">
-            <Zap class="h-3.5 w-3.5 text-primary" />
+            <Zap class="h-3.5 w-3.5 text-primary" aria-hidden="true" />
             <span class="text-xs text-muted-foreground">Init</span>
             <span class="text-sm font-bold">{formatModifier(initiative())}</span>
           </div>
@@ -80,7 +81,7 @@ export function StatsBar(props: StatsBarProps) {
             <div class="w-px h-4 bg-border shrink-0" />
             <Tooltip content={spellTooltip()} triggerFocusable>
               <div class="flex items-center gap-1 shrink-0">
-                <Sword class="h-3.5 w-3.5 text-primary" />
+                <Sword class="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                 <span class="text-sm font-bold">{formatModifier(hitBonus())}</span>
                 <span class="text-xs text-muted-foreground">Hit</span>
                 <span class="text-xs text-muted-foreground mx-0.5">/</span>
@@ -106,7 +107,7 @@ export function StatsBar(props: StatsBarProps) {
 
         {/* Right: HP */}
         <div class="flex items-center gap-1.5 shrink-0">
-          <Heart class="h-3.5 w-3.5 text-destructive shrink-0" />
+          <Heart class="h-3.5 w-3.5 text-destructive shrink-0" aria-hidden="true" />
           <span class="text-sm font-bold whitespace-nowrap">
             <span data-test="current-hp">{currentHp()}</span>
             <Show when={tempHp() > 0}>

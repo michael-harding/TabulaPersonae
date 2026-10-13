@@ -1,4 +1,5 @@
 import { For, Show } from "solid-js"
+
 import type { Character } from "@/lib/character-types"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { useReadOnly } from "@/lib/read-only-context"
@@ -26,7 +27,7 @@ export function SpellSlotTracker(props: SpellSlotTrackerProps) {
           const slots = () => props.spellSlots[level as keyof SpellSlots]
           return (
             <Show when={slots() && slots().total > 0}>
-              <div class="flex items-center gap-1 px-2 border rounded-lg">
+              <div data-test={`spell-slot-level-${level}`} class="flex items-center gap-1 px-2 border rounded-lg">
                 <span class="font-medium text-xs text-muted-foreground pr-1">{getOrdinalSuffix(level)}</span>
                 <PipTracker
                   total={slots().total}

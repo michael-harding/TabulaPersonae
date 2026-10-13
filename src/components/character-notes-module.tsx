@@ -1,4 +1,6 @@
-import { createSignal, createEffect, on, Show } from "solid-js"
+import { createSignal, createEffect, on, untrack, Show, For } from "solid-js"
+import FileText from "lucide-solid/icons/file-text"
+
 import type { Character } from "@/lib/character-types"
 import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
@@ -6,7 +8,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import FileText from "lucide-solid/icons/file-text"
 
 interface CharacterNotesModuleProps {
   character: Character
@@ -15,7 +16,7 @@ interface CharacterNotesModuleProps {
 
 export function CharacterNotesModule(props: CharacterNotesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
-  const [editedCharacter, setEditedCharacter] = createSignal(props.character)
+  const [editedCharacter, setEditedCharacter] = createSignal(untrack(() => props.character))
 
   createEffect(on(() => props.character.id, () => {
     setEditedCharacter(props.character)
@@ -78,7 +79,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
     <EditableModule
       data-sem="character-notes-module"
       data-test="character-notes-module"
-      icon={<FileText class="h-5 w-5 text-primary" />}
+      icon={<FileText class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Character Background & Notes"
       isEditing={isEditing()}
       onEdit={() => { setEditedCharacter(props.character); setIsEditing(true) }}
@@ -93,18 +94,19 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
             <div>
               <Label class="text-sm font-semibold">Physical Details</Label>
               <div class="grid grid-cols-3 gap-3 mt-2">
-                {PHYSICAL_FIELDS.map(({ field, label }) => (
+                <For each={PHYSICAL_FIELDS}>{({ field, label }) => (
                   <div>
                     <Label for={`phys-${field}`} class="text-xs">{label}</Label>
                     <Input
                       id={`phys-${field}`}
+                      data-test={`physical-${field}-input`}
                       value={(editedCharacter()[field] as string) || ""}
                       onInput={(e) => updateField(field, e.currentTarget.value)}
                       placeholder={label}
-                      class="mt-1 h-8 text-sm"
+                      class="mt-1 text-sm"
                     />
                   </div>
-                ))}
+                )}</For>
               </div>
             </div>
 
@@ -233,12 +235,12 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
             <div>
               <h2 class="font-semibold mb-2 text-sm text-muted-foreground">Physical Details</h2>
               <div class="grid grid-cols-3 gap-2">
-                {PHYSICAL_FIELDS.map(({ field, label }) => (
+                <For each={PHYSICAL_FIELDS}>{({ field, label }) => (
                   <div>
                     <span class="text-xs text-muted-foreground">{label}: </span>
                     <span class="text-sm">{(current()[field] as string) || "—"}</span>
                   </div>
-                ))}
+                )}</For>
               </div>
             </div>
 
@@ -246,7 +248,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
 
             <Separator />
 
-            {PERSONALITY_FIELDS.map((f) => renderMarkdownField(f))}
+            <For each={PERSONALITY_FIELDS}>{(f) => renderMarkdownField(f)}</For>
 
             <Separator />
 
@@ -256,7 +258,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
 
             {/* 2014-only view */}
             <Show when={edition() === "2014"}>
-              {EDITION_2014_FIELDS.map((f) => renderMarkdownField(f))}
+              <For each={EDITION_2014_FIELDS}>{(f) => renderMarkdownField(f)}</For>
 
               <Separator />
             </Show>

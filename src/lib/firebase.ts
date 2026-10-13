@@ -1,15 +1,14 @@
 /// <reference types="vite/client" />
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
-
-// any is required: these are assigned inside the try block below and exported as
-// module-level bindings. Narrowing to FirebaseApp | Auth | Firestore would require
-// null-guards in every consumer (auth-context, firebase-storage, network-status).
-// Consumers are only called after successful init, so the null case never occurs at runtime.
-let app: any;
-let auth: any;
-let db: any;
+import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import {
+  clearIndexedDbPersistence,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  terminate,
+  type Firestore,
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -20,15 +19,58 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache(),
-  });
-} catch (error) {
-  console.error('Firebase initialization error:', error);
+interface FirebaseServices {
+  app: FirebaseApp;
+  auth: Auth;
+  db: Firestore;
 }
 
-export { app, auth, db };
-export default app;
+// Initialization can fail (missing or invalid configuration). The failure is kept instead of
+// being thrown while this module loads, so the app can still start and run on local storage; the
+// accessors below throw it at the point Firebase is actually needed.
+function initFirebase(): FirebaseServices | Error {
+  try {
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    // One cache and one queue of unsent writes shared by every open tab. Signing out deletes that
+    // cache (clearFirestoreCache), so the check for unsynced changes that precedes it has to see
+    // what the other tabs have written — which a tab with its own cache could not.
+    const db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+    return { app, auth, db };
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+    return new Error('Firebase is unavailable because it failed to initialize', { cause: error });
+  }
+}
+
+const services = initFirebase();
+
+function requireServices(): FirebaseServices {
+  if (services instanceof Error) throw services;
+  return services;
+}
+
+/** The Firebase Auth instance. Throws if Firebase failed to initialize. */
+export function getFirebaseAuth(): Auth {
+  return requireServices().auth;
+}
+
+/** The Firestore instance. Throws if Firebase failed to initialize. */
+export function getDb(): Firestore {
+  return requireServices().db;
+}
+
+/**
+ * Deletes Firestore's offline copy of the signed-in user's data from this device, including any
+ * writes that have not reached the server. Firestore only allows this on an instance that has
+ * been shut down, so the page must be reloaded before Firestore is used again. The cache is shared
+ * with every other open tab, and Firestore shuts itself down in those too when it is deleted, so
+ * they need the same reload (see AuthProvider).
+ */
+export async function clearFirestoreCache(): Promise<void> {
+  const { db } = requireServices();
+  await terminate(db);
+  await clearIndexedDbPersistence(db);
+}

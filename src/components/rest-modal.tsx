@@ -1,4 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
+import FlameKindling from "lucide-solid/icons/flame-kindling"
+
 import type { Character, Equipment } from "@/lib/character-types"
 import { getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
@@ -6,7 +8,6 @@ import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/com
 import { Button } from "@/components/ui/button"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import FlameKindling from "lucide-solid/icons/flame-kindling"
 
 interface RestModalProps {
   character: Character
@@ -24,7 +25,7 @@ export function RestModal(props: RestModalProps) {
   // hit die to speak of, so the whole "spend hit dice" section stays hidden rather than falling
   // back to a base/legacy value the user has no way to see or control.
   const activeHitDiceSize = () => getEffectiveHitDiceSize(props.character)
-  const hasHitDieFeature = () => activeHitDiceSize() !== undefined
+  const hasHitDieFeature = () => activeHitDiceSize() != null
   const dieSize = () => activeHitDiceSize() as DieSize
   const totalHitDice = () => props.character.level ?? 1
   const spentHitDice = () => props.character.spentHitDice ?? 0
@@ -118,7 +119,7 @@ export function RestModal(props: RestModalProps) {
       <ModalContent data-sem="rest-modal" class="max-w-md">
         <ModalHeader>
           <ModalTitle class="flex items-center gap-2">
-            <FlameKindling class="h-5 w-5 text-orange-500" />
+            <FlameKindling class="h-5 w-5 text-orange-500" aria-hidden="true" />
             Take a Rest
           </ModalTitle>
         </ModalHeader>
@@ -128,6 +129,7 @@ export function RestModal(props: RestModalProps) {
           <div class="grid grid-cols-2 gap-2">
             <button
               type="button"
+              data-test="rest-type-short-button"
               onClick={() => { setRestType("short"); setDicesToSpend(0); setRollResult(null) }}
               class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "short" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
             >
@@ -136,6 +138,7 @@ export function RestModal(props: RestModalProps) {
             </button>
             <button
               type="button"
+              data-test="rest-type-long-button"
               onClick={() => { setRestType("long"); setDicesToSpend(0); setRollResult(null) }}
               class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "long" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
             >
@@ -187,11 +190,12 @@ export function RestModal(props: RestModalProps) {
                 <Show
                   when={availableHitDice() <= 5}
                   fallback={
-                    <StepperInput
+                    <StepperInput data-test="rest-hit-dice-stepper"
                       value={dicesToSpend()}
                       min={0}
                       max={availableHitDice()}
                       onChange={setDicesToSpend}
+                      aria-label="Hit dice to spend"
                     />
                   }
                 >
@@ -256,12 +260,12 @@ export function RestModal(props: RestModalProps) {
             when={rollResult()}
             fallback={
               <>
-                <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                <Button onClick={handleConfirm}>Confirm Rest</Button>
+                <Button data-test="rest-cancel-button" variant="outline" onClick={handleClose}>Cancel</Button>
+                <Button data-test="rest-confirm-button" onClick={handleConfirm}>Confirm Rest</Button>
               </>
             }
           >
-            <Button onClick={handleClose}>Done</Button>
+            <Button data-test="rest-done-button" onClick={handleClose}>Done</Button>
           </Show>
         </ModalFooter>
       </ModalContent>

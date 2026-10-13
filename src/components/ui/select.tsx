@@ -2,15 +2,18 @@ import {
   createContext,
   createMemo,
   createSignal,
+  createUniqueId,
   useContext,
   JSX,
   ComponentProps,
   splitProps,
   onCleanup,
   onMount,
+  untrack,
 } from "solid-js"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Check from "lucide-solid/icons/check"
+
 import { cn } from "@/lib/utils"
 
 interface SelectContextType {
@@ -31,6 +34,14 @@ interface SelectContextType {
   setActiveValue: (value: string | undefined) => void
   listEl: () => HTMLUListElement | undefined
   setListEl: (el: HTMLUListElement | undefined) => void
+  // The list's id, for the trigger's aria-controls
+  listId: string
+  // The trigger, which is what gives the list its accessible name
+  triggerEl: () => HTMLButtonElement | undefined
+  setTriggerEl: (el: HTMLButtonElement | undefined) => void
+  // The element wrapping the trigger and the popup, for telling inside clicks from outside ones.
+  // Held as a ref because `data-sem` is stripped from production builds and can't be queried.
+  rootEl: () => HTMLDivElement | undefined
 }
 
 const SelectContext = createContext<SelectContextType>()
@@ -62,6 +73,9 @@ export function Select(props: SelectRootProps) {
   const [items, setItems] = createSignal<string[]>([])
   const [explicitActive, setExplicitActive] = createSignal<string | undefined>(undefined)
   const [listEl, setListEl] = createSignal<HTMLUListElement>()
+  const [rootEl, setRootEl] = createSignal<HTMLDivElement>()
+  const [triggerEl, setTriggerEl] = createSignal<HTMLButtonElement>()
+  const baseId = createUniqueId()
   const value = () => props.value ?? internalValue()
 
   // Falls back to the current value's item, then the first item, whenever nothing has been
@@ -70,9 +84,9 @@ export function Select(props: SelectRootProps) {
     const list = items()
     if (list.length === 0) return undefined
     const explicit = explicitActive()
-    if (explicit !== undefined && list.includes(explicit)) return explicit
+    if (explicit != null && list.includes(explicit)) return explicit
     const current = value()
-    return current !== undefined && list.includes(current) ? current : list[0]
+    return current != null && list.includes(current) ? current : list[0]
   })
 
   // Closing the popup by any path (select, outside click, Escape, Tab) also drops the explicit
@@ -101,9 +115,10 @@ export function Select(props: SelectRootProps) {
       value, onValueChange, open, setOpen,
       placeholder: () => props.placeholder, disabled: () => props.disabled ?? false,
       items, registerItem, activeValue, setActiveValue: setExplicitActive,
-      listEl, setListEl,
+      listEl, setListEl, rootEl,
+      listId: `${baseId}-list`, triggerEl, setTriggerEl,
     }}>
-      <div data-sem="select" class="relative">
+      <div ref={setRootEl} data-sem="select" class="relative">
         {props.children}
       </div>
     </SelectContext.Provider>
@@ -111,8 +126,9 @@ export function Select(props: SelectRootProps) {
 }
 
 export function SelectTrigger(props: ComponentProps<"button">) {
-  const [local, others] = splitProps(props, ["class", "children"])
+  const [local, others] = splitProps(props, ["class", "children", "id"])
   const ctx = useSelect()
+  const fallbackId = createUniqueId()
 
   const moveActive = (delta: number) => {
     const list = ctx.items()
@@ -137,7 +153,7 @@ export function SelectTrigger(props: ComponentProps<"button">) {
     } else if (e.key === "Enter" || e.key === " ") {
       // Only intercept once something is highlighted — otherwise let the native button click
       // (fired on Enter/Space by default) open/close the popup as usual.
-      if (ctx.open() && ctx.activeValue() !== undefined) {
+      if (ctx.open() && ctx.activeValue() != null) {
         e.preventDefault()
         ctx.onValueChange(ctx.activeValue()!)
       }
@@ -157,16 +173,24 @@ export function SelectTrigger(props: ComponentProps<"button">) {
   }
 
   return (
+    // A select-only combobox (ARIA 1.2): the button keeps focus and points at the highlighted
+    // option with aria-activedescendant, which the plain button role does not allow. Unlike a
+    // button, a combobox is not named by its content, so every use needs a label (a <Label for>
+    // or an aria-label) — the value it shows is its value, not its name.
     <button
+      ref={ctx.setTriggerEl}
       type="button"
+      role="combobox"
+      id={local.id ?? fallbackId}
       aria-expanded={ctx.open()}
       aria-haspopup="listbox"
-      aria-activedescendant={ctx.activeValue() !== undefined ? optionId(ctx.activeValue()!) : undefined}
+      aria-controls={ctx.open() ? ctx.listId : undefined}
+      aria-activedescendant={ctx.open() && ctx.activeValue() != null ? optionId(ctx.activeValue()!) : undefined}
       disabled={ctx.disabled()}
       onClick={() => !ctx.disabled() && ctx.setOpen(!ctx.open())}
       onKeyDown={handleKeyDown}
       class={cn(
-        "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+        "flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
         local.class
       )}
       {...others}
@@ -192,10 +216,11 @@ export function SelectValue(props: { placeholder?: string }) {
 export function SelectContent(props: ComponentProps<"ul">) {
   const [local, others] = splitProps(props, ["class", "children"])
   const ctx = useSelect()
-  let ref!: HTMLDivElement
 
+  // "Outside" means outside the whole select, trigger included. Counting the trigger as outside
+  // made a second click on it close the list on mousedown, then reopen it on click.
   const handleOutsideClick = (e: MouseEvent) => {
-    if (!ref?.contains(e.target as Node)) {
+    if (!ctx.rootEl()?.contains(e.target as Node)) {
       ctx.setOpen(false)
     }
   }
@@ -204,11 +229,16 @@ export function SelectContent(props: ComponentProps<"ul">) {
   onCleanup(() => document.removeEventListener("mousedown", handleOutsideClick))
 
   return (
-    <div ref={ref} class="relative">
+    <div class="relative">
       {ctx.open() && (
         <ul
           ref={ctx.setListEl}
+          id={ctx.listId}
           role="listbox"
+          // Named the same way as its trigger: by the trigger's aria-label when it has one,
+          // otherwise by the trigger itself, which a <Label for> names.
+          aria-label={ctx.triggerEl()?.getAttribute("aria-label") ?? undefined}
+          aria-labelledby={ctx.triggerEl()?.hasAttribute("aria-label") ? undefined : ctx.triggerEl()?.id}
           class={cn(
             "absolute z-50 max-h-96 min-w-[8rem] w-full overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md mt-1",
             local.class
@@ -226,7 +256,9 @@ export function SelectItem(props: ComponentProps<"li"> & { value: string }) {
   const [local, others] = splitProps(props, ["class", "value", "children"])
   const ctx = useSelect()
 
-  const unregister = ctx.registerItem(local.value)
+  // An item's value is fixed for its lifetime, and registering during setup (not in an effect)
+  // is what keeps items() in mount order.
+  const unregister = ctx.registerItem(untrack(() => local.value))
   onCleanup(unregister)
 
   const isSelected = () => ctx.value() === local.value

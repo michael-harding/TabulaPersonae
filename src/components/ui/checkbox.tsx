@@ -1,12 +1,30 @@
 import { Checkbox as CheckboxPrimitive } from "@kobalte/core/checkbox"
 import { ComponentProps, JSX, Show, splitProps } from "solid-js"
+import { Dynamic } from "solid-js/web"
 import Check from "lucide-solid/icons/check"
-import { cn } from "@/lib/utils"
+
+import { cn, TOUCH_TARGET, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & {
+  /** Page-unique. Lands on the checkbox root; the visible square is `${data-test}-control`. */
+  "data-test": string
   class?: string
   label?: JSX.Element
   labelClass?: string
+  /** Page-unique `data-test` for the label (e.g. when the label is also the item's title). */
+  labelTestId?: string
+  /**
+   * Wraps the label in a heading, for when the label doubles as the title of a card (a spell or
+   * item name). It stays a real <label>, so clicking it toggles the checkbox and assistive tech
+   * doesn't see a second control, and the heading keeps it reachable by heading navigation.
+   */
+  labelHeading?: "h2" | "h3" | "h4"
+  /**
+   * Pulls the 44px touch box 14px back into the space before it, so the visible square (not the
+   * box) sits on the container's leading edge and lines up with the text below it. For a checkbox
+   * that leads a card's title row. Only where nothing interactive sits in those 14px.
+   */
+  flush?: boolean
   containerClass?: string
 }
 
@@ -25,17 +43,30 @@ type CheckboxProps = ComponentProps<typeof CheckboxPrimitive> & {
  * has bitten this codebase twice; use `label`/`labelClass` instead.
  */
 export function Checkbox(props: CheckboxProps) {
-  const [local, rest] = splitProps(props, ["class", "label", "labelClass", "containerClass"])
-  const [inputAttrs, others] = splitProps(rest, ["id", "title", "aria-label"])
+  const [local, rest] = splitProps(props, ["class", "label", "labelClass", "labelTestId", "labelHeading", "flush", "containerClass"])
+  const [inputAttrs, others] = splitProps(rest, ["id", "aria-label"])
+  const label = () => (
+    <CheckboxPrimitive.Label
+      data-test={local.labelTestId}
+      class={cn("inline-flex min-h-11 items-center", local.labelClass ?? "text-xs text-muted-foreground cursor-pointer select-none")}
+    >
+      {local.label}
+    </CheckboxPrimitive.Label>
+  )
   return (
     <CheckboxPrimitive
       data-sem="checkbox"
-      class={cn(local.label ? "inline-flex items-center gap-1.5" : undefined, local.containerClass)}
+      class={cn("inline-flex items-center", local.flush && "-ml-3.5", local.containerClass)}
       {...others}
     >
       <CheckboxPrimitive.Input {...inputAttrs} />
+      {/* The visible square stays 16px; it sits centred in a 44×44 box and its ::after hit area
+          fills that box (ACCESSIBILITY.md touch targets), so neighbouring checkboxes can't overlap. */}
+      <span class={TOUCH_TARGET_BOX}>
       <CheckboxPrimitive.Control
+        data-test={`${props["data-test"]}-control`}
         class={cn(
+          TOUCH_TARGET,
           "peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 data-[checked]:bg-primary data-[checked]:text-primary-foreground",
           local.class
         )}
@@ -44,10 +75,14 @@ export function Checkbox(props: CheckboxProps) {
           <Check class="h-4 w-4" />
         </CheckboxPrimitive.Indicator>
       </CheckboxPrimitive.Control>
+      </span>
       <Show when={local.label}>
-        <CheckboxPrimitive.Label class={local.labelClass ?? "text-xs text-muted-foreground cursor-pointer select-none"}>
-          {local.label}
-        </CheckboxPrimitive.Label>
+        {/* The label is a 44px-tall target too. It is pulled 8px into the checkbox's 44px box so
+            the text sits about 6px from the square. The overlap is harmless because both toggle
+            the same checkbox. */}
+        <Show when={local.labelHeading} fallback={<span class="-ml-2 inline-flex">{label()}</span>}>
+          <Dynamic component={local.labelHeading} class="-ml-2 inline-flex">{label()}</Dynamic>
+        </Show>
       </Show>
     </CheckboxPrimitive>
   )

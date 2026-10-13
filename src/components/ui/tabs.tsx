@@ -1,5 +1,6 @@
 import { Tabs as TabsPrimitive } from "@kobalte/core/tabs"
 import { ComponentProps, splitProps } from "solid-js"
+
 import { cn } from "@/lib/utils"
 
 export const TabsRoot = TabsPrimitive
@@ -20,7 +21,7 @@ export function TabsTrigger(props: ComponentProps<typeof TabsPrimitive.Trigger>)
   return (
     <TabsPrimitive.Trigger
       class={cn(
-        "px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+        "min-h-11 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
         "data-[selected]:text-foreground data-[selected]:border-b-2 data-[selected]:border-primary",
         local.class
       )}

@@ -1,6 +1,7 @@
 import { createSignal, createMemo, onCleanup, Match, Switch, Show } from 'solid-js'
 import RefreshCw from 'lucide-solid/icons/refresh-cw'
 import RefreshCwOff from 'lucide-solid/icons/refresh-cw-off'
+
 import { useAuth } from '@/lib/auth-context'
 import { createNetworkStatus, type SyncStatus } from '@/lib/network-status'
 import { useSyncState } from '@/lib/sync-context'
@@ -58,15 +59,17 @@ export function OfflineIndicator() {
   // with no sync needed — indicator is only meaningful for Firebase-backed sessions
   return (
     <Show when={!!user() && status() !== 'online'}>
-      <div
+      <button
+        type="button"
         data-sem="offline-indicator"
         data-test="offline-indicator"
+        aria-expanded={expanded()}
         class={`fixed bottom-6 right-6 z-50 flex h-11 w-auto cursor-pointer flex-row items-center justify-end overflow-hidden rounded-full shadow-lg transition-[max-width] duration-300 ${BG[status()]} ${expanded() ? 'max-w-xs' : 'max-w-[44px]'}`}
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}
         onClick={() => setExpanded(v => !v)}
       >
-        <div class={`flex flex-col items-end pl-4 pr-2 transition-opacity duration-200 ${expanded() ? 'opacity-100' : 'opacity-0'}`}>
+        <span class={`flex flex-col items-end pl-4 pr-2 transition-opacity duration-200 ${expanded() ? 'opacity-100' : 'opacity-0'}`}>
           <span class={`whitespace-nowrap text-xs font-semibold leading-tight ${TEXT_COLOR[status()]}`}>
             {LABEL[status()]}
           </span>
@@ -75,22 +78,22 @@ export function OfflineIndicator() {
               {subLabel()}
             </span>
           </Show>
-        </div>
+        </span>
 
-        <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center">
+        <span class="flex h-11 w-11 flex-shrink-0 items-center justify-center">
           <Switch>
             <Match when={status() === 'offline'}>
-              <RefreshCwOff class={`h-5 w-5 ${TEXT_COLOR[status()]}`} />
+              <RefreshCwOff class={`h-5 w-5 ${TEXT_COLOR[status()]}`} aria-hidden="true" />
             </Match>
             <Match when={status() === 'syncing'}>
-              <RefreshCw class="h-5 w-5 animate-spin text-white" />
+              <RefreshCw data-test="offline-indicator-spinner" class="h-5 w-5 animate-spin text-white" aria-hidden="true" />
             </Match>
             <Match when={status() === 'synced'}>
-              <RefreshCw class="h-5 w-5 text-white" />
+              <RefreshCw class="h-5 w-5 text-white" aria-hidden="true" />
             </Match>
           </Switch>
-        </div>
-      </div>
+        </span>
+      </button>
     </Show>
   )
 }

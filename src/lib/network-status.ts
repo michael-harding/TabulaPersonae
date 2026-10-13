@@ -1,6 +1,7 @@
 import { createSignal, onCleanup } from 'solid-js'
 import { waitForPendingWrites } from 'firebase/firestore'
-import { db } from './firebase'
+
+import { getDb } from './firebase'
 
 export type SyncStatus = 'online' | 'offline' | 'syncing' | 'synced'
 
@@ -13,7 +14,7 @@ export function createNetworkStatus() {
   const handleOnline = async () => {
     setStatus('syncing')
     try {
-      await waitForPendingWrites(db)
+      await waitForPendingWrites(getDb())
     } catch {
       // no pending writes or db unavailable — still mark synced
     }

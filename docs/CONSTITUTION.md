@@ -1,6 +1,6 @@
 > **Document Authority**: This is the authoritative standard for all work in this repository. See §1 for scope and applicability.
-> **Template Version:** 1.0.2
-> **Last updated:** 2026-05-28
+> **Template Version:** 1.0.3
+> **Last updated:** 2026-10-08
 
 ---
 
@@ -49,7 +49,7 @@ This document covers the frontend codebase in this repository.
 
 6. **Mock data in tests by default.** Tests must use mock data by default and must not depend on live backend state. Seeded or live-backend testing may be permitted only in explicit, documented cases (for example when `USE_SEED_DATA=true`) and requires prior human approval; any exception must be clearly documented in the test and the PR.
 
-7. **Composable over duplicated.** Prefer shared components and utilities over copy-pasted code. Extract reusable logic into `src/lib/` or `hooks/`. Do not abstract prematurely.
+7. **Abstract when it clarifies or protects correctness, not by default.** Prefer shared components and utilities over copy-pasted code. Extract reusable logic into `src/lib/` or `hooks/` when doing so improves readability or maintainability, or when independent reimplementations of the same logic (e.g., calculations, formatting, business rules) risk producing inconsistent results. Do not abstract merely to support hypothetical future flexibility.
 
 8. **Rules, not suggestions.** Every standard in this document is a requirement. Use `must`, `must not`, `may`, and `may not` to express intent; avoid `should` or `consider`.
 
@@ -167,7 +167,7 @@ Shared UI Components
 4. `ts-ignore` requires an inline comment explaining why it is the best option and why type-safe alternatives were insufficient.
 5. `eslint-disable` and equivalent linting suppression directives require a brief inline description and explicit human-developer permission.
 6. New APIs and components must have explicit type annotations.
-7. Both `null` and `undefined` are undesirable and must be avoided where possible. When a nullable value cannot be avoided, `null` is preferred over `undefined`: `null` is an explicit object value that cannot arise unintentionally, which signals that the absence was deliberate. The intent behind any use of `null` or `undefined` must be justified with an inline comment.
+7. Both `null` and `undefined` are undesirable and must be avoided where possible. When a nullable value cannot be avoided, `null` is preferred over `undefined`: `null` is an explicit object value that cannot arise unintentionally, which signals that the absence was deliberate. The intent behind any use of `null` or `undefined` must be justified with an inline comment. Nullish checks must use `== null`, `!= null`, or `??`, never strict equality against only one of `null` or `undefined`. External data (imported files, parsed documents, third-party APIs, browser APIs) may represent an absent value as either `null` or `undefined` regardless of how this codebase represents it, so every check must treat both as absent. Where code must deliberately distinguish the two, use `typeof x === "undefined"` with an inline comment justifying the distinction. Enforced by ESLint (`no-restricted-syntax`).
 8. Interactive and testable DOM nodes must include a `data-test` attribute whose value is descriptive and unique within the page; `data-test` is used by automated tests as a stable selector and must be stripped from production builds.
 9. All new UI components must include a `data-sem` attribute on the top-level DOM node. The value must be kebab-case and human-readable; it need not be unique across the document. `data-sem` must be stripped from production builds.
 10. Types representing external data contracts must be defined in and exported from `src/lib/`. They must not be redefined or duplicated elsewhere; import and use them directly.

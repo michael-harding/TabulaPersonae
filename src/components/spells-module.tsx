@@ -1,23 +1,4 @@
 import { createSignal, createMemo, For, Show } from "solid-js"
-import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, Spell, Equipment } from "@/lib/character-types"
-
-const EMPTY_SPELLS: Spell[] = []
-import { getSpellSaveDC, getSpellAttackBonus, formatModifier, isItemModifierActive } from "@/lib/character-utils"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { NumericInput } from "@/components/ui/numeric-input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Tooltip } from "@/components/ui/tooltip"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Combobox } from "@/components/ui/combobox"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { MarkdownContent } from "@/components/ui/markdown-content"
 import Sparkles from "lucide-solid/icons/sparkles"
 import Plus from "lucide-solid/icons/plus"
 import Edit from "lucide-solid/icons/edit"
@@ -29,8 +10,30 @@ import Zap from "lucide-solid/icons/zap"
 import Target from "lucide-solid/icons/target"
 import Circle from "lucide-solid/icons/circle"
 import Settings from "lucide-solid/icons/settings"
+
+import { createPersistedSetSignal } from "@/lib/persisted-signal"
+import type { Character, Spell, Equipment } from "@/lib/character-types"
+import { getSpellSaveDC, getSpellAttackBonus, formatModifier, isItemModifierActive } from "@/lib/character-utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
+import { Input } from "@/components/ui/input"
+import { StepperInput } from "@/components/ui/stepper-input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Chip } from "@/components/ui/chip"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Tooltip } from "@/components/ui/tooltip"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
+import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { useReadOnly } from "@/lib/read-only-context"
+import { cn, HOVER_ACCENT } from "@/lib/utils"
+
+const EMPTY_SPELLS: Spell[] = []
 
 interface SpellFormData {
   name: string
@@ -112,25 +115,25 @@ function SpellForm(props: SpellFormProps) {
     <div class="space-y-4">
       <div>
         <Label for="spell-name">Spell Name</Label>
-        <Input id="spell-name" value={formData().name} onInput={(e) => setFormData((p) => ({ ...p, name: e.currentTarget.value }))} placeholder="e.g. Fireball" />
+        <Input id="spell-name" data-test="spell-name" value={formData().name} onInput={(e) => setFormData((p) => ({ ...p, name: e.currentTarget.value }))} placeholder="e.g. Fireball" />
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div>
           <Label for="gain">Gain</Label>
-          <Input id="gain" value={formData().gain || ""} onInput={(e) => setFormData((p) => ({ ...p, gain: e.currentTarget.value }))} placeholder="e.g. 2d4+3 healing" />
+          <Input id="gain" data-test="spell-gain" value={formData().gain || ""} onInput={(e) => setFormData((p) => ({ ...p, gain: e.currentTarget.value }))} placeholder="e.g. 2d4+3 healing" />
         </div>
         <div>
           <Label for="spell-damage">Damage</Label>
-          <Input id="spell-damage" value={formData().damage || ""} onInput={(e) => setFormData((p) => ({ ...p, damage: e.currentTarget.value }))} placeholder="e.g. 1d8+3 fire" />
+          <Input id="spell-damage" data-test="spell-damage" value={formData().damage || ""} onInput={(e) => setFormData((p) => ({ ...p, damage: e.currentTarget.value }))} placeholder="e.g. 1d8+3 fire" />
         </div>
         <div>
           <Label for="attack-save">Attack/Save</Label>
-          <Input id="attack-save" value={formData().attackSave || ""} onInput={(e) => setFormData((p) => ({ ...p, attackSave: e.currentTarget.value }))} placeholder="e.g. Dex Save" />
+          <Input id="attack-save" data-test="spell-attack-save" value={formData().attackSave || ""} onInput={(e) => setFormData((p) => ({ ...p, attackSave: e.currentTarget.value }))} placeholder="e.g. Dex Save" />
         </div>
         <div>
           <Label for="at-higher-level">At Higher Level</Label>
-          <Input id="at-higher-level" value={formData().atHigherLevel || ""} onInput={(e) => setFormData((p) => ({ ...p, atHigherLevel: e.currentTarget.value }))} placeholder="e.g. +1d6 per level" />
+          <Input id="at-higher-level" data-test="spell-at-higher-level" value={formData().atHigherLevel || ""} onInput={(e) => setFormData((p) => ({ ...p, atHigherLevel: e.currentTarget.value }))} placeholder="e.g. +1d6 per level" />
         </div>
       </div>
 
@@ -138,7 +141,7 @@ function SpellForm(props: SpellFormProps) {
         <div>
           <Label for="spell-level">Level</Label>
           <Select value={formData().level.toString()} onValueChange={(v: string) => setFormData((p) => ({ ...p, level: parseInt(v) }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger id="spell-level" data-test="spell-level-select"><SelectValue /></SelectTrigger>
             <SelectContent>
               <For each={SPELL_LEVELS}>{(level) => <SelectItem value={level.value.toString()}>{level.label}</SelectItem>}</For>
             </SelectContent>
@@ -146,38 +149,39 @@ function SpellForm(props: SpellFormProps) {
         </div>
         <div>
           <Label for="spell-school">School</Label>
-          <Combobox value={formData().school} onValueChange={(v) => setFormData((p) => ({ ...p, school: v }))} options={SPELL_SCHOOLS} />
+          <Combobox data-test="spell-school-combobox" value={formData().school} onValueChange={(v) => setFormData((p) => ({ ...p, school: v }))} options={SPELL_SCHOOLS} />
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
           <Label for="casting-time">Casting Time</Label>
-          <Combobox value={formData().castingTime} onValueChange={(v) => setFormData((p) => ({ ...p, castingTime: v }))} options={CASTING_TIMES} />
+          <Combobox data-test="spell-casting-time-combobox" value={formData().castingTime} onValueChange={(v) => setFormData((p) => ({ ...p, castingTime: v }))} options={CASTING_TIMES} />
         </div>
         <div>
           <Label for="range">Range</Label>
-          <Input id="range" value={formData().range} onInput={(e) => setFormData((p) => ({ ...p, range: e.currentTarget.value }))} placeholder="Touch" />
+          <Input id="range" data-test="spell-range" value={formData().range} onInput={(e) => setFormData((p) => ({ ...p, range: e.currentTarget.value }))} placeholder="Touch" />
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
           <Label for="components">Components</Label>
-          <Input id="components" value={formData().components} onInput={(e) => setFormData((p) => ({ ...p, components: e.currentTarget.value }))} placeholder="V, S, M" />
+          <Input id="components" data-test="spell-components" value={formData().components} onInput={(e) => setFormData((p) => ({ ...p, components: e.currentTarget.value }))} placeholder="V, S, M" />
         </div>
         <div>
           <Label for="duration">Duration</Label>
-          <Input id="duration" value={formData().duration} onInput={(e) => setFormData((p) => ({ ...p, duration: e.currentTarget.value }))} placeholder="Instantaneous" />
+          <Input id="duration" data-test="spell-duration" value={formData().duration} onInput={(e) => setFormData((p) => ({ ...p, duration: e.currentTarget.value }))} placeholder="Instantaneous" />
         </div>
       </div>
 
       <div>
         <Label for="description">Description</Label>
-        <Textarea id="description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Spell description and effects" rows={4} />
+        <Textarea id="description" data-test="spell-description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Spell description and effects" rows={4} />
       </div>
 
       <Checkbox
+        data-test="spell-known-checkbox"
         checked={formData().known}
         onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
         label="Known"
@@ -187,6 +191,7 @@ function SpellForm(props: SpellFormProps) {
 
       <Show when={formData().level > 0}>
         <Checkbox
+          data-test="spell-prepared-checkbox"
           checked={formData().prepared}
           disabled={!formData().known}
           onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
@@ -198,6 +203,7 @@ function SpellForm(props: SpellFormProps) {
 
       <div class="flex flex-wrap gap-x-6 gap-y-2">
         <Checkbox
+          data-test="spell-concentration-checkbox"
           checked={!!formData().concentration}
           onChange={(checked: boolean) => setFormData((p) => ({ ...p, concentration: checked }))}
           label="Concentration"
@@ -205,6 +211,7 @@ function SpellForm(props: SpellFormProps) {
           containerClass="gap-3 min-h-[44px]"
         />
         <Checkbox
+          data-test="spell-ritual-checkbox"
           checked={!!formData().ritual}
           onChange={(checked: boolean) => setFormData((p) => ({ ...p, ritual: checked }))}
           label="Ritual"
@@ -221,7 +228,7 @@ function SpellForm(props: SpellFormProps) {
               value={formData().grantedBy}
               onValueChange={(id) => setFormData((p) => ({ ...p, grantedBy: id }))}
             >
-              <SelectTrigger id="spell-granted-by">
+              <SelectTrigger id="spell-granted-by" data-test="spell-granted-by-select">
                 <span class="flex-1 text-left">{grantedByName() ?? "Not item-granted"}</span>
               </SelectTrigger>
               <SelectContent>
@@ -234,6 +241,7 @@ function SpellForm(props: SpellFormProps) {
           </div>
           <Show when={formData().grantedBy}>
             <Checkbox
+              data-test="spell-free-cast-checkbox"
               checked={formData().freeCast}
               onChange={(checked: boolean) => setFormData((p) => ({ ...p, freeCast: checked }))}
               label="Free Cast (no slot)"
@@ -245,11 +253,11 @@ function SpellForm(props: SpellFormProps) {
       </Show>
 
       <div class="flex gap-2 pt-4">
-        <Button onClick={() => props.onSubmit(formData())} class="gap-2">
-          <Save class="h-4 w-4" />
+        <Button data-test="spell-form-submit" onClick={() => props.onSubmit(formData())} class="gap-2">
+          <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Spell" : "Add Spell"}
         </Button>
-        <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
+        <Button data-test="spell-form-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
       </div>
     </div>
   )
@@ -261,7 +269,7 @@ export function SpellsModule(props: SpellsModuleProps) {
   const [isAddModalOpen, setIsAddModalOpen] = createSignal(false)
   const [editingSpell, setEditingSpell] = createSignal<Spell | null>(null)
   const [expandedLevels, setExpandedLevels] = createPersistedSetSignal<number>(
-    `dnd-collapsible-spells-${props.character.id}`,
+    () => `dnd-collapsible-spells-${props.character.id}`,
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
   )
   const [isSpellSlotsModalOpen, setIsSpellSlotsModalOpen] = createSignal(false)
@@ -443,12 +451,12 @@ export function SpellsModule(props: SpellsModuleProps) {
       <CardHeader>
         <CardTitle class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <Sparkles class="h-5 w-5 text-primary" />
+            <Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />
             Spells
           </div>
           <Show when={!isReadOnly}>
-            <Button size="sm" class="gap-2" onClick={() => setIsAddModalOpen(true)}>
-              <Plus class="h-4 w-4" />
+            <Button data-test="add-spell-button" size="sm" class="gap-2" onClick={() => setIsAddModalOpen(true)}>
+              <Plus class="h-4 w-4" aria-hidden="true" />
               Add Spell
             </Button>
           </Show>
@@ -465,6 +473,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                   fallback={<span class="text-sm">{props.character.spellcastingClass || ""}</span>}
                 >
                   <Input
+                    data-test="spellcasting-class-input"
                     class="h-7 w-40 text-sm"
                     value={props.character.spellcastingClass || ""}
                     onInput={(e) => {
@@ -479,14 +488,14 @@ export function SpellsModule(props: SpellsModuleProps) {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
               <div class="text-center">
                 <div class="flex items-center justify-center gap-1 mb-1">
-                  <Target class="h-4 w-4 text-primary" />
+                  <Target class="h-4 w-4 text-primary" aria-hidden="true" />
                   <span class="text-sm font-medium">Spell Save DC</span>
                 </div>
                 <div class="text-2xl font-bold text-primary">{spellSaveDC()}</div>
               </div>
               <div class="text-center">
                 <div class="flex items-center justify-center gap-1 mb-1">
-                  <Zap class="h-4 w-4 text-primary" />
+                  <Zap class="h-4 w-4 text-primary" aria-hidden="true" />
                   <span class="text-sm font-medium">Spell Attack</span>
                 </div>
                 <div class="text-2xl font-bold text-primary">{formatModifier(spellAttackBonus())}</div>
@@ -503,12 +512,12 @@ export function SpellsModule(props: SpellsModuleProps) {
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold flex items-center gap-2">
-              <Circle class="h-5 w-5 text-primary" />
+              <Circle class="h-5 w-5 text-primary" aria-hidden="true" />
               Spell Slots
             </h2>
             <Show when={!isReadOnly}>
-              <Button variant="outline" size="sm" class="gap-1" onClick={() => setIsSpellSlotsModalOpen(true)}>
-                <Settings class="h-3 w-3" />
+              <Button data-test="edit-spell-slots-button" variant="outline" size="sm" class="gap-1" onClick={() => setIsSpellSlotsModalOpen(true)}>
+                <Settings class="h-3 w-3" aria-hidden="true" />
                 Edit Slots
               </Button>
             </Show>
@@ -527,8 +536,9 @@ export function SpellsModule(props: SpellsModuleProps) {
         </div>
 
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
+            data-test="spell-search-input"
             placeholder="Search spells..."
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
@@ -551,17 +561,19 @@ export function SpellsModule(props: SpellsModuleProps) {
                       open={expandedLevels().has(level.value)}
                       onOpenChange={(isOpen: boolean) => toggleLevelExpanded(level.value, isOpen)}
                     >
-                      <CollapsibleTrigger class="flex w-full items-center justify-between p-3 rounded-md hover:bg-accent transition-colors">
+                      <CollapsibleTrigger data-test={`spell-level-${level.value}-toggle`} class={cn("flex w-full items-center justify-between p-3 rounded-md transition-colors", HOVER_ACCENT)}>
                         <div class="flex items-center gap-2">
                           <span class="font-semibold">{level.label}</span>
-                          <Badge variant="secondary">{levelSpells().length}</Badge>
+                          <Chip variant="secondary">{levelSpells().length}</Chip>
                           <Show when={level.value > 0}>
-                            <Badge variant="outline" class="text-xs">
+                            {/* An outline chip has no background of its own, so its text follows the
+                                header's colour and stays readable on the hover highlight. */}
+                            <Chip variant="outline" class="text-xs text-inherit">
                               {levelSpells().filter((s) => s.prepared).length} prepared
-                            </Badge>
+                            </Chip>
                           </Show>
                         </div>
-                        <ChevronDown class="h-4 w-4" />
+                        <ChevronDown class="h-4 w-4" aria-hidden="true" />
                       </CollapsibleTrigger>
                       <CollapsibleContent class="space-y-2 mt-2">
                         <Show
@@ -574,56 +586,62 @@ export function SpellsModule(props: SpellsModuleProps) {
                                 <div class="flex items-start justify-between">
                                   <div class="flex-1">
                                     <div class="flex items-center gap-2 mb-1">
-                                      <Show when={!isReadOnly}>
+                                      {/* The spell name is the checkbox's label (wrapped in the card's heading), so
+                                          clicking it toggles Known (cantrips) or Prepared (leveled spells). */}
+                                      <Show when={!isReadOnly} fallback={<h3 data-test={`spell-name-${spell.id}`} class="font-medium">{spell.name}</h3>}>
                                         <Show when={spell.level === 0}>
                                           <Tooltip content="Known">
                                             <Checkbox
+                                              data-test={`spell-known-${spell.id}`}
                                               checked={spell.known ?? true}
                                               onChange={() => toggleKnown(spell.id)}
                                               aria-label={`Known: ${spell.name}`}
+                                              flush
+                                              label={spell.name}
+                                              labelHeading="h3"
+                                              labelTestId={`spell-name-${spell.id}`}
+                                              labelClass="font-medium cursor-pointer select-none"
                                             />
                                           </Tooltip>
                                         </Show>
                                         <Show when={spell.level > 0}>
                                           <Tooltip content="Prepared">
                                             <Checkbox
+                                              data-test={`spell-prepared-${spell.id}`}
                                               checked={spell.prepared || false}
                                               disabled={!(spell.known ?? true)}
                                               onChange={() => togglePrepared(spell.id)}
                                               aria-label={`Prepared: ${spell.name}`}
+                                              flush
+                                              label={spell.name}
+                                              labelHeading="h3"
+                                              labelTestId={`spell-name-${spell.id}`}
+                                              labelClass="font-medium cursor-pointer select-none data-[disabled]:cursor-default"
                                             />
                                           </Tooltip>
                                         </Show>
                                       </Show>
-                                      <h3
-                                        class={`font-medium ${isReadOnly ? "" : "cursor-pointer"}`}
-                                        onClick={() => {
-                                          if (isReadOnly) return
-                                          if (spell.level === 0) toggleKnown(spell.id)
-                                          else if (!(spell.known ?? true)) return
-                                          else togglePrepared(spell.id)
-                                        }}
-                                      >
-                                        {spell.name}
-                                      </h3>
-                                      <Badge variant="outline" class="text-xs">{spell.school}</Badge>
-                                      <Badge variant="outline" class="text-xs">Level: {spell.level}</Badge>
+                                      <Chip variant="outline" class="text-xs">{spell.school}</Chip>
+                                      <Chip variant="outline" class="text-xs">Level: {spell.level}</Chip>
                                       <Show when={spell.ritual}>
-                                        <Badge variant="secondary" class="text-xs" title="Ritual">R</Badge>
+                                        <Tooltip content="Ritual" triggerFocusable>
+                                          <Chip data-test={`spell-ritual-${spell.id}`} variant="secondary" class="text-xs">R</Chip>
+                                        </Tooltip>
                                       </Show>
                                       <Show when={magicItemById(spell.grantedBy)}>
                                         {(item) => (
-                                          <Badge
-                                            variant="outline"
-                                            class={`text-xs ${isItemModifierActive(item()) ? "" : "text-muted-foreground italic"}`}
-                                            title={isItemModifierActive(item()) ? undefined : "Item not currently equipped/attuned"}
+                                          <Show
+                                            when={!isItemModifierActive(item())}
+                                            fallback={<Chip variant="outline" class="text-xs">Granted: {item().name}</Chip>}
                                           >
-                                            Granted: {item().name}
-                                          </Badge>
+                                            <Tooltip content="Item not currently equipped/attuned" triggerFocusable>
+                                              <Chip data-test={`spell-granted-inactive-${spell.id}`} variant="outline" class="text-xs text-muted-foreground italic">Granted: {item().name}</Chip>
+                                            </Tooltip>
+                                          </Show>
                                         )}
                                       </Show>
                                       <Show when={spell.grantedBy && spell.freeCast}>
-                                        <Badge variant="secondary" class="text-xs">Free Cast</Badge>
+                                        <Chip variant="secondary" class="text-xs">Free Cast</Chip>
                                       </Show>
 
                                     </div>
@@ -648,14 +666,14 @@ export function SpellsModule(props: SpellsModuleProps) {
                                   <Show when={!isReadOnly}>
                                     <div class="flex items-center gap-2 ml-4">
                                       <Tooltip content="Edit spell">
-                                        <Button variant="ghost" size="sm" aria-label="Edit spell" onClick={() => setEditingSpell(spell)}>
-                                          <Edit class="h-4 w-4" />
+                                        <Button data-test={`edit-spell-${spell.id}`} variant="ghost" size="sm" aria-label="Edit spell" onClick={() => setEditingSpell(spell)}>
+                                          <Edit class="h-4 w-4" aria-hidden="true" />
                                         </Button>
                                       </Tooltip>
                                       <Tooltip content="Delete spell">
-                                        <Button variant="ghost" size="sm" aria-label="Delete spell" onClick={() => handleDeleteSpell(spell.id)}>
-                                          <Trash2 class="h-4 w-4" />
-                                        </Button>
+                                        <ConfirmButton data-test={`delete-spell-${spell.id}`} variant="ghost" size="sm" verb="Delete" subject="spell" onConfirm={() => handleDeleteSpell(spell.id)}>
+                                          <Trash2 class="h-4 w-4" aria-hidden="true" />
+                                        </ConfirmButton>
                                       </Tooltip>
                                     </div>
                                   </Show>
@@ -715,12 +733,12 @@ export function SpellsModule(props: SpellsModuleProps) {
                     <div class="flex items-center justify-between p-3 border rounded-lg">
                       <span class="font-medium">Level {level}</span>
                       <div class="flex items-center gap-2">
-                        <NumericInput
+                        <StepperInput
+                          data-test={`spell-slot-level-${level}-total`}
                           min={0} max={20}
                           value={slots().total}
                           onChange={(v) => updateSpellSlots(level, "total", v)}
-                          class="w-16 h-8 text-center"
-                          title="Total slots"
+                          aria-label={`Level ${level} total slots`}
                         />
                         <span class="text-sm text-muted-foreground">slots</span>
                       </div>

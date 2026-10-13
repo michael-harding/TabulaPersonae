@@ -1,28 +1,16 @@
-import { defineConfig, type Plugin } from 'vite'
-import solid from 'vite-plugin-solid'
-import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
-// Strips data-test and data-sem attributes from JSX source in production builds.
-// These attributes are used as stable test selectors and semantic labels in dev/test;
-// they must not ship to production per §6.8–9 of the Constitution.
-function stripDataAttributes(): Plugin {
-  return {
-    name: 'strip-data-attributes',
-    enforce: 'pre',
-    transform(code, id) {
-      if (!id.endsWith('.tsx') && !id.endsWith('.jsx')) return null
-      return code
-        .replace(/\s+data-test="[^"]*"/g, '')
-        .replace(/\s+data-sem="[^"]*"/g, '')
-    },
-  }
-}
+import { defineConfig } from 'vite'
+import solid from 'vite-plugin-solid'
+import { VitePWA } from 'vite-plugin-pwa'
+
+import { stripDataAttributesBabelPlugin } from './vite-plugins/strip-data-attributes'
 
 export default defineConfig(({ mode }) => ({
   plugins: [
-    ...(mode === 'production' ? [stripDataAttributes()] : []),
-    solid(),
+    solid({
+      babel: { plugins: mode === 'production' ? [stripDataAttributesBabelPlugin] : [] },
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {

@@ -1,16 +1,18 @@
 import { createSignal, Show, For } from "solid-js"
+import Pencil from "lucide-solid/icons/pencil"
+import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
+import CircleHelp from "lucide-solid/icons/circle-help"
+
 import { useReadOnly } from "@/lib/read-only-context"
-import { Badge } from "@/components/ui/badge"
+import { Chip } from "@/components/ui/chip"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
-import { Popover } from "@kobalte/core/popover"
+import { Popover, PopoverTrigger, PopoverContent, PopoverArrow } from "@/components/ui/popover"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import Pencil from "lucide-solid/icons/pencil"
-import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
-import CircleHelp from "lucide-solid/icons/circle-help"
+import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
+import { cn, TOUCH_TARGET } from "@/lib/utils"
 
 function getOrdinalSuffix(num: number): string {
   const suffixes = ["th", "st", "nd", "rd"]
@@ -78,13 +80,13 @@ export function ActionCard(props: ActionCardProps) {
   const [concentrationActive, setConcentrationActive] = createSignal(false)
 
   const spellLevelLabel = () => {
-    if (props.spellLevel === undefined) return null
+    if (props.spellLevel == null) return null
     return props.spellLevel === 0 ? "Cantrip" : getOrdinalSuffix(props.spellLevel)
   }
 
   const spellSubtitle = () => {
     const level = spellLevelLabel()
-    if (level === null) return null
+    if (level == null) return null
     const levelText = props.spellLevel === 0 ? level : `${level} level`
     return props.spellSchool ? `${levelText} • ${props.spellSchool}` : levelText
   }
@@ -105,15 +107,15 @@ export function ActionCard(props: ActionCardProps) {
   }
 
   const hasAnyStats = () =>
-    props.trigger !== undefined ||
-    props.attackBonus !== undefined ||
-    props.range !== undefined ||
-    props.attackSave !== undefined ||
-    props.components !== undefined ||
-    props.atHigherLevel !== undefined ||
-    pill() !== null ||
+    props.trigger != null ||
+    props.attackBonus != null ||
+    props.range != null ||
+    props.attackSave != null ||
+    props.components != null ||
+    props.atHigherLevel != null ||
+    pill() != null ||
     !!props.concentration ||
-    durationLabel() !== null
+    durationLabel() != null
 
   const hasCastButtons = () => !!props.onCast
   const hasUsesTracker = () => (props.maxUses ?? 0) > 0 && !hasCastButtons()
@@ -127,15 +129,15 @@ export function ActionCard(props: ActionCardProps) {
           <div class="font-medium flex items-center gap-1">
             {props.name}
             <Popover gutter={8}>
-              <Popover.Trigger
+              <PopoverTrigger
                 class="inline-flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={`Details for ${props.name}`}
+                data-test={`action-details-trigger-${props.name}`}
               >
-                <CircleHelp class="w-4 h-4" />
-              </Popover.Trigger>
-              <Popover.Portal>
-                <Popover.Content class="z-50 w-72 rounded-lg border bg-popover p-4 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95">
-                  <Popover.Arrow />
+                <CircleHelp class="w-4 h-4" aria-hidden="true" />
+              </PopoverTrigger>
+              <PopoverContent>
+                  <PopoverArrow />
                   <div class="space-y-2">
                     <div class="font-semibold text-sm">{props.name}</div>
                     <Show when={spellSubtitle()}>
@@ -161,7 +163,7 @@ export function ActionCard(props: ActionCardProps) {
                       <Show when={props.attackSave}>
                         <div><span class="font-medium">Attack/Save:</span> {props.attackSave}</div>
                       </Show>
-                      <Show when={props.attackBonus !== undefined}>
+                      <Show when={props.attackBonus != null}>
                         <div><span class="font-medium">Attack Bonus:</span> {formatModifier(props.attackBonus!)}</div>
                       </Show>
                       <Show when={props.damage}>
@@ -194,8 +196,7 @@ export function ActionCard(props: ActionCardProps) {
                       </div>
                     </Show>
                   </div>
-                </Popover.Content>
-              </Popover.Portal>
+              </PopoverContent>
             </Popover>
           </div>
           <Show when={spellSubtitle()}>
@@ -204,16 +205,17 @@ export function ActionCard(props: ActionCardProps) {
         </div>
 
         <div class="flex items-center gap-1 shrink-0">
-          <Badge variant="secondary" class="text-xs">{badgeText()}</Badge>
+          <Chip variant="secondary" class="text-xs">{badgeText()}</Chip>
           <Show when={props.onEdit && !isReadOnly}>
             <Tooltip content={`Edit ${props.name}`}>
               <button
                 type="button"
-                class="text-muted-foreground hover:text-foreground transition-colors"
+                class={cn(TOUCH_TARGET, "text-muted-foreground hover:text-foreground transition-colors")}
                 aria-label={`Edit ${props.name}`}
-                onClick={props.onEdit}
+                data-test={`action-edit-button-${props.name}`}
+                onClick={() => props.onEdit?.()}
               >
-                <Pencil class="h-4 w-4" />
+                <Pencil class="h-4 w-4" aria-hidden="true" />
               </button>
             </Tooltip>
           </Show>
@@ -228,7 +230,7 @@ export function ActionCard(props: ActionCardProps) {
             <Show when={props.trigger}>
               <div><strong>Trigger:</strong> {props.trigger}</div>
             </Show>
-            <Show when={props.attackBonus !== undefined}>
+            <Show when={props.attackBonus != null}>
               <div><strong>Attack:</strong> {formatModifier(props.attackBonus!)} to hit</div>
             </Show>
             <Show when={props.range}>
@@ -246,18 +248,19 @@ export function ActionCard(props: ActionCardProps) {
           </div>
           <div class="flex flex-col items-end gap-1 shrink-0">
             <Show when={props.concentration}>
-              <Badge
+              <Chip
                 variant={concentrationActive() ? "default" : "outline"}
                 class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground border-muted-foreground/40"}${!isReadOnly ? " cursor-pointer" : ""}`}
+                data-test={`concentration-badge-${props.name}-${concentrationActive() ? "active" : "inactive"}`}
                 onClick={isReadOnly ? undefined : () => setConcentrationActive(v => !v)}
               >
                 Concentration
-              </Badge>
+              </Chip>
             </Show>
             <Show when={durationLabel()}>
-              <Badge variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">
+              <Chip variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">
                 {durationLabel()}
-              </Badge>
+              </Chip>
             </Show>
             <Show when={pill()}>
               {(p) => {
@@ -267,7 +270,10 @@ export function ActionCard(props: ActionCardProps) {
                   ? "border-blue-500 text-blue-700 dark:text-blue-400"
                   : "border-red-500 text-red-700 dark:text-red-400"
                 return (
-                  <div class={`px-2 py-1 border-2 rounded font-semibold whitespace-nowrap text-sm ${colorClass}`}>
+                  <div
+                    class={`px-2 py-1 border-2 rounded font-semibold whitespace-nowrap text-sm ${colorClass}`}
+                    data-test={`effect-pill-${props.name}-${p().color}`}
+                  >
                     {p().text}
                   </div>
                 )
@@ -290,12 +296,13 @@ export function ActionCard(props: ActionCardProps) {
               when={(props.maxUses ?? 0) <= 5}
               fallback={
                 // value/onChange are inverted: display shows remaining uses, storage tracks used count
-                <StepperInput
+                <StepperInput data-test={`action-uses-stepper-${props.name}`}
                   value={remainingUses(props.uses, props.maxUses)}
                   min={0}
                   max={props.maxUses}
                   onChange={(v) => props.onUsesChange!(spentFromRemaining(v, props.maxUses))}
                   readOnly={isReadOnly}
+                  aria-label={`${props.name} uses remaining`}
                 />
               }
             >
@@ -319,6 +326,7 @@ export function ActionCard(props: ActionCardProps) {
                         variant="secondary"
                         size="sm"
                         class="h-11 min-w-[44px] px-2 text-xs"
+                        data-test={`action-upcast-level-${props.name}-${level}`}
                         onClick={() => props.onCastAtLevel?.(level)}
                       >
                         {getOrdinalSuffix(level)}
@@ -331,6 +339,7 @@ export function ActionCard(props: ActionCardProps) {
                 variant="outline"
                 size="sm"
                 class="h-11 px-4"
+                data-test={`action-cast-button-${props.name}`}
                 disabled={!props.castable?.()}
                 onClick={props.onCast}
               >
@@ -342,12 +351,13 @@ export function ActionCard(props: ActionCardProps) {
                   size="sm"
                   class="h-11 w-11 p-0"
                   aria-label="Upcast"
+                  data-test={`action-upcast-toggle-${props.name}`}
                   disabled={!props.upcastLevels?.().length}
                   onClick={() => props.onUpcastSpellId?.(
                     props.upcastSpellId?.() === props.spellId ? null : (props.spellId ?? null)
                   )}
                 >
-                  <ArrowBigUp class="h-4 w-4" />
+                  <ArrowBigUp class="h-4 w-4" aria-hidden="true" />
                 </Button>
               </Show>
             </div>

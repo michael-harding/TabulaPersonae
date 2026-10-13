@@ -18,16 +18,7 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value)
 }
 
-/**
- * getSpellSaveDC/getSpellAttackBonus dispatch to their Character overload via
- * `"spellcastingAbility" in x`. A hand-edited/partial import missing that key
- * would otherwise silently fall into the wrong overload branch.
- */
-function withSpellcastingAbilityKey(character: Character): Character {
-  return { ...character, spellcastingAbility: character.spellcastingAbility ?? "" }
-}
-
-function reconcileAbilityScoreOverrides(character: any): any {
+function reconcileAbilityScoreOverrides(character: Character): Character {
   const overrides = character.abilityScoreOverrides
   if (!overrides || typeof overrides !== "object") return character
 
@@ -98,15 +89,15 @@ const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
   },
   { valueKey: "attunementLimit", toggleKey: "useCalculatedAttunementLimit", compute: () => BASE_ATTUNEMENT_LIMIT, defaultCalculated: true },
   { valueKey: "carryingCapacity", toggleKey: "useCalculatedCarryingCapacity", compute: (c) => getEffectiveCarryingCapacity(c), defaultCalculated: true },
-  { valueKey: "spellSaveDC", toggleKey: "useCalculatedSpellSaveDC", compute: (c) => getSpellSaveDC(withSpellcastingAbilityKey(c)), defaultCalculated: true },
-  { valueKey: "spellAttackBonus", toggleKey: "useCalculatedSpellAttackBonus", compute: (c) => getSpellAttackBonus(withSpellcastingAbilityKey(c)), defaultCalculated: true },
+  { valueKey: "spellSaveDC", toggleKey: "useCalculatedSpellSaveDC", compute: (c) => getSpellSaveDC(c), defaultCalculated: true },
+  { valueKey: "spellAttackBonus", toggleKey: "useCalculatedSpellAttackBonus", compute: (c) => getSpellAttackBonus(c), defaultCalculated: true },
   { valueKey: "spellModifier", toggleKey: "useCalculatedSpellModifier", compute: (c) => computeSpellModifier(c), defaultCalculated: true },
 ]
 
-function reconcileScalarField(character: any, spec: ScalarFieldSpec): any {
+function reconcileScalarField(character: Character, spec: ScalarFieldSpec): Character {
   const value = character[spec.valueKey]
   if (!isFiniteNumber(value)) return character
-  const calculated = spec.compute(character as Character)
+  const calculated = spec.compute(character)
   return { ...character, [spec.toggleKey]: value === calculated }
 }
 
@@ -141,21 +132,23 @@ export function freshenCalculatedFields(character: Character): Character {
  * or custom by comparing the imported value against what the app would
  * currently calculate. Runs once, at import time only — never on normal load,
  * so it can't fight a user's later deliberate toggle changes.
+ *
+ * Takes a `Character`, not raw file contents: every import path runs migrateCharacter first
+ * (see header-menu.tsx), which is where untyped data becomes a `Character`.
  */
-export function reconcileImportedCharacter(raw: any): Character {
-  if (!raw || typeof raw !== "object") return raw as Character
+export function reconcileImportedCharacter(imported: Character): Character {
   try {
-    let character: any = reconcileAbilityScoreOverrides({ ...raw })
+    let character = reconcileAbilityScoreOverrides(imported)
     for (const spec of SCALAR_FIELD_SPECS) {
       character = reconcileScalarField(character, spec)
     }
-    return character as Character
+    return character
   } catch (error) {
     console.error("Failed to reconcile calculated fields on imported character:", error)
-    return raw as Character
+    return imported
   }
 }
 
-export function reconcileImportedCharacters(raw: unknown): Character[] {
-  return Array.isArray(raw) ? raw.map(reconcileImportedCharacter) : []
+export function reconcileImportedCharacters(imported: Character[]): Character[] {
+  return imported.map(reconcileImportedCharacter)
 }

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For, Show } from "solid-js"
+import { createSignal, createEffect, untrack, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import {
   DragDropProvider,
@@ -9,13 +9,6 @@ import {
   maybeTransformStyle,
 } from "@thisbeyond/solid-dnd"
 import type { DragEvent } from "@thisbeyond/solid-dnd"
-import { useTabConfig } from "@/lib/tab-config-context"
-import { MODULE_REGISTRY, ALL_MODULE_IDS } from "@/lib/module-registry"
-import type { TabConfig, ModuleId } from "@/lib/tab-config-types"
-import { cn } from "@/lib/utils"
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import ChevronLeft from "lucide-solid/icons/chevron-left"
 import GripVertical from "lucide-solid/icons/grip-vertical"
@@ -23,6 +16,16 @@ import Pencil from "lucide-solid/icons/pencil"
 import Plus from "lucide-solid/icons/plus"
 import Trash2 from "lucide-solid/icons/trash-2"
 import X from "lucide-solid/icons/x"
+
+import { useTabConfig } from "@/lib/tab-config-context"
+import { MODULE_REGISTRY, ALL_MODULE_IDS } from "@/lib/module-registry"
+import type { TabConfig, ModuleId } from "@/lib/tab-config-types"
+import { cn, HOVER_ACCENT, TOUCH_TARGET_BOX } from "@/lib/utils"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Button } from "@/components/ui/button"
+import { ConfirmButton } from "@/components/ui/confirm-button"
+import { ChipButton } from "@/components/ui/chip-button"
+import { Input } from "@/components/ui/input"
 
 // Tell TypeScript about the `use:sortable` directive
 declare module "solid-js" {
@@ -42,35 +45,38 @@ interface SortableModuleRowProps {
 }
 
 function SortableModuleRow(props: SortableModuleRowProps) {
-  // eslint-disable-next-line solid/reactivity
-  const sortable = createSortable(props.moduleId)
+  const sortable = createSortable(untrack(() => props.moduleId))
   return (
     <div
       ref={sortable.ref}
       style={maybeTransformStyle(sortable.transform)}
       class={cn(
-        "flex items-center gap-2 py-1.5 px-2 rounded transition-colors",
-        sortable.isActiveDraggable ? "opacity-25" : "hover:bg-accent",
+        "flex items-center gap-2 rounded transition-colors",
+        sortable.isActiveDraggable ? "opacity-25" : HOVER_ACCENT,
       )}
+      data-sem="draggable-module"
     >
       <button
         type="button"
-        class="cursor-grab touch-none text-muted-foreground"
+        class={cn(TOUCH_TARGET_BOX, "cursor-grab touch-none text-muted-foreground")}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {...(sortable.dragActivators as any)}
         aria-label="Drag to reorder"
+        data-test={`module-drag-handle-${props.moduleId}`}
       >
-        <GripVertical class="h-4 w-4" />
+        <GripVertical class="h-4 w-4" aria-hidden="true" />
       </button>
       <span class="flex-1 text-sm">{MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}</span>
-      <button
-        type="button"
-        onClick={props.onRemove}
-        class="text-muted-foreground hover:text-destructive transition-colors"
-        aria-label={`Remove ${MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}`}
+      <ConfirmButton
+        data-test={`remove-module-${props.moduleId}`}
+        verb="Remove"
+        subject={MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}
+        variant="ghostDestructive"
+        size="bareIcon"
+        onConfirm={props.onRemove}
       >
-        <X class="h-4 w-4" />
-      </button>
+        <X class="h-4 w-4" aria-hidden="true" />
+      </ConfirmButton>
     </div>
   )
 }
@@ -90,8 +96,7 @@ interface SortableTabRowProps {
 }
 
 function SortableTabRow(props: SortableTabRowProps) {
-  // eslint-disable-next-line solid/reactivity
-  const sortable = createSortable(props.tab.id)
+  const sortable = createSortable(untrack(() => props.tab.id))
   const [renaming, setRenaming] = createSignal(false)
   const [renameValue, setRenameValue] = createSignal("")
   createEffect(() => {
@@ -123,16 +128,17 @@ function SortableTabRow(props: SortableTabRowProps) {
       class={cn("border rounded-md bg-card transition-opacity", sortable.isActiveDraggable && "opacity-25")}
     >
       <Collapsible open={props.expanded} onOpenChange={props.onToggle}>
-        <div class="flex items-center gap-2 p-3">
+        <div class="flex items-center gap-2 px-3 py-1">
           {/* Drag handle for tab reordering */}
           <button
             type="button"
-            class="cursor-grab touch-none text-muted-foreground shrink-0"
+            class={cn(TOUCH_TARGET_BOX, "cursor-grab touch-none text-muted-foreground")}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {...(sortable.dragActivators as any)}
             aria-label="Drag to reorder tab"
+            data-test={`tab-drag-handle-${props.tab.id}`}
           >
-            <GripVertical class="h-4 w-4" />
+            <GripVertical class="h-4 w-4" aria-hidden="true" />
           </button>
 
           {/* Tab label or rename form */}
@@ -151,14 +157,16 @@ function SortableTabRow(props: SortableTabRowProps) {
                 onInput={(e) => setRenameValue(e.currentTarget.value)}
                 autofocus
                 class="h-7 text-sm"
+                data-test={`tab-rename-input-${props.tab.id}`}
               />
-              <Button type="submit" size="sm" class="h-7">Save</Button>
+              <Button type="submit" size="sm" class="h-7" data-test={`tab-rename-save-${props.tab.id}`}>Save</Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 class="h-7"
                 onClick={() => { setRenaming(false); setRenameValue(props.tab.label) }}
+                data-test={`tab-rename-cancel-${props.tab.id}`}
               >
                 Cancel
               </Button>
@@ -167,40 +175,51 @@ function SortableTabRow(props: SortableTabRowProps) {
 
           {/* Action buttons — hidden while renaming */}
           <Show when={!renaming()}>
-            <button
-              type="button"
-              onClick={() => { setRenameValue(props.tab.label); setRenaming(true) }}
-              class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              aria-label="Rename tab"
-            >
-              <Pencil class="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={props.onDelete}
-              disabled={props.disableDelete}
-              class="text-muted-foreground hover:text-destructive transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
-              aria-label="Delete tab"
-            >
-              <Trash2 class="h-4 w-4" />
-            </button>
-            <CollapsibleTrigger class="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-              <ChevronDown
-                class={cn("h-4 w-4 transition-transform duration-200", props.expanded && "rotate-180")}
-              />
-            </CollapsibleTrigger>
+            <div class="flex items-center shrink-0">
+              <button
+                type="button"
+                onClick={() => { setRenameValue(props.tab.label); setRenaming(true) }}
+                class={cn(TOUCH_TARGET_BOX, "text-muted-foreground hover:text-foreground transition-colors")}
+                aria-label="Rename tab"
+                data-test={`tab-rename-${props.tab.id}`}
+              >
+                <Pencil class="h-4 w-4" aria-hidden="true" />
+              </button>
+              <ConfirmButton
+                data-test={`tab-delete-${props.tab.id}`}
+                verb="Delete"
+                subject="tab"
+                variant="ghostDestructive"
+                size="bareIcon"
+                onConfirm={props.onDelete}
+                disabled={props.disableDelete}
+                class="disabled:pointer-events-auto disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
+              >
+                <Trash2 class="h-4 w-4" aria-hidden="true" />
+              </ConfirmButton>
+              <CollapsibleTrigger
+                class={cn(TOUCH_TARGET_BOX, "text-muted-foreground hover:text-foreground transition-colors")}
+                data-test={`tab-toggle-${props.tab.id}`}
+                aria-label={props.expanded ? "Collapse tab" : "Expand tab"}
+              >
+                <ChevronDown
+                  class={cn("h-4 w-4 transition-transform duration-200", props.expanded && "rotate-180")}
+                  aria-hidden="true"
+                />
+              </CollapsibleTrigger>
+            </div>
           </Show>
         </div>
 
         <CollapsibleContent>
           <div class="px-4 pb-4 space-y-4 border-t pt-3">
             {/* Module list */}
-            <div class="space-y-1">
+            <div>
               <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Modules</p>
               <Show
                 when={props.tab.modules.length > 0}
                 fallback={
-                  <p class="text-sm text-muted-foreground py-2">No modules added yet.</p>
+                  <p class="mt-1 text-sm text-muted-foreground py-2">No modules added yet.</p>
                 }
               >
                 <DragDropProvider onDragEnd={onModuleDragEnd} collisionDetector={closestCenter}>
@@ -223,17 +242,17 @@ function SortableTabRow(props: SortableTabRowProps) {
             <Show when={availableModules().length > 0}>
               <div class="space-y-2">
                 <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Add Module</p>
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-wrap gap-x-2">
                   <For each={availableModules()}>
                     {(moduleId) => (
-                      <button
-                        type="button"
+                      <ChipButton
+                        data-test={`add-module-${props.tab.id}-${moduleId}`}
+                        action="add"
+                        variant="outline"
                         onClick={() => props.onAddModule(moduleId)}
-                        class="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-accent transition-colors"
                       >
-                        <Plus class="h-3 w-3" />
                         {MODULE_REGISTRY[moduleId].label}
-                      </button>
+                      </ChipButton>
                     )}
                   </For>
                 </div>
@@ -322,20 +341,23 @@ export default function TabSettings() {
   const toggleExpanded = (tabId: string, open: boolean) => {
     setExpandedTabs((prev) => {
       const next = new Set(prev)
-      open ? next.add(tabId) : next.delete(tabId)
+      if (open) next.add(tabId)
+      else next.delete(tabId)
       return next
     })
   }
 
   return (
-    <div class="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div data-sem="tab-settings-route" class="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div>
         <button
           type="button"
           onClick={() => navigate(-1)}
-          class="flex items-center gap-1 text-sm text-primary hover:underline"
+          // 44px tall; the negative margin offsets the padding so "‹ Back" stays where it was.
+          class="-mx-2 -my-3 flex min-h-11 items-center gap-1 px-2 text-sm text-primary hover:underline"
+          data-test="back-button"
         >
-          <ChevronLeft class="h-4 w-4" />
+          <ChevronLeft class="h-4 w-4" aria-hidden="true" />
           Back
         </button>
       </div>
@@ -375,8 +397,8 @@ export default function TabSettings() {
       <Show
         when={addingTab()}
         fallback={
-          <Button variant="outline" onClick={() => setAddingTab(true)}>
-            <Plus class="h-4 w-4 mr-2" />
+          <Button variant="outline" onClick={() => setAddingTab(true)} data-test="add-tab-button">
+            <Plus class="h-4 w-4 mr-2" aria-hidden="true" />
             Add Tab
           </Button>
         }
@@ -390,12 +412,14 @@ export default function TabSettings() {
             value={newTabLabel()}
             onInput={(e) => setNewTabLabel(e.currentTarget.value)}
             autofocus
+            data-test="new-tab-name-input"
           />
-          <Button type="submit">Add</Button>
+          <Button type="submit" data-test="add-tab-submit">Add</Button>
           <Button
             type="button"
             variant="outline"
             onClick={() => { setAddingTab(false); setNewTabLabel("") }}
+            data-test="add-tab-cancel"
           >
             Cancel
           </Button>

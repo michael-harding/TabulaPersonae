@@ -1,8 +1,20 @@
 import "@testing-library/jest-dom"
+import { configure } from "@testing-library/dom"
 import { vi } from "vitest"
+import type { ParentProps } from "solid-js"
 
-// Mock Firebase to prevent initialization errors
-vi.mock("@/lib/firebase", () => ({ auth: {}, db: {} }))
+// TESTING.md §6: tests select elements via the `data-test` attribute, not the
+// Testing Library default of `data-testid`. This repoints getByTestId/findByTestId
+// at the attribute this codebase actually uses.
+configure({ testIdAttribute: "data-test" })
+
+// Mock Firebase to prevent initialization errors. vi.fn so a test can make an accessor throw, the
+// way the real ones do when Firebase failed to initialize.
+vi.mock("@/lib/firebase", () => ({
+  getFirebaseAuth: vi.fn(() => ({})),
+  getDb: vi.fn(() => ({})),
+  clearFirestoreCache: vi.fn(() => Promise.resolve()),
+}))
 
 // Mock auth-context with signal-compatible values
 vi.mock("@/lib/auth-context", () => ({
@@ -15,25 +27,15 @@ vi.mock("@/lib/auth-context", () => ({
     logout: () => Promise.resolve(),
     resetPassword: () => Promise.resolve(),
   }),
-  AuthProvider: ({ children }: any) => children,
+  AuthProvider: (props: ParentProps) => <>{props.children}</>,
   AuthContext: {},
 }))
 
-// Stable storage-manager mock shared across tests
-const mockStorageManager = {
-  getCharacters: vi.fn().mockResolvedValue([]),
-  saveCharacter: vi.fn().mockResolvedValue(true),
-  getCharacter: vi.fn().mockResolvedValue(null),
-  deleteCharacter: vi.fn().mockResolvedValue(true),
-  syncToFirebase: vi.fn().mockResolvedValue(true),
-  isAuthenticated: true,
-  storageType: "firebase",
-}
-;(globalThis as any).mockStorageManager = mockStorageManager
-
-vi.mock("@/lib/storage-manager", () => ({
-  useStorageManager: () => () => (globalThis as any).mockStorageManager,
-}))
+// Stable storage-manager mock shared across tests (see mocks/storage-manager.ts)
+vi.mock("@/lib/storage-manager", async () => {
+  const { mockStorageManager } = await import("./mocks/storage-manager")
+  return { useStorageManager: () => () => mockStorageManager }
+})
 
 // Mock tab-config-context so components that call useTabConfig() don't need a real provider.
 // useTabConfig is a vi.fn() so individual tests can call .mockReturnValue() to supply a
@@ -45,19 +47,23 @@ vi.mock("@/lib/tab-config-context", async () => {
       tabConfig: () => DEFAULT_TAB_CONFIG,
       saveTabConfig: vi.fn().mockResolvedValue(undefined),
     })),
-    TabConfigProvider: ({ children }: any) => children,
+    TabConfigProvider: (props: ParentProps) => <>{props.children}</>,
   }
 })
 
-// Mock @solidjs/router for tests
-vi.mock("@solidjs/router", () => ({
-  useNavigate: () => vi.fn(),
-  useParams: () => ({ id: "test-id" }),
-  useSearchParams: () => [{}, vi.fn()],
-  A: ({ href, children }: any) => <a href={href}>{children}</a>,
-  Router: ({ children }: any) => children,
-  Route: () => null,
-}))
+// Mock @solidjs/router for tests. useNavigate returns a stable mock (see mocks/router.ts)
+vi.mock("@solidjs/router", async () => {
+  const { mockNavigate } = await import("./mocks/router")
+  return {
+    useNavigate: () => mockNavigate,
+    useParams: () => ({ id: "test-id" }),
+    useSearchParams: () => [{}, vi.fn()],
+    useLocation: () => ({ pathname: "/", search: "", hash: "", state: null, key: "" }),
+    A: (props: ParentProps<{ href: string }>) => <a href={props.href}>{props.children}</a>,
+    Router: (props: ParentProps) => <>{props.children}</>,
+    Route: () => null,
+  }
+})
 
 // Mock crypto.randomUUID
 Object.defineProperty(globalThis, "crypto", {

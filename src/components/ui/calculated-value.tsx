@@ -1,9 +1,10 @@
 import { Show, type JSX } from "solid-js"
+import Pen from "lucide-solid/icons/pen"
+import PenOff from "lucide-solid/icons/pen-off"
+
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
-import Pen from "lucide-solid/icons/pen"
-import PenOff from "lucide-solid/icons/pen-off"
 
 interface CalculatedValueProps {
   label: string
@@ -21,6 +22,8 @@ interface CalculatedValueProps {
   min?: number
   max?: number
   class?: string
+  /** Page-unique; also prefixes the label/display/toggle ids. */
+  "data-test": string
   /** Affects only the read-only display text size; edit-mode input/toggle are always the same. */
   variant?: "default" | "compact"
 }
@@ -36,9 +39,10 @@ export function CalculatedValue(props: CalculatedValueProps) {
   return (
     <div
       data-sem="calculated-value"
+      data-test={props["data-test"]}
       class={`flex ${left() ? "flex-row items-center" : "flex-col items-center"} gap-1 ${props.class ?? ""}`}
     >
-      <span class={`inline-flex items-center gap-1 ${props.labelClass ?? "text-sm text-muted-foreground"}`}>
+      <span data-test={`${props["data-test"]}-label`} class={`inline-flex items-center gap-1 ${props.labelClass ?? "text-sm text-muted-foreground"}`}>
         <Show when={props.icon}>{props.icon}</Show>
         {props.label}
       </span>
@@ -48,6 +52,7 @@ export function CalculatedValue(props: CalculatedValueProps) {
           fallback={
             <Tooltip content={tooltipContent()} triggerFocusable>
               <div
+                data-test={`${props["data-test"]}-display`}
                 class={
                   compact()
                     ? "text-sm font-semibold text-primary"
@@ -67,13 +72,13 @@ export function CalculatedValue(props: CalculatedValueProps) {
             min={props.min}
             max={props.max}
             aria-label={props.label}
-            class="text-center h-10 px-0 py-0 w-[5ch] min-w-[3ch] max-w-[5ch] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            class="text-center h-11 px-0 py-0 w-[max(5ch,2.75rem)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
         </Show>
         <Show when={props.editable}>
           <Button
             type="button"
-            data-test="calculated-value-toggle"
+            data-test={`${props["data-test"]}-toggle`}
             variant="ghost"
             size="icon"
             class="shrink-0"
