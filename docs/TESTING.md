@@ -1,5 +1,5 @@
 > **Document Authority**: This document is the authoritative testing standard for this repository. It supplements `CONSTITUTION.md` §7; where the two conflict, `CONSTITUTION.md` rules.
-> **Last updated:** 2026-05-28
+> **Last updated:** 2026-10-14
 
 ---
 
@@ -94,7 +94,18 @@ This decouples test selectors from styling and layout decisions: a component can
 
 ---
 
-## 9. Flaky Test Policy
+## 9. Visual Regression Coverage
+
+- Every modal, and every state of a modal whose layout differs (add, edit, each form variant), must have a visual baseline.
+- Every popup rendered above the page — menu, select or combobox list, popover, tooltip — must have a baseline in its open state.
+- Every module with an edit mode must have a baseline in view mode and in edit mode.
+- Shared overlay components must have a baseline in both themes and at phone width (390px).
+- A baseline must capture the state a change would affect: a popup that opens inside a modal is captured open, inside that modal.
+- A new modal, popup, or edit mode is not done until its baseline exists.
+
+---
+
+## 10. Flaky Test Policy
 
 - Flaky tests must be labelled (e.g. a `flaky-test` GitHub label) and have an issue opened with reproduction steps.
 - Flaky tests must be quarantined (skipped with a documented reference to the tracking issue) until the underlying cause is fixed.
@@ -102,14 +113,14 @@ This decouples test selectors from styling and layout decisions: a component can
 
 ---
 
-## 10. Test Skipping Policy
+## 11. Test Skipping Policy
 
 - Skipping any test requires explicit human approval.
 - A skipped test must include a comment referencing the approval (e.g. issue number or PR).
 
 ---
 
-## 11. Definition of Done
+## 12. Definition of Done
 
 **A single test is done when:**
 - TypeScript compilation passes with no errors.
@@ -121,3 +132,4 @@ This decouples test selectors from styling and layout decisions: a component can
 - No tests are skipped without documented human approval.
 - All UI components touched by the suite have at least one integration test.
 - axe checks are present and passing for every rendered UI component and every E2E/visual scenario.
+- Every modal, popup, and edit mode the suite touches has a visual baseline (§9).

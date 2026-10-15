@@ -149,14 +149,14 @@ function SpellForm(props: SpellFormProps) {
         </div>
         <div>
           <Label for="spell-school">School</Label>
-          <Combobox data-test="spell-school-combobox" value={formData().school} onValueChange={(v) => setFormData((p) => ({ ...p, school: v }))} options={SPELL_SCHOOLS} />
+          <Combobox id="spell-school" data-test="spell-school-combobox" value={formData().school} onValueChange={(v) => setFormData((p) => ({ ...p, school: v }))} options={SPELL_SCHOOLS} />
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
           <Label for="casting-time">Casting Time</Label>
-          <Combobox data-test="spell-casting-time-combobox" value={formData().castingTime} onValueChange={(v) => setFormData((p) => ({ ...p, castingTime: v }))} options={CASTING_TIMES} />
+          <Combobox id="casting-time" data-test="spell-casting-time-combobox" value={formData().castingTime} onValueChange={(v) => setFormData((p) => ({ ...p, castingTime: v }))} options={CASTING_TIMES} />
         </div>
         <div>
           <Label for="range">Range</Label>

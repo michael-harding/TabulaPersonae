@@ -1160,6 +1160,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                   </CollapsibleTrigger>
                   <Show when={!isReadOnly}>
                     <Button
+                      data-test={`add-feature-${section.kind}`}
                       variant="outline"
                       size="sm"
                       class="gap-1 h-7 ml-2"

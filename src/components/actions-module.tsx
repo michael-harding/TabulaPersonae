@@ -119,7 +119,7 @@ function ActionForm(props: ActionFormProps) {
 
       <div>
         <Label for="action-type">Type</Label>
-        <Combobox value={formData().type} onValueChange={(v) => setFormData(p => ({ ...p, type: v }))} options={ACTION_TYPE_LABELS} />
+        <Combobox id="action-type" value={formData().type} onValueChange={(v) => setFormData(p => ({ ...p, type: v }))} options={ACTION_TYPE_LABELS} />
       </div>
 
       <Show when={props.kind === "reaction"}>
@@ -146,7 +146,7 @@ function ActionForm(props: ActionFormProps) {
         </div>
         <div>
           <Label for="action-damage-type">Damage Type</Label>
-          <Combobox value={formData().damageType} onValueChange={(v) => setFormData(p => ({ ...p, damageType: v }))} options={DAMAGE_TYPE_OPTIONS} />
+          <Combobox id="action-damage-type" value={formData().damageType} onValueChange={(v) => setFormData(p => ({ ...p, damageType: v }))} options={DAMAGE_TYPE_OPTIONS} />
         </div>
       </Show>
 
