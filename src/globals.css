@@ -20,6 +20,8 @@
   --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.55 0.25 15);
   --destructive-foreground: oklch(1 0 0);
+  /* Destructive as text on the page background (an error message), not as a fill. */
+  --destructive-text: oklch(0.55 0.25 15);
   --border: oklch(0.9 0 0);
   --input: oklch(0.98 0 0);
   --ring: oklch(0.55 0.15 200);
@@ -56,6 +58,8 @@
   --accent-foreground: oklch(0.95 0 0);
   --destructive: oklch(0.45 0.2 15);
   --destructive-foreground: oklch(0.95 0 0);
+  /* The fill red is 2.3:1 on the dark background; text needs 4.5:1 (WCAG 1.4.3). */
+  --destructive-text: oklch(0.72 0.17 15);
   --border: oklch(0.25 0 0);
   --input: oklch(0.35 0 0);
   --ring: oklch(0.45 0 0);

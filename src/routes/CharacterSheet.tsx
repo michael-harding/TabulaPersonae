@@ -142,6 +142,7 @@ export default function CharacterSheet() {
                         <button
                           type="button"
                           aria-label="Toggle Heroic Inspiration"
+                          aria-pressed={!!getChar().heroicInspiration}
                           onClick={() => updateCharacter({ ...getChar(), heroicInspiration: !getChar().heroicInspiration })}
                           class={`ml-2 transition-colors ${getChar().heroicInspiration ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`}
                           style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}

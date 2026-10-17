@@ -124,6 +124,7 @@ function SortableTabRow(props: SortableTabRowProps) {
   return (
     <div
       ref={sortable.ref}
+      data-test={`tab-row-${props.tab.id}`}
       style={maybeTransformStyle(sortable.transform)}
       class={cn("border rounded-md bg-card transition-opacity", sortable.isActiveDraggable && "opacity-25")}
     >

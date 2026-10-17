@@ -185,6 +185,7 @@ export function Combobox(props: ComboboxProps) {
           onClick={handleChevronClick}
           class="-my-px flex h-[calc(100%+2px)] w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground disabled:pointer-events-none"
           aria-label="Toggle options"
+          data-test={props["data-test"] == null ? undefined : `${props["data-test"]}-toggle`}
         >
           <ChevronDown class="h-4 w-4 opacity-50" />
         </button>

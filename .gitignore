@@ -32,3 +32,8 @@ coverage/
 
 # Notes
 .Notes.*
+
+# Firebase emulator logs
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

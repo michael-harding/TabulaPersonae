@@ -111,7 +111,7 @@ export function StatsBar(props: StatsBarProps) {
           <span class="text-sm font-bold whitespace-nowrap">
             <span data-test="current-hp">{currentHp()}</span>
             <Show when={tempHp() > 0}>
-              <span class="text-secondary dark:text-blue-300">+{tempHp()}</span>
+              <span data-test="temp-hp" class="text-secondary dark:text-blue-300">+{tempHp()}</span>
             </Show>
             <span class="text-muted-foreground font-normal">/{maxHp()}</span>
           </span>

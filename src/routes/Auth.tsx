@@ -186,7 +186,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           </p>
         </Show>
         <Show when={error()}>
-          <div role="alert" class="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">{error()}</div>
+          <div role="alert" class="p-3 text-sm text-destructive-text bg-destructive/10 border border-destructive/20 rounded-md">{error()}</div>
         </Show>
         <button
           data-test="auth-submit-button"
@@ -202,7 +202,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           </button>
         </Show>
         <Show when={resetEmailSent()}>
-          <div role="status" aria-live="polite" class="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+          <div role="status" aria-live="polite" class="p-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded-md">
             Password reset email sent! Check your inbox.
           </div>
         </Show>

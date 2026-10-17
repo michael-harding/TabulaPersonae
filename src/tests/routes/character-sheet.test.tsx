@@ -248,6 +248,17 @@ describe("CharacterSheet saving", () => {
     expect(savedCharacter().heroicInspiration).toBe(false)
   })
 
+  // WCAG 4.1.2: the icon's fill is the only other sign of the state, and it is hidden from assistive tech.
+  it("tells assistive tech whether Heroic Inspiration is on", async () => {
+    await renderWith({ heroicInspiration: false })
+    const toggle = screen.getByRole("button", { name: "Toggle Heroic Inspiration" })
+    expect(toggle).toHaveAttribute("aria-pressed", "false")
+
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"))
+  })
+
   it("clears death saves on any save made while the character is at exactly 1 HP", async () => {
     await renderWith({
       hitPoints: { ...testCharacter.hitPoints, current: 1 },

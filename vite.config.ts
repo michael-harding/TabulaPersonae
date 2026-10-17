@@ -47,6 +47,9 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
+  // The e2e dev server (`pnpm dev:e2e`): e2e tests take the browser offline, which also drops the
+  // HMR connection, and Vite's client reloads the page when it reconnects — mid-test.
+  server: mode === 'e2e' ? { hmr: false } : undefined,
   optimizeDeps: {
     include: [
       'firebase/app',

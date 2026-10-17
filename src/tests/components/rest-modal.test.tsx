@@ -3,7 +3,7 @@ import { axe } from "vitest-axe"
 
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Feature, Equipment } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Feature, Equipment, OtherAction } from "@/lib/character-types"
 
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
@@ -31,6 +31,10 @@ function makeAttack(overrides: Partial<Attack> = {}): Attack {
 
 function makeBonusAction(overrides: Partial<BonusAction> = {}): BonusAction {
   return { id: "b1", name: "Second Wind", type: "class-feature", description: "", ...overrides }
+}
+
+function makeOtherAction(overrides: Partial<OtherAction> = {}): OtherAction {
+  return { id: "o1", name: "Speak with Animals", type: "ability", description: "", ...overrides }
 }
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
@@ -462,6 +466,51 @@ describe("RestModal", () => {
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.classFeatures![0].uses).toBe(0)
     })
+  })
+
+  // "Other" actions recharge like every other kind of action; they were once left out.
+  describe("other actions recharge", () => {
+    const pick = (name: RegExp) => fireEvent.click(within(getDialog()).getByRole("button", { name }))
+    const confirm = () => fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+    const char = () => makeCharacter({
+      otherActions: [
+        makeOtherAction({ id: "o1", name: "Bardic Trick", rechargeOn: "short-rest", uses: 1, maxUses: 1 }),
+        makeOtherAction({ id: "o2", name: "Speak with Animals", rechargeOn: "long-rest", uses: 3, maxUses: 3 }),
+      ],
+    })
+
+    it("lists and resets short-rest other actions on a short rest, leaving long-rest ones spent", () => {
+      const onRest = vi.fn()
+      openModal(char(), onRest)
+      expect(within(getDialog()).getByText("Bardic Trick")).toBeInTheDocument()
+      expect(within(getDialog()).queryByText("Speak with Animals")).not.toBeInTheDocument()
+      confirm()
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.otherActions.map((a) => a.uses)).toEqual([0, 3])
+    })
+
+    it("lists and resets every recharging other action on a long rest", () => {
+      const onRest = vi.fn()
+      openModal(char(), onRest)
+      pick(/long rest/i)
+      expect(within(getDialog()).getByText("Bardic Trick")).toBeInTheDocument()
+      expect(within(getDialog()).getByText("Speak with Animals")).toBeInTheDocument()
+      confirm()
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.otherActions.map((a) => a.uses)).toEqual([0, 0])
+    })
+  })
+
+  // WCAG 4.1.2: the highlighted border is the only other sign of which rest is chosen.
+  it("tells assistive tech which kind of rest is chosen", () => {
+    openModal(makeCharacter())
+    const short = within(getDialog()).getByRole("button", { name: /short rest/i })
+    const long = within(getDialog()).getByRole("button", { name: /long rest/i })
+    expect(short).toHaveAttribute("aria-pressed", "true")
+    expect(long).toHaveAttribute("aria-pressed", "false")
+    fireEvent.click(long)
+    expect(short).toHaveAttribute("aria-pressed", "false")
+    expect(long).toHaveAttribute("aria-pressed", "true")
   })
 
   describe("equipment recharge", () => {

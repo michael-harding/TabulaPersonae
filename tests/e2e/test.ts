@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from "@playwright/test"
+import { test as base, expect, type BrowserContext, type Page } from "@playwright/test"
 import AxeBuilder from "@axe-core/playwright"
 import axe from "axe-core"
 
@@ -37,7 +37,34 @@ export async function finishAnimations(page: Page): Promise<void> {
 // from here instead of from @playwright/test, and each test's final page state is then scanned
 // once the test itself has passed. A spec whose tests already are axe scans turns the automatic
 // one off with `test.use({ axeAfterEach: false })`.
-export const test = base.extend<{ axeAfterEach: boolean; axeScan: void }>({
+// TESTING.md §5: no test may reach real Firebase. The app is pointed at the local emulators (see
+// src/lib/firebase.ts); this catches it if that ever stops being true. Matched on the host: the Auth
+// emulator's own URLs contain "identitytoolkit.googleapis.com" in their path, on host 127.0.0.1.
+const FIREBASE_HOSTS = /(^|\.)(googleapis\.com|firebaseio\.com|firebaseapp\.com)$/
+
+/**
+ * Blocks every request from a browser context to real Firebase, returning the URLs it blocked.
+ * Every test's own context is guarded automatically; a test that opens another context guards it
+ * with this and checks the list is empty.
+ */
+export async function guardAgainstFirebase(context: BrowserContext): Promise<string[]> {
+  const reached: string[] = []
+  await context.route((url) => FIREBASE_HOSTS.test(url.hostname), (route) => {
+    reached.push(route.request().url())
+    return route.abort("blockedbyclient")
+  })
+  return reached
+}
+
+export const test = base.extend<{ axeAfterEach: boolean; axeScan: void; firebaseGuard: void }>({
+  firebaseGuard: [
+    async ({ context }, use) => {
+      const reached = await guardAgainstFirebase(context)
+      await use()
+      expect(reached, "requests to real Firebase (the app should only talk to the emulators)").toEqual([])
+    },
+    { auto: true },
+  ],
   axeAfterEach: [true, { option: true }],
   axeScan: [
     async ({ page, axeAfterEach }, use, testInfo) => {

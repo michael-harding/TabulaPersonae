@@ -169,7 +169,7 @@ function SheetSettingsContent(props: SheetSettingsModuleProps) {
                   </button>
                 </div>
                 <Show when={qrDataUrl.error}>
-                  <p role="alert" class="text-xs text-destructive">Failed to generate QR code.</p>
+                  <p role="alert" class="text-xs text-destructive-text">Failed to generate QR code.</p>
                 </Show>
                 <Show when={qrDataUrl()}>
                   <img

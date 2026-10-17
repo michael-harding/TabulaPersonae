@@ -220,6 +220,11 @@ describe("Combobox", () => {
     expect(screen.getByRole("button", { name: "Toggle options" })).toBeDisabled()
   })
 
+  it("gives the chevron its own data-test hook, derived from the input's", () => {
+    render(() => <Combobox options={OPTIONS} aria-label="Class" data-test="class-combobox" />)
+    expect(screen.getByRole("button", { name: "Toggle options" })).toHaveAttribute("data-test", "class-combobox-toggle")
+  })
+
   describe("keyboard", () => {
     // jsdom does not implement scrollIntoView, which the combobox calls to keep the active option visible
     const scrollIntoView = vi.fn()

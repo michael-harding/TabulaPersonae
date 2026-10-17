@@ -196,7 +196,7 @@ Shared UI Components
 | **Unit** | Vitest | Pure functions, utilities, and domain logic; lives in `src/tests/lib/` |
 | **Integration** | Vitest + @solidjs/testing-library + axe-core | Component behavior with mocked dependencies; user interactions; WCAG 2.1 AA checks on rendered components; lives in `src/tests/components/` and `src/tests/routes/` |
 | **Visual** | Playwright | Cross-browser visual regression testing; lives in `tests/` at the project root |
-| **E2E** | Playwright + axe-playwright | Full user flows from the browser perspective against a running app; WCAG 2.1 AA checks on all pages and scenarios; lives in `tests/e2e/` *(planned)* |
+| **E2E** | Playwright + axe-playwright + Firebase Local Emulator Suite | Full user flows from the browser perspective against a running app, with signed-in flows against local Firebase emulators (never a real project; see TESTING.md §5); WCAG 2.1 AA checks on all pages and scenarios; lives in `tests/e2e/` |
 
 ### Mock Data Rules
 

@@ -40,6 +40,7 @@ export function RestModal(props: RestModalProps) {
       ...(props.character.attacks ?? []),
       ...(props.character.bonusActions ?? []),
       ...(props.character.reactions ?? []),
+      ...(props.character.otherActions ?? []),
       ...safeFeatures(props.character.classFeatures),
       ...safeFeatures(props.character.speciesTraits),
       ...safeFeatures(props.character.feats),
@@ -67,6 +68,7 @@ export function RestModal(props: RestModalProps) {
     const attacks = char.attacks ?? []
     const bonusActions = char.bonusActions ?? []
     const reactions = char.reactions ?? []
+    const otherActions = char.otherActions ?? []
 
     if (restType() === "short") {
       const spent = dicesToSpend()
@@ -84,6 +86,7 @@ export function RestModal(props: RestModalProps) {
         attacks: resetMatching(attacks, "short-rest"),
         bonusActions: resetMatching(bonusActions, "short-rest"),
         reactions: resetMatching(reactions, "short-rest"),
+        otherActions: resetMatching(otherActions, "short-rest"),
         classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest"),
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest"),
@@ -104,6 +107,7 @@ export function RestModal(props: RestModalProps) {
         attacks: resetMatching(attacks, "short-rest", "long-rest"),
         bonusActions: resetMatching(bonusActions, "short-rest", "long-rest"),
         reactions: resetMatching(reactions, "short-rest", "long-rest"),
+        otherActions: resetMatching(otherActions, "short-rest", "long-rest"),
         classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest", "long-rest"),
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest", "long-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest", "long-rest"),
@@ -130,6 +134,7 @@ export function RestModal(props: RestModalProps) {
             <button
               type="button"
               data-test="rest-type-short-button"
+              aria-pressed={restType() === "short"}
               onClick={() => { setRestType("short"); setDicesToSpend(0); setRollResult(null) }}
               class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "short" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
             >
@@ -139,6 +144,7 @@ export function RestModal(props: RestModalProps) {
             <button
               type="button"
               data-test="rest-type-long-button"
+              aria-pressed={restType() === "long"}
               onClick={() => { setRestType("long"); setDicesToSpend(0); setRollResult(null) }}
               class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "long" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
             >

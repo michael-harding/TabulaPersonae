@@ -75,6 +75,12 @@ describe("StatsBar", () => {
       expect(screen.getByText("+5")).toBeInTheDocument()
       expect(screen.getByText("/10")).toBeInTheDocument()
     })
+
+    it("marks the temporary HP so tests can find it apart from other +N values", () => {
+      const character = { ...createDefaultCharacter(), hitPoints: { current: 8, maximum: 10, temporary: 5 } }
+      render(() => <StatsBar character={character} />)
+      expect(screen.getByTestId("temp-hp")).toHaveTextContent("+5")
+    })
   })
 
   describe("conditions", () => {

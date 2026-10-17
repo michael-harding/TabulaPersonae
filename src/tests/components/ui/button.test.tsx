@@ -74,7 +74,7 @@ describe("Button", () => {
   it("renders a bare icon as a 44px box with no padding, fixed size or hover background", () => {
     render(() => <Button data-test="bare" variant="ghostDestructive" size="bareIcon" aria-label="Delete" />)
     const button = screen.getByTestId("bare")
-    expect(button).toHaveClass("min-h-11", "min-w-11", "shrink-0", "p-0", "text-muted-foreground", "hover:text-destructive")
+    expect(button).toHaveClass("min-h-11", "min-w-11", "shrink-0", "p-0", "text-muted-foreground", "hover:text-destructive-text")
     expect(button.className).not.toMatch(/(^| )(h-\d+|w-\d+|px-\d+|py-\d+|hover:bg-\S+)( |$)/)
   })
 

@@ -89,6 +89,30 @@ describe("Toaster", () => {
     expect(screen.queryByText("Auto dismiss")).not.toBeInTheDocument()
   })
 
+  // WCAG 4.1.3 Status Messages: a toast appears without taking focus, so assistive tech only
+  // learns of it from a live region. The landmark also keeps toasts, which render after <main>,
+  // inside a region that landmark navigation can reach.
+  it("is a Notifications landmark that is in the page before any toast appears", () => {
+    render(() => <Toaster />)
+    const region = screen.getByRole("region", { name: "Notifications" })
+    expect(region).toHaveAttribute("aria-live", "polite")
+  })
+
+  it("announces a toast politely as a status message", () => {
+    render(() => <Toaster />)
+    const { toast } = useToast()
+    toast({ title: "Saved", description: "Your changes were saved." })
+    expect(screen.getByRole("status")).toHaveTextContent("SavedYour changes were saved.")
+  })
+
+  it("announces a destructive toast at once, as an alert", () => {
+    render(() => <Toaster />)
+    const { toast } = useToast()
+    toast({ title: "Something went wrong", variant: "destructive" })
+    expect(screen.getByRole("alert")).toHaveTextContent("Something went wrong")
+    expect(screen.queryByRole("status")).not.toBeInTheDocument()
+  })
+
   it("has no accessibility violations for a real toast composition", async () => {
     const { container } = render(() => <Toaster />)
     const { toast } = useToast()

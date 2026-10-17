@@ -1,8 +1,9 @@
 /// <reference types="vite/client" />
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth';
 import {
   clearIndexedDbPersistence,
+  connectFirestoreEmulator,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
@@ -18,6 +19,15 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
+
+// The Firebase Local Emulator Suite the e2e tests run against. The ports must match the
+// "emulators" section of firebase.json.
+const EMULATOR_HOST = '127.0.0.1';
+const AUTH_EMULATOR_PORT = 9099;
+const FIRESTORE_EMULATOR_PORT = 8080;
+
+// Only on the dev server, and only when asked: a production build can never talk to an emulator.
+const useEmulators = import.meta.env.DEV && import.meta.env.VITE_FIREBASE_EMULATORS === 'true';
 
 interface FirebaseServices {
   app: FirebaseApp;
@@ -38,6 +48,15 @@ function initFirebase(): FirebaseServices | Error {
     const db = initializeFirestore(app, {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
     });
+    if (useEmulators) {
+      // Emulator data lives under a `demo-` project, which Firebase never connects to a real one.
+      // Any other id means real configuration reached a test run, so nothing is connected at all.
+      if (!firebaseConfig.projectId?.startsWith('demo-')) {
+        throw new Error(`The Firebase emulators need a demo- project id (got "${firebaseConfig.projectId}")`);
+      }
+      connectAuthEmulator(auth, `http://${EMULATOR_HOST}:${AUTH_EMULATOR_PORT}`, { disableWarnings: true });
+      connectFirestoreEmulator(db, EMULATOR_HOST, FIRESTORE_EMULATOR_PORT);
+    }
     return { app, auth, db };
   } catch (error) {
     console.error('Firebase initialization error:', error);
