@@ -134,7 +134,6 @@ This decouples test selectors from styling and layout decisions: a component can
 ## 11. Test Skipping Policy
 
 - Skipping any test requires explicit human approval.
-- A skipped test must include a comment referencing the approval (e.g. issue number or PR).
 
 ---
 
