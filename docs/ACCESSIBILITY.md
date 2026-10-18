@@ -154,6 +154,8 @@ This document governs all accessibility requirements for this repository. It exp
 - All interactive elements must have a minimum touch target size of **44×44 CSS pixels**.
 - When the visual size of an element is smaller than 44×44px, the touch target must be extended via `padding` or a CSS pseudo-element without altering the visual design.
 - Adjacent touch targets must have sufficient spacing so that activating one element does not inadvertently activate a neighbor.
+- Exempt: tooltip-only triggers (`data-sem="tooltip-trigger"`) that reveal context for a value shown beside them, such as a calculated stat's source or a read-only tracker's state. They are context, not controls, and take no pointer cursor. A real control placed inside a tooltip is not exempt. (Decided 2026-10-11.)
+- `tests/e2e/touch-targets.spec.ts` enforces this section in every e2e project, phone-sized included: an undersized target or one whose hit area covers a neighbour fails the test.
 
 ---
 
