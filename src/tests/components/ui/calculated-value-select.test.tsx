@@ -64,6 +64,27 @@ describe("CalculatedValueSelect", () => {
     expect(label).not.toHaveClass("text-sm", "text-muted-foreground")
   })
 
+  it("centres its label and value by default, as a stat block", () => {
+    render(() => <CalculatedValueSelect {...baseProps()} />)
+    expect(screen.getByTestId("size")).toHaveClass("items-center")
+    expect(screen.getByTestId("size-display")).toHaveClass("text-2xl", "font-bold", "text-primary")
+  })
+
+  // For a field among plain label-over-value fields (Character Information), not a stat block
+  it("starts its label and value at the left edge when align is 'start'", () => {
+    render(() => <CalculatedValueSelect {...baseProps({ align: "start" })} />)
+    const root = screen.getByTestId("size")
+    expect(root).toHaveClass("items-start")
+    expect(root).not.toHaveClass("items-center")
+  })
+
+  it("styles the shown value with valueClass instead of the stat-block style", () => {
+    render(() => <CalculatedValueSelect {...baseProps({ valueClass: "text-lg" })} />)
+    const display = screen.getByTestId("size-display")
+    expect(display).toHaveClass("text-lg")
+    expect(display).not.toHaveClass("text-2xl", "font-bold", "text-primary")
+  })
+
   it("shows an em dash placeholder when the calculated value is empty", () => {
     render(() => <CalculatedValueSelect {...baseProps({ calculatedValue: "" })} />)
     expect(screen.getByText("—")).toBeInTheDocument()

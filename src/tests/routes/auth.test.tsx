@@ -10,7 +10,7 @@ import type { ParentProps } from "solid-js"
 import { useAuth } from "@/lib/auth-context"
 import Auth from "@/routes/Auth"
 
-import { cleanup, render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
+import { cleanup, render, screen, fireEvent, waitFor, within, cleanupPortals } from "../test-utils"
 import { createTestUser } from "../mocks/auth"
 import { mockNavigate } from "../mocks/router"
 
@@ -159,6 +159,38 @@ describe("Auth page — ConsentModal shown during sign-up", () => {
 })
 
 // ─── Auth page — ConsentModal (continue without account flow) ────────────────
+
+// ACCESSIBILITY.md §13: every control on the page is a 44px-tall touch target
+describe("Auth page — touch targets", () => {
+  it("makes the tabs, fields, buttons and links 44px tall", () => {
+    render(() => <Auth />)
+    fireEvent.click(screen.getByTestId("auth-signup-tab"))
+    for (const id of ["auth-signin-tab", "auth-signup-tab", "auth-email-input", "auth-password-input", "auth-confirm-password-input", "auth-submit-button"]) {
+      expect(screen.getByTestId(id), id).toHaveClass("h-11")
+    }
+    for (const link of screen.getAllByRole("link")) expect(link, link.textContent ?? "").toHaveClass("inline-flex", "min-h-11")
+    fireEvent.click(screen.getByTestId("auth-signin-tab"))
+    expect(screen.getByTestId("auth-reset-password-button")).toHaveClass("inline-flex", "min-h-11")
+  })
+
+  // Positioned like every other modal: its top-left corner at the centre of the screen would put
+  // more than half of it off a phone's screen
+  it("centres the consent dialog on the screen, scrolling it when taller than the screen", async () => {
+    render(() => <Auth />)
+    fireEvent.click(screen.getByTestId("auth-skip-button"))
+    await waitFor(() => expect(dialogIsOpen()).toBe(true))
+    expect(screen.getByRole("dialog")).toHaveClass("left-[50%]", "top-[50%]", "translate-x-[-50%]", "translate-y-[-50%]", "max-h-[100dvh]", "overflow-y-auto")
+  })
+
+  it("makes the consent dialog's links and buttons 44px tall", async () => {
+    render(() => <Auth />)
+    fireEvent.click(screen.getByTestId("auth-skip-button"))
+    await waitFor(() => expect(dialogIsOpen()).toBe(true))
+    const dialog = screen.getByRole("dialog")
+    for (const link of within(dialog).getAllByRole("link")) expect(link).toHaveClass("inline-flex", "min-h-11")
+    for (const name of ["Decline", "I Agree"]) expect(within(dialog).getByRole("button", { name })).toHaveClass("h-11")
+  })
+})
 
 describe("Auth page — ConsentModal shown for Continue without account", () => {
   it("opens consent modal when terms have not been accepted", async () => {

@@ -257,7 +257,20 @@ describe("RestModal", () => {
       const dialog = getDialog()
       expect(within(dialog).getByText(/Regain all lost Hit Points/i)).toBeInTheDocument()
       expect(within(dialog).getByText(/All spell slots restored/i)).toBeInTheDocument()
-      expect(within(dialog).getByText(/Exhaustion reduced by 1/i)).toBeInTheDocument()
+      expect(within(dialog).getByText(/Exhaustion level reduced by 1/i)).toBeInTheDocument()
+    })
+
+    // 2014 PHB: a long rest lowers exhaustion only if the creature also ate and drank
+    it("adds the 2014 condition: only if the character ate and drank", () => {
+      openModal(makeCharacter({ edition: "2014" }))
+      switchToLong()
+      expect(within(getDialog()).getByText("Exhaustion level reduced by 1 (if you ate and drank)")).toBeInTheDocument()
+    })
+
+    it("has no such condition in 2024", () => {
+      openModal(makeCharacter({ edition: "2024" }))
+      switchToLong()
+      expect(within(getDialog()).getByText("Exhaustion level reduced by 1")).toBeInTheDocument()
     })
 
     it("lists both short-rest and long-rest actions in recharging features", () => {
@@ -350,16 +363,23 @@ describe("RestModal", () => {
       expect(updated.spellSlots[2].used).toBe(0)
     })
 
-    it("calls onRest with Exhaustion removed from conditions", () => {
+    it.each([[3, 2], [1, 0]])("lowers exhaustion from level %i to %i", (from, to) => {
       const onRest = vi.fn()
-      openModal(makeCharacter({ conditions: ["Exhaustion", "Poisoned"] }), onRest)
+      openModal(makeCharacter({ exhaustionLevel: from }), onRest)
       switchToLong()
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
-      const updated: Character = onRest.mock.calls[0][0]
-      expect(updated.conditions).not.toContain("Exhaustion")
+      expect(onRest.mock.calls[0][0].exhaustionLevel).toBe(to)
     })
 
-    it("does not remove non-Exhaustion conditions", () => {
+    it("adds no exhaustion level to a character without exhaustion", () => {
+      const onRest = vi.fn()
+      openModal(makeCharacter(), onRest)
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      expect(onRest.mock.calls[0][0]).not.toHaveProperty("exhaustionLevel")
+    })
+
+    it("does not remove any condition", () => {
       const onRest = vi.fn()
       openModal(makeCharacter({ conditions: ["Poisoned", "Blinded"] }), onRest)
       switchToLong()
@@ -469,6 +489,13 @@ describe("RestModal", () => {
   })
 
   // "Other" actions recharge like every other kind of action; they were once left out.
+  it("leaves exhaustion alone on a short rest", () => {
+    const onRest = vi.fn()
+    openModal(makeCharacter({ exhaustionLevel: 2 }), onRest)
+    fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+    expect(onRest.mock.calls[0][0].exhaustionLevel).toBe(2)
+  })
+
   describe("other actions recharge", () => {
     const pick = (name: RegExp) => fireEvent.click(within(getDialog()).getByRole("button", { name }))
     const confirm = () => fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))

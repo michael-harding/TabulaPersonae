@@ -40,6 +40,8 @@ declare module "solid-js" {
 // --- Sortable module row ---
 
 interface SortableModuleRowProps {
+  /** The tab the row is in: a module can be in more than one, and its hooks must stay unique. */
+  tabId: string
   moduleId: ModuleId
   onRemove: () => void
 }
@@ -61,14 +63,14 @@ function SortableModuleRow(props: SortableModuleRowProps) {
         class={cn(TOUCH_TARGET_BOX, "cursor-grab touch-none text-muted-foreground")}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {...(sortable.dragActivators as any)}
-        aria-label="Drag to reorder"
-        data-test={`module-drag-handle-${props.moduleId}`}
+        aria-label={`Drag ${MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId} to reorder`}
+        data-test={`module-drag-handle-${props.tabId}-${props.moduleId}`}
       >
         <GripVertical class="h-4 w-4" aria-hidden="true" />
       </button>
       <span class="flex-1 text-sm">{MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}</span>
       <ConfirmButton
-        data-test={`remove-module-${props.moduleId}`}
+        data-test={`remove-module-${props.tabId}-${props.moduleId}`}
         verb="Remove"
         subject={MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}
         variant="ghostDestructive"
@@ -136,7 +138,7 @@ function SortableTabRow(props: SortableTabRowProps) {
             class={cn(TOUCH_TARGET_BOX, "cursor-grab touch-none text-muted-foreground")}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {...(sortable.dragActivators as any)}
-            aria-label="Drag to reorder tab"
+            aria-label={`Drag ${props.tab.label} to reorder`}
             data-test={`tab-drag-handle-${props.tab.id}`}
           >
             <GripVertical class="h-4 w-4" aria-hidden="true" />
@@ -157,15 +159,16 @@ function SortableTabRow(props: SortableTabRowProps) {
                 value={renameValue()}
                 onInput={(e) => setRenameValue(e.currentTarget.value)}
                 autofocus
-                class="h-7 text-sm"
+                aria-label={`New name for ${props.tab.label}`}
+                class="h-11 text-sm"
                 data-test={`tab-rename-input-${props.tab.id}`}
               />
-              <Button type="submit" size="sm" class="h-7" data-test={`tab-rename-save-${props.tab.id}`}>Save</Button>
+              <Button type="submit" size="sm" class="h-11" data-test={`tab-rename-save-${props.tab.id}`}>Save</Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                class="h-7"
+                class="h-11"
                 onClick={() => { setRenaming(false); setRenameValue(props.tab.label) }}
                 data-test={`tab-rename-cancel-${props.tab.id}`}
               >
@@ -181,7 +184,7 @@ function SortableTabRow(props: SortableTabRowProps) {
                 type="button"
                 onClick={() => { setRenameValue(props.tab.label); setRenaming(true) }}
                 class={cn(TOUCH_TARGET_BOX, "text-muted-foreground hover:text-foreground transition-colors")}
-                aria-label="Rename tab"
+                aria-label={`Rename ${props.tab.label}`}
                 data-test={`tab-rename-${props.tab.id}`}
               >
                 <Pencil class="h-4 w-4" aria-hidden="true" />
@@ -201,7 +204,7 @@ function SortableTabRow(props: SortableTabRowProps) {
               <CollapsibleTrigger
                 class={cn(TOUCH_TARGET_BOX, "text-muted-foreground hover:text-foreground transition-colors")}
                 data-test={`tab-toggle-${props.tab.id}`}
-                aria-label={props.expanded ? "Collapse tab" : "Expand tab"}
+                aria-label={`${props.expanded ? "Collapse" : "Expand"} ${props.tab.label}`}
               >
                 <ChevronDown
                   class={cn("h-4 w-4 transition-transform duration-200", props.expanded && "rotate-180")}
@@ -229,6 +232,7 @@ function SortableTabRow(props: SortableTabRowProps) {
                     <For each={props.tab.modules}>
                       {(moduleId) => (
                         <SortableModuleRow
+                          tabId={props.tab.id}
                           moduleId={moduleId}
                           onRemove={() => props.onRemoveModule(moduleId)}
                         />

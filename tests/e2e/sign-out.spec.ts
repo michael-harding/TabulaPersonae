@@ -2,7 +2,7 @@ import { type Page } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
 import { createUser, readCharacter, seedCharacter, signIn, withUniqueId } from "./emulator"
-import { openSheet, seedDevice } from "./helpers"
+import { expectAccount, openSheet, seedDevice } from "./helpers"
 import { test, expect } from "./test"
 
 // Signing out removes all of the user's data from the device, so it must never silently take
@@ -60,7 +60,7 @@ test.describe("Signing out", () => {
 
     await expect(dialog).toBeHidden()
     await expect(page.locator('[data-test="current-hp"]')).toHaveText("39")
-    await expect(page.getByText(user.email)).toBeVisible()
+    await expectAccount(page, user.email)
     // The change is still waiting to be sent, and reaches the account once it can
     await page.unrouteAll()
     await expect.poll(async () => (await readCharacter(character.id))?.hitPoints.current).toBe(39)
@@ -104,6 +104,6 @@ test.describe("Signing out", () => {
     await page.locator('[data-test="sign-out-reload"]').click()
     // Still signed in after the reload
     await expect(page).toHaveURL("/")
-    await expect(page.getByText(user.email)).toBeVisible()
+    await expectAccount(page, user.email)
   })
 })

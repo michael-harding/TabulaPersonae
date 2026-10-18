@@ -27,6 +27,7 @@ import { subscribeToCharacter, type CharacterSyncSnapshot } from "@/lib/firebase
 import { useSyncState } from "@/lib/sync-context"
 import { useTabConfig } from "@/lib/tab-config-context"
 import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
+import { sheetColorShades } from "@/lib/sheet-color"
 import CharacterSheet from "@/routes/CharacterSheet"
 
 import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor } from "../test-utils"
@@ -303,6 +304,30 @@ describe("CharacterSheet saving", () => {
 
     await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledOnce())
     expect(mockToast).not.toHaveBeenCalled()
+  })
+})
+
+describe("CharacterSheet colour", () => {
+  async function renderWithColour(sheetColor: string | undefined) {
+    mockStorageManager.getCharacters.mockResolvedValue([{ ...testCharacter, sheetColor }])
+    await renderAndLoad()
+    return document.querySelector('[data-sem="character-sheet-route"]') as HTMLElement
+  }
+
+  it("gives the sheet a readable shade of its colour for each theme", async () => {
+    const shades = sheetColorShades("#eab308")!
+    const sheet = await renderWithColour("#eab308")
+    expect(sheet).toHaveAttribute("data-sheet-color")
+    expect(sheet.style.getPropertyValue("--sheet-primary-light")).toBe(shades.light)
+    expect(sheet.style.getPropertyValue("--sheet-primary-dark")).toBe(shades.dark)
+    // Never the raw colour as the theme's primary: that is what made text unreadable
+    expect(sheet.style.getPropertyValue("--primary")).toBe("")
+  })
+
+  it("keeps the theme's own colour when the character has none", async () => {
+    const sheet = await renderWithColour(undefined)
+    expect(sheet).not.toHaveAttribute("data-sheet-color")
+    expect(sheet.style.getPropertyValue("--sheet-primary-light")).toBe("")
   })
 })
 

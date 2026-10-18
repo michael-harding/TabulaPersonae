@@ -310,7 +310,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         <Show when={item.requiresAttunement}>
                           <Show when={!isReadOnly}>
                             <Tooltip content="Toggle attuned">
-                              <Checkbox data-test={`magic-item-toggle-attuned-${item.id}`} checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} aria-label="Toggle attuned" />
+                              <Checkbox data-test={`magic-item-toggle-attuned-${item.id}`} checked={item.attuned ?? false} onChange={() => toggleAttuned(item.id)} aria-label={`Toggle attuned: ${item.name}`} />
                             </Tooltip>
                           </Show>
                           <Show when={item.attuned}>
@@ -433,11 +433,14 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                             }
                           >
                             <PipTracker
+                              data-test={`magic-item-uses-${item.id}`}
                               total={effectiveEquipmentMaxUses(item)}
                               used={effectiveEquipmentUses(item)}
                               onToggle={(v) => updateItemUses(item.id, v)}
                               usedTitle={item.type === "consumable" ? "Used (click to restore)" : "Charge spent (click to restore)"}
                               availableTitle={item.type === "consumable" ? "Available (click to use)" : "Charge available (click to use)"}
+                              usedLabel={item.type === "consumable" ? "Used" : "Charge spent"}
+                              availableLabel={item.type === "consumable" ? "Available" : "Charge available"}
                               readOnly={isReadOnly}
                             />
                           </Show>
@@ -633,11 +636,14 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         }
                       >
                         <PipTracker
+                          data-test={`equipment-uses-${item.id}`}
                           total={effectiveEquipmentMaxUses(item)}
                           used={effectiveEquipmentUses(item)}
                           onToggle={(v) => updateItemUses(item.id, v)}
                           usedTitle="Used (click to restore)"
                           availableTitle="Available (click to use)"
+                          usedLabel="Used"
+                          availableLabel="Available"
                           readOnly={isReadOnly}
                         />
                       </Show>

@@ -8,7 +8,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character } from "@/lib/character-types"
 import { setTheme } from "@/lib/theme"
 
-import { cleanup, render, screen, waitFor, cleanupPortals } from "../test-utils"
+import { cleanup, render, screen, waitFor, within, cleanupPortals } from "../test-utils"
 import { createMockAuth, createTestUser } from "../mocks/auth"
 
 const mockUseAuth = vi.mocked(useAuth)
@@ -485,12 +485,39 @@ describe("HeaderMenu account", () => {
     return user
   }
 
-  it("shows the signed-in user's email, and offers Sign Out instead of Back to Login", async () => {
+  it("names the signed-in account as the menu's first entry, and offers Sign Out instead of Back to Login", async () => {
     await openMenu()
 
-    expect(screen.getByText("user@test.com")).toBeInTheDocument()
+    const menu = await screen.findByRole("menu")
+    const account = within(menu).getByTestId("header-menu-account")
+    expect(account).toHaveTextContent("user@test.com")
+    expect(account).toHaveAttribute("title", "user@test.com")
+    // The first entry, ahead of every action
+    expect(account.compareDocumentPosition(within(menu).getAllByRole("menuitem")[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(await screen.findByRole("menuitem", { name: "Sign Out" })).toBeInTheDocument()
     expect(screen.queryByRole("menuitem", { name: "Back to Login" })).not.toBeInTheDocument()
+  })
+
+  it("says Not Logged In for characters kept only on this device", async () => {
+    mockUseAuth.mockReturnValue(createMockAuth({ user: () => null, skipAuth: () => true }))
+    await openMenu()
+
+    expect(within(await screen.findByRole("menu")).getByTestId("header-menu-account")).toHaveTextContent("Not Logged In")
+    expect(await screen.findByRole("menuitem", { name: "Back to Login" })).toBeInTheDocument()
+  })
+
+  it("keeps the account out of the header itself, on every screen size", () => {
+    render(() => <HeaderMenu {...defaultProps} />)
+    expect(screen.queryByText("user@test.com")).not.toBeInTheDocument()
+    expect(screen.queryByText("Not Logged In")).not.toBeInTheDocument()
+  })
+
+  it("shows the account as information, not as something to choose", async () => {
+    await openMenu()
+
+    const account = within(await screen.findByRole("menu")).getByTestId("header-menu-account")
+    expect(account).not.toHaveAttribute("role", "menuitem")
+    expect(screen.queryByRole("menuitem", { name: /user@test\.com/ })).not.toBeInTheDocument()
   })
 
   it("signs out and reloads straight away when everything is synced", async () => {

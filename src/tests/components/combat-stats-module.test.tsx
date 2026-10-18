@@ -7,7 +7,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Equipment } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, waitFor, cleanupPortals, within, expectTapTooltip } from "../test-utils"
+import { cleanup, render, screen, fireEvent, waitFor, cleanupPortals, within, expectTapTooltip } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}) {
   return {
@@ -320,30 +320,14 @@ describe("CombatStatsModule", () => {
     })
   })
 
-  describe("size (2024 only)", () => {
-    it("shows a placeholder when nothing has defined a size yet — no hardcoded 'Medium' default", () => {
-      render(() => <CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("—")).toBeInTheDocument()
-    })
-
-    it("does not render size in 2014 mode", () => {
-      render(() => <CombatStatsModule character={makeCharacter({ edition: "2014" })} onUpdate={vi.fn()} />)
+  // Size lives in Character Information (character-basic-info-module.test.tsx)
+  it("does not show Size, in either edition", () => {
+    for (const edition of ["2014", "2024"] as const) {
+      render(() => <CombatStatsModule character={makeCharacter({ edition, size: "Small", useCalculatedSize: false })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Size")).not.toBeInTheDocument()
-    })
-
-    it("shows the feature-granted size", () => {
-      const feature = {
-        id: "feature-1", name: "Powerful Build", description: "", source: "species-trait" as const,
-        levelEffects: [{ level: 1, effects: { size: "Large" } }],
-      }
-      render(() => <CombatStatsModule character={makeCharacter({ edition: "2024", speciesTraits: [feature] })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Large")).toBeInTheDocument()
-    })
-
-    it("shows a manually-entered custom size when useCalculatedSize is false", () => {
-      render(() => <CombatStatsModule character={makeCharacter({ edition: "2024", size: "Small", useCalculatedSize: false })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Small")).toBeInTheDocument()
-    })
+      expect(screen.queryByTestId("size")).not.toBeInTheDocument()
+      cleanup()
+    }
   })
 
   describe("edit mode", () => {
@@ -414,66 +398,6 @@ describe("CombatStatsModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ id: "char-b", hitPoints: expect.objectContaining({ current: 4 }) })
       )
-    })
-  })
-
-  describe("size combobox (2024)", () => {
-    it("shows the Size combobox only after switching to custom entry", () => {
-      render(() => <CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      expect(screen.queryByRole("combobox", { name: /size/i })).not.toBeInTheDocument()
-      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
-      expect(screen.getByRole("combobox", { name: /size/i })).toBeInTheDocument()
-    })
-
-    it("saves a custom size value typed into the Size combobox", () => {
-      const onUpdate = vi.fn()
-      render(() => <CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
-      const sizeInput = screen.getByRole("combobox", { name: /size/i })
-      fireEvent.focus(sizeInput)
-      fireEvent.input(sizeInput, { target: { value: "Colossal" } })
-      fireEvent.blur(sizeInput)
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Colossal", useCalculatedSize: false }))
-    })
-
-    it("saves a predefined size option selected from the dropdown", () => {
-      const onUpdate = vi.fn()
-      render(() => <CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
-      const sizeInput = screen.getByRole("combobox", { name: /size/i })
-      fireEvent.focus(sizeInput)
-      fireEvent.click(screen.getByRole("option", { name: "Huge" }))
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Huge", useCalculatedSize: false }))
-    })
-
-    it("shows the feature-granted size read-only, with no combobox, when a feature grants size", () => {
-      const feature = {
-        id: "feature-1", name: "Powerful Build", description: "", source: "species-trait" as const,
-        levelEffects: [{ level: 1, effects: { size: "Large" } }],
-      }
-      render(() => <CombatStatsModule character={makeCharacter({ edition: "2024", speciesTraits: [feature] })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      expect(screen.queryByRole("combobox", { name: /size/i })).not.toBeInTheDocument()
-      expect(screen.getByText("Large")).toBeInTheDocument()
-    })
-
-    it("switching to custom size and back to calculated restores the feature-granted value", () => {
-      const feature = {
-        id: "feature-1", name: "Powerful Build", description: "", source: "species-trait" as const,
-        levelEffects: [{ level: 1, effects: { size: "Large" } }],
-      }
-      const onUpdate = vi.fn()
-      render(() => <CombatStatsModule character={makeCharacter({ edition: "2024", speciesTraits: [feature] })} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
-      fireEvent.click(screen.getByRole("button", { name: /use calculated size/i }))
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Large", useCalculatedSize: true }))
     })
   })
 
@@ -575,6 +499,70 @@ describe("CombatStatsModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ conditions: ["Prone"] })
       )
+    })
+  })
+
+  // Exhaustion has levels, unlike the other conditions: it is listed with them as "Exhaustion N"
+  // and its level is set beside the list
+  describe("Exhaustion", () => {
+    it("starts at level 1 when chosen from the condition menu, stored as a level rather than a condition", async () => {
+      const user = userEvent.setup()
+      const onUpdate = vi.fn()
+      render(() => <CombatStatsModule character={makeCharacter({ conditions: ["Prone"] })} onUpdate={onUpdate} />)
+      await user.click(screen.getByLabelText("Add condition"))
+      await user.click(await screen.findByRole("menuitem", { name: "Exhaustion" }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ conditions: ["Prone"], exhaustionLevel: 1 }))
+    })
+
+    it("lists the level with the conditions, and changes it with the stepper", () => {
+      const onUpdate = vi.fn()
+      render(() => <CombatStatsModule character={makeCharacter({ exhaustionLevel: 2 })} onUpdate={onUpdate} />)
+      expect(screen.getByTestId("condition-remove-Exhaustion")).toHaveTextContent("Exhaustion 2")
+      expect(screen.getByRole("group", { name: "Exhaustion level" })).toHaveTextContent("2")
+      fireEvent.click(screen.getByRole("button", { name: "Increase Exhaustion level" }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ exhaustionLevel: 3 }))
+    })
+
+    it("keeps the level between 1 and 6", () => {
+      render(() => <CombatStatsModule character={makeCharacter({ exhaustionLevel: 6 })} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: "Increase Exhaustion level" })).toBeDisabled()
+      cleanup()
+      render(() => <CombatStatsModule character={makeCharacter({ exhaustionLevel: 1 })} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: "Decrease Exhaustion level" })).toBeDisabled()
+    })
+
+    it("ends when its chip is removed", () => {
+      const onUpdate = vi.fn()
+      render(() => <CombatStatsModule character={makeCharacter({ conditions: ["Prone"], exhaustionLevel: 3 })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByTestId("condition-remove-Exhaustion"))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ conditions: ["Prone"], exhaustionLevel: 0 }))
+    })
+
+    it("says what the level does under the character's edition", () => {
+      render(() => <CombatStatsModule character={makeCharacter({ edition: "2024", exhaustionLevel: 2 })} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("exhaustion-effects")).toHaveTextContent("d20 Tests −4")
+      expect(screen.getByTestId("exhaustion-effects")).toHaveTextContent("Speed −10 ft")
+      cleanup()
+      render(() => <CombatStatsModule character={makeCharacter({ edition: "2014", exhaustionLevel: 2 })} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("exhaustion-effects")).toHaveTextContent("Disadvantage on ability checks")
+      expect(screen.getByTestId("exhaustion-effects")).toHaveTextContent("Speed halved")
+    })
+
+    it("shows nothing about exhaustion without it", () => {
+      render(() => <CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("group", { name: "Exhaustion level" })).not.toBeInTheDocument()
+      expect(screen.queryByTestId("exhaustion-effects")).not.toBeInTheDocument()
+    })
+
+    it("shows the level and its effects, without the stepper, when read-only", () => {
+      render(() => (
+        <ReadOnlyProvider value={true}>
+          <CombatStatsModule character={makeCharacter({ edition: "2024", exhaustionLevel: 2 })} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      ))
+      expect(screen.getByText("Exhaustion 2")).toBeInTheDocument()
+      expect(screen.getByTestId("exhaustion-effects")).toHaveTextContent("d20 Tests −4")
+      expect(screen.queryByRole("group", { name: "Exhaustion level" })).not.toBeInTheDocument()
     })
   })
 
@@ -1067,10 +1055,10 @@ describe("CombatStatsModule", () => {
   })
 
   describe("calculated armor class", () => {
-    it("shows a custom-value toggle button for every calculated field in edit mode (AC, initiative, speed x5, proficiency bonus, passive perception, size, maximum HP)", () => {
+    it("shows a custom-value toggle button for every calculated field in edit mode (AC, initiative, speed x5, proficiency bonus, passive perception, maximum HP)", () => {
       render(() => <CombatStatsModule character={makeCharacter({ edition: "2024" })} onUpdate={vi.fn()} />)
       clickEditButton()
-      const ids = ["armor-class", "initiative", "speed", "fly-speed", "swim-speed", "climb-speed", "burrow-speed", "proficiency-bonus", "passive-perception", "size", "max-hp"]
+      const ids = ["armor-class", "initiative", "speed", "fly-speed", "swim-speed", "climb-speed", "burrow-speed", "proficiency-bonus", "passive-perception", "max-hp"]
       for (const id of ids) {
         expect(screen.getByTestId(`${id}-toggle`)).toBeInTheDocument()
       }
@@ -1466,7 +1454,7 @@ describe("CombatStatsModule — a character saved before these fields existed", 
     expect(screen.getByLabelText("Proficiency Bonus")).toHaveValue(2)
   })
 
-  it("saves those defaults, treating AC, speed, size and passive perception as calculated", () => {
+  it("saves those defaults, treating AC, speed and passive perception as calculated, and leaves size alone", () => {
     const onUpdate = vi.fn()
     render(() => <CombatStatsModule character={makeLegacyCharacter()} onUpdate={onUpdate} />)
     clickEditButton()
@@ -1479,11 +1467,14 @@ describe("CombatStatsModule — a character saved before these fields existed", 
       proficiencyBonus: 2,
       useCalculatedArmorClass: true,
       useCalculatedSpeed: true,
-      useCalculatedSize: true,
       useCalculatedPassivePerception: true,
       useCalculatedInitiative: false,
       useCalculatedProficiencyBonus: false,
       useCalculatedMaximumHp: false,
     }))
+    // Size is edited in Character Information, so saving Combat Stats does not write it
+    const saved = onUpdate.mock.calls[0][0]
+    expect(saved).not.toHaveProperty("size")
+    expect(saved).not.toHaveProperty("useCalculatedSize")
   })
 })

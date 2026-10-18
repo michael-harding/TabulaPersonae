@@ -10,6 +10,10 @@ interface CalculatedValueSelectProps {
   label: string
   labelPosition?: "top" | "left"
   labelClass?: string
+  /** "center" (the default) lays it out as a stat block; "start" lines it up with plain fields. */
+  align?: "center" | "start"
+  /** Replaces the stat-block style of the shown value. */
+  valueClass?: string
   icon?: JSX.Element
   editable: boolean
   custom: boolean
@@ -29,12 +33,14 @@ export function CalculatedValueSelect(props: CalculatedValueSelectProps) {
   const tooltipContent = () => (props.custom ? "Custom" : props.calculatedTooltip)
   const showInput = () => props.editable && props.custom
   const left = () => (props.labelPosition ?? "top") === "left"
+  const alignClass = () => ((props.align ?? "center") === "start" ? "items-start" : "items-center")
+  const valueClass = () => props.valueClass ?? (props.editable ? "text-xl font-bold text-primary" : "text-2xl font-bold text-primary")
 
   return (
     <div
       data-sem="calculated-value"
       data-test={props["data-test"]}
-      class={`flex ${left() ? "flex-row items-center" : "flex-col items-center"} gap-1 ${props.class ?? ""}`}
+      class={`flex ${left() ? "flex-row" : "flex-col"} ${alignClass()} gap-1 ${props.class ?? ""}`}
     >
       <span data-test={`${props["data-test"]}-label`} class={`inline-flex items-center gap-1 ${props.labelClass ?? "text-sm text-muted-foreground"}`}>
         <Show when={props.icon}>{props.icon}</Show>
@@ -45,7 +51,7 @@ export function CalculatedValueSelect(props: CalculatedValueSelectProps) {
           when={showInput()}
           fallback={
             <Tooltip content={tooltipContent()} triggerFocusable>
-              <div data-test={`${props["data-test"]}-display`} class={props.editable ? "text-xl font-bold text-primary" : "text-2xl font-bold text-primary"}>
+              <div data-test={`${props["data-test"]}-display`} class={valueClass()}>
                 {displayValue() || "—"}
               </div>
             </Tooltip>

@@ -351,6 +351,8 @@ export interface Character {
 
   // Active conditions (both editions)
   conditions?: string[]
+  /** Levels of Exhaustion, 0–6 (absent means 0). Not one of `conditions`, which have no levels. */
+  exhaustionLevel?: number
 
   // 2024-only
   subclass?: string

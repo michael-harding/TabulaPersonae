@@ -56,7 +56,32 @@ export async function guardAgainstFirebase(context: BrowserContext): Promise<str
   return reached
 }
 
-export const test = base.extend<{ axeAfterEach: boolean; axeScan: void; firebaseGuard: void }>({
+/**
+ * The data-test values used by more than one element on the page. TESTING.md §6: each must be
+ * unique within the page, so that a selector names exactly one element.
+ */
+export function duplicateTestHooks(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const counts = new Map<string, number>()
+    for (const element of Array.from(document.querySelectorAll("[data-test]"))) {
+      const hook = element.getAttribute("data-test")!
+      counts.set(hook, (counts.get(hook) ?? 0) + 1)
+    }
+    return [...counts].filter(([, count]) => count > 1).map(([hook, count]) => `${hook} ×${count}`).sort()
+  })
+}
+
+export const test = base.extend<{ axeAfterEach: boolean; axeScan: void; firebaseGuard: void; uniqueTestHooks: void }>({
+  // Every scenario's final state is checked, so a component that repeats a hook fails wherever it
+  // is first used, not just where a test happens to target it.
+  uniqueTestHooks: [
+    async ({ page }, use, testInfo) => {
+      await use()
+      if (testInfo.status !== testInfo.expectedStatus || page.isClosed()) return
+      expect(await duplicateTestHooks(page), "data-test values used more than once (TESTING.md §6)").toEqual([])
+    },
+    { auto: true },
+  ],
   firebaseGuard: [
     async ({ context }, use) => {
       const reached = await guardAgainstFirebase(context)

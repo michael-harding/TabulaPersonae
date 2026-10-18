@@ -4,11 +4,16 @@ import type { JSX } from "solid-js"
 import { Tooltip } from "@/components/ui/tooltip"
 
 interface PipTrackerProps {
+  /** Page-unique; each slot's hook is `${data-test}-slot-${index}`. */
+  "data-test": string
   total: number
   used: number
   onToggle: (newUsed: number) => void
   usedTitle?: string
   availableTitle?: string
+  /** What a read-only slot is called, which cannot be clicked: the titles above say how to click. */
+  usedLabel?: string
+  availableLabel?: string
   filledClass?: string
   emptyClass?: string
   filledIcon?: JSX.Element
@@ -23,6 +28,7 @@ export function PipTracker(props: PipTrackerProps) {
   const emptyClass = () => props.emptyClass ?? "bg-muted border-muted-foreground"
   const filledClassReadOnly = () => props.filledClass ?? "bg-primary border-primary"
   const slotTitle = (index: number) => (index < props.used ? usedTitle() : availableTitle())
+  const slotLabel = (index: number) => (index < props.used ? props.usedLabel ?? "Used slot" : props.availableLabel ?? "Available slot")
 
   const toggle = (index: number) => {
     const newUsed = index < props.used ? props.used - 1 : props.used + 1
@@ -30,14 +36,14 @@ export function PipTracker(props: PipTrackerProps) {
   }
 
   return (
-    <div data-sem="pip-tracker" class="flex flex-wrap items-center">
+    <div data-sem="pip-tracker" data-test={props["data-test"]} class="flex flex-wrap items-center">
       <For each={Array.from({ length: props.total }, (_, i) => i)}>
         {(index) => (
           <Show
             when={!props.readOnly}
             fallback={
-              <Tooltip content={slotTitle(index)} toggleOnClick>
-                <span data-test={`pip-tracker-slot-${index}`} class="w-11 h-11 flex items-center justify-center" role="img" aria-label={slotTitle(index)}>
+              <Tooltip content={slotLabel(index)} toggleOnClick>
+                <span data-test={`${props["data-test"]}-slot-${index}`} class="w-11 h-11 flex items-center justify-center" role="img" aria-label={slotLabel(index)}>
                   <span class={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${index < props.used ? filledClassReadOnly() : emptyClass()}`}>
                     {index < props.used ? props.filledIcon : props.emptyIcon}
                   </span>
@@ -48,7 +54,7 @@ export function PipTracker(props: PipTrackerProps) {
             <Tooltip content={slotTitle(index)}>
               <button
                 type="button"
-                data-test={`pip-tracker-slot-${index}`}
+                data-test={`${props["data-test"]}-slot-${index}`}
                 onClick={() => toggle(index)}
                 class="w-11 h-11 flex items-center justify-center"
                 aria-label={slotTitle(index)}

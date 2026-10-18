@@ -98,6 +98,16 @@ describe("Toaster", () => {
     expect(region).toHaveAttribute("aria-live", "polite")
   })
 
+  // The region is fixed over the page even when empty (a band across the top of a phone screen),
+  // so it must let taps through to what is underneath; only the toasts themselves take them.
+  it("lets taps through to the page, except on a toast", () => {
+    render(() => <Toaster />)
+    const { toast } = useToast()
+    toast({ title: "Saved" })
+    expect(screen.getByRole("region", { name: "Notifications" })).toHaveClass("pointer-events-none")
+    expect(screen.getByRole("status")).toHaveClass("pointer-events-auto")
+  })
+
   it("announces a toast politely as a status message", () => {
     render(() => <Toaster />)
     const { toast } = useToast()

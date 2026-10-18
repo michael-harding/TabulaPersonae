@@ -78,6 +78,17 @@
   --sidebar-ring: oklch(0.45 0 0);
 }
 
+/* A character's sheet colour, as one readable shade per theme (see src/lib/sheet-color.ts). Text
+   on the shade uses the surface colour, which the shade is readable against. */
+[data-sheet-color] {
+  --primary: var(--sheet-primary-light);
+  --primary-foreground: oklch(1 0 0);
+}
+.dark [data-sheet-color] {
+  --primary: var(--sheet-primary-dark);
+  --primary-foreground: var(--background);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

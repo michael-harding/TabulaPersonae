@@ -816,10 +816,20 @@ export function getEffectiveCarryingCapacity(character: CarryingCapacityCharacte
 // No fallback to a hardcoded "Medium" default — like getEffectiveMovementSpeeds, this is purely
 // what the Species Trait system says (empty string if nothing grants a size yet). `character.size`
 // is never read here; it's purely the custom-override storage field (see useCalculatedSize in
-// combat-stats-module.tsx).
+// character-basic-info-module.tsx).
 export function getEffectiveSize(character: FeatureEffectCharacter): { size: string; source?: string } {
   const featureTotals = getActiveFeatureEffects(character)
   return { size: featureTotals.size ?? "", source: featureTotals.sizeSource }
+}
+
+/**
+ * The tooltip of a value a Species Trait grants — a speed or the size — in the "value (Source)"
+ * form every calculated value uses. A speed is given in feet.
+ */
+export function speciesGrantTooltip(value: number | string, source: string | undefined): string {
+  if (!source) return "No species trait grants this — add one in Features, or switch to custom entry"
+  const formatted = typeof value === "number" ? `${value} ft` : value
+  return `${formatted} (${source})`
 }
 
 type BaseHitPointsCharacter = Partial<Pick<Character, "abilityScores" | "equipment">> & Pick<Character, "abilityScoreOverrides" | "useCalculatedAbilityScores"> & FeatureEffectCharacter
@@ -1013,6 +1023,38 @@ export const CONDITIONS = [
   "Grappled", "Incapacitated", "Invisible", "Paralyzed", "Petrified",
   "Poisoned", "Prone", "Restrained", "Stunned", "Unconscious",
 ]
+
+export const EXHAUSTION = "Exhaustion"
+export const MAX_EXHAUSTION_LEVEL = 6
+
+// 2014 PHB, Appendix A: each level adds its row, and the effects are cumulative
+const EXHAUSTION_2014 = [
+  "Disadvantage on ability checks",
+  "Speed halved",
+  "Disadvantage on attack rolls and saving throws",
+  "Hit point maximum halved",
+  "Speed reduced to 0",
+  "Death",
+]
+
+/**
+ * What a character's Exhaustion level does under their edition's rules. 2014: the cumulative
+ * level table. 2024 (Rules Glossary): d20 Tests are reduced by 2 and Speed by 5 ft per level, and
+ * level 6 is death. Shown to the player; nothing is applied to calculated values.
+ */
+export function getExhaustionEffects(edition: "2014" | "2024", level: number): string[] {
+  const clamped = Math.min(Math.max(Math.floor(level), 0), MAX_EXHAUSTION_LEVEL)
+  if (clamped === 0) return []
+  if (edition === "2014") return EXHAUSTION_2014.slice(0, clamped)
+  if (clamped === MAX_EXHAUSTION_LEVEL) return ["Death"]
+  return [`d20 Tests −${2 * clamped}`, `Speed −${5 * clamped} ft`]
+}
+
+/** A character's conditions as shown, with Exhaustion and its level after the others. */
+export function displayedConditions(character: Pick<Character, "conditions" | "exhaustionLevel">): string[] {
+  const level = character.exhaustionLevel ?? 0
+  return [...(character.conditions ?? []), ...(level > 0 ? [`${EXHAUSTION} ${level}`] : [])]
+}
 
 export const SENSE_TYPES: SenseType[] = ["darkvision", "blindsight", "tremorsense", "truesight"]
 export const SENSE_LABELS: Record<SenseType, string> = {

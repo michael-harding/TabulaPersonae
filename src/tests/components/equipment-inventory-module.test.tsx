@@ -706,10 +706,21 @@ describe("EquipmentInventoryModule", () => {
       )
     })
 
+    // Each checkbox names its item, as the equipped ones do; "Toggle attuned" alone could be any of them
+    it("names the item each attunement checkbox belongs to", () => {
+      render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [
+        makeMagicItem({ id: "a", name: "Ring of Protection", requiresAttunement: true }),
+        makeMagicItem({ id: "b", name: "Cloak of Elvenkind", requiresAttunement: true }),
+      ] })} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("checkbox", { name: "Toggle attuned: Ring of Protection" })).toBeInTheDocument()
+      expect(screen.getByRole("checkbox", { name: "Toggle attuned: Cloak of Elvenkind" })).toBeInTheDocument()
+      expect(screen.queryByRole("checkbox", { name: "Toggle attuned" })).not.toBeInTheDocument()
+    })
+
     it("toggles attunement from the Magic Items list", () => {
       const onUpdate = vi.fn()
       render(() => <EquipmentInventoryModule character={makeCharacter({ equipment: [makeMagicItem({ name: "Ring", attuned: false })] })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByLabelText("Toggle attuned"))
+      fireEvent.click(screen.getByLabelText("Toggle attuned: Ring"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ attuned: true })]),
@@ -1541,8 +1552,7 @@ describe("EquipmentInventoryModule", () => {
           onUpdate={onUpdate}
         />
       ))
-      const toggles = screen.getAllByLabelText("Toggle attuned")
-      fireEvent.click(toggles[toggles.length - 1])
+      fireEvent.click(screen.getByLabelText("Toggle attuned: Item 4"))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           equipment: expect.arrayContaining([expect.objectContaining({ id: "4", attuned: true })]),

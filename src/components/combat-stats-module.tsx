@@ -8,7 +8,7 @@ import CheckCircle from "lucide-solid/icons/check-circle"
 import XCircle from "lucide-solid/icons/x-circle"
 
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
+import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, speciesGrantTooltip, ABILITY_TITLE_CASE, EXHAUSTION, MAX_EXHAUSTION_LEVEL, getExhaustionEffects } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
@@ -17,19 +17,13 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
+import { InlineStepper } from "@/components/ui/inline-stepper"
 import { CalculatedValue } from "@/components/ui/calculated-value"
-import { CalculatedValueSelect } from "@/components/ui/calculated-value-select"
 import { useReadOnly } from "@/lib/read-only-context"
 
 interface CombatStatsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
-}
-
-function movementTooltip(value: number | string, source: string | undefined): string {
-  if (!source) return "No species trait grants this — add one in Features, or switch to custom entry"
-  const formatted = typeof value === "number" ? `${value} ft` : value
-  return `${formatted} (${source})`
 }
 
 const toEdit = (c: Character) => {
@@ -52,7 +46,6 @@ const toEdit = (c: Character) => {
     burrowSpeed: c.burrowSpeed ?? 0,
     proficiencyBonus: c.proficiencyBonus || 2,
     deathSaves: { successes: c.deathSaves?.successes || 0, failures: c.deathSaves?.failures || 0 },
-    size: c.size ?? "Medium",
     useCalculatedInitiative: c.useCalculatedInitiative ?? false,
     useCalculatedProficiencyBonus: c.useCalculatedProficiencyBonus ?? false,
     useCalculatedArmorClass: c.useCalculatedArmorClass ?? true,
@@ -62,7 +55,6 @@ const toEdit = (c: Character) => {
     useCalculatedSwimSpeed: c.useCalculatedSwimSpeed ?? true,
     useCalculatedClimbSpeed: c.useCalculatedClimbSpeed ?? true,
     useCalculatedBurrowSpeed: c.useCalculatedBurrowSpeed ?? true,
-    useCalculatedSize: c.useCalculatedSize ?? true,
     passivePerception: c.passivePerception ?? getPassiveScore(
       c.abilityScores?.wisdom ?? 10,
       c.proficiencyBonus ?? 2,
@@ -103,7 +95,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       swimSpeed: swimSpeedField.resolvedValue(),
       climbSpeed: climbSpeedField.resolvedValue(),
       burrowSpeed: burrowSpeedField.resolvedValue(),
-      size: sizeField.resolvedValue(),
     }
     props.onUpdate(normalized)
   }
@@ -154,9 +145,25 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     hpPercentage, hpColor, tempHpWidth, tempHpLeft,
   } = useHpDisplay(() => props.character)
 
-  const setConditions = (conditions: string[]) => {
+  // Exhaustion is listed with the conditions but stored as a level, not as one of them
+  const exhaustionLevel = () => props.character.exhaustionLevel ?? 0
+  const conditionValues = () => [...(props.character.conditions ?? []), ...(exhaustionLevel() > 0 ? [EXHAUSTION] : [])]
+  const conditionLabel = (condition: string) =>
+    condition === EXHAUSTION && exhaustionLevel() > 0 ? `${EXHAUSTION} ${exhaustionLevel()}` : condition
+
+  const setConditions = (next: string[]) => {
     if (isReadOnly) return
-    props.onUpdate({ ...props.character, conditions })
+    // Choosing Exhaustion starts it at level 1; removing it ends it
+    const level = next.includes(EXHAUSTION) ? Math.max(exhaustionLevel(), 1) : 0
+    props.onUpdate({
+      ...props.character,
+      conditions: next.filter((condition) => condition !== EXHAUSTION),
+      ...(level !== exhaustionLevel() ? { exhaustionLevel: level } : {}),
+    })
+  }
+  const setExhaustionLevel = (exhaustionLevel: number) => {
+    if (isReadOnly) return
+    props.onUpdate({ ...props.character, exhaustionLevel })
   }
 
   const setConditionImmunities = (conditionImmunities: string[]) => {
@@ -167,7 +174,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const effectiveConditionImmunities = createMemo(() => getEffectiveConditionImmunities(props.character))
   const effectiveMovement = createMemo(() => getEffectiveMovementSpeeds(props.character))
   const movementGrants = createMemo(() => getMovementSpeedGrants(props.character))
-  const effectiveSize = createMemo(() => getEffectiveSize(props.character))
 
   const passivePerceptionCalc = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
@@ -227,7 +233,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().speed ?? 30,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, speed: v })),
     calculatedValue: () => effectiveMovement().walk,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().walk, movementGrants().walk),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().walk, movementGrants().walk),
   })
 
   const flySpeedField = useCalculatedValue({
@@ -236,7 +242,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().flySpeed ?? 0,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, flySpeed: v })),
     calculatedValue: () => effectiveMovement().fly,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().fly, movementGrants().fly),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().fly, movementGrants().fly),
   })
 
   const swimSpeedField = useCalculatedValue({
@@ -245,7 +251,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().swimSpeed ?? 0,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, swimSpeed: v })),
     calculatedValue: () => effectiveMovement().swim,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().swim, movementGrants().swim),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().swim, movementGrants().swim),
   })
 
   const climbSpeedField = useCalculatedValue({
@@ -254,7 +260,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().climbSpeed ?? 0,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, climbSpeed: v })),
     calculatedValue: () => effectiveMovement().climb,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().climb, movementGrants().climb),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().climb, movementGrants().climb),
   })
 
   const burrowSpeedField = useCalculatedValue({
@@ -263,16 +269,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     manualValue: () => current().burrowSpeed ?? 0,
     setManualValue: (v) => setEdited((prev) => ({ ...prev, burrowSpeed: v })),
     calculatedValue: () => effectiveMovement().burrow,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().burrow, movementGrants().burrow),
-  })
-
-  const sizeField = useCalculatedValue<string>({
-    useCalculated: () => current().useCalculatedSize ?? true,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSize: v })),
-    manualValue: () => current().size ?? "Medium",
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, size: v })),
-    calculatedValue: () => effectiveSize().size,
-    calculatedTooltip: () => movementTooltip(effectiveSize().size, effectiveSize().source),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().burrow, movementGrants().burrow),
   })
 
   const initiativeField = useCalculatedValue({
@@ -403,6 +400,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   <CheckCircle class="h-3 w-3" aria-hidden="true" /> Successes
                 </div>
                 <PipTracker
+                  data-test="death-save-successes"
                   total={3}
                   used={props.character.deathSaves?.successes || 0}
                   onToggle={(n) => toggleDeathSave("successes", n)}
@@ -411,6 +409,8 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   filledIcon={<CheckCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Success (click to remove)"
                   availableTitle="Click to add success"
+                  usedLabel="Success"
+                  availableLabel="No success"
                   readOnly={isReadOnly}
                 />
               </div>
@@ -419,6 +419,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   <XCircle class="h-3 w-3" aria-hidden="true" /> Failures
                 </div>
                 <PipTracker
+                  data-test="death-save-failures"
                   total={3}
                   used={props.character.deathSaves?.failures || 0}
                   onToggle={(n) => toggleDeathSave("failures", n)}
@@ -427,6 +428,8 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   filledIcon={<XCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Failure (click to remove)"
                   availableTitle="Click to add failure"
+                  usedLabel="Failure"
+                  availableLabel="No failure"
                   readOnly={isReadOnly}
                 />
               </div>
@@ -450,9 +453,24 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           emptyText="None"
           editing={!isReadOnly}
           options={CONDITIONS}
-          values={props.character.conditions ?? []}
+          values={conditionValues()}
+          optionLabel={conditionLabel}
           onChange={setConditions}
         />
+        <Show when={exhaustionLevel() > 0}>
+          {/* mt-3: the stepper's hit areas reach 10px above it, clear of the chips */}
+          <div data-sem="exhaustion" class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <Show when={!isReadOnly}>
+              <span class="inline-flex items-center gap-2">
+                <span class="text-muted-foreground">Exhaustion level</span>
+                <InlineStepper data-test="exhaustion-level" label="Exhaustion level" value={exhaustionLevel()} min={1} max={MAX_EXHAUSTION_LEVEL} onChange={setExhaustionLevel} />
+              </span>
+            </Show>
+            <p data-test="exhaustion-effects" class="text-xs text-muted-foreground">
+              {edition()} rules: {getExhaustionEffects(edition(), exhaustionLevel()).join(" · ")}
+            </p>
+          </div>
+        </Show>
 
         {/* Condition Immunities */}
         <ChipListEditor
@@ -539,13 +557,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               {...passivePerceptionField.binding()}
             />
           </div>
-
-          {/* Size — 2024 only */}
-          <Show when={edition() === "2024"}>
-            <div class="text-center">
-              <CalculatedValueSelect data-test="size" label="Size" editable={isEditing()} options={SIZES} {...sizeField.binding()} />
-            </div>
-          </Show>
         </div>
 
     </EditableModule>

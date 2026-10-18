@@ -1,8 +1,9 @@
 import { type Locator, type Page } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
+import { SHEET_COLOR_PRESETS } from "../../src/lib/sheet-color"
 import { confirmClick, openSheet, reload, seedGuest, storedCharacter } from "./helpers"
-import { axeBuilder, test, expect } from "./test"
+import { axeBuilder, finishAnimations, test, expect } from "./test"
 
 // Every change made on the sheet must still be there after a reload. Each scenario changes one
 // thing, reloads, and checks both what the sheet shows and what was stored on the device. The
@@ -15,9 +16,8 @@ async function open(page: Page, tab?: string) {
   await openSheet(page, id, tab)
 }
 
-/** The card of an action, bonus action, reaction or other action, by name. */
-const actionCard = (page: Page, name: string): Locator =>
-  page.locator('[data-sem="action-card"]').filter({ has: page.locator(`[data-test="action-edit-button-${name}"]`) })
+/** An action's card: action-card-<kind>-<id> (see actions-module.tsx). */
+const actionCard = (page: Page, hook: string): Locator => page.locator(`[data-test="action-card-${hook}"]`)
 
 /** The Edit button of a module, then its Save button once the edits are made. */
 const edit = (page: Page, module: string) => page.locator(`[data-test="${module}-edit"]`).click()
@@ -61,6 +61,24 @@ test.describe("Combat tab", () => {
     await reload(page)
     await expect(page.locator('[data-test="condition-remove-Poisoned"]')).toHaveCount(0)
     expect((await storedCharacter(page, id)).conditions ?? []).not.toContain("Poisoned")
+  })
+
+  test("@mobile exhaustion and its level", async ({ page }) => {
+    await open(page)
+    await page.locator('[data-test="condition-add"]').click()
+    await page.getByRole("menuitem", { name: "Exhaustion" }).click()
+    await page.keyboard.press("Escape")
+    await expect(page.locator('[data-test="condition-remove-Exhaustion"]')).toHaveText(/Exhaustion 1/)
+    await page.locator('[data-test="exhaustion-level-increase"]').click()
+    await page.locator('[data-test="exhaustion-level-increase"]').click()
+
+    await reload(page)
+    await expect(page.locator('[data-test="condition-remove-Exhaustion"]')).toHaveText(/Exhaustion 3/)
+    // testCharacter is a 2024 character
+    await expect(page.locator('[data-test="exhaustion-effects"]')).toContainText("d20 Tests −6")
+    const stored = await storedCharacter(page, id)
+    expect(stored.exhaustionLevel).toBe(3)
+    expect(stored.conditions ?? []).not.toContain("Exhaustion")
   })
 
   test("Heroic Inspiration", async ({ page }) => {
@@ -121,30 +139,32 @@ test.describe("Combat tab", () => {
     await expect(dialog).toBeHidden()
 
     await reload(page)
-    await expect(page.locator('[data-test="action-edit-button-Shove"]')).toBeVisible()
-    expect((await storedCharacter(page, id)).attacks.map((a) => a.name)).toContain("Shove")
+    const shove = (await storedCharacter(page, id)).attacks.find((a) => a.name === "Shove")
+    expect(shove).toBeDefined()
+    const card = actionCard(page, `attack-${shove!.id}`)
+    await expect(card).toContainText("Shove")
 
-    await page.locator('[data-test="action-edit-button-Shove"]').click()
+    await card.getByRole("button", { name: "Edit Shove" }).click()
     await dialog.getByLabel("Action Name").fill("Grapple")
     await dialog.getByRole("button", { name: /^(add|save)/i }).click()
     await reload(page)
-    await expect(page.locator('[data-test="action-edit-button-Grapple"]')).toBeVisible()
-    await expect(page.locator('[data-test="action-edit-button-Shove"]')).toHaveCount(0)
+    await expect(card).toContainText("Grapple")
+    await expect(card).not.toContainText("Shove")
 
-    await page.locator('[data-test="action-edit-button-Grapple"]').click()
+    await card.getByRole("button", { name: "Edit Grapple" }).click()
     await confirmClick(dialog.locator('[data-test="action-form-delete"]'))
     await reload(page)
-    await expect(page.locator('[data-test="action-edit-button-Grapple"]')).toHaveCount(0)
+    await expect(card).toHaveCount(0)
     expect((await storedCharacter(page, id)).attacks.map((a) => a.name)).not.toContain("Grapple")
   })
 
   test("restoring a use of a limited-use action", async ({ page }) => {
     await open(page)
     // Speak with Animals: all 3 uses spent (`uses` counts the spent ones)
-    await actionCard(page, "Speak with Animals").getByRole("button", { name: "Charge spent (click to restore)" }).first().click()
+    await actionCard(page, "other-oa1").getByRole("button", { name: "Charge spent (click to restore)" }).first().click()
 
     await reload(page)
-    await expect(actionCard(page, "Speak with Animals").getByRole("button", { name: "Charge available (click to use)" })).toHaveCount(1)
+    await expect(actionCard(page, "other-oa1").getByRole("button", { name: "Charge available (click to use)" })).toHaveCount(1)
     expect((await storedCharacter(page, id)).otherActions.find((a) => a.name === "Speak with Animals")?.uses).toBe(2)
   })
 })
@@ -301,21 +321,30 @@ test.describe("Character tab", () => {
     expect(stored.sheetColor).toBe("#8b5cf6")
     expect(stored.edition).toBe("2014")
 
-    // Ends on the default colour: a sheet colour currently fails colour contrast (see below)
+    // Reset returns the sheet to the theme's own colour
     await page.locator('[data-test="sheet-color-reset-button"]').click()
     await reload(page, "Character")
     expect((await storedCharacter(page, id)).sheetColor).toBeUndefined()
   })
 
-  // KNOWN FAILURE: a sheet colour replaces --primary, which is used both as a text colour and as a
-  // background behind white text, so text on the sheet drops below WCAG 1.4.3's 4.5:1 (Purple:
-  // 3.98:1 as text, 4.23:1 behind white text). Fixing it needs a design decision; when it is fixed
-  // this test starts passing, and Playwright reports that so the annotation can be removed.
-  test("a preset sheet colour keeps the sheet's text readable", async ({ page }) => {
-    test.fail(true, "Sheet colours are applied without a contrast check")
-    await open(page, "Character")
-    await page.locator('[data-test="sheet-color-preset-purple"]').click()
-    const results = await axeBuilder(page).withRules(["color-contrast"]).analyze()
-    expect(results.violations).toEqual([])
-  })
+  // Any sheet colour is shown as a shade readable on the theme (src/lib/sheet-color.ts). Checked
+  // in both themes by the chromium and chromium-dark projects, on the tabs with the most text in
+  // the sheet colour, for every preset and for custom colours at both extremes.
+  const sheetColours = [
+    ...SHEET_COLOR_PRESETS.map(({ name }) => ({ name, choose: (page: Page) => page.locator(`[data-test="sheet-color-preset-${name.toLowerCase()}"]`).click() })),
+    ...["#ffff00", "#f2f2f2", "#141414"].map((hex) => ({ name: `custom ${hex}`, choose: (page: Page) => page.locator('[data-test="sheet-color-custom-input"]').fill(hex) })),
+  ]
+  for (const { name, choose } of sheetColours) {
+    test(`sheet colour ${name} keeps the sheet's text readable`, async ({ page }) => {
+      await open(page, "Character")
+      await choose(page)
+      await expect(page.locator("[data-sheet-color]")).toHaveCount(1)
+      for (const tab of ["Character", "Combat", "Spells"]) {
+        await page.getByRole("tab", { name: tab }).click()
+        await finishAnimations(page)
+        const results = await axeBuilder(page).withRules(["color-contrast"]).analyze()
+        expect(results.violations, `${tab} tab`).toEqual([])
+      }
+    })
+  }
 })

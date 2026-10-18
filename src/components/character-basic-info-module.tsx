@@ -1,8 +1,11 @@
-import { createSignal, createEffect, on, untrack, For, Show } from "solid-js"
+import { createSignal, createEffect, createMemo, on, untrack, For, Show } from "solid-js"
 import User from "lucide-solid/icons/user"
 
 import type { Character } from "@/lib/character-types"
+import { getEffectiveSize, speciesGrantTooltip, SIZES } from "@/lib/character-utils"
+import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
+import { CalculatedValueSelect } from "@/components/ui/calculated-value-select"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -44,6 +47,7 @@ const toEdit = (c: Character) => ({
   background: c.background || "",
   alignment: c.alignment || "",
   experiencePoints: c.experiencePoints || 0,
+  useCalculatedSize: c.useCalculatedSize ?? true,
 })
 
 type EditState = ReturnType<typeof toEdit>
@@ -63,7 +67,34 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
     setEdited((prev) => ({ ...prev, [field]: value }))
   }
 
-  const persist = () => { props.onUpdate(edited()) }
+  const current = () => (isEditing() ? edited() : props.character)
+  // Size is a 2024 rule, granted by a Species Trait or entered as a custom value
+  const effectiveSize = createMemo(() => getEffectiveSize(props.character))
+  const sizeField = useCalculatedValue<string>({
+    useCalculated: () => current().useCalculatedSize ?? true,
+    setUseCalculated: (v) => updateField("useCalculatedSize", v),
+    manualValue: () => current().size ?? "Medium",
+    setManualValue: (v) => setEdited((prev) => ({ ...prev, size: v })),
+    calculatedValue: () => effectiveSize().size,
+    calculatedTooltip: () => speciesGrantTooltip(effectiveSize().size, effectiveSize().source),
+  })
+  const sizeDisplay = () => (
+    <CalculatedValueSelect
+      data-test="size"
+      label="Size"
+      align="start"
+      labelClass="text-sm font-medium text-muted-foreground"
+      valueClass="text-lg"
+      editable={isEditing()}
+      options={SIZES}
+      {...sizeField.binding()}
+    />
+  )
+
+  // Only a 2024 character shows Size, so only its size is saved from here
+  const persist = () => {
+    props.onUpdate(edition() === "2024" ? { ...edited(), size: sizeField.resolvedValue() } : edited())
+  }
   const handleSave = () => { persist(); setIsEditing(false) }
   const handleSaveKeepEditing = () => { persist() }
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
@@ -96,6 +127,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
                 <Label for="race">{raceLabel()}</Label>
                 <Combobox id="race" data-test="race-combobox" value={edited().race} onValueChange={(v) => updateField("race", v)} options={raceList()} placeholder={`Select ${raceLabel().toLowerCase()}`} />
               </div>
+              <Show when={edition() === "2024"}>{sizeDisplay()}</Show>
               <div>
                 <Label for="class">Class</Label>
                 <Combobox id="class" data-test="class-combobox" value={edited().class} onValueChange={(v) => updateField("class", v)} options={CLASSES} placeholder="Select class" />
@@ -131,6 +163,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
               <div><Label class="text-sm font-medium text-muted-foreground">Name</Label><p class="text-lg font-semibold">{props.character.name || "Unnamed Character"}</p></div>
               <div><Label class="text-sm font-medium text-muted-foreground">Level</Label><p class="text-lg font-semibold">{props.character.level}</p></div>
               <div><Label class="text-sm font-medium text-muted-foreground">{raceLabel()}</Label><p class="text-lg">{props.character.race || "Not specified"}</p></div>
+              <Show when={edition() === "2024"}>{sizeDisplay()}</Show>
               <div>
                 <Label class="text-sm font-medium text-muted-foreground">Class</Label>
                 <p class="text-lg">{props.character.class || "Not specified"}</p>

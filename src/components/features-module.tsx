@@ -1279,11 +1279,14 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                   }
                                 >
                                   <PipTracker
+                                    data-test={`feature-uses-${feature.id}`}
                                     total={maxUses}
                                     used={feature.uses ?? 0}
                                     onToggle={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
                                     usedTitle="Charge spent (click to restore)"
                                     availableTitle="Charge available (click to use)"
+                                    usedLabel="Charge spent"
+                                    availableLabel="Charge available"
                                     readOnly={isReadOnly}
                                   />
                                 </Show>
@@ -1307,11 +1310,14 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                 }
                               >
                                 <PipTracker
+                                  data-test={`hit-dice-${feature.id}`}
                                   total={props.character.level ?? 1}
                                   used={props.character.spentHitDice ?? 0}
                                   onToggle={handleSpentHitDiceChange}
                                   usedTitle="Hit die spent"
                                   availableTitle="Hit die available"
+                                  usedLabel="Hit die spent"
+                                  availableLabel="Hit die available"
                                   readOnly={isReadOnly}
                                 />
                               </Show>

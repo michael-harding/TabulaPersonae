@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom"
 import { configure } from "@testing-library/dom"
 import { vi } from "vitest"
-import type { ParentProps } from "solid-js"
+import { splitProps, type JSX, type ParentProps } from "solid-js"
 
 // TESTING.md §6: tests select elements via the `data-test` attribute, not the
 // Testing Library default of `data-testid`. This repoints getByTestId/findByTestId
@@ -59,7 +59,12 @@ vi.mock("@solidjs/router", async () => {
     useParams: () => ({ id: "test-id" }),
     useSearchParams: () => [{}, vi.fn()],
     useLocation: () => ({ pathname: "/", search: "", hash: "", state: null, key: "" }),
-    A: (props: ParentProps<{ href: string }>) => <a href={props.href}>{props.children}</a>,
+    // An <a> with the link's own attributes (class, data-test, target, ...), so tests can check
+    // them; only the router's own props are left off.
+    A: (props: Record<string, unknown>) => {
+      const [, attributes] = splitProps(props, ["end", "activeClass", "inactiveClass", "noScroll", "replace", "state"])
+      return <a {...(attributes as JSX.AnchorHTMLAttributes<HTMLAnchorElement>)} />
+    },
     Router: (props: ParentProps) => <>{props.children}</>,
     Route: () => null,
   }

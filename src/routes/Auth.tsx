@@ -5,6 +5,7 @@ import Scroll from "lucide-solid/icons/scroll"
 
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
+import { INLINE_LINK_TARGET } from "@/lib/utils"
 
 const TERMS_KEY = "dnd-terms-accepted"
 
@@ -28,16 +29,16 @@ function ConsentModal(props: { open: boolean; onAgree: () => void; onDecline: ()
           // mechanism.
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
-          class="fixed left-[50%] top-[50%] z-50 w-full max-w-md grid gap-4 border bg-background p-6 shadow-lg sm:rounded-lg data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[expanded]:slide-in-from-left-1/2 data-[expanded]:slide-in-from-top-1/2 data-[closed]:slide-out-to-left-1/2 data-[closed]:slide-out-to-top-1/2 duration-200">
+          class="fixed left-[50%] top-[50%] z-50 w-full max-w-md max-h-[100dvh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] grid gap-4 border bg-background p-6 shadow-lg sm:rounded-lg data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[expanded]:slide-in-from-left-1/2 data-[expanded]:slide-in-from-top-1/2 data-[closed]:slide-out-to-left-1/2 data-[closed]:slide-out-to-top-1/2 duration-200">
           <DialogPrimitive.Title class="text-lg font-semibold">
             Terms of Use &amp; Privacy Policy
           </DialogPrimitive.Title>
           <DialogPrimitive.Description class="text-sm text-muted-foreground space-y-2">
             <p>
               Before using TabulaPersonae, please review and agree to our{" "}
-              <A href="/terms" target="_blank" class="underline hover:text-foreground">Terms of Use</A>
+              <A href="/terms" target="_blank" class={`${INLINE_LINK_TARGET} underline hover:text-foreground`}>Terms of Use</A>
               {" "}and{" "}
-              <A href="/privacy" target="_blank" class="underline hover:text-foreground">Privacy Policy</A>.
+              <A href="/privacy" target="_blank" class={`${INLINE_LINK_TARGET} underline hover:text-foreground`}>Privacy Policy</A>.
             </p>
             <p>
               By clicking <strong>I Agree</strong>, you confirm that you have read and accept these
@@ -45,8 +46,8 @@ function ConsentModal(props: { open: boolean; onAgree: () => void; onDecline: ()
             </p>
           </DialogPrimitive.Description>
           <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={props.onDecline}>Decline</Button>
-            <Button onClick={props.onAgree}>I Agree</Button>
+            <Button variant="outline" size="lg" onClick={props.onDecline}>Decline</Button>
+            <Button size="lg" onClick={props.onAgree}>I Agree</Button>
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
@@ -124,7 +125,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           data-test="auth-signin-tab"
           type="button"
           onClick={() => setIsSignUp(false)}
-          class={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${!isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
+          class={`flex-1 h-11 px-4 rounded-md text-sm font-medium transition-colors ${!isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
         >
           Sign In
         </button>
@@ -132,7 +133,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           data-test="auth-signup-tab"
           type="button"
           onClick={() => setIsSignUp(true)}
-          class={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
+          class={`flex-1 h-11 px-4 rounded-md text-sm font-medium transition-colors ${isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
         >
           Sign Up
         </button>
@@ -147,7 +148,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
             placeholder="Enter your email"
             value={email()}
             onInput={(e) => setEmail(e.currentTarget.value)}
-            class="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+            class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm"
             required
           />
         </div>
@@ -160,7 +161,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
             placeholder={isSignUp() ? "Create a password" : "Enter your password"}
             value={password()}
             onInput={(e) => setPassword(e.currentTarget.value)}
-            class="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+            class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm"
             required
           />
         </div>
@@ -174,15 +175,15 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
               placeholder="Confirm your password"
               value={confirmPassword()}
               onInput={(e) => setConfirmPassword(e.currentTarget.value)}
-              class="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+              class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm"
               required
             />
           </div>
           <p class="text-xs text-muted-foreground">
             By creating an account, you agree to our{" "}
-            <A href="/terms" target="_blank" class="underline hover:text-foreground">Terms of Use</A>
+            <A href="/terms" target="_blank" class={`${INLINE_LINK_TARGET} underline hover:text-foreground`}>Terms of Use</A>
             {" "}and{" "}
-            <A href="/privacy" target="_blank" class="underline hover:text-foreground">Privacy Policy</A>.
+            <A href="/privacy" target="_blank" class={`${INLINE_LINK_TARGET} underline hover:text-foreground`}>Privacy Policy</A>.
           </p>
         </Show>
         <Show when={error()}>
@@ -192,12 +193,12 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           data-test="auth-submit-button"
           type="submit"
           disabled={loading()}
-          class="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+          class="w-full h-11 px-4 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
         >
           {loading() ? "Please wait..." : (isSignUp() ? "Create Account" : "Sign In")}
         </button>
         <Show when={!isSignUp()}>
-          <button data-test="auth-reset-password-button" type="button" onClick={handlePasswordReset} disabled={loading()} class="text-sm text-muted-foreground hover:text-foreground">
+          <button data-test="auth-reset-password-button" type="button" onClick={handlePasswordReset} disabled={loading()} class="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground">
             Forgot password?
           </button>
         </Show>

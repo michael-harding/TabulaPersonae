@@ -1,5 +1,5 @@
 import { testCharacter, secondCharacter } from "../visual/fixtures"
-import { confirmClick, reload, seedGuest, storedCharacters } from "./helpers"
+import { confirmClick, expectAccount, reload, seedGuest, storedCharacters } from "./helpers"
 import { test, expect } from "./test"
 
 // Creating, opening and deleting characters on the character list, without an account. Each
@@ -78,6 +78,8 @@ test.describe("Leaving guest mode", () => {
     await seedGuest(page, [testCharacter])
     await page.goto("/")
     await expect(card(page, testCharacter.name)).toBeVisible()
+    // Without an account, the menu says so
+    await expectAccount(page, "Not Logged In")
 
     await page.locator('[data-test="header-menu-trigger"]').click()
     await page.getByRole("menuitem", { name: "Back to Login" }).click()

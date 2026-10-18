@@ -515,6 +515,7 @@ export function ActionsModule(props: ActionsModuleProps) {
     const { canCast, upcastLevels, hasHigherSlots } = createSpellAccessors(spell, () => props.character.spellSlots)
     return (
       <ActionCard
+        data-test={`action-card-spell-${spell.id}`}
         name={spell.name}
         spellLevel={spell.level}
         spellSchool={spell.school}
@@ -543,6 +544,7 @@ export function ActionsModule(props: ActionsModuleProps) {
 
   const renderFeature = (feature: Feature) => (
     <ActionCard
+      data-test={`action-card-feature-${feature.id}`}
       name={feature.name}
       badgeLabel={FEATURE_KIND_LABELS[feature.source] ?? feature.source}
       range={feature.range}
@@ -556,6 +558,7 @@ export function ActionsModule(props: ActionsModuleProps) {
 
   const renderEquipmentAction = (item: Equipment) => (
     <ActionCard
+      data-test={`action-card-item-${item.id}`}
       name={item.name}
       badgeLabel={item.type.charAt(0).toUpperCase() + item.type.slice(1)}
       description={item.description}
@@ -639,6 +642,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                 <For each={equippedWeaponAttacks()}>
                   {(w) => (
                     <ActionCard
+                      data-test={`action-card-${w.id}`}
                       name={w.name}
                       badgeLabel="Weapon"
                       attackBonus={w.attackBonus}
@@ -655,6 +659,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                 <For each={props.character.attacks || []}>
                   {(attack) => (
                     <ActionCard
+                      data-test={`action-card-attack-${attack.id}`}
                       name={attack.name}
                       badgeLabel={ACTION_TYPE_LABEL[attack.type] ?? attack.type}
                       attackBonus={attack.attackBonus}
@@ -703,6 +708,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                 <For each={props.character.bonusActions || []}>
                   {(bonus) => (
                     <ActionCard
+                      data-test={`action-card-bonus-${bonus.id}`}
                       name={bonus.name}
                       badgeLabel={ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}
                       attackBonus={bonus.attackBonus}
@@ -751,6 +757,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                 <For each={props.character.reactions || []}>
                   {(reaction) => (
                     <ActionCard
+                      data-test={`action-card-reaction-${reaction.id}`}
                       name={reaction.name}
                       badgeLabel={ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}
                       trigger={reaction.trigger}
@@ -799,6 +806,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                 <For each={props.character.otherActions || []}>
                   {(other) => (
                     <ActionCard
+                      data-test={`action-card-other-${other.id}`}
                       name={other.name}
                       badgeLabel={ACTION_TYPE_LABEL[other.type] ?? other.type}
                       attackBonus={other.attackBonus}

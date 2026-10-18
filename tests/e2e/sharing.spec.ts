@@ -46,6 +46,13 @@ test.describe("Sharing a character", () => {
     // Read-only: nothing on the shared sheet can be edited
     await expect(visitor.page.locator('[data-test$="-module-edit"]')).toHaveCount(0)
     await expect(visitor.page.locator('[data-test="hp-increase-button"]')).toHaveCount(0)
+    // Nothing on it tells a screen reader to click what cannot be clicked: read-only trackers are
+    // named by their state alone
+    for (const tab of await visitor.page.getByRole("tab").all()) {
+      await tab.click()
+      const names = await visitor.page.getByRole("img").evaluateAll((images) => images.map((image) => image.getAttribute("aria-label") ?? ""))
+      expect(names.filter((name) => /click/i.test(name))).toEqual([])
+    }
     await expectNoViolations(visitor.page)
 
     await shareSwitch(page).uncheck({ force: true })

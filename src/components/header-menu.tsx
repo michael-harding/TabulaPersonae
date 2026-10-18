@@ -17,6 +17,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -213,18 +214,22 @@ export function HeaderMenu(props: HeaderMenuProps) {
 
   return (
     <div data-sem="header-menu" class="flex items-center gap-2">
-      {user() && (
-        <div class="flex items-center gap-2 text-sm text-muted-foreground">
-          <User class="h-4 w-4" aria-hidden="true" />
-          <span class="hidden sm:inline">{user()!.email}</span>
-        </div>
-      )}
-
       <DropdownMenu open={isOpen()} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger data-test="header-menu-trigger" aria-label="Open menu" class={buttonVariants({ variant: "outline", size: "sm" })}>
+        <DropdownMenuTrigger data-test="header-menu-trigger" aria-label="Open menu" class={buttonVariants({ variant: "outline", size: "icon" })}>
           <Menu class="h-4 w-4" aria-hidden="true" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="w-56">
+          {/* Who the characters belong to: information, not an action, so a label rather than an
+              item. Without an account they are kept only on this device. */}
+          <DropdownMenuLabel
+            data-test="header-menu-account"
+            title={user()?.email ?? undefined}
+            class="flex items-center gap-2 font-normal text-muted-foreground"
+          >
+            <User class="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span class="truncate">{user() ? (user()!.email ?? "Signed In") : "Not Logged In"}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={props.onAllCharacters}>
             <Users class="h-4 w-4 mr-2" aria-hidden="true" />
             All Characters

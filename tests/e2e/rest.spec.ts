@@ -65,6 +65,20 @@ test.describe("Short rest", () => {
 })
 
 test.describe("Long rest", () => {
+  test("@mobile lowers exhaustion by one level", async ({ page }) => {
+    await seedGuest(page, { ...resting, edition: "2024", exhaustionLevel: 2 })
+    await openSheet(page, resting.id)
+    await expect(page.locator('[data-test="condition-remove-Exhaustion"]')).toHaveText(/Exhaustion 2/)
+    await rest(page, "long")
+    await expect(page.getByRole("dialog").getByText("Exhaustion level reduced by 1")).toBeVisible()
+    await page.locator('[data-test="rest-confirm-button"]').click()
+
+    await reload(page)
+    await expect(page.locator('[data-test="condition-remove-Exhaustion"]')).toHaveText(/Exhaustion 1/)
+    await expect(page.locator('[data-test="exhaustion-effects"]')).toContainText("d20 Tests −2")
+    expect((await storedCharacter(page, resting.id)).exhaustionLevel).toBe(1)
+  })
+
   test("@mobile restores HP, hit dice, spell slots and every recharging use", async ({ page }) => {
     await seedGuest(page, resting)
     await openSheet(page, resting.id)

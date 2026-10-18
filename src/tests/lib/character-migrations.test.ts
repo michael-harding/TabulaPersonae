@@ -270,6 +270,27 @@ describe("migrateCharacter", () => {
     })
   })
 
+  // Exhaustion was an on/off condition before it had levels. A stored "Exhaustion" proves level 1
+  // and no more, so that is what it becomes.
+  describe("exhaustion level", () => {
+    it("turns a stored Exhaustion condition into level 1, keeping the other conditions", () => {
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), conditions: ["Poisoned", "Exhaustion"] })
+      expect(migrated.exhaustionLevel).toBe(1)
+      expect(migrated.conditions).toEqual(["Poisoned"])
+    })
+
+    it("leaves a character that already has a level alone", () => {
+      const raw = { ...createDefaultCharacter(), conditions: ["Exhaustion"], exhaustionLevel: 3 }
+      expect(migrateCharacter(raw).exhaustionLevel).toBe(3)
+    })
+
+    it("adds no level to a character without the condition", () => {
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), conditions: ["Prone"] })
+      expect(migrated).not.toHaveProperty("exhaustionLevel")
+      expect(migrated.conditions).toEqual(["Prone"])
+    })
+  })
+
   describe("equipment uses backfill", () => {
     it("relocates a legacy consumedUses-style uses to charges for a magic item with charges configured", () => {
       const raw = {

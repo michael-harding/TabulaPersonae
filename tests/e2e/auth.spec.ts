@@ -1,7 +1,7 @@
 import { testCharacter, secondCharacter } from "../visual/fixtures"
 import { DEFAULT_TAB_CONFIG } from "../../src/lib/tab-config-types"
 import { createUser, readCharacter, readDoc, seedCharacter, signIn, uniqueEmail, withUniqueId } from "./emulator"
-import { seedDevice, storedCharacters } from "./helpers"
+import { expectAccount, seedDevice, storedCharacters } from "./helpers"
 import { test, expect } from "./test"
 
 // Signing in, signing up and the move of a guest's data into the account, against the Firebase
@@ -16,8 +16,7 @@ test.describe("Signing in", () => {
     await signIn(page, user)
 
     await expect(page.getByText(character.name)).toBeVisible()
-    // The header names the account, on screens wider than a phone
-    if (!testInfo.project.use.isMobile) await expect(page.getByText(user.email)).toBeVisible()
+    await expectAccount(page, user.email)
   })
 
   test("with the wrong password shows an error and stays on the sign-in page", async ({ page }, testInfo) => {
@@ -65,7 +64,7 @@ test.describe("Signing up", () => {
     await consent.getByRole("button", { name: "I Agree" }).click()
 
     await expect(page).toHaveURL("/")
-    await expect(page.getByText(email)).toBeVisible()
+    await expectAccount(page, email)
     expect(await page.evaluate(() => localStorage.getItem("dnd-terms-accepted"))).toBe("true")
   })
 

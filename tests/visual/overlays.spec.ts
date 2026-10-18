@@ -49,7 +49,7 @@ const OVERLAYS: OverlayCase[] = [
   },
   {
     name: "action-details-popover", tab: "Combat", open: async (page) => {
-      await byTest(page, "action-details-trigger-Longbow Strike").click()
+      await byTest(page, "action-card-attack-atk1-details-trigger").click()
       return page.getByRole("dialog")
     },
   },

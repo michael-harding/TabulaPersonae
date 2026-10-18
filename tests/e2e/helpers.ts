@@ -89,3 +89,14 @@ export async function confirmClick(button: Locator): Promise<void> {
   await button.page().waitForTimeout(CONFIRM_GUARD_MS)
   await button.click()
 }
+
+/**
+ * The account the header menu names as its first entry — the signed-in email, or "Not Logged In"
+ * for characters kept only on this device. Opens the menu to read it and closes it again.
+ */
+export async function expectAccount(page: Page, account: string): Promise<void> {
+  await page.locator('[data-test="header-menu-trigger"]').click()
+  await expect(page.locator('[data-test="header-menu-account"]')).toHaveText(account)
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("menu")).toHaveCount(0)
+}

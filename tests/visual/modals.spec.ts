@@ -30,7 +30,7 @@ const MODALS: ModalCase[] = [
   { name: "bonus-action-add", tab: "Combat", open: (page) => click(page, "add-bonus-action-button") },
   { name: "reaction-add", tab: "Combat", open: (page) => click(page, "add-reaction-button") },
   { name: "other-add", tab: "Combat", open: (page) => click(page, "add-other-button") },
-  { name: "action-edit", tab: "Combat", open: (page) => click(page, "action-edit-button-Longbow Strike") },
+  { name: "action-edit", tab: "Combat", open: (page) => click(page, "action-card-attack-atk1-edit-button") },
   { name: "feature-add", tab: "Features", open: (page) => click(page, "add-feature-class-feature") },
   // Regression: the Feature Type list opens in place, inside the modal's scroll container, and was
   // clipped by it (e001998). Only a screenshot with the list open can catch that.

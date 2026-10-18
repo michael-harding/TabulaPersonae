@@ -215,7 +215,7 @@ export function Combobox(props: ComboboxProps) {
                   onMouseEnter={() => setActiveIndex(index())}
                   onClick={() => handleSelect(option)}
                   class={cn(
-                    "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none",
+                    "relative flex min-h-11 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none",
                     isActive() ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
                   )}
                 >

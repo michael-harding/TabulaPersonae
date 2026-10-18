@@ -152,6 +152,22 @@ export async function signIn(page: Page, user: TestUser): Promise<void> {
 
 // ── Whole emulator ──────────────────────────────────────────────────────────────────────────────
 
+/** Resolves once both emulators answer, or rejects after `timeoutMs`. */
+export async function waitForEmulators(timeoutMs = 60_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  for (const url of [`${FIRESTORE_URL}/`, `${AUTH_URL}/`]) {
+    for (;;) {
+      try {
+        if ((await fetch(url)).ok) break
+      } catch {
+        // not listening yet
+      }
+      if (Date.now() > deadline) throw new Error(`The Firebase emulator at ${url} did not start within ${timeoutMs / 1000}s`)
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+  }
+}
+
 /** Deletes every document and every account. Run once per test run (see global-setup.ts). */
 export async function clearEmulators(): Promise<void> {
   const responses = await Promise.all([

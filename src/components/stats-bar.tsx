@@ -5,7 +5,7 @@ import Sword from "lucide-solid/icons/sword"
 import Heart from "lucide-solid/icons/heart"
 
 import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility, displayedConditions } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 
@@ -38,7 +38,7 @@ export function StatsBar(props: StatsBarProps) {
     const abilityAbbr = ability.slice(0, 3).toUpperCase()
     return `Spell Hit: ${abilityAbbr} ${formatModifier(abilityMod)} + Prof +${prof} = ${formatModifier(hitBonus())} · DC: 8 + ${abilityAbbr} ${formatModifier(abilityMod)} + Prof +${prof} = ${spellSaveDC()}`
   })
-  const conditions = createMemo(() => props.character.conditions ?? [])
+  const conditions = createMemo(() => displayedConditions(props.character))
 
   return (
     <div data-sem="stats-bar" class="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">

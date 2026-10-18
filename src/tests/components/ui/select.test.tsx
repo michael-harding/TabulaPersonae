@@ -20,6 +20,13 @@ function renderSelect(props: { disabled?: boolean; onValueChange?: (v: string) =
 }
 
 describe("Select", () => {
+  // ACCESSIBILITY.md §13: each option is a 44px-tall touch target
+  it("makes every option at least 44px tall", () => {
+    renderSelect()
+    fireEvent.click(screen.getByRole("combobox"))
+    for (const option of screen.getAllByRole("option")) expect(option).toHaveClass("min-h-11")
+  })
+
   it("opens the listbox when the trigger is clicked", () => {
     renderSelect()
     fireEvent.click(screen.getByRole("combobox", { name: "Class" }))

@@ -33,6 +33,9 @@ import {
   getEffectiveCarryingCapacity,
   getCarryingCapacityBreakdown,
   getEffectiveSize,
+  getExhaustionEffects,
+  displayedConditions,
+  speciesGrantTooltip,
   getActiveLevelEffect,
   getActiveFeatureEffects,
   getEffectiveSpellcastingAbility,
@@ -1038,6 +1041,56 @@ describe("getCarryingCapacityBreakdown", () => {
       equipment: [makeMagicItem({ modifiers: { carryingCapacityBonus: 20, carryingCapacityMultiplier: 2 } })],
     }
     expect(getCarryingCapacityBreakdown(character).breakdown).toBe("(16 (Str) × 15 + 20 (item/feature bonus)) × 2 (multiplier)")
+  })
+})
+
+// Exhaustion has six levels in both editions; what each level does differs (2014 PHB Appendix A,
+// 2024 PHB Rules Glossary)
+describe("getExhaustionEffects", () => {
+  it("lists the 2014 effects cumulatively, one table row per level", () => {
+    expect(getExhaustionEffects("2014", 1)).toEqual(["Disadvantage on ability checks"])
+    expect(getExhaustionEffects("2014", 3)).toEqual([
+      "Disadvantage on ability checks", "Speed halved", "Disadvantage on attack rolls and saving throws",
+    ])
+    expect(getExhaustionEffects("2014", 5)).toEqual([
+      "Disadvantage on ability checks", "Speed halved", "Disadvantage on attack rolls and saving throws",
+      "Hit point maximum halved", "Speed reduced to 0",
+    ])
+    expect(getExhaustionEffects("2014", 6).at(-1)).toBe("Death")
+  })
+
+  it("scales the 2024 penalties with the level", () => {
+    expect(getExhaustionEffects("2024", 1)).toEqual(["d20 Tests −2", "Speed −5 ft"])
+    expect(getExhaustionEffects("2024", 4)).toEqual(["d20 Tests −8", "Speed −20 ft"])
+    expect(getExhaustionEffects("2024", 6)).toEqual(["Death"])
+  })
+
+  it("has no effects without exhaustion, and treats anything past 6 as 6", () => {
+    expect(getExhaustionEffects("2024", 0)).toEqual([])
+    expect(getExhaustionEffects("2014", 9)).toEqual(getExhaustionEffects("2014", 6))
+  })
+})
+
+describe("displayedConditions", () => {
+  it("adds the exhaustion level after the other conditions", () => {
+    expect(displayedConditions({ conditions: ["Poisoned"], exhaustionLevel: 2 })).toEqual(["Poisoned", "Exhaustion 2"])
+  })
+
+  it("shows no exhaustion at level 0 or when the level is absent", () => {
+    expect(displayedConditions({ conditions: ["Prone"], exhaustionLevel: 0 })).toEqual(["Prone"])
+    expect(displayedConditions({ conditions: [] })).toEqual([])
+  })
+})
+
+// The tooltip of a value a Species Trait can grant (speed, size), shared by every module showing one.
+describe("speciesGrantTooltip", () => {
+  it("names the granting trait after the value, with feet for a speed", () => {
+    expect(speciesGrantTooltip(25, "Dwarf Speed Species Trait")).toBe("25 ft (Dwarf Speed Species Trait)")
+    expect(speciesGrantTooltip("Large", "Powerful Build Species Trait")).toBe("Large (Powerful Build Species Trait)")
+  })
+
+  it("says how to get a value when nothing grants one", () => {
+    expect(speciesGrantTooltip("", undefined)).toBe("No species trait grants this — add one in Features, or switch to custom entry")
   })
 })
 

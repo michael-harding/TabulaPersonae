@@ -31,6 +31,9 @@ function expectMigrated(character: Character) {
   expect(wand).not.toHaveProperty("uses")
   expect(potion).not.toHaveProperty("uses")
   expect(character.damageResistances).toEqual(["Poison"])
+  // The stored Exhaustion condition proves level 1, and is no longer a condition
+  expect(character.exhaustionLevel).toBe(1)
+  expect(character.conditions ?? []).not.toContain("Exhaustion")
   expect(character).toHaveProperty("useCalculatedArmorClass")
 }
 

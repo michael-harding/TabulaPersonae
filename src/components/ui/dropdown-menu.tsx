@@ -27,7 +27,7 @@ export function DropdownMenuContent(props: ComponentProps<typeof DropdownMenuPri
         // dialog; this is Kobalte's marker for content that stays exposed while a modal is open.
         data-kb-top-layer=""
         class={cn(
-          "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[closed]:zoom-out-95 data-[expanded]:zoom-in-95",
+          "z-50 max-h-[var(--kb-popper-content-available-height)] min-w-[8rem] overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[expanded]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[expanded]:fade-in-0 data-[closed]:zoom-out-95 data-[expanded]:zoom-in-95",
           local.class
         )}
         {...others}
@@ -41,7 +41,7 @@ export function DropdownMenuItem(props: ComponentProps<typeof DropdownMenuPrimit
   return (
     <DropdownMenuPrimitive.Item
       class={cn(
-        "menu-item relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+        "menu-item relative flex min-h-11 cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
         local.inset && "pl-8",
         local.class
       )}

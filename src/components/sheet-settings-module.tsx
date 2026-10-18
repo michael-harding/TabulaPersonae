@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SwitchButton } from "@/components/ui/switch-button"
 import { useReadOnly } from "@/lib/read-only-context"
+import { SHEET_COLOR_PRESETS } from "@/lib/sheet-color"
 import { cn, HOVER_ACCENT, TOUCH_TARGET } from "@/lib/utils"
 
 interface SheetSettingsModuleProps {
@@ -16,14 +17,7 @@ interface SheetSettingsModuleProps {
   onUpdate: (character: Character) => void
 }
 
-const PRESET_COLORS = [
-  { name: "Green", hex: "#22c55e" },
-  { name: "Purple", hex: "#8b5cf6" },
-  { name: "Red", hex: "#ef4444" },
-  { name: "Blue", hex: "#3b82f6" },
-  { name: "Orange", hex: "#f97316" },
-  { name: "Gold", hex: "#eab308" },
-]
+const PRESET_COLORS = SHEET_COLOR_PRESETS
 
 export function SheetSettingsModule(props: SheetSettingsModuleProps) {
   const isReadOnly = useReadOnly()

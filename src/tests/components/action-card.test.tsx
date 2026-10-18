@@ -8,6 +8,7 @@ import { render, screen, fireEvent, cleanupPortals } from "../test-utils"
 
 function makeProps(overrides: Partial<ActionCardProps> = {}): ActionCardProps {
   return {
+    "data-test": "action-card-test",
     name: "Test Action",
     badgeLabel: "Ability",
     ...overrides,
@@ -20,10 +21,50 @@ describe("ActionCard", () => {
     cleanupPortals()
   })
 
+  // TESTING.md §6: names repeat (a bonus action and a spell can both be Hunter's Mark), so every
+  // hook comes from the unique one the list gives the card
+  describe("test hooks", () => {
+    it("prefixes every hook with the card's own data-test, so two cards with one name stay apart", () => {
+      const props = { name: "Hunter's Mark", onEdit: vi.fn(), maxUses: 8, uses: 1, onUsesChange: vi.fn() }
+      render(() => (
+        <>
+          <ActionCard {...makeProps({ ...props, "data-test": "action-card-bonus-ba1" })} />
+          <ActionCard {...makeProps({ ...props, "data-test": "action-card-spell-sp1" })} />
+        </>
+      ))
+      for (const card of ["action-card-bonus-ba1", "action-card-spell-sp1"]) {
+        expect(screen.getByTestId(card)).toBeInTheDocument()
+        for (const part of ["details-trigger", "edit-button", "uses-stepper"]) expect(screen.getByTestId(`${card}-${part}`)).toBeInTheDocument()
+      }
+    })
+  })
+
+  // In a list, "Cast" or "Upcast" alone could be any spell's
+  it("names the spell its Cast and Upcast buttons belong to", () => {
+    render(() => (
+      <ActionCard {...makeProps({
+        name: "Fireball", spellId: "sp1", onCast: vi.fn(), castable: () => true,
+        atHigherLevel: "+1d6 per level", hasHigherSlots: () => true, upcastLevels: () => [4], upcastSpellId: () => null,
+      })} />
+    ))
+    expect(screen.getByRole("button", { name: "Cast Fireball" })).toHaveTextContent("Cast")
+    expect(screen.getByRole("button", { name: "Upcast Fireball" })).toBeInTheDocument()
+  })
+
   describe("detail popover", () => {
     it("renders the ? icon button", () => {
       render(() => <ActionCard {...makeProps()} />)
       expect(screen.getByRole("button", { name: /details for test action/i })).toBeInTheDocument()
+    })
+
+    // ACCESSIBILITY.md §13: a real 44×44 box rather than an invisible hit area, which could cover
+    // the edit button beside it on a card with a long name
+    it("gives the ? button a 44×44 touch target", () => {
+      render(() => <ActionCard {...makeProps()} />)
+      const button = screen.getByRole("button", { name: /details for test action/i })
+      expect(button).toHaveClass("min-h-11", "min-w-11")
+      // Not pulled into a shorter row, where the next row would cover its lower edge
+      expect(button).not.toHaveClass("-my-3")
     })
 
     it("opens when ? button is clicked", () => {
@@ -79,12 +120,12 @@ describe("ActionCard", () => {
 
     it("shows green pill when gain provided", () => {
       render(() => <ActionCard {...makeProps({ gain: "1d8+3" })} />)
-      expect(screen.getByTestId("effect-pill-Test Action-green")).toHaveTextContent("1d8+3")
+      expect(screen.getByTestId("action-card-test-effect-pill-green")).toHaveTextContent("1d8+3")
     })
 
     it("shows blue pill when tempHp provided", () => {
       render(() => <ActionCard {...makeProps({ tempHp: "5" })} />)
-      expect(screen.getByTestId("effect-pill-Test Action-blue")).toHaveTextContent("5")
+      expect(screen.getByTestId("action-card-test-effect-pill-blue")).toHaveTextContent("5")
     })
 
     it("gain takes priority over tempHp and damage", () => {
@@ -161,11 +202,11 @@ describe("ActionCard", () => {
 
     it("toggles styling on click without calling onUpdate", () => {
       render(() => <ActionCard {...makeProps({ concentration: true })} />)
-      expect(screen.getByTestId("concentration-badge-Test Action-inactive")).toBeInTheDocument()
-      fireEvent.click(screen.getByTestId("concentration-badge-Test Action-inactive"))
-      expect(screen.getByTestId("concentration-badge-Test Action-active")).toBeInTheDocument()
-      fireEvent.click(screen.getByTestId("concentration-badge-Test Action-active"))
-      expect(screen.getByTestId("concentration-badge-Test Action-inactive")).toBeInTheDocument()
+      expect(screen.getByTestId("action-card-test-concentration-badge-inactive")).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId("action-card-test-concentration-badge-inactive"))
+      expect(screen.getByTestId("action-card-test-concentration-badge-active")).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId("action-card-test-concentration-badge-active"))
+      expect(screen.getByTestId("action-card-test-concentration-badge-inactive")).toBeInTheDocument()
     })
   })
 
@@ -241,19 +282,19 @@ describe("ActionCard", () => {
 
     it("shows Cast button when onCast is provided; no pip tracker shown", () => {
       render(() => <ActionCard {...makeProps({ onCast: vi.fn(), castable: () => true, maxUses: 3, onUsesChange: vi.fn() })} />)
-      expect(screen.getByRole("button", { name: /^cast$/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /^cast test action$/i })).toBeInTheDocument()
       expect(screen.queryByLabelText("Charge available (click to use)")).not.toBeInTheDocument()
     })
 
     it("Cast button is disabled when castable returns false", () => {
       render(() => <ActionCard {...makeProps({ onCast: vi.fn(), castable: () => false })} />)
-      expect(screen.getByRole("button", { name: /^cast$/i })).toBeDisabled()
+      expect(screen.getByRole("button", { name: /^cast test action$/i })).toBeDisabled()
     })
 
     it("calls onCast when Cast button is clicked", () => {
       const onCast = vi.fn()
       render(() => <ActionCard {...makeProps({ onCast, castable: () => true })} />)
-      fireEvent.click(screen.getByRole("button", { name: /^cast$/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^cast test action$/i }))
       expect(onCast).toHaveBeenCalledOnce()
     })
   })
@@ -280,13 +321,14 @@ describe("ActionCard", () => {
 
     it("does not render the Cast button when onCast is provided", () => {
       renderReadOnly({ onCast: vi.fn(), castable: () => true })
-      expect(screen.queryByRole("button", { name: /^cast$/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /^cast /i })).not.toBeInTheDocument()
     })
 
     it("renders PipTracker uses as non-interactive spans when maxUses is set", () => {
       renderReadOnly({ maxUses: 3, uses: 0, onUsesChange: vi.fn() })
       expect(screen.queryByRole("button", { name: /charge/i })).not.toBeInTheDocument()
-      expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(3)
+      // Read-only: named by state, since they cannot be clicked
+      expect(screen.getAllByRole("img", { name: "Charge available" })).toHaveLength(3)
     })
 
     it("renders StepperInput without ± buttons when maxUses is large", () => {

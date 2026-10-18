@@ -1,5 +1,5 @@
 import type { Character, Equipment, Feature, SenseType } from "./character-types"
-import { ABILITY_KEYS, calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import { ABILITY_KEYS, calculateEquippedAC, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
 const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass",
@@ -174,6 +174,13 @@ export function migrateCharacter(raw: unknown): Character {
     const current = safeFeatures((patch[field] as Feature[] | undefined) ?? raw[field])
     const backfilled = backfillFeatureTypes(current)
     if (backfilled) patch[field] = backfilled
+  }
+
+  // Exhaustion was an on/off condition before it had levels. The stored condition proves level 1
+  // and nothing more, so that is what it becomes; a stored level is never second-guessed.
+  if (Array.isArray(raw.conditions) && raw.conditions.includes(EXHAUSTION)) {
+    patch.conditions = raw.conditions.filter((condition) => condition !== EXHAUSTION)
+    if (raw.exhaustionLevel == null) patch.exhaustionLevel = 1
   }
 
   if (Array.isArray(raw.equipment)) {

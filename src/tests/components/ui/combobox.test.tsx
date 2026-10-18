@@ -220,6 +220,13 @@ describe("Combobox", () => {
     expect(screen.getByRole("button", { name: "Toggle options" })).toBeDisabled()
   })
 
+  // ACCESSIBILITY.md §13: each option is a 44px-tall touch target
+  it("makes every option at least 44px tall", () => {
+    render(() => <Combobox options={OPTIONS} aria-label="Class" />)
+    fireEvent.click(screen.getByRole("button", { name: "Toggle options" }))
+    for (const option of screen.getAllByRole("option")) expect(option).toHaveClass("min-h-11")
+  })
+
   it("gives the chevron its own data-test hook, derived from the input's", () => {
     render(() => <Combobox options={OPTIONS} aria-label="Class" data-test="class-combobox" />)
     expect(screen.getByRole("button", { name: "Toggle options" })).toHaveAttribute("data-test", "class-combobox-toggle")

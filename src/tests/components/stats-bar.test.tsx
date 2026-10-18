@@ -90,6 +90,18 @@ describe("StatsBar", () => {
       expect(screen.getByText("Poisoned")).toBeInTheDocument()
       expect(screen.getByText("Prone")).toBeInTheDocument()
     })
+
+    it("lists exhaustion with its level", () => {
+      const character = { ...makeCharacter(8, 10), conditions: ["Prone"], exhaustionLevel: 3 }
+      render(() => <StatsBar character={character} />)
+      expect(screen.getByText("Exhaustion 3")).toBeInTheDocument()
+    })
+
+    it("shows the condition list for exhaustion alone", () => {
+      const character = { ...makeCharacter(8, 10), conditions: [], exhaustionLevel: 1 }
+      render(() => <StatsBar character={character} />)
+      expect(screen.getByText("Exhaustion 1")).toBeInTheDocument()
+    })
   })
 
   describe("AC and initiative", () => {

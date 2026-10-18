@@ -21,6 +21,12 @@ describe("PrivacyPolicy page", () => {
     expect(link).toHaveAttribute("href", "/auth")
   })
 
+  // ACCESSIBILITY.md §13
+  it("makes the link back a 44px-tall touch target", () => {
+    render(() => <PrivacyPolicy />)
+    expect(screen.getByRole("link", { name: /back/i })).toHaveClass("inline-flex", "min-h-11")
+  })
+
   it("renders the substantive body content", () => {
     render(() => <PrivacyPolicy />)
     expect(screen.getByRole("heading", { name: /using without an account/i })).toBeInTheDocument()

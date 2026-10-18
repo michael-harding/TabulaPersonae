@@ -368,7 +368,8 @@ const CALCULATED_VALUE_FLAGS = [
  *   - a Feature without `featureType`, as PDF import created them;
  *   - items with the single `uses` field that became `charges` (magic item with charges) and
  *     `consumedUses` (consumable);
- *   - damage resistances typed as free text.
+ *   - damage resistances typed as free text;
+ *   - Exhaustion as a plain condition, before it had levels.
  * Not typed as Character: it is deliberately not one.
  */
 export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -391,6 +392,8 @@ export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Re
       { id: "le-potion", name: "Potion of Healing", quantity: 3, weight: 0.5, description: "", equipped: false, type: "consumable", uses: 1 },
     ],
     damageResistances: ["poison"],
+    // Before exhaustion had levels it was an on/off condition
+    conditions: ["Exhaustion"],
     ...overrides,
   }
 }

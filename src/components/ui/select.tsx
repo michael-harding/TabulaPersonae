@@ -275,7 +275,7 @@ export function SelectItem(props: ComponentProps<"li"> & { value: string }) {
       // real cursor movement fires mousemove, so this avoids hover silently fighting the keyboard.
       onMouseMove={() => ctx.setActiveValue(local.value)}
       class={cn(
-        "menu-item relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground",
+        "menu-item relative flex min-h-11 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground",
         isActive() && "bg-accent text-accent-foreground",
         local.class
       )}

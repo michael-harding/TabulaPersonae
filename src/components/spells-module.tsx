@@ -666,12 +666,12 @@ export function SpellsModule(props: SpellsModuleProps) {
                                   <Show when={!isReadOnly}>
                                     <div class="flex items-center gap-2 ml-4">
                                       <Tooltip content="Edit spell">
-                                        <Button data-test={`edit-spell-${spell.id}`} variant="ghost" size="sm" aria-label="Edit spell" onClick={() => setEditingSpell(spell)}>
+                                        <Button data-test={`edit-spell-${spell.id}`} variant="ghost" size="sm" aria-label={`Edit ${spell.name}`} onClick={() => setEditingSpell(spell)}>
                                           <Edit class="h-4 w-4" aria-hidden="true" />
                                         </Button>
                                       </Tooltip>
                                       <Tooltip content="Delete spell">
-                                        <ConfirmButton data-test={`delete-spell-${spell.id}`} variant="ghost" size="sm" verb="Delete" subject="spell" onConfirm={() => handleDeleteSpell(spell.id)}>
+                                        <ConfirmButton data-test={`delete-spell-${spell.id}`} variant="ghost" size="sm" verb="Delete" subject={spell.name} onConfirm={() => handleDeleteSpell(spell.id)}>
                                           <Trash2 class="h-4 w-4" aria-hidden="true" />
                                         </ConfirmButton>
                                       </Tooltip>

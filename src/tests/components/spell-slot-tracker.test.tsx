@@ -117,8 +117,9 @@ describe("SpellSlotTracker", () => {
         </ReadOnlyProvider>
       ))
       expect(screen.queryAllByRole("button")).toHaveLength(0)
-      expect(screen.queryAllByLabelText("Available slot (click to use)")).toHaveLength(2)
-      expect(screen.queryAllByLabelText("Used slot (click to restore)")).toHaveLength(1)
+      // Read-only: named by state, since they cannot be clicked
+      expect(screen.queryAllByRole("img", { name: "Available slot" })).toHaveLength(2)
+      expect(screen.queryAllByRole("img", { name: "Used slot" })).toHaveLength(1)
     })
 
     it("still renders the level label when readOnly", () => {

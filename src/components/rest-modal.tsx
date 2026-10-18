@@ -103,7 +103,8 @@ export function RestModal(props: RestModalProps) {
         hitPoints: { ...char.hitPoints, current: getEffectiveMaxHp(char), temporary: 0 },
         spentHitDice: 0,
         spellSlots: resetSpellSlots,
-        conditions: (char.conditions ?? []).filter((c) => c !== "Exhaustion"),
+        // A long rest removes one level of Exhaustion (2014: if the creature also ate and drank)
+        ...((char.exhaustionLevel ?? 0) > 0 ? { exhaustionLevel: (char.exhaustionLevel ?? 0) - 1 } : {}),
         attacks: resetMatching(attacks, "short-rest", "long-rest"),
         bonusActions: resetMatching(bonusActions, "short-rest", "long-rest"),
         reactions: resetMatching(reactions, "short-rest", "long-rest"),
@@ -163,7 +164,7 @@ export function RestModal(props: RestModalProps) {
                   <li>Regain all lost Hit Points</li>
                   <li>All spent Hit Dice restored</li>
                   <li>All spell slots restored</li>
-                  <li>Exhaustion reduced by 1</li>
+                  <li>{props.character.edition === "2014" ? "Exhaustion level reduced by 1 (if you ate and drank)" : "Exhaustion level reduced by 1"}</li>
                   <li>Long-rest features recharge</li>
                   <li>Reset temporary hit points to 0</li>
                 </ul>
@@ -206,6 +207,7 @@ export function RestModal(props: RestModalProps) {
                   }
                 >
                   <PipTracker
+                    data-test="rest-hit-dice"
                     total={availableHitDice()}
                     used={dicesToSpend()}
                     onToggle={setDicesToSpend}

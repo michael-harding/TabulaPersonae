@@ -27,8 +27,8 @@ test.describe("Tab settings", () => {
     const before = await tabOrder(page)
     expect(before.length).toBeGreaterThan(1)
     // The first tab starts expanded; collapsed, the two rows being swapped are both on screen
-    await page.getByRole("button", { name: "Collapse tab" }).click()
-    await expect(page.getByRole("button", { name: "Collapse tab" })).toHaveCount(0)
+    await page.getByRole("button", { name: /^Collapse / }).click()
+    await expect(page.getByRole("button", { name: /^Collapse / })).toHaveCount(0)
     const handles = page.locator('[data-test^="tab-drag-handle-"]')
     const from = (await handles.nth(0).boundingBox())!
     const to = (await handles.nth(1).boundingBox())!
@@ -77,8 +77,8 @@ test.describe("Tab settings", () => {
     const row = page.locator(`[data-test="tab-row-${downtime.id}"]`)
     await page.locator(`[data-test="tab-toggle-${downtime.id}"]`).click()
 
-    await confirmClick(row.locator('[data-test="remove-module-notes"]'))
-    await expect(row.locator('[data-test="remove-module-notes"]')).toHaveCount(0)
+    await confirmClick(row.locator(`[data-test="remove-module-${downtime.id}-notes"]`))
+    await expect(row.locator(`[data-test="remove-module-${downtime.id}-notes"]`)).toHaveCount(0)
     await openSheet(page, testCharacter.id)
     await page.locator(`[data-test="tab-trigger-${downtime.id}"]`).click()
     await expect(page.getByRole("tabpanel").locator('[data-test="character-notes-module"]')).toHaveCount(0)

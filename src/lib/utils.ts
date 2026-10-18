@@ -19,6 +19,11 @@ export const TOUCH_TARGET =
 // so neighbours are guaranteed to be ≥44px apart centre-to-centre.
 export const TOUCH_TARGET_BOX = "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center"
 
+// INLINE_LINK_TARGET makes a link in running text a 44px-tall box. It stays on one line (a link
+// that wraps has a box spanning both lines, covering whatever sits beside it), and keeps its
+// place in the sentence.
+export const INLINE_LINK_TARGET = "inline-flex min-h-11 items-center align-middle"
+
 // The hover highlight for a row or control. The accent background always comes with the accent
 // foreground: in the light theme accent is a strong red, and body text left on it has a contrast
 // ratio of about 2:1 (WCAG AA needs 4.5:1). Use this instead of writing `hover:bg-accent` alone.
