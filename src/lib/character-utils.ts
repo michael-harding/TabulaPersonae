@@ -814,9 +814,8 @@ export function getEffectiveCarryingCapacity(character: CarryingCapacityCharacte
 }
 
 // No fallback to a hardcoded "Medium" default — like getEffectiveMovementSpeeds, this is purely
-// what the Species Trait system says (empty string if nothing grants a size yet). `character.size`
-// is never read here; it's purely the custom-override storage field (see useCalculatedSize in
-// character-basic-info-module.tsx).
+// what the Species Trait system says (empty string if nothing grants a size yet). Size is only ever
+// granted by a Species Trait; a character has no size of its own.
 export function getEffectiveSize(character: FeatureEffectCharacter): { size: string; source?: string } {
   const featureTotals = getActiveFeatureEffects(character)
   return { size: featureTotals.size ?? "", source: featureTotals.sizeSource }

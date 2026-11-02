@@ -35,24 +35,22 @@ describe("migrateCharacter", () => {
     expect(migrateCharacter(raw).useCalculatedArmorClass).toBe(false)
   })
 
-  it("backfills the speed/size calculated-value flags to true when the stored values already match the calculated ones", () => {
-    // A default character has no Species Trait effects, so calculated walk speed is 0 and
-    // calculated size is "" — nothing here matches the stored defaults (30/"Medium"), so this case
-    // instead uses a character with no baked-in speed/size at all to exercise the "matches" path.
-    const raw = { ...createDefaultCharacter(), speed: undefined, flySpeed: undefined, swimSpeed: undefined, climbSpeed: undefined, burrowSpeed: undefined, size: undefined }
+  it("backfills the speed calculated-value flags to true when the stored values already match the calculated ones", () => {
+    // A default character has no Species Trait effects, so calculated walk speed is 0 — which does
+    // not match the stored default (30), so this case instead uses a character with no baked-in
+    // speeds at all to exercise the "matches" path.
+    const raw = { ...createDefaultCharacter(), speed: undefined, flySpeed: undefined, swimSpeed: undefined, climbSpeed: undefined, burrowSpeed: undefined }
     delete raw.useCalculatedSpeed
     delete raw.useCalculatedFlySpeed
     delete raw.useCalculatedSwimSpeed
     delete raw.useCalculatedClimbSpeed
     delete raw.useCalculatedBurrowSpeed
-    delete raw.useCalculatedSize
     const migrated = migrateCharacter(raw)
     expect(migrated.useCalculatedSpeed).toBe(true)
     expect(migrated.useCalculatedFlySpeed).toBe(true)
     expect(migrated.useCalculatedSwimSpeed).toBe(true)
     expect(migrated.useCalculatedClimbSpeed).toBe(true)
     expect(migrated.useCalculatedBurrowSpeed).toBe(true)
-    expect(migrated.useCalculatedSize).toBe(true)
   })
 
   it("treats null speed/size values from external JSON the same as absent ones", () => {
@@ -65,17 +63,17 @@ describe("migrateCharacter", () => {
     delete raw.useCalculatedSwimSpeed
     delete raw.useCalculatedClimbSpeed
     delete raw.useCalculatedBurrowSpeed
-    delete raw.useCalculatedSize
     const migrated = migrateCharacter(raw)
     expect(migrated.useCalculatedSpeed).toBe(true)
     expect(migrated.useCalculatedFlySpeed).toBe(true)
     expect(migrated.useCalculatedSwimSpeed).toBe(true)
     expect(migrated.useCalculatedClimbSpeed).toBe(true)
     expect(migrated.useCalculatedBurrowSpeed).toBe(true)
-    expect(migrated.useCalculatedSize).toBe(true)
+    // A null size is no size: nothing to keep, and the field is not part of a character any more
+    expect(migrated).not.toHaveProperty("size")
   })
 
-  it("defaults the speed/size calculated-value flags to false when the stored values differ from the calculated ones, preserving them", () => {
+  it("defaults the speed calculated-value flags to false when the stored values differ from the calculated ones, preserving them (and the size, as a Species Trait)", () => {
     // A pre-existing character has no concept of a species-trait-derived speed/size — it just has
     // whatever number/string the player typed in, which (with no Species Trait effects configured)
     // won't match the feature-derived calculation (0 / ""). Backfilling `true` here would silently
@@ -87,25 +85,39 @@ describe("migrateCharacter", () => {
     delete raw.useCalculatedSwimSpeed
     delete raw.useCalculatedClimbSpeed
     delete raw.useCalculatedBurrowSpeed
-    delete raw.useCalculatedSize
     const migrated = migrateCharacter(raw)
     expect(migrated.useCalculatedSpeed).toBe(false)
     expect(migrated.useCalculatedFlySpeed).toBe(false)
     expect(migrated.useCalculatedSwimSpeed).toBe(false)
     expect(migrated.useCalculatedClimbSpeed).toBe(false)
     expect(migrated.useCalculatedBurrowSpeed).toBe(false)
-    expect(migrated.useCalculatedSize).toBe(false)
     expect(migrated.speed).toBe(25)
-    expect(migrated.size).toBe("Small")
+    // Size is a Species Trait now: the typed-in size is kept as one
+    expect(migrated.speciesTraits?.at(-1)?.levelEffects?.[0].effects).toEqual({ size: "Small" })
+    expect(migrated).not.toHaveProperty("size")
   })
 
   it("only backfills the specific flags that are missing, leaving others untouched", () => {
-    const raw = { ...createDefaultCharacter(), useCalculatedSpeed: true }
-    delete raw.useCalculatedSize
+    const raw = { ...createDefaultCharacter(), useCalculatedSpeed: false }
+    delete raw.useCalculatedFlySpeed
     const migrated = migrateCharacter(raw)
-    expect(migrated.useCalculatedSpeed).toBe(true)
-    // size: "Medium" (stored) differs from the calculated "" (no species trait), so it backfills to false.
-    expect(migrated.useCalculatedSize).toBe(false)
+    expect(migrated.useCalculatedSpeed).toBe(false)
+    // flySpeed 0 (stored) matches the calculated 0 (no species trait), so it backfills to true
+    expect(migrated.useCalculatedFlySpeed).toBe(true)
+  })
+
+  // Size is a Species Trait: a character no longer has a size of its own, or a flag for one
+  it("gives a new character no size fields, and leaves it as it is", () => {
+    const fresh = createDefaultCharacter()
+    expect(fresh).not.toHaveProperty("size")
+    expect(fresh).not.toHaveProperty("useCalculatedSize")
+    expect(migrateCharacter(fresh)).toBe(fresh)
+  })
+
+  it("drops the old size fields from a stored character", () => {
+    const migrated = migrateCharacter({ ...createDefaultCharacter(), size: "Medium", useCalculatedSize: false })
+    expect(migrated).not.toHaveProperty("size")
+    expect(migrated).not.toHaveProperty("useCalculatedSize")
   })
 
   it("rejects input that is not a character record", () => {
@@ -122,7 +134,7 @@ describe("migrateCharacter", () => {
     // yet; only brand-new characters created under the current code do.
     it("synthesizes a Feature granting the legacy spellcasting ability when nothing else grants one", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
-      delete raw.useCalculatedSize
+      delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("intelligence")
       expect(migrated.classFeatures).toHaveLength(1)
@@ -133,13 +145,13 @@ describe("migrateCharacter", () => {
 
     it("does not synthesize a Spellcasting Feature from a legacy value that is not an ability", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "Intelligence (INT)", hitDice: "" }
-      delete raw.useCalculatedSize
+      delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       expect(migrateCharacter(raw).classFeatures).toEqual([])
     })
 
     it("synthesizes a Feature granting the legacy hit die size when nothing else grants one", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], hitDice: "1d10" }
-      delete raw.useCalculatedSize
+      delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
       expect(getEffectiveHitDiceSize(migrated)).toBe(10)
       // spellcastingAbility defaults to "" on a fresh character, so no spellcasting Feature is added
@@ -150,14 +162,14 @@ describe("migrateCharacter", () => {
 
     it("prefers an explicit legacy hitDiceSize over parsing hitDice", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], hitDice: "1d8", hitDiceSize: 12 }
-      delete raw.useCalculatedSize
+      delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
       expect(getEffectiveHitDiceSize(migrated)).toBe(12)
     })
 
     it("synthesizes separate Features for spellcasting and hit die, so editing one in the Features tab can't drop the other", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "wisdom", hitDice: "1d8" }
-      delete raw.useCalculatedSize
+      delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
       expect(migrated.classFeatures).toHaveLength(2)
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("wisdom")
@@ -173,7 +185,7 @@ describe("migrateCharacter", () => {
           { id: "f1", name: "Spellcasting", description: "", source: "class-feature", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] },
         ],
       }
-      delete raw.useCalculatedSize
+      delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
       expect(migrated.classFeatures).toHaveLength(1)
     })
@@ -185,7 +197,7 @@ describe("migrateCharacter", () => {
         hitDice: "1d8",
         classFeatures: [{ id: "f1", name: "Bardic Inspiration", description: "Imported from PDF", source: "class-feature" }],
       }
-      delete raw.useCalculatedSize
+      delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("charisma")
       expect(getEffectiveHitDiceSize(migrated)).toBe(8)
@@ -199,7 +211,7 @@ describe("migrateCharacter", () => {
         spellcastingAbility: "wisdom",
         hitDice: "",
       }
-      delete raw.useCalculatedSize
+      delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       expect(() => migrateCharacter(raw)).not.toThrow()
       const migrated = migrateCharacter(raw)
       // Only the synthesized "Spellcasting" Feature — the legacy string was discarded via
@@ -250,7 +262,7 @@ describe("migrateCharacter", () => {
 
     it("gives a legacy-synthesized Spellcasting Feature the correct featureType", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
-      delete raw.useCalculatedSize
+      delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
       expect(migrated.classFeatures![0].name).toBe("Spellcasting")
       expect(migrated.classFeatures![0].featureType).toBe("Spellcasting Ability")
@@ -267,6 +279,49 @@ describe("migrateCharacter", () => {
       expect(migrated.speciesTraits![0].featureType).toBe("Senses")
       expect(migrated.feats![0].featureType).toBe("Max HP Bonus")
       expect(migrated.backgroundFeatures![0].featureType).toBe("")
+    })
+  })
+
+  // Size is a Species Trait. A size the user entered by hand becomes one; a value nothing proves
+  // they chose (the old "Medium" default) is not turned into a trait.
+  describe("custom size", () => {
+    const sizeTraits = (character: ReturnType<typeof migrateCharacter>) =>
+      (character.speciesTraits ?? []).filter((trait) => trait.levelEffects?.some((tier) => tier.effects?.size))
+
+    it("turns a size the user switched to custom into a Species Trait granting it", () => {
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [], size: "Small", useCalculatedSize: false })
+      expect(sizeTraits(migrated)).toEqual([expect.objectContaining({
+        name: "Size", source: "species-trait", featureType: "Size", levelEffects: [{ level: 1, effects: { size: "Small" } }],
+      })])
+      expect(migrated).not.toHaveProperty("useCalculatedSize")
+    })
+
+    // The flag is no evidence for Medium: the migration that added it stored `false` for every
+    // older character whose size didn't match the calculated one, the old default included
+    it("does not turn a stored Medium into a trait, even with the custom flag set", () => {
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [], size: "Medium", useCalculatedSize: false })
+      expect(sizeTraits(migrated)).toEqual([])
+    })
+
+    it("turns an older character's non-default size into a trait, since only the user could have set it", () => {
+      const raw: Record<string, unknown> = { ...createDefaultCharacter(), speciesTraits: [], size: "Large" }
+      expect(sizeTraits(migrateCharacter(raw))[0].levelEffects?.[0].effects).toEqual({ size: "Large" })
+    })
+
+    it("does not turn an older character's Medium into a trait: it was the default, not necessarily a choice", () => {
+      const raw: Record<string, unknown> = { ...createDefaultCharacter(), speciesTraits: [], size: "Medium" }
+      expect(sizeTraits(migrateCharacter(raw))).toEqual([])
+    })
+
+    it("adds nothing when the size is calculated, or a trait already grants one", () => {
+      const calculated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [], size: "Small", useCalculatedSize: true })
+      expect(sizeTraits(calculated)).toEqual([])
+      const granted = {
+        id: "t1", name: "Small", description: "", source: "species-trait" as const, featureType: "Size" as const,
+        levelEffects: [{ level: 1, effects: { size: "Small" } }],
+      }
+      const withTrait = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [granted], size: "Tiny", useCalculatedSize: false })
+      expect(sizeTraits(withTrait)).toEqual([granted])
     })
   })
 

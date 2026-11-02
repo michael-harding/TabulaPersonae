@@ -388,6 +388,17 @@ describe("pdf-parser", () => {
         expect(result.backstory).toBe("Born in war")
         expect(result.appearance).toBe("Tall and green")
       })
+      // Size is a Species Trait, not a field of the character: the sheet's size becomes one
+      it("turns SIZE into a Species Trait granting that size", () => {
+        const result = mapFieldsToCharacter({ SIZE: "Medium" })
+        expect(result).not.toHaveProperty("size")
+        expect(result.speciesTraits).toEqual([expect.objectContaining({
+          name: "Size", source: "species-trait", featureType: "Size", levelEffects: [{ level: 1, effects: { size: "Medium" } }],
+        })])
+      })
+      it("adds no size trait when the sheet has no SIZE", () => {
+        expect(mapFieldsToCharacter({ AGE: "31" }).speciesTraits ?? []).toEqual([])
+      })
       it("maps allies ('AlliesOrganizations' not 'AlliesOrgs')", () => {
         const result = mapFieldsToCharacter({ AlliesOrganizations: "The Shining Hand" })
         expect(result.alliesAndOrganizations).toBe("The Shining Hand")

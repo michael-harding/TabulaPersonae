@@ -11,7 +11,6 @@ export const testCharacter: Character = {
   level: 5,
   experiencePoints: 6500,
   edition: "2024",
-  size: "Medium",
 
   abilityScores: {
     strength: 12,
@@ -357,7 +356,7 @@ export function seedLocalStorage(characters: Character[]) {
 // keys, which is how the migration recognises it (see migrateCharacter).
 const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass", "useCalculatedSpeed", "useCalculatedFlySpeed", "useCalculatedSwimSpeed",
-  "useCalculatedClimbSpeed", "useCalculatedBurrowSpeed", "useCalculatedSize", "useCalculatedSenses",
+  "useCalculatedClimbSpeed", "useCalculatedBurrowSpeed", "useCalculatedSenses",
 ] as const
 
 /**

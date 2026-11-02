@@ -1096,9 +1096,8 @@ describe("speciesGrantTooltip", () => {
 
 describe("getEffectiveSize", () => {
   it("returns an empty size with no source when no feature grants one", () => {
-    // No fallback to "Medium" (or any other guess) — character.size is never read here, it's
-    // purely the custom-override storage field for the useCalculatedSize toggle in
-    // combat-stats-module.tsx. An unset size honestly reflects that nothing has defined it yet.
+    // No fallback to "Medium" (or any other guess): size is only granted by a Species Trait, so an
+    // unset size honestly reflects that nothing has defined it yet.
     expect(getEffectiveSize({ classFeatures: [], speciesTraits: [], feats: [], level: 1 })).toEqual({ size: "", source: undefined })
   })
 

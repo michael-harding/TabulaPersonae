@@ -1,6 +1,6 @@
 import { type Page } from "@playwright/test"
 
-import { makeLegacyCharacter } from "../visual/fixtures"
+import { makeLegacyCharacter, testCharacter } from "../visual/fixtures"
 import type { Character } from "../../src/lib/character-types"
 import { createUser, readCharacter, seedCharacter, signIn, withUniqueId } from "./emulator"
 import { openSheet, reload, seedGuest, storedCharacter, storedCharacters } from "./helpers"
@@ -70,6 +70,22 @@ test.describe("A character saved by an older version", () => {
     expectMigrated(savedAgain)
     expect(savedAgain.classFeatures?.map((f) => f.id)).toEqual(saved.classFeatures?.map((f) => f.id))
     await expectFeaturesListed(page)
+  })
+
+  test("with a hand-entered size keeps it, as a Species Trait", async ({ page }) => {
+    // As saved before size was a Species Trait: a hand-entered size, and the flag that said so
+    const character = { ...testCharacter, id: "custom-size", size: "Small", useCalculatedSize: false, speciesTraits: [] } as unknown as Character
+    await seedGuest(page, character)
+    await openSheet(page, character.id, "Features")
+    await expect(page.getByRole("tabpanel").getByRole("button", { name: "Edit Size" })).toHaveCount(1)
+
+    await makeAnEdit(page)
+    await reload(page)
+    const saved = await storedCharacter(page, character.id)
+    expect(saved.speciesTraits?.map((trait) => trait.levelEffects?.[0].effects)).toEqual([{ size: "Small" }])
+    // Size is a Species Trait: the old size fields are gone from the saved character
+    expect(saved).not.toHaveProperty("size")
+    expect(saved).not.toHaveProperty("useCalculatedSize")
   })
 
   test("in an import file is brought up to date when it is imported", async ({ page }) => {

@@ -4,7 +4,7 @@ import { CharacterBasicInfoModule } from "@/components/character-basic-info-modu
 import { createDefaultCharacter } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent } from "../test-utils"
+import { cleanup, render, screen, fireEvent } from "../test-utils"
 
 const emptyCharacter = createDefaultCharacter()
 
@@ -195,108 +195,15 @@ describe("CharacterBasicInfoModule", () => {
     })
   })
 
-  // Moved from Combat Stats: size belongs with the species that sets it
-  describe("size (2024 only)", () => {
-    const powerfulBuild = {
-      id: "feature-1", name: "Powerful Build", description: "", source: "species-trait" as const,
-      levelEffects: [{ level: 1, effects: { size: "Large" } }],
-    }
-    const withSize = (overrides: Partial<typeof char2024> = {}) => ({ ...char2024, ...overrides })
-
-    it("shows a placeholder when nothing has defined a size yet — no hardcoded 'Medium' default", () => {
-      render(() => <CharacterBasicInfoModule character={withSize()} onUpdate={vi.fn()} />)
-      expect(screen.getByTestId("size-display")).toHaveTextContent("—")
-    })
-
-    it("does not render size in 2014 mode", () => {
-      render(() => <CharacterBasicInfoModule character={char2014} onUpdate={vi.fn()} />)
+  // Size comes from the character's species: it is a Species Trait, set on the Features tab
+  it("does not show Size, in either edition", () => {
+    for (const character of [char2014, char2024]) {
+      render(() => <CharacterBasicInfoModule character={character} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Size")).not.toBeInTheDocument()
-    })
-
-    it("shows the size a Species Trait grants", () => {
-      render(() => <CharacterBasicInfoModule character={withSize({ speciesTraits: [powerfulBuild] })} onUpdate={vi.fn()} />)
-      expect(screen.getByTestId("size-display")).toHaveTextContent("Large")
-    })
-
-    it("shows a manually-entered custom size when useCalculatedSize is false", () => {
-      render(() => <CharacterBasicInfoModule character={withSize({ size: "Small", useCalculatedSize: false })} onUpdate={vi.fn()} />)
-      expect(screen.getByTestId("size-display")).toHaveTextContent("Small")
-    })
-
-    it("lines up with the fields around it rather than as a stat block", () => {
-      render(() => <CharacterBasicInfoModule character={withSize()} onUpdate={vi.fn()} />)
-      expect(screen.getByTestId("size")).toHaveClass("items-start")
-      expect(screen.getByTestId("size-label")).toHaveClass("text-sm", "font-medium", "text-muted-foreground")
-    })
-
-    it("shows the Size combobox only after switching to custom entry", () => {
-      render(() => <CharacterBasicInfoModule character={withSize()} onUpdate={vi.fn()} />)
       clickEditButton()
-      expect(screen.queryByRole("combobox", { name: /^size$/i })).not.toBeInTheDocument()
-      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
-      expect(screen.getByRole("combobox", { name: /^size$/i })).toBeInTheDocument()
-    })
-
-    it("saves a custom size value typed into the Size combobox", () => {
-      const onUpdate = vi.fn()
-      render(() => <CharacterBasicInfoModule character={withSize()} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
-      const sizeInput = screen.getByRole("combobox", { name: /^size$/i })
-      fireEvent.focus(sizeInput)
-      fireEvent.input(sizeInput, { target: { value: "Colossal" } })
-      fireEvent.blur(sizeInput)
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Colossal", useCalculatedSize: false }))
-    })
-
-    it("saves a predefined size option selected from the dropdown", () => {
-      const onUpdate = vi.fn()
-      render(() => <CharacterBasicInfoModule character={withSize()} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
-      const sizeInput = screen.getByRole("combobox", { name: /^size$/i })
-      fireEvent.focus(sizeInput)
-      fireEvent.click(screen.getByRole("option", { name: "Huge" }))
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Huge", useCalculatedSize: false }))
-    })
-
-    it("shows the feature-granted size read-only, with no combobox, when a feature grants size", () => {
-      render(() => <CharacterBasicInfoModule character={withSize({ speciesTraits: [powerfulBuild] })} onUpdate={vi.fn()} />)
-      clickEditButton()
-      expect(screen.queryByRole("combobox", { name: /^size$/i })).not.toBeInTheDocument()
-      expect(screen.getByTestId("size-display")).toHaveTextContent("Large")
-    })
-
-    it("switching to custom size and back to calculated restores the feature-granted value", () => {
-      const onUpdate = vi.fn()
-      render(() => <CharacterBasicInfoModule character={withSize({ speciesTraits: [powerfulBuild] })} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom size/i }))
-      fireEvent.click(screen.getByRole("button", { name: /use calculated size/i }))
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Large", useCalculatedSize: true }))
-    })
-
-    it("leaves a 2014 character's stored size alone when saving", () => {
-      const onUpdate = vi.fn()
-      render(() => <CharacterBasicInfoModule character={{ ...char2014, size: "Small", useCalculatedSize: false }} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Small", useCalculatedSize: false }))
-    })
-
-    it("treats a character saved without the size fields as calculated", () => {
-      const legacy: Partial<typeof char2024> = withSize()
-      delete legacy.size
-      delete legacy.useCalculatedSize
-      const onUpdate = vi.fn()
-      render(() => <CharacterBasicInfoModule character={{ ...legacy, speciesTraits: [powerfulBuild] } as typeof char2024} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ size: "Large", useCalculatedSize: true }))
-    })
+      expect(screen.queryByText("Size")).not.toBeInTheDocument()
+      cleanup()
+    }
   })
 
   describe("combobox fields", () => {

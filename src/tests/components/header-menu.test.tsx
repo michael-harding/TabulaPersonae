@@ -202,7 +202,8 @@ describe("HeaderMenu import reconciliation", () => {
       spellAttackBonus: 2,
       spellModifier: 0,
     }
-    delete raw.useCalculatedSize
+    // Saved before the calculated-value flags: a legacy character
+    delete raw.useCalculatedArmorClass
     const file = new File([JSON.stringify(raw)], "char.json", { type: "application/json" })
     const input = screen.getByLabelText(/Choose JSON File/i)
     await user.upload(input, file)

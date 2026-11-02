@@ -544,10 +544,10 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
   if (allFeats.length > 0) result.feats = allFeats
 
   // --- Biography (page 3) ---
-  const bioEntries: Array<[string, keyof Pick<Character, "age" | "height" | "weight" | "eyes" | "skin" | "hair" | "alignment" | "size" | "appearance" | "alliesAndOrganizations" | "personalityTraits" | "ideals" | "bonds" | "flaws" | "backstory">]> = [
+  const bioEntries: Array<[string, keyof Pick<Character, "age" | "height" | "weight" | "eyes" | "skin" | "hair" | "alignment" | "appearance" | "alliesAndOrganizations" | "personalityTraits" | "ideals" | "bonds" | "flaws" | "backstory">]> = [
     ["AGE", "age"], ["HEIGHT", "height"], ["WEIGHT", "weight"],
     ["EYES", "eyes"], ["SKIN", "skin"], ["HAIR", "hair"],
-    ["ALIGNMENT", "alignment"], ["SIZE", "size"],
+    ["ALIGNMENT", "alignment"],
     ["Appearance", "appearance"],
     ["AlliesOrganizations", "alliesAndOrganizations"],
     // D&D Beyond has trailing space on "PersonalityTraits " — handled by trimming in extractPdfFields
@@ -558,6 +558,18 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
   for (const [pdfKey, charKey] of bioEntries) {
     const val = f(pdfKey)
     if (val) result[charKey] = val
+  }
+  // Size is granted by a Species Trait, so the sheet's size becomes one
+  const size = f("SIZE")
+  if (size) {
+    result.speciesTraits = [...(result.speciesTraits ?? []), {
+      id: crypto.randomUUID(),
+      name: "Size",
+      description: "Grants this character's size, from the imported character sheet.",
+      source: "species-trait",
+      featureType: "Size",
+      levelEffects: [{ level: 1, effects: { size } }],
+    }]
   }
 
   // --- Spellcasting (page 4) ---

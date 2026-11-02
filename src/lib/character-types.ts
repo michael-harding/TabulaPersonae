@@ -356,8 +356,6 @@ export interface Character {
 
   // 2024-only
   subclass?: string
-  size?: string
-  useCalculatedSize?: boolean
   classFeatures?: Feature[]
   speciesTraits?: Feature[]
   feats?: Feature[]
@@ -494,8 +492,6 @@ export function createDefaultCharacter(): Character {
     conditions: [],
 
     subclass: "",
-    size: "Medium",
-    useCalculatedSize: true,
     useCalculatedSenses: { darkvision: true, blindsight: true, tremorsense: true, truesight: true },
     // Every character has a hit die, unlike spellcasting — so a starter grant is created up front
     // rather than left for the player to add, matching what every class already provides at level 1.

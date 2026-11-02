@@ -43,7 +43,7 @@ function clickEditButton() {
   fireEvent.click(screen.getByRole("button", { name: /edit/i }))
 }
 
-// Each CalculatedValue/CalculatedValueSelect field renders its own focusable tooltip
+// Each CalculatedValue field renders its own focusable tooltip
 // trigger. Scoping by the field's (unique) label avoids depending on DOM order/position.
 function tooltipTriggerFor(label: string) {
   const fieldContainer = screen.getByText(label).closest('[data-sem="calculated-value"]') as HTMLElement
@@ -320,10 +320,10 @@ describe("CombatStatsModule", () => {
     })
   })
 
-  // Size lives in Character Information (character-basic-info-module.test.tsx)
+  // Size is a Species Trait, shown on the Features tab
   it("does not show Size, in either edition", () => {
     for (const edition of ["2014", "2024"] as const) {
-      render(() => <CombatStatsModule character={makeCharacter({ edition, size: "Small", useCalculatedSize: false })} onUpdate={vi.fn()} />)
+      render(() => <CombatStatsModule character={makeCharacter({ edition })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Size")).not.toBeInTheDocument()
       expect(screen.queryByTestId("size")).not.toBeInTheDocument()
       cleanup()
@@ -1436,9 +1436,9 @@ describe("CombatStatsModule — a character saved before these fields existed", 
   function makeLegacyCharacter(): Character {
     const partial: Partial<Character> = createDefaultCharacter()
     const missing: (keyof Character)[] = [
-      "hitPoints", "armorClass", "initiative", "speed", "proficiencyBonus", "deathSaves", "size", "passivePerception",
+      "hitPoints", "armorClass", "initiative", "speed", "proficiencyBonus", "deathSaves", "passivePerception",
       "useCalculatedArmorClass", "useCalculatedInitiative", "useCalculatedProficiencyBonus", "useCalculatedMaximumHp",
-      "useCalculatedPassivePerception", "useCalculatedSpeed", "useCalculatedSize",
+      "useCalculatedPassivePerception", "useCalculatedSpeed",
     ]
     for (const field of missing) delete partial[field]
     return partial as Character
@@ -1472,7 +1472,7 @@ describe("CombatStatsModule — a character saved before these fields existed", 
       useCalculatedProficiencyBonus: false,
       useCalculatedMaximumHp: false,
     }))
-    // Size is edited in Character Information, so saving Combat Stats does not write it
+    // Size is a Species Trait: saving Combat Stats writes no size of its own
     const saved = onUpdate.mock.calls[0][0]
     expect(saved).not.toHaveProperty("size")
     expect(saved).not.toHaveProperty("useCalculatedSize")
