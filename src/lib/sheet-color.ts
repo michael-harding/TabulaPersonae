@@ -94,6 +94,11 @@ export function contrastRatio(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05)
 }
 
+/** Black or white, whichever stands out more on the colour. */
+export function readableOn(hex: string): "#000000" | "#ffffff" {
+  return contrastRatio(hex, "#000000") >= contrastRatio(hex, "#ffffff") ? "#000000" : "#ffffff"
+}
+
 function shadeFor(hex: string, color: Oklch, theme: "light" | "dark"): string {
   const surfaces = THEME_SURFACES[theme].map(oklchToHex)
   const readable = (candidate: string) => surfaces.every((surface) => contrastRatio(candidate, surface) >= TARGET_CONTRAST)

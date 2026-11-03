@@ -125,7 +125,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           data-test="auth-signin-tab"
           type="button"
           onClick={() => setIsSignUp(false)}
-          class={`flex-1 h-11 px-4 rounded-md text-sm font-medium transition-colors ${!isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
+          class={`flex-1 h-11 px-4 rounded-md text-sm font-medium transition-colors focus-visible:outline-white ${!isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
         >
           Sign In
         </button>
@@ -133,7 +133,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           data-test="auth-signup-tab"
           type="button"
           onClick={() => setIsSignUp(true)}
-          class={`flex-1 h-11 px-4 rounded-md text-sm font-medium transition-colors ${isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
+          class={`flex-1 h-11 px-4 rounded-md text-sm font-medium transition-colors focus-visible:outline-white ${isSignUp() ? "bg-background text-foreground shadow-sm" : "text-white/70 hover:text-white"}`}
         >
           Sign Up
         </button>
@@ -148,7 +148,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
             placeholder="Enter your email"
             value={email()}
             onInput={(e) => setEmail(e.currentTarget.value)}
-            class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm"
+            class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm placeholder:text-muted-foreground"
             required
           />
         </div>
@@ -161,7 +161,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
             placeholder={isSignUp() ? "Create a password" : "Enter your password"}
             value={password()}
             onInput={(e) => setPassword(e.currentTarget.value)}
-            class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm"
+            class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm placeholder:text-muted-foreground"
             required
           />
         </div>
@@ -175,7 +175,7 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
               placeholder="Confirm your password"
               value={confirmPassword()}
               onInput={(e) => setConfirmPassword(e.currentTarget.value)}
-              class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm"
+              class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm placeholder:text-muted-foreground"
               required
             />
           </div>

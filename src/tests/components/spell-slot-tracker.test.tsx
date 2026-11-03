@@ -106,6 +106,12 @@ describe("SpellSlotTracker", () => {
     expect(results.violations).toHaveLength(0)
   })
 
+  it("marks each available slot with a wand", () => {
+    render(() => <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 1 } })} onToggle={vi.fn()} />)
+    expect(screen.getByTestId("spell-slot-level-1-pips-slot-0").querySelector("svg")).toBeNull()
+    expect(screen.getByTestId("spell-slot-level-1-pips-slot-1").querySelector(".lucide-wand-sparkles")).not.toBeNull()
+  })
+
   describe("readOnly mode", () => {
     it("renders pips as non-interactive spans (no buttons) when readOnly context is active", () => {
       render(() => (

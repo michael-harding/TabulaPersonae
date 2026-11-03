@@ -13,7 +13,7 @@ export function SwitchButton(props: SwitchButtonProps) {
   const isB = () => props.value === props.optionB
 
   return (
-    <div data-sem="switch-button" class="inline-flex items-center rounded-full bg-muted p-0.5">
+    <div data-sem="switch-button" class="inline-flex items-center rounded-full bg-muted p-0.5 ring-offset-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2">
       <input
         class="sr-only"
         type="checkbox"

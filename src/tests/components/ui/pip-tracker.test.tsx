@@ -87,6 +87,57 @@ describe("PipTracker", () => {
     }
   })
 
+  // ACCESSIBILITY.md §9: colour must not be the only difference between used and available
+  describe("icon", () => {
+    const CustomIcon = (props: { class?: string; "aria-hidden"?: boolean | "true" | "false" }) => (
+      <svg class={`custom-icon ${props.class ?? ""}`} aria-hidden={props["aria-hidden"]} />
+    )
+    const slot = (index: number) => screen.getByTestId(`slots-slot-${index}`)
+
+    it("draws a sparkle on available pips and nothing on used ones by default", () => {
+      render(() => <PipTracker data-test="slots" total={3} used={1} onToggle={vi.fn()} />)
+      expect(slot(0).querySelector("svg")).toBeNull()
+      expect(slot(1).querySelector(".lucide-sparkle")).not.toBeNull()
+      expect(slot(2).querySelector(".lucide-sparkle")).not.toBeNull()
+    })
+
+    it("draws the icon it is given on available pips", () => {
+      render(() => <PipTracker data-test="slots" total={2} used={1} onToggle={vi.fn()} icon={CustomIcon} />)
+      expect(slot(0).querySelector("svg")).toBeNull()
+      expect(slot(1).querySelector(".custom-icon")).not.toBeNull()
+      expect(slot(1).querySelector(".lucide-sparkle")).toBeNull()
+    })
+
+    it("draws no icon when told to, for a tracker that marks its states another way", () => {
+      render(() => <PipTracker data-test="slots" total={2} used={1} onToggle={vi.fn()} icon={null} />)
+      expect(slot(1).querySelector("svg")).toBeNull()
+    })
+
+    it("hides the icon from assistive tech, since the slot's own name says its state", () => {
+      render(() => <PipTracker data-test="slots" total={1} used={0} onToggle={vi.fn()} icon={CustomIcon} />)
+      expect(slot(0).querySelector("svg")).toHaveAttribute("aria-hidden", "true")
+    })
+
+    it("draws the icon on read-only pips too", () => {
+      render(() => <PipTracker data-test="slots" total={2} used={1} onToggle={vi.fn()} icon={CustomIcon} readOnly />)
+      expect(slot(0).querySelector("svg")).toBeNull()
+      expect(slot(1).querySelector(".custom-icon")).not.toBeNull()
+    })
+
+    it("still draws filledIcon on used pips", () => {
+      render(() => (
+        <PipTracker data-test="slots" total={2} used={1} onToggle={vi.fn()} icon={null} filledIcon={<svg class="filled-icon" aria-hidden="true" />} />
+      ))
+      expect(slot(0).querySelector(".filled-icon")).not.toBeNull()
+      expect(slot(1).querySelector("svg")).toBeNull()
+    })
+
+    it("has no accessibility violations with an icon", async () => {
+      const { container } = render(() => <PipTracker data-test="slots" total={3} used={1} onToggle={vi.fn()} icon={CustomIcon} />)
+      expect((await axe(container)).violations).toHaveLength(0)
+    })
+  })
+
   describe("readOnly mode", () => {
     it("renders no buttons when readOnly=true", () => {
       render(() => <PipTracker data-test="slots" total={4} used={1} onToggle={vi.fn()} readOnly />)

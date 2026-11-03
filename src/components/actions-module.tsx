@@ -7,6 +7,7 @@ import Zap from "lucide-solid/icons/zap"
 import Shield from "lucide-solid/icons/shield"
 import Sparkles from "lucide-solid/icons/sparkles"
 import ChevronDown from "lucide-solid/icons/chevron-down"
+import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
@@ -559,6 +560,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   const renderEquipmentAction = (item: Equipment) => (
     <ActionCard
       data-test={`action-card-item-${item.id}`}
+      pipIcon={Backpack}
       name={item.name}
       badgeLabel={item.type.charAt(0).toUpperCase() + item.type.slice(1)}
       description={item.description}

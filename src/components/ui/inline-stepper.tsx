@@ -1,3 +1,6 @@
+import Minus from "lucide-solid/icons/minus"
+import Plus from "lucide-solid/icons/plus"
+
 import { Button } from "@/components/ui/button"
 
 interface InlineStepperProps {
@@ -36,7 +39,7 @@ export function InlineStepper(props: InlineStepperProps) {
         disabled={atMin()}
         class="h-6 w-6 p-0"
       >
-        <span aria-hidden="true">−</span>
+        <Minus class="h-3.5 w-3.5" aria-hidden="true" />
       </Button>
       <span class="min-w-8 text-center tabular-nums" aria-live="polite">{props.value}</span>
       <Button
@@ -48,7 +51,7 @@ export function InlineStepper(props: InlineStepperProps) {
         disabled={atMax()}
         class="h-6 w-6 p-0"
       >
-        <span aria-hidden="true">+</span>
+        <Plus class="h-3.5 w-3.5" aria-hidden="true" />
       </Button>
     </div>
   )

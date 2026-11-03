@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SwitchButton } from "@/components/ui/switch-button"
 import { useReadOnly } from "@/lib/read-only-context"
-import { SHEET_COLOR_PRESETS } from "@/lib/sheet-color"
+import { oklchToHex, parseHex, readableOn, SHEET_COLOR_PRESETS } from "@/lib/sheet-color"
 import { cn, HOVER_ACCENT, TOUCH_TARGET } from "@/lib/utils"
 
 interface SheetSettingsModuleProps {
@@ -18,6 +18,9 @@ interface SheetSettingsModuleProps {
 }
 
 const PRESET_COLORS = SHEET_COLOR_PRESETS
+const UNSET_CUSTOM_SWATCH = oklchToHex({ l: 0.75, c: 0, h: 0 })
+// A swatch can be any colour, so what marks it out comes from the theme: its border and this ring
+const SELECTED_SWATCH_RING = "0 0 0 2px var(--card), 0 0 0 4px var(--foreground)"
 
 export function SheetSettingsModule(props: SheetSettingsModuleProps) {
   const isReadOnly = useReadOnly()
@@ -41,6 +44,7 @@ function SheetSettingsContent(props: SheetSettingsModuleProps) {
 
   const isPresetSelected = (hex: string) => sheetColor() === hex
   const isCustomColor = () => !!sheetColor() && !PRESET_COLORS.some((p) => p.hex === sheetColor())
+  const pipetteColor = () => readableOn(isCustomColor() && parseHex(sheetColor()!) != null ? sheetColor()! : UNSET_CUSTOM_SWATCH)
 
   return (
     <Card data-sem="sheet-settings-module">
@@ -72,12 +76,13 @@ function SheetSettingsContent(props: SheetSettingsModuleProps) {
                     type="button"
                     data-test={`sheet-color-preset-${preset.name.toLowerCase()}`}
                     aria-label={`${preset.name} theme color`}
+                    aria-pressed={isPresetSelected(preset.hex)}
                     class="w-11 h-11 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => props.onUpdate({ ...props.character, sheetColor: preset.hex })}
                   >
                     <span
-                      class="w-6 h-6 rounded-full transition-all"
-                      style={{ "background-color": preset.hex, "box-shadow": isPresetSelected(preset.hex) ? `0 0 0 2px white, 0 0 0 4px ${preset.hex}` : "none" }}
+                      class="w-6 h-6 rounded-full border border-input transition-all"
+                      style={{ "background-color": preset.hex, "box-shadow": isPresetSelected(preset.hex) ? SELECTED_SWATCH_RING : "none" }}
                     />
                   </button>
                 )}
@@ -87,21 +92,21 @@ function SheetSettingsContent(props: SheetSettingsModuleProps) {
                 class="w-11 h-11 flex items-center justify-center rounded-full cursor-pointer focus-within:outline-none focus-within:ring-2 focus-within:ring-ring"
               >
                 <span
-                  class="relative w-6 h-6 rounded-full transition-all flex items-center justify-center overflow-hidden"
+                  class="relative w-6 h-6 rounded-full border border-input transition-all flex items-center justify-center overflow-hidden"
                   style={{
-                    "background-color": isCustomColor() ? sheetColor()! : "oklch(0.75 0 0)",
-                    "box-shadow": isCustomColor() ? `0 0 0 2px white, 0 0 0 4px ${sheetColor()}` : "none",
+                    "background-color": isCustomColor() ? sheetColor()! : UNSET_CUSTOM_SWATCH,
+                    "box-shadow": isCustomColor() ? SELECTED_SWATCH_RING : "none",
                   }}
                 >
                   <input
                     type="color"
                     data-test="sheet-color-custom-input"
-                    aria-label="Custom theme color"
+                    aria-label={isCustomColor() ? "Custom theme color, selected" : "Custom theme color"}
                     value={isCustomColor() ? sheetColor()! : "#6366f1"}
                     onInput={(e) => props.onUpdate({ ...props.character, sheetColor: e.currentTarget.value })}
                     class="absolute inset-0 w-full h-full cursor-pointer border-none p-0 opacity-0"
                   />
-                  <Pipette class="h-3 w-3 text-white drop-shadow pointer-events-none" aria-hidden="true" />
+                  <Pipette class="h-3 w-3 pointer-events-none" style={{ color: pipetteColor() }} aria-hidden="true" />
                 </span>
               </label>
             </div>
@@ -145,7 +150,7 @@ function SheetSettingsContent(props: SheetSettingsModuleProps) {
                     readOnly
                     value={getUrl()}
                     aria-label="Share URL"
-                    class="flex-1 h-9 rounded-md border bg-muted px-3 text-xs text-muted-foreground select-all"
+                    class="flex-1 h-9 rounded-md border border-input bg-background px-3 text-xs text-muted-foreground select-all"
                     onClick={(e) => e.currentTarget.select()}
                   />
                   <button

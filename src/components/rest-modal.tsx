@@ -1,5 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import FlameKindling from "lucide-solid/icons/flame-kindling"
+import Dices from "lucide-solid/icons/dices"
 
 import type { Character, Equipment } from "@/lib/character-types"
 import { getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest } from "@/lib/character-utils"
@@ -208,6 +209,7 @@ export function RestModal(props: RestModalProps) {
                 >
                   <PipTracker
                     data-test="rest-hit-dice"
+                    icon={Dices}
                     total={availableHitDice()}
                     used={dicesToSpend()}
                     onToggle={setDicesToSpend}

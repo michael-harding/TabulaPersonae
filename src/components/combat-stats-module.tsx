@@ -404,8 +404,9 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   total={3}
                   used={props.character.deathSaves?.successes || 0}
                   onToggle={(n) => toggleDeathSave("successes", n)}
-                  filledClass="bg-green-500 border-green-500 hover:bg-green-400"
-                  emptyClass="bg-background border-green-500 hover:bg-green-100"
+                  icon={null}
+                  filledClass="bg-green-600 border-green-600 hover:bg-green-700"
+                  emptyClass="bg-background border-green-600 hover:bg-green-100"
                   filledIcon={<CheckCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Success (click to remove)"
                   availableTitle="Click to add success"
@@ -423,7 +424,8 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   total={3}
                   used={props.character.deathSaves?.failures || 0}
                   onToggle={(n) => toggleDeathSave("failures", n)}
-                  filledClass="bg-red-500 border-red-500 hover:bg-red-400"
+                  icon={null}
+                  filledClass="bg-red-500 border-red-500 hover:bg-red-600"
                   emptyClass="bg-background border-red-500 hover:bg-red-100"
                   filledIcon={<XCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Failure (click to remove)"

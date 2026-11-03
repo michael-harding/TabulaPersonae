@@ -196,7 +196,7 @@ export function SelectTrigger(props: ComponentProps<"button">) {
       {...others}
     >
       {local.children}
-      <ChevronDown class="h-4 w-4 opacity-50 shrink-0" />
+      <ChevronDown class="h-4 w-4 shrink-0" />
     </button>
   )
 }

@@ -1842,6 +1842,12 @@ describe("FeaturesModule", () => {
       expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(2)
     })
 
+    it("marks each available use with a sparkle", () => {
+      const feature = makeFeature({ actionKind: "action", maxUses: 3, uses: 0 })
+      render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      expect(screen.getAllByLabelText("Charge available (click to use)")[0].querySelector(".lucide-sparkle")).not.toBeNull()
+    })
+
     it("calls onUpdate with updated uses when pip is clicked", () => {
       const onUpdate = vi.fn()
       const feature = makeFeature({ id: "f-1", actionKind: "action", maxUses: 3, uses: 0 })
@@ -1880,6 +1886,12 @@ describe("FeaturesModule", () => {
   })
 
   describe("spent hit dice tracker in feature card", () => {
+    it("marks each available hit die with dice", () => {
+      const feature = makeFeature({ name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+      render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 1, spentHitDice: 0 })} onUpdate={vi.fn()} />)
+      expect(screen.getByLabelText("Hit die available").querySelector(".lucide-dices")).not.toBeNull()
+    })
+
     it("shows the pip tracker on the card of the feature currently granting hitDiceSize", () => {
       const feature = makeFeature({ name: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
       render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 1, spentHitDice: 0 })} onUpdate={vi.fn()} />)

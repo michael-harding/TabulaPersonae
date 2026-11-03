@@ -1,7 +1,6 @@
-import { readFileSync } from "fs"
-import { resolve } from "path"
+import { contrastRatio, oklchToHex, parseHex, readableOn, SHEET_COLOR_PRESETS, sheetColorShades, sheetColorStyle, THEME_SURFACES, toOklch } from "@/lib/sheet-color"
 
-import { contrastRatio, oklchToHex, parseHex, SHEET_COLOR_PRESETS, sheetColorShades, sheetColorStyle, THEME_SURFACES, toOklch } from "@/lib/sheet-color"
+import { themeToken } from "./theme-tokens"
 
 // WCAG 1.4.3: text needs 4.5:1. A sheet colour is used as text on the page's surfaces and as the
 // fill behind text in the surface colour, so each shade must reach 4.5:1 against every surface.
@@ -69,6 +68,19 @@ describe("sheetColorStyle", () => {
   })
 })
 
+describe("readableOn", () => {
+  it("picks whichever of black or white stands out more", () => {
+    expect(readableOn("#ffff00")).toBe("#000000")
+    expect(readableOn("#00008b")).toBe("#ffffff")
+  })
+
+  it("always reaches at least 4.5:1, whatever the colour", () => {
+    for (const hex of ["#777777", "#808080", "#ff0000", "#00ff00", "#0000ff", "#a8a8a8"]) {
+      expect(contrastRatio(readableOn(hex), hex)).toBeGreaterThanOrEqual(AA)
+    }
+  })
+})
+
 describe("contrastRatio", () => {
   it("matches the WCAG definition at its extremes", () => {
     expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 5)
@@ -78,16 +90,9 @@ describe("contrastRatio", () => {
 
 // The surfaces checked against must be the ones the themes actually use
 describe("THEME_SURFACES", () => {
-  const css = readFileSync(resolve(__dirname, "../../globals.css"), "utf8")
-  const block = (selector: string) => css.slice(css.indexOf(`${selector} {`), css.indexOf("}", css.indexOf(`${selector} {`)))
-  const lightness = (block: string, variable: string) => {
-    const match = new RegExp(`--${variable}: oklch\\(([\\d.]+%?)`).exec(block)!
-    return match[1].endsWith("%") ? parseFloat(match[1]) / 100 : parseFloat(match[1])
-  }
-
   it("holds the background, card and popover lightness of each theme in globals.css", () => {
-    for (const [theme, selector] of [["light", ":root"], ["dark", ".dark"]] as const) {
-      const expected = ["background", "card", "popover"].map((variable) => lightness(block(selector), variable)).sort()
+    for (const theme of ["light", "dark"] as const) {
+      const expected = ["background", "card", "popover"].map((variable) => themeToken(theme, variable).l).sort()
       expect(THEME_SURFACES[theme].map((surface) => surface.l).sort()).toEqual(expected)
     }
   })

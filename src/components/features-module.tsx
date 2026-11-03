@@ -8,6 +8,7 @@ import Trash2 from "lucide-solid/icons/trash-2"
 import Pencil from "lucide-solid/icons/pencil"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
+import Dices from "lucide-solid/icons/dices"
 import Layers from "lucide-solid/icons/layers"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
@@ -1311,6 +1312,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                               >
                                 <PipTracker
                                   data-test={`hit-dice-${feature.id}`}
+                                  icon={Dices}
                                   total={props.character.level ?? 1}
                                   used={props.character.spentHitDice ?? 0}
                                   onToggle={handleSpentHitDiceChange}

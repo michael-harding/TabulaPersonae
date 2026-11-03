@@ -174,7 +174,7 @@ export function Combobox(props: ComboboxProps) {
           onKeyDown={handleKeyDown}
           placeholder={props.placeholder}
           disabled={props.disabled}
-          class="-my-px h-[calc(100%+2px)] flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          class="-my-px h-[calc(100%+2px)] min-w-0 flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
@@ -187,7 +187,7 @@ export function Combobox(props: ComboboxProps) {
           aria-label="Toggle options"
           data-test={props["data-test"] == null ? undefined : `${props["data-test"]}-toggle`}
         >
-          <ChevronDown class="h-4 w-4 opacity-50" />
+          <ChevronDown class="h-4 w-4" />
         </button>
       </div>
 

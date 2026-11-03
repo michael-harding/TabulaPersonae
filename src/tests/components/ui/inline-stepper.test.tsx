@@ -30,6 +30,15 @@ describe("InlineStepper", () => {
     expect(onChange.mock.calls).toEqual([[1], [3]])
   })
 
+  // Icons rather than text glyphs: axe cannot evaluate the contrast of a − character
+  it("draws its buttons with icons hidden from assistive tech, not text", () => {
+    renderStepper()
+    for (const button of [screen.getByTestId("qty-decrease"), screen.getByTestId("qty-increase")]) {
+      expect(button).toHaveTextContent("")
+      expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true")
+    }
+  })
+
   it("disables − at min and + at max", () => {
     renderStepper({ value: 1, min: 1, max: 1 })
     expect(screen.getByTestId("qty-decrease")).toBeDisabled()

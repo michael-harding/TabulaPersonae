@@ -793,6 +793,16 @@ describe("EquipmentInventoryModule", () => {
       expect(results.violations).toHaveLength(0)
     })
 
+    it("marks each available charge with a backpack", () => {
+      render(() => (
+        <EquipmentInventoryModule
+          character={makeCharacter({ equipment: [makeMagicItem({ name: "Wand", charges: 0, maxUses: 3, rechargeOn: "long-rest" })] })}
+          onUpdate={vi.fn()}
+        />
+      ))
+      expect(screen.getAllByLabelText("Charge available (click to use)")[0].querySelector(".lucide-backpack")).not.toBeNull()
+    })
+
     it("shows charge pips and spends a charge when clicked", () => {
       const onUpdate = vi.fn()
       render(() => (

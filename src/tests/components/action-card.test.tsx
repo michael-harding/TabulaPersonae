@@ -268,6 +268,18 @@ describe("ActionCard", () => {
       expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(3)
     })
 
+    it("marks available uses with a sparkle unless given another icon", () => {
+      const CustomIcon = () => <svg class="custom-icon" aria-hidden="true" />
+      render(() => (
+        <>
+          <ActionCard {...makeProps({ "data-test": "plain", maxUses: 1, uses: 0, onUsesChange: vi.fn() })} />
+          <ActionCard {...makeProps({ "data-test": "custom", maxUses: 1, uses: 0, onUsesChange: vi.fn(), pipIcon: CustomIcon })} />
+        </>
+      ))
+      expect(screen.getByTestId("plain-uses-slot-0").querySelector(".lucide-sparkle")).not.toBeNull()
+      expect(screen.getByTestId("custom-uses-slot-0").querySelector(".custom-icon")).not.toBeNull()
+    })
+
     it("shows StepperInput when maxUses=8 and onCast is not provided", () => {
       render(() => <ActionCard {...makeProps({ maxUses: 8, uses: 0, onUsesChange: vi.fn() })} />)
       expect(screen.getByRole("button", { name: /increase/i })).toBeInTheDocument()

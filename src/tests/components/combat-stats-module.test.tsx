@@ -178,6 +178,19 @@ describe("CombatStatsModule", () => {
   })
 
   describe("death save toggling", () => {
+    it("marks only the saves that were made: a check or a cross, and no icon on the rest", () => {
+      render(() => (
+        <CombatStatsModule
+          character={makeCharacter({ hitPoints: { current: 0, maximum: 20, temporary: 0 }, deathSaves: { successes: 1, failures: 1 } })}
+          onUpdate={vi.fn()}
+        />
+      ))
+      expect(screen.getByTestId("death-save-successes-slot-0").querySelector("svg")).not.toBeNull()
+      expect(screen.getByTestId("death-save-successes-slot-1").querySelector("svg")).toBeNull()
+      expect(screen.getByTestId("death-save-failures-slot-0").querySelector("svg")).not.toBeNull()
+      expect(screen.getByTestId("death-save-failures-slot-1").querySelector("svg")).toBeNull()
+    })
+
     it("increments death save successes when an unfilled circle is clicked", () => {
       const onUpdate = vi.fn()
       render(() => (

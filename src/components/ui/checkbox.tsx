@@ -56,9 +56,10 @@ export function Checkbox(props: CheckboxProps) {
   return (
     <CheckboxPrimitive
       data-sem="checkbox"
-      class={cn("inline-flex items-center", local.flush && "-ml-3.5", local.containerClass)}
+      class={cn("group/checkbox inline-flex items-center", local.flush && "-ml-3.5", local.containerClass)}
       {...others}
     >
+      {/* Focus lands on this hidden input, so the visible square shows the ring through the root. */}
       <CheckboxPrimitive.Input {...inputAttrs} />
       {/* The visible square stays 16px; it sits centred in a 44×44 box and its ::after hit area
           fills that box (ACCESSIBILITY.md touch targets), so neighbouring checkboxes can't overlap. */}
@@ -67,7 +68,7 @@ export function Checkbox(props: CheckboxProps) {
         data-test={`${props["data-test"]}-control`}
         class={cn(
           TOUCH_TARGET,
-          "peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 data-[checked]:bg-primary data-[checked]:text-primary-foreground",
+          "peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background group-has-[:focus-visible]/checkbox:ring-2 group-has-[:focus-visible]/checkbox:ring-ring group-has-[:focus-visible]/checkbox:ring-offset-2 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 data-[checked]:bg-primary data-[checked]:text-primary-foreground",
           local.class
         )}
       >

@@ -1204,6 +1204,18 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       expect(screen.getByText("Consumable")).toBeInTheDocument()
     })
 
+    it("marks each available use on an equipment action card with a backpack, as the inventory does", () => {
+      render(() => (
+        <ActionsModule
+          character={makeCharacter({
+            equipment: [makeConsumable({ id: "item-2", actionKind: "bonus-action", maxUses: 3, consumedUses: 0 })],
+          })}
+          onUpdate={vi.fn()}
+        />
+      ))
+      expect(screen.getAllByLabelText("Charge available (click to use)")[0].querySelector(".lucide-backpack")).not.toBeNull()
+    })
+
     it("clicking the uses tracker on an equipment action card updates the item's uses", () => {
       const onUpdate = vi.fn()
       render(() => (

@@ -1,5 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import Package from "lucide-solid/icons/package"
+import Backpack from "lucide-solid/icons/backpack"
 import Plus from "lucide-solid/icons/plus"
 import Edit from "lucide-solid/icons/edit"
 import Trash2 from "lucide-solid/icons/trash-2"
@@ -434,6 +435,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           >
                             <PipTracker
                               data-test={`magic-item-uses-${item.id}`}
+                              icon={Backpack}
                               total={effectiveEquipmentMaxUses(item)}
                               used={effectiveEquipmentUses(item)}
                               onToggle={(v) => updateItemUses(item.id, v)}
@@ -637,6 +639,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                       >
                         <PipTracker
                           data-test={`equipment-uses-${item.id}`}
+                          icon={Backpack}
                           total={effectiveEquipmentMaxUses(item)}
                           used={effectiveEquipmentUses(item)}
                           onToggle={(v) => updateItemUses(item.id, v)}

@@ -7,7 +7,7 @@ import { useReadOnly } from "@/lib/read-only-context"
 import { Chip } from "@/components/ui/chip"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
-import { PipTracker } from "@/components/ui/pip-tracker"
+import { PipTracker, type PipIcon } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { Popover, PopoverTrigger, PopoverContent, PopoverArrow } from "@/components/ui/popover"
 import { MarkdownContent } from "@/components/ui/markdown-content"
@@ -62,6 +62,8 @@ export interface ActionCardProps {
   maxUses?: number
   rechargeOn?: "short-rest" | "long-rest"
   onUsesChange?: (v: number) => void
+  /** Marks the uses tracker's available pips. The tracker's own default unless given. */
+  pipIcon?: PipIcon
 
   // Spell cast buttons — mutually exclusive with uses tracker
   spellId?: string
@@ -312,6 +314,7 @@ export function ActionCard(props: ActionCardProps) {
             >
               <PipTracker
                 data-test={`${props["data-test"]}-uses`}
+                icon={props.pipIcon}
                 total={props.maxUses!}
                 used={props.uses ?? 0}
                 onToggle={props.onUsesChange!}

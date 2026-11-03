@@ -1,4 +1,5 @@
 import { For, Show } from "solid-js"
+import WandSparkles from "lucide-solid/icons/wand-sparkles"
 
 import type { Character } from "@/lib/character-types"
 import { PipTracker } from "@/components/ui/pip-tracker"
@@ -31,6 +32,7 @@ export function SpellSlotTracker(props: SpellSlotTrackerProps) {
                 <span class="font-medium text-xs text-muted-foreground pr-1">{getOrdinalSuffix(level)}</span>
                 <PipTracker
                   data-test={`spell-slot-level-${level}-pips`}
+                  icon={WandSparkles}
                   total={slots().total}
                   used={slots().used}
                   onToggle={(newUsed) => props.onToggle(level, newUsed)}

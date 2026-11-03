@@ -62,6 +62,32 @@ describe("SheetSettingsModule", () => {
     })
   })
 
+  describe("which colour is selected", () => {
+    it("is exposed on the selected preset alone", () => {
+      render(() => <SheetSettingsModule character={charWithColor} onUpdate={vi.fn()} />)
+      const pressed = screen.getAllByRole("button", { name: /theme color/i }).filter((button) => button.getAttribute("aria-pressed") === "true")
+      expect(pressed).toHaveLength(1)
+      expect(pressed[0]).toHaveAccessibleName(/red theme color/i)
+    })
+
+    it("is not claimed by any preset without a sheet colour", () => {
+      render(() => <SheetSettingsModule character={baseCharacter} onUpdate={vi.fn()} />)
+      for (const button of screen.getAllByRole("button", { name: /theme color/i })) {
+        expect(button).toHaveAttribute("aria-pressed", "false")
+      }
+    })
+
+    it("is named on the custom input when a custom colour is set", () => {
+      render(() => <SheetSettingsModule character={charWithCustomColor} onUpdate={vi.fn()} />)
+      expect(screen.getByLabelText(/custom theme color, selected/i)).toBeInTheDocument()
+    })
+
+    it("is not named on the custom input for a preset colour", () => {
+      render(() => <SheetSettingsModule character={charWithColor} onUpdate={vi.fn()} />)
+      expect(screen.getByLabelText("Custom theme color")).toBeInTheDocument()
+    })
+  })
+
   describe("custom color picker", () => {
     it("calls onUpdate with the new color when the color input changes", () => {
       const onUpdate = vi.fn()

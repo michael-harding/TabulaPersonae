@@ -91,6 +91,11 @@ describe("RestModal", () => {
       expect(within(getDialog()).getByText(/2 d8 available/i)).toBeInTheDocument()
     })
 
+    it("marks each hit die with dice", () => {
+      openModal(makeCharacter({ level: 3, spentHitDice: 1 }))
+      expect(within(getDialog()).getByTestId("rest-hit-dice-slot-0").querySelector(".lucide-dices")).not.toBeNull()
+    })
+
     it("lists actions with rechargeOn 'short-rest' in the features section", () => {
       const char = makeCharacter({
         attacks: [makeAttack({ rechargeOn: "short-rest", name: "Action Shot" })],
