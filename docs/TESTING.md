@@ -1,5 +1,5 @@
 > **Document Authority**: This document is the authoritative testing standard for this repository. It supplements `CONSTITUTION.md` §7; where the two conflict, `CONSTITUTION.md` rules.
-> **Last updated:** 2026-10-15
+> **Last updated:** 2026-11-02
 
 ---
 
@@ -109,6 +109,7 @@ This decouples test selectors from styling and layout decisions: a component can
 - axe-core must run as part of the Vitest integration test suite for every rendered UI component.
 - axe-playwright must run against every Playwright E2E scenario. Visual regression tests must also include axe-playwright checks where applicable.
 - Both must enforce WCAG 2.1 AA compliance. A test suite is not complete if axe checks are absent from any integration test that renders UI or any E2E scenario.
+- axe cannot evaluate contrast under jsdom, so the Vitest checks do not cover color, and in the browser it checks text only. Contrast is tested by `src/tests/lib/theme-contrast.test.ts` and `tests/e2e/contrast.spec.ts`, and focus visibility by `tests/e2e/focus-visible.spec.ts` (`ACCESSIBILITY.md` §4, §9, §14). A new color token pair or a new kind of control belongs in those, and a new page or modal belongs in `SCENES` in `tests/e2e/contrast-audit.ts`.
 
 ---
 

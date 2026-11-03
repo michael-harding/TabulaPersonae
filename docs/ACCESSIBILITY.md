@@ -1,5 +1,5 @@
 > **Document Authority**: This document is the authoritative accessibility standard for this repository. It supplements `CONSTITUTION.md` §9; where the two conflict, `CONSTITUTION.md` rules.
-> **Last updated:** 2026-05-28
+> **Last updated:** 2026-11-02
 
 ---
 
@@ -39,6 +39,7 @@ This document governs all accessibility requirements for this repository. It exp
 - Custom interactive widgets (menus, listboxes, date pickers, carousels, etc.) must implement the keyboard interaction patterns defined in the ARIA Authoring Practices Guide (APG). Arrow keys must navigate within composite widgets; Tab must move focus out of the widget.
 - No keyboard trap may exist, except in modal dialogs where focus is intentionally constrained to the dialog content. Every intentional focus trap must be documented in a code comment and must provide an explicit escape mechanism (the Escape key or a visible close control).
 - Every focusable element must have a visible focus indicator. `outline: none` or `outline: 0` must not be applied globally without a replacement focus style that satisfies WCAG 2.4.11 Focus Appearance. `:focus-visible` must be used in preference to `:focus` so that the indicator is shown for keyboard navigation only.
+- `tests/e2e/focus-visible.spec.ts` enforces the focus indicator: it tabs through each page and fails any stop that gains no ring or outline at 3:1 against what is behind it, or whose indicator does not change the screen.
 
 ---
 
@@ -108,6 +109,8 @@ This document governs all accessibility requirements for this repository. It exp
 - Status indicators (success, error, warning, info) must use both a color change and an additional indicator — a descriptive text label or an icon — to communicate status.
 - Links within body text must be distinguishable from surrounding non-link text by more than color alone; an underline or other non-color visual indicator must be present.
 - All new or modified color pairings must be verified against the applicable contrast ratio before merge using a color contrast checker.
+- Trackers whose states differ by color must also differ by an icon. `PipTracker` marks available pips with one (a sparkle unless given another), and a new tracker gets this by default.
+- `src/tests/lib/theme-contrast.test.ts` enforces this section for the theme's color tokens. `tests/e2e/contrast.spec.ts` enforces it on the rendered page, in both themes and with every preset sheet color: control boundaries, placeholders, icon-only controls, pip states, swatches, hovered text, and text axe could not decide, which fails rather than passing unchecked.
 
 ---
 
@@ -166,6 +169,7 @@ This document governs all accessibility requirements for this repository. It exp
 - Both axe configurations must enforce **WCAG 2.1 AA** rules. Disabling any axe rule requires an inline comment explaining the reason and explicit human approval.
 - A manual keyboard walkthrough must be performed before each PR that introduces or modifies interactive UI. The walkthrough must confirm: tab order is logical, all interactive elements are reachable and operable, a visible focus indicator is present at all times, and no unintended keyboard trap exists.
 - Color contrast must be verified for all new or modified color pairings before merge.
+- axe in the Vitest suite cannot evaluate contrast: under jsdom it reports no violation, even for white text on white. A passing Vitest axe check says nothing about color. In the browser, axe checks the contrast of text only. Contrast is enforced by the tests named in §9, and focus visibility by the test named in §4.
 - Screen reader testing is required for complex interactive widgets (dialogs, menus, comboboxes, carousels, live region announcements). At a minimum, test with one desktop screen reader (e.g. NVDA + Chrome, or VoiceOver + Safari).
 
 ---
