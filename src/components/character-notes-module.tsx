@@ -67,7 +67,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
   const renderMarkdownField = (f: MarkdownField) => (
     <div>
       <h2 class="font-semibold mb-2 text-sm text-muted-foreground">{f.label}</h2>
-      <div class={`bg-muted/50 rounded-lg p-3 ${f.minHeightClass}`}>
+      <div class={`rounded-lg p-3 ${f.minHeightClass}`}>
         <Show when={current()[f.field]} fallback={<p class="text-sm text-muted-foreground">{f.fallback}</p>}>
           <MarkdownContent text={current()[f.field] as string} />
         </Show>

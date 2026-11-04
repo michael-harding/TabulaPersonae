@@ -138,7 +138,7 @@ export function RestModal(props: RestModalProps) {
               data-test="rest-type-short-button"
               aria-pressed={restType() === "short"}
               onClick={() => { setRestType("short"); setDicesToSpend(0); setRollResult(null) }}
-              class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "short" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
+              class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "short" ? "border-primary" : "border-border"}`}
             >
               <div class="font-semibold">Short Rest</div>
               <div class="text-xs text-muted-foreground mt-0.5">1 hour</div>
@@ -148,7 +148,7 @@ export function RestModal(props: RestModalProps) {
               data-test="rest-type-long-button"
               aria-pressed={restType() === "long"}
               onClick={() => { setRestType("long"); setDicesToSpend(0); setRollResult(null) }}
-              class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "long" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
+              class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "long" ? "border-primary" : "border-border"}`}
             >
               <div class="font-semibold">Long Rest</div>
               <div class="text-xs text-muted-foreground mt-0.5">8 hours</div>
@@ -156,7 +156,7 @@ export function RestModal(props: RestModalProps) {
           </div>
 
           {/* Benefits */}
-          <div class="p-3 bg-muted/50 rounded-lg space-y-1">
+          <div class="p-3 rounded-lg space-y-1">
             <div class="text-sm font-medium">Benefits</div>
             <Show
               when={restType() === "short"}

@@ -341,7 +341,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                 </span>
                 <span class="text-sm text-muted-foreground">{Math.round(hpPercentage())}%</span>
               </div>
-              <div class="relative h-2 w-full overflow-hidden bg-secondary/30 rounded-full">
+              <div class="relative h-2 w-full overflow-hidden rounded-full">
                 <div
                   class={`absolute left-0 top-0 h-full transition-all duration-300 ${hpColor()}`}
                   style={{ width: `${hpPercentage()}%` }}

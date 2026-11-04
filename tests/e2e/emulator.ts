@@ -178,3 +178,9 @@ export async function clearEmulators(): Promise<void> {
     if (!response.ok) throw new Error(`Clearing the emulators failed: ${response.status} ${await response.text()}`)
   }
 }
+
+/**
+ * Cuts the page off from Firestore only. Writes then wait on this device, as they would with no
+ * connection, while the app itself — and the reload that follows signing out — still loads.
+ */
+export const blockFirestore = (page: Page) => page.route(/^http:\/\/127\.0\.0\.1:8080\//, (route) => route.abort("internetdisconnected"))

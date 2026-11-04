@@ -5,7 +5,7 @@ import { expect, type Page } from "@playwright/test"
 import AxeBuilder from "@axe-core/playwright"
 
 import type { Character } from "../../src/lib/character-types"
-import { finishAnimations } from "../e2e/test"
+import { contrastScan, finishAnimations } from "../e2e/test"
 
 /** Tall enough that no modal scrolls, so a change below its fold still shows in the screenshot. */
 export const TALL = { width: 1280, height: 1600 }
@@ -54,4 +54,14 @@ export async function expectAxeClean(page: Page) {
   await finishAnimations(page)
   const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
   expect(axeResults.violations).toEqual([])
+}
+
+/**
+ * Scans the page, then gets axe's verdict on all of the open dialog's text, which a scan of the
+ * whole page does not reach (see contrastScan). This hides the page, so screenshot before it.
+ * `within` narrows the verdict to a popup open inside the dialog, which covers what is under it.
+ */
+export async function expectDialogAxeClean(page: Page, within = "[role=dialog]") {
+  await expectAxeClean(page)
+  expect(await contrastScan(page, within)).toEqual({ violations: [], undecided: [] })
 }

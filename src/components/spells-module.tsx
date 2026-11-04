@@ -485,7 +485,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                 </Show>
               </div>
             </Show>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg">
               <div class="text-center">
                 <div class="flex items-center justify-center gap-1 mb-1">
                   <Target class="h-4 w-4 text-primary" aria-hidden="true" />

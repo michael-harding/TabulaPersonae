@@ -33,9 +33,8 @@ interface PipTrackerProps {
 export function PipTracker(props: PipTrackerProps) {
   const usedTitle = () => props.usedTitle ?? "Used slot (click to restore)"
   const availableTitle = () => props.availableTitle ?? "Available slot (click to use)"
-  const filledClass = () => props.filledClass ?? "bg-primary border-primary hover:bg-primary/80"
+  const filledClass = () => props.filledClass ?? "bg-primary border-primary"
   const emptyClass = () => props.emptyClass ?? "bg-muted border-muted-foreground"
-  const filledClassReadOnly = () => props.filledClass ?? "bg-primary border-primary"
   const slotTitle = (index: number) => (index < props.used ? usedTitle() : availableTitle())
   const slotLabel = (index: number) => (index < props.used ? props.usedLabel ?? "Used slot" : props.availableLabel ?? "Available slot")
 
@@ -62,7 +61,7 @@ export function PipTracker(props: PipTrackerProps) {
             fallback={
               <Tooltip content={slotLabel(index)} toggleOnClick>
                 <span data-test={`${props["data-test"]}-slot-${index}`} class="w-11 h-11 flex items-center justify-center" role="img" aria-label={slotLabel(index)}>
-                  <span class={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${index < props.used ? filledClassReadOnly() : emptyClass()}`}>
+                  <span class={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${index < props.used ? filledClass() : emptyClass()}`}>
                     {index < props.used ? props.filledIcon : availableIcon()}
                   </span>
                 </span>

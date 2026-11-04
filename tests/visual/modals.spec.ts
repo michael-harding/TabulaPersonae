@@ -1,12 +1,15 @@
 import { test, expect, type Page } from "@playwright/test"
 
 import { testCharacter } from "./fixtures"
-import { openSheet, dialog, expectAxeClean, parkPointer, TALL, PHONE, type Theme } from "./helpers"
+import { openSheet, dialog, expectAxeClean, expectDialogAxeClean, parkPointer, TALL, PHONE, type Theme } from "./helpers"
 
 // Every modal is screenshotted open (TESTING.md "Visual Regression Coverage"). The default
 // screenshot is the dialog element alone, so a change to the page behind the overlay doesn't churn
 // these baselines; the "Modal shell" block screenshots the whole viewport instead, to guard the
 // overlay, centring and corners that every modal shares.
+//
+// A screenshot that differs is a soft failure, so that the axe scan after it still runs and a change
+// to how a modal looks cannot hide what it did to its accessibility.
 //
 // Not covered: the sign-out dialog. It needs a signed-in Firebase user — guest mode shows
 // "Back to Login" in its place — and tests may not make real network calls (TESTING.md §5).
@@ -23,6 +26,8 @@ interface ModalCase {
   name: string
   tab?: string
   open: (page: Page) => Promise<void>
+  /** What axe judges the text of, when not the whole dialog: see expectDialogAxeClean. */
+  scanWithin?: string
 }
 
 const MODALS: ModalCase[] = [
@@ -34,7 +39,7 @@ const MODALS: ModalCase[] = [
   { name: "feature-add", tab: "Features", open: (page) => click(page, "add-feature-class-feature") },
   // Regression: the Feature Type list opens in place, inside the modal's scroll container, and was
   // clipped by it (e001998). Only a screenshot with the list open can catch that.
-  { name: "feature-add-type-open", tab: "Features", open: openFeatureType },
+  { name: "feature-add-type-open", tab: "Features", open: openFeatureType, scanWithin: "[role=listbox]" },
   { name: "feature-edit", tab: "Features", open: (page) => click(page, "feature-edit-cf3") },
   { name: "spell-add", tab: "Spells", open: (page) => click(page, "add-spell-button") },
   { name: "spell-edit", tab: "Spells", open: (page) => click(page, "edit-spell-sp3") },
@@ -91,8 +96,8 @@ test.describe("Modals — desktop", () => {
   for (const modal of MODALS) {
     test(modal.name, async ({ page }) => {
       await openModal(page, modal)
-      await expect(dialog(page)).toHaveScreenshot(`modal-${modal.name}.png`)
-      await expectAxeClean(page)
+      await expect.soft(dialog(page)).toHaveScreenshot(`modal-${modal.name}.png`)
+      await expectDialogAxeClean(page, modal.scanWithin)
     })
   }
 
@@ -107,8 +112,8 @@ test.describe("Modals — desktop", () => {
       await dialog(page).getByRole("option", { name: type, exact: true }).click()
       await expect(dialog(page).getByRole("listbox")).toHaveCount(0)
       await parkPointer(page)
-      await expect(dialog(page)).toHaveScreenshot(`modal-feature-add-type-${slug(type)}.png`)
-      await expectAxeClean(page)
+      await expect.soft(dialog(page)).toHaveScreenshot(`modal-feature-add-type-${slug(type)}.png`)
+      await expectDialogAxeClean(page)
     })
   }
 })
@@ -119,8 +124,8 @@ test.describe("Modals — desktop, dark", () => {
   for (const name of ["feature-add", "item-edit-weapon", "spell-edit", "rest-short"]) {
     test(name, async ({ page }) => {
       await openModal(page, byName(name), "dark")
-      await expect(dialog(page)).toHaveScreenshot(`modal-${name}-dark.png`)
-      await expectAxeClean(page)
+      await expect.soft(dialog(page)).toHaveScreenshot(`modal-${name}-dark.png`)
+      await expectDialogAxeClean(page)
     })
   }
 })
@@ -131,8 +136,8 @@ test.describe("Modals — phone", () => {
   for (const name of ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "import"]) {
     test(name, async ({ page }) => {
       await openModal(page, byName(name))
-      await expect(dialog(page)).toHaveScreenshot(`modal-${name}-phone.png`)
-      await expectAxeClean(page)
+      await expect.soft(dialog(page)).toHaveScreenshot(`modal-${name}-phone.png`)
+      await expectDialogAxeClean(page, byName(name).scanWithin)
     })
   }
 
@@ -140,7 +145,9 @@ test.describe("Modals — phone", () => {
   test("item-edit-weapon scrolled to the footer", async ({ page }) => {
     await openModal(page, byName("item-edit-weapon"))
     await dialog(page).evaluate((el) => el.scrollTo(0, el.scrollHeight))
-    await expect(dialog(page)).toHaveScreenshot("modal-item-edit-weapon-phone-footer.png")
+    await expect.soft(dialog(page)).toHaveScreenshot("modal-item-edit-weapon-phone-footer.png")
+    // Scrolled, the modal's edge cuts across text, which axe cannot judge. The same form gets its
+    // verdict unscrolled, in the "item-edit-weapon" test above.
     await expectAxeClean(page)
   })
 })
@@ -151,8 +158,8 @@ test.describe("Modal shell", () => {
       test(`${size} — ${theme}`, async ({ page }) => {
         if (viewport != null) await page.setViewportSize(viewport)
         await openModal(page, byName("rest-short"), theme)
-        await expect(page).toHaveScreenshot(`modal-shell-${size}-${theme}.png`)
-        await expectAxeClean(page)
+        await expect.soft(page).toHaveScreenshot(`modal-shell-${size}-${theme}.png`)
+        await expectDialogAxeClean(page)
       })
     }
   }

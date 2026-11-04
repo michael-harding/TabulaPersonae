@@ -583,7 +583,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       onCancel={handleCancel}
       contentClass="space-y-6"
     >
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg">
           <div class="text-center">
             <CalculatedValue data-test="spell-attack"
               label="Spell Attack"

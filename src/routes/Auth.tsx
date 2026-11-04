@@ -187,13 +187,13 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           </p>
         </Show>
         <Show when={error()}>
-          <div role="alert" class="p-3 text-sm text-destructive-text bg-destructive/10 border border-destructive/20 rounded-md">{error()}</div>
+          <div role="alert" class="p-3 text-sm text-destructive-text border rounded-md">{error()}</div>
         </Show>
         <button
           data-test="auth-submit-button"
           type="submit"
           disabled={loading()}
-          class="w-full h-11 px-4 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+          class="w-full h-11 px-4 bg-primary text-primary-foreground rounded-md text-sm font-medium disabled:opacity-50"
         >
           {loading() ? "Please wait..." : (isSignUp() ? "Create Account" : "Sign In")}
         </button>
@@ -269,13 +269,10 @@ export default function Auth() {
               *Your characters will be saved locally to this device only. Use Import/Export to backup characters and
               synchronize between devices manually.
             </p>
-            <div class="relative">
-              <div class="absolute inset-0 flex items-center">
-                <span class="w-full border-t" />
-              </div>
-              <div class="relative flex justify-center text-lg">
-                <span class="bg-background px-2 text-muted-foreground">Or Sign In</span>
-              </div>
+            <div class="flex items-center gap-2">
+              <span class="flex-1 border-t" />
+              <span class="text-lg text-muted-foreground">Or Sign In</span>
+              <span class="flex-1 border-t" />
             </div>
             <div class="bg-card rounded-lg p-6 border text-left">
               <AuthForm onNeedConsent={requestConsent} />

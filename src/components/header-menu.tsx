@@ -290,13 +290,10 @@ export function HeaderMenu(props: HeaderMenuProps) {
                 <FileText class="h-4 w-4" aria-hidden="true" />
                 Choose JSON File
               </label>
-              <div class="relative my-1">
-                <div class="absolute inset-0 flex items-center">
-                  <span class="w-full border-t" />
-                </div>
-                <div class="relative flex justify-center text-xs uppercase">
-                  <span class="bg-background px-2 text-muted-foreground">Or import from PDF</span>
-                </div>
+              <div class="flex items-center gap-2 my-1">
+                <span class="flex-1 border-t" />
+                <span class="text-xs uppercase text-muted-foreground">Or import from PDF</span>
+                <span class="flex-1 border-t" />
               </div>
               <input
                 ref={pdfInputRef}

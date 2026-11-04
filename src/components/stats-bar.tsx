@@ -41,9 +41,9 @@ export function StatsBar(props: StatsBarProps) {
   const conditions = createMemo(() => displayedConditions(props.character))
 
   return (
-    <div data-sem="stats-bar" class="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+    <div data-sem="stats-bar" class="sticky top-0 z-50 bg-background border-b">
       {/* HP progress bar */}
-      <div class="relative h-1.5 w-full overflow-hidden bg-secondary/30">
+      <div class="relative h-1.5 w-full overflow-hidden">
         <div
           class={`absolute left-0 top-0 h-full transition-all duration-300 ${hpColor()}`}
           style={{ width: `${hpPercentage()}%` }}

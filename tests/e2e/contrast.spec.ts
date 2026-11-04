@@ -5,7 +5,7 @@ import { SHEET_COLOR_PRESETS } from "../../src/lib/sheet-color"
 import { testCharacter } from "../visual/fixtures"
 import { SCENES, SHEET_TABS, useContrastHelpers } from "./contrast-audit"
 import { openSheet, seedGuest } from "./helpers"
-import { axeBuilder, finishAnimations, test, expect } from "./test"
+import { contrastScan, finishAnimations, test, expect } from "./test"
 
 // ACCESSIBILITY.md §9. axe checks the contrast of text and nothing else, and it passes over what it
 // cannot work out, so this audits what it leaves on the rendered page:
@@ -110,30 +110,10 @@ function auditNonText(page: Page, within?: string): Promise<Finding[]> {
   }, { within, TEXT, NON_TEXT })
 }
 
-/** axe's text contrast check, where "could not decide" fails too: nothing goes unchecked unseen. */
-async function auditText(page: Page, within?: string) {
-  const builder = axeBuilder(page).withRules(["color-contrast"])
-  if (within != null) {
-    builder.include(within)
-    // axe compares everything stacked under a piece of text, even beneath an opaque dialog, and
-    // gives up on text that the page behind happens to cross. What is behind cannot affect it, so
-    // it is hidden, and axe then reaches a verdict on all of the dialog's text.
-    await page.evaluate((within) => {
-      const popup = document.querySelector(within)
-      for (const child of Array.from(document.body.children)) {
-        if (!child.contains(popup)) (child as HTMLElement).style.visibility = "hidden"
-      }
-    }, within)
-  }
-  const { violations, incomplete } = await builder.analyze()
-  const undecided = incomplete.flatMap(({ nodes }) => nodes.map(({ html, any }) => ({ html, reason: any[0]?.data?.messageKey })))
-  return { violations, undecided }
-}
-
 async function expectContrast(page: Page, within?: string) {
   await finishAnimations(page)
   expect(await auditNonText(page, within)).toEqual([])
-  expect(await auditText(page, within)).toEqual({ violations: [], undecided: [] })
+  expect(await contrastScan(page, within)).toEqual({ violations: [], undecided: [] })
 }
 
 declare global {

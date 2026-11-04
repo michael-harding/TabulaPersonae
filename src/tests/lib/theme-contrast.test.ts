@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "fs"
+import { resolve } from "path"
+
 import { contrastRatio, oklchToHex } from "@/lib/sheet-color"
 
 import tailwindConfig from "../../../tailwind.config"
@@ -57,5 +60,22 @@ describe("tailwind theme colours", () => {
   it("use each token as it is", () => {
     const wrapped = colors(tailwindConfig.theme?.extend?.colors).filter((value) => /^\w+\(var\(/.test(value))
     expect(wrapped).toEqual([])
+  })
+
+  // Tailwind can only add opacity to a colour it can read, and these are var()s. It emits no CSS at
+  // all for bg-primary/90 and the like, so the class looks like it does something and does nothing.
+  // Worse, tailwind-merge still counts it, and drops any earlier class it appears to replace.
+  it("are not given an opacity, which produces no CSS", () => {
+    const names = (values: object, prefix = ""): string[] => Object.entries(values).flatMap(([key, value]) => {
+      const name = key === "DEFAULT" ? prefix.slice(0, -1) : prefix + key
+      return typeof value === "string" ? [name] : names(value as object, `${name}-`)
+    })
+    const tokens = names(tailwindConfig.theme?.extend?.colors as object).sort((a, b) => b.length - a.length).join("|")
+    const dead = new RegExp(`\\b(?:bg|text|border|ring|outline|divide|fill|stroke|from|via|to|shadow|accent|caret|decoration|placeholder)-(?:${tokens})/[\\d.]+`, "g")
+
+    const src = resolve(__dirname, "../..")
+    const sources = readdirSync(src, { recursive: true, encoding: "utf8" }).filter((file) => /\.(tsx?|css)$/.test(file) && !file.startsWith("tests"))
+    const found = sources.flatMap((file) => [...readFileSync(resolve(src, file), "utf8").matchAll(dead)].map(([match]) => `${file}: ${match}`))
+    expect(found).toEqual([])
   })
 })

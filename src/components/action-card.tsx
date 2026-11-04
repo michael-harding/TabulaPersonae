@@ -256,7 +256,7 @@ export function ActionCard(props: ActionCardProps) {
             <Show when={props.concentration}>
               <Chip
                 variant={concentrationActive() ? "default" : "outline"}
-                class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground border-muted-foreground/40"}${!isReadOnly ? " cursor-pointer" : ""}`}
+                class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground"}${!isReadOnly ? " cursor-pointer" : ""}`}
                 data-test={`${props["data-test"]}-concentration-badge-${concentrationActive() ? "active" : "inactive"}`}
                 onClick={isReadOnly ? undefined : () => setConcentrationActive(v => !v)}
               >
@@ -264,7 +264,7 @@ export function ActionCard(props: ActionCardProps) {
               </Chip>
             </Show>
             <Show when={durationLabel()}>
-              <Chip variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">
+              <Chip variant="outline" class="text-xs text-muted-foreground">
                 {durationLabel()}
               </Chip>
             </Show>

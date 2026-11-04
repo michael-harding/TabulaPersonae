@@ -1,7 +1,7 @@
 import { type Page } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
-import { createUser, readCharacter, seedCharacter, signIn, withUniqueId } from "./emulator"
+import { blockFirestore, createUser, readCharacter, seedCharacter, signIn, withUniqueId } from "./emulator"
 import { expectAccount, openSheet, seedDevice } from "./helpers"
 import { test, expect } from "./test"
 
@@ -15,12 +15,6 @@ async function signOut(page: Page) {
 
 const appKeys = (page: Page) =>
   page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("dnd-")).sort())
-
-/**
- * Cuts the page off from Firestore only. Writes then wait on this device, as they would with no
- * connection, while the app itself — and the reload that follows signing out — still loads.
- */
-const blockFirestore = (page: Page) => page.route(/^http:\/\/127\.0\.0\.1:8080\//, (route) => route.abort("internetdisconnected"))
 
 test.describe("Signing out", () => {
   test("@mobile removes the user's data from the device, which signing in again brings back", async ({ page }, testInfo) => {

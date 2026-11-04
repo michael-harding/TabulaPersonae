@@ -2,7 +2,7 @@ import { type Page, type TestInfo } from "@playwright/test"
 
 import { publicCharacter, secondCharacter, testCharacter } from "../visual/fixtures"
 import type { Character } from "../../src/lib/character-types"
-import { createUser, seedCharacter, signIn, withUniqueId } from "./emulator"
+import { blockFirestore, createUser, seedCharacter, signIn, withUniqueId } from "./emulator"
 import { openSheet, seedGuest } from "./helpers"
 import { expect } from "./test"
 
@@ -167,6 +167,52 @@ export const SCENES: Scene[] = [
     },
   },
   {
+    name: "action editor",
+    within: DIALOG,
+    open: async (page) => {
+      await openGuestSheet(page, "Combat")
+      await page.locator('[data-test="add-action-button"]').click()
+      await expect(page.getByRole("dialog")).toBeVisible()
+    },
+  },
+  {
+    name: "feature editor",
+    within: DIALOG,
+    open: async (page) => {
+      await openGuestSheet(page, "Features")
+      await page.locator('[data-test="add-feature-class-feature"]').click()
+      await expect(page.getByRole("dialog")).toBeVisible()
+    },
+  },
+  {
+    name: "spell editor",
+    within: DIALOG,
+    open: async (page) => {
+      await openGuestSheet(page, "Spells")
+      await page.locator('[data-test="add-spell-button"]').click()
+      await expect(page.getByRole("dialog")).toBeVisible()
+    },
+  },
+  {
+    name: "import dialog",
+    within: DIALOG,
+    open: async (page) => {
+      await openGuestSheet(page, "Combat")
+      await page.locator('[data-test="header-menu-trigger"]').click()
+      await page.getByRole("menuitem", { name: "Import Character" }).click()
+      await expect(page.getByRole("dialog")).toBeVisible()
+    },
+  },
+  {
+    name: "terms consent dialog",
+    within: DIALOG,
+    open: async (page) => {
+      await page.goto("/auth")
+      await page.locator('[data-test="auth-skip-button"]').click()
+      await expect(page.getByRole("dialog", { name: "Terms of Use & Privacy Policy" })).toBeVisible()
+    },
+  },
+  {
     name: "character list",
     open: async (page) => {
       await seedGuest(page, testCharacter)
@@ -201,6 +247,24 @@ export const SCENES: Scene[] = [
       await page.getByRole("tab", { name: tab }).click()
     },
   })),
+  {
+    name: "sign-out dialog",
+    within: DIALOG,
+    open: async (page, testInfo) => {
+      const user = await createUser(testInfo)
+      const character = withUniqueId(testCharacter)
+      await seedCharacter(user.uid, character)
+      await signIn(page, user)
+      await openSheet(page, character.id)
+      // The dialog only appears with changes that have not reached the account
+      await blockFirestore(page)
+      await page.locator('[data-test="hp-increase-button"]').click()
+      await expect(page.locator('[data-test="current-hp"]')).toHaveText("39")
+      await page.locator('[data-test="header-menu-trigger"]').click()
+      await page.getByRole("menuitem", { name: "Sign Out" }).click()
+      await expect(page.locator('[data-test="sign-out-dialog"]')).toBeVisible()
+    },
+  },
   {
     name: "share link on a signed-in sheet",
     open: async (page, testInfo) => {
