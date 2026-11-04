@@ -142,7 +142,7 @@ Tests use `data-test` attributes as selectors when targeting specific UI element
 
 ## 8. Accessibility
 
-WCAG 2.1 AA is the target conformance level. The decision to enforce this at the component level (axe-core in integration tests) and the page level (axe-playwright in visual regression tests) reflects that different classes of accessibility violation are only detectable at different levels of composition.
+WCAG 2.1 AA is the target conformance level. The decision to enforce this at the component level (axe-core in integration tests) and the page level (axe-playwright in E2E tests) reflects that different classes of accessibility violation are only detectable at different levels of composition.
 
 Kobalte is used for interactive component primitives because it provides ARIA-correct implementations of common patterns (dialogs, dropdowns, tabs, comboboxes). Wrapping Kobalte components in `src/components/ui/` provides a stable internal API and a single place to enforce project-specific accessibility conventions on top of the Kobalte base.
 
