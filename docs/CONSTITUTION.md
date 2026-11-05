@@ -1,6 +1,6 @@
 > **Document Authority**: This is the authoritative standard for all work in this repository. See §1 for scope and applicability.
 > **Template Version:** 1.0.3
-> **Last updated:** 2026-10-08
+> **Last updated:** 2026-11-04
 
 ---
 
@@ -67,7 +67,7 @@ This document covers the frontend codebase in this repository.
 | **Vitest** | Unit & integration testing | All unit and integration tests must use Vitest |
 | **Playwright** | Visual regression testing | All visual regression tests must use Playwright |
 | **axe-core** | Component-level accessibility testing | Must run as part of the Vitest integration test suite against all rendered UI components |
-| **axe-playwright** | Page-level accessibility testing | Must run as part of every Playwright scenario |
+| **axe-playwright** | Page-level accessibility testing | Must run as part of every Playwright E2E scenario |
 | **Firebase** | Authentication and cloud data persistence | Firebase Auth must be accessed through `src/lib/auth-context.tsx`; Firestore operations must go through `src/lib/firebase-storage.ts`; no direct Firebase SDK calls outside `src/lib/` |
 | **Kobalte** | Accessible UI component primitives | Must be used for interactive widgets (dialogs, dropdowns, tabs, etc.); base Kobalte components must be wrapped in `src/components/ui/` before use in the app |
 | **@solidjs/router** | Client-side routing | Route components live in `src/routes/`; navigation must use `useNavigate()` and `<A>` from `@solidjs/router` |
@@ -239,7 +239,7 @@ Agent permissions, prohibited actions, escalation protocol, and violation handli
 
 - Target conformance level: **WCAG 2.1 AA**.
 - axe-core must run as part of the Vitest integration test suite for component-level checks.
-- axe-playwright must run against all Playwright scenarios.
+- axe-playwright must run against all Playwright E2E scenarios.
 - All interactive elements must be reachable and operable via keyboard alone.
 - Focus must be managed explicitly on route transitions, modal open/close, and any dynamic content insertion.
 - All images must have meaningful `alt` text. Decorative images must use `alt=""`.

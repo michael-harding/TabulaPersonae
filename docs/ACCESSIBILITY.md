@@ -1,5 +1,5 @@
 > **Document Authority**: This document is the authoritative accessibility standard for this repository. It supplements `CONSTITUTION.md` §9; where the two conflict, `CONSTITUTION.md` rules.
-> **Last updated:** 2026-11-02
+> **Last updated:** 2026-11-04
 
 ---
 
@@ -165,7 +165,7 @@ This document governs all accessibility requirements for this repository. It exp
 ## 14. Testing Requirements
 
 - axe-core must run in the Vitest integration test suite for every rendered UI component. A component test is not complete if the axe check is absent.
-- axe-playwright must run against every Playwright scenario. A scenario is not complete if the axe check is absent.
+- axe-playwright must run against every Playwright E2E scenario. A scenario is not complete if the axe check is absent.
 - Both axe configurations must enforce **WCAG 2.1 AA** rules. Disabling any axe rule requires an inline comment explaining the reason and explicit human approval.
 - A manual keyboard walkthrough must be performed before each PR that introduces or modifies interactive UI. The walkthrough must confirm: tab order is logical, all interactive elements are reachable and operable, a visible focus indicator is present at all times, and no unintended keyboard trap exists.
 - Color contrast must be verified for all new or modified color pairings before merge.

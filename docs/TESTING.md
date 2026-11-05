@@ -1,5 +1,5 @@
 > **Document Authority**: This document is the authoritative testing standard for this repository. It supplements `CONSTITUTION.md` §7; where the two conflict, `CONSTITUTION.md` rules.
-> **Last updated:** 2026-11-02
+> **Last updated:** 2026-11-04
 
 ---
 
@@ -109,7 +109,7 @@ This decouples test selectors from styling and layout decisions: a component can
 - axe-core must run as part of the Vitest integration test suite for every rendered UI component.
 - axe-playwright must run against every Playwright E2E scenario. Visual regression tests must NOT include axe-playwright checks.
 - Both must enforce WCAG 2.1 AA compliance. A test suite is not complete if axe checks are absent from any integration test that renders UI or any E2E scenario.
-- axe cannot evaluate contrast under jsdom, so the Vitest checks do not cover color, and in the browser it checks text only. Contrast is tested by `src/tests/lib/theme-contrast.test.ts` and `tests/e2e/contrast.spec.ts`, and focus visibility by `tests/e2e/focus-visible.spec.ts` (`ACCESSIBILITY.md` §4, §9, §14). A new color token pair or a new kind of control belongs in those, and a new page or modal belongs in `SCENES` in `tests/e2e/contrast-audit.ts`.
+- axe cannot evaluate contrast under jsdom, so the Vitest checks do not cover color, and in the browser it checks text only. Contrast is tested by `src/tests/lib/theme-contrast.test.ts` and `tests/e2e/contrast.spec.ts`, and focus visibility by `tests/e2e/focus-visible.spec.ts` (`ACCESSIBILITY.md` §4, §9, §14). A new color token pair or a new kind of control belongs in those, and a new page or modal belongs in `SCENES` in `tests/e2e/contrast-audit.ts`. Every modal and popup must have an axe scan in `tests/e2e/accessibility.spec.ts`.
 
 ---
 
@@ -149,5 +149,5 @@ This decouples test selectors from styling and layout decisions: a component can
 - All tests in the suite pass.
 - No tests are skipped without documented human approval.
 - All UI components touched by the suite have at least one integration test.
-- axe checks are present and passing for every rendered UI component and every E2E/visual scenario.
+- axe checks are present and passing for every rendered UI component and every E2E scenario.
 - Every modal, popup, and edit mode the suite touches has a visual baseline (§9).
