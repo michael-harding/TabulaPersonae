@@ -1,0 +1,151 @@
+import { expect, type Locator, type Page } from "@playwright/test"
+
+import type { Character } from "../../src/lib/character-types"
+import { testCharacter } from "./fixtures"
+import { dialog } from "./helpers"
+
+// Every modal and every popup above the page. Listed once and used twice, so that anything with a
+// visual baseline (modals.spec.ts, overlays.spec.ts) also gets its accessibility scan
+// (tests/e2e/accessibility.spec.ts).
+
+const click = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`).click()
+
+async function openFeatureType(page: Page) {
+  await click(page, "add-feature-class-feature")
+  await dialog(page).locator('[data-test="feature-type-select"]').click()
+}
+
+export interface ModalCase {
+  name: string
+  tab?: string
+  open: (page: Page) => Promise<void>
+}
+
+export const MODALS: ModalCase[] = [
+  { name: "action-add", tab: "Combat", open: (page) => click(page, "add-action-button") },
+  { name: "bonus-action-add", tab: "Combat", open: (page) => click(page, "add-bonus-action-button") },
+  { name: "reaction-add", tab: "Combat", open: (page) => click(page, "add-reaction-button") },
+  { name: "other-add", tab: "Combat", open: (page) => click(page, "add-other-button") },
+  { name: "action-edit", tab: "Combat", open: (page) => click(page, "action-card-attack-atk1-edit-button") },
+  { name: "feature-add", tab: "Features", open: (page) => click(page, "add-feature-class-feature") },
+  // Regression: the Feature Type list opens in place, inside the modal's scroll container, and was
+  // clipped by it (e001998). Only a screenshot with the list open can catch that.
+  { name: "feature-add-type-open", tab: "Features", open: openFeatureType },
+  { name: "feature-edit", tab: "Features", open: (page) => click(page, "feature-edit-cf3") },
+  { name: "spell-add", tab: "Spells", open: (page) => click(page, "add-spell-button") },
+  { name: "spell-edit", tab: "Spells", open: (page) => click(page, "edit-spell-sp3") },
+  { name: "spell-slots", tab: "Spells", open: (page) => click(page, "edit-spell-slots-button") },
+  { name: "item-add", tab: "Inventory", open: (page) => click(page, "add-equipment-button") },
+  {
+    name: "item-add-consumable", tab: "Inventory", open: async (page) => {
+      await click(page, "add-equipment-button")
+      await dialog(page).locator('[data-test="item-type"]').click()
+      await page.getByRole("option", { name: "Consumable", exact: true }).click()
+    },
+  },
+  { name: "item-edit-weapon", tab: "Inventory", open: (page) => click(page, "equipment-edit-eq1") },
+  { name: "item-edit-armor", tab: "Inventory", open: (page) => click(page, "equipment-edit-eq2") },
+  { name: "item-edit-magic", tab: "Inventory", open: (page) => click(page, "magic-item-edit-mi1") },
+  { name: "rest-short", open: (page) => click(page, "take-a-rest-button") },
+  {
+    name: "rest-long", open: async (page) => {
+      await click(page, "take-a-rest-button")
+      await click(page, "rest-type-long-button")
+    },
+  },
+  {
+    name: "import", open: async (page) => {
+      await click(page, "header-menu-trigger")
+      await page.getByRole("menuitem", { name: "Import Character" }).click()
+    },
+  },
+]
+
+export const byName = (name: string) => MODALS.find((m) => m.name === name)!
+
+// Mirrors FEATURE_TYPES in src/components/features-module.tsx — the Feature form's fields differ
+// per type. The "lists every feature type" test fails when the two drift, so a new type can't
+// ship without a baseline.
+export const FEATURE_TYPES = [
+  "Action", "Spellcasting Ability", "Hit Points", "Size", "Max HP Bonus",
+  "Saving Throw Proficiency", "Skill Proficiency", "Other Proficiency", "Speed", "Senses",
+  "Damage Resistance/Immunity/Vulnerability", "Condition Immunity", "Language", "Carrying Capacity",
+  "Ability Scores",
+]
+export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+
+/** The modals with a baseline at phone width, and an accessibility scan on the phone project. */
+export const PHONE_MODALS = ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "import"]
+
+const byTest = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`)
+
+export interface OverlayCase {
+  name: string
+  tab?: string
+  /** Defaults to testCharacter. */
+  character?: Character
+  /** Opens the popup and returns it. */
+  open: (page: Page) => Promise<Locator>
+}
+
+export const OVERLAYS: OverlayCase[] = [
+  {
+    name: "header-menu", open: async (page) => {
+      await byTest(page, "header-menu-trigger").click()
+      return page.getByRole("menu")
+    },
+  },
+  {
+    name: "select-list", tab: "Character", open: async (page) => {
+      await byTest(page, "character-basic-info-module-edit").click()
+      await byTest(page, "alignment-select").click()
+      return page.getByRole("listbox")
+    },
+  },
+  {
+    name: "combobox-list", tab: "Character", open: async (page) => {
+      await byTest(page, "character-basic-info-module-edit").click()
+      await byTest(page, "class-combobox").click()
+      return page.getByRole("listbox")
+    },
+  },
+  {
+    name: "chip-list-add-menu", open: async (page) => {
+      await byTest(page, "skills-proficiencies-module-edit").click()
+      await byTest(page, "damage-resistances-add").click()
+      return page.getByRole("menu")
+    },
+  },
+  {
+    name: "action-details-popover", tab: "Combat", open: async (page) => {
+      await byTest(page, "action-card-attack-atk1-details-trigger").click()
+      return page.getByRole("dialog")
+    },
+  },
+  {
+    // Pinned open by a click (how a touch user sees it), so it doesn't close mid-screenshot the way
+    // a focus- or hover-opened tooltip can. The fixture's stored AC differs from its calculated AC,
+    // which migrates to a custom value whose tooltip is just "Custom"; this shows the breakdown.
+    name: "calculated-value-tooltip", character: { ...testCharacter, useCalculatedArmorClass: true }, open: async (page) => {
+      await byTest(page, "armor-class-display").click()
+      return page.getByRole("tooltip")
+    },
+  },
+  {
+    // An armed ConfirmButton reverts after CONFIRM_TIMEOUT_MS (4s); the screenshot is taken well within it.
+    name: "confirm-button-armed", tab: "Spells", open: async (page) => {
+      const button = byTest(page, "delete-spell-sp1")
+      await button.click()
+      await expect(button).toHaveAttribute("data-armed", "")
+      return button
+    },
+  },
+  {
+    // A toast dismisses itself after 5s; the screenshot is taken well within it.
+    name: "toast", open: async (page) => {
+      await byTest(page, "header-menu-trigger").click()
+      await page.getByRole("menuitem", { name: `Export ${testCharacter.name}` }).click()
+      return page.locator('[data-sem="toast"]')
+    },
+  },
+]

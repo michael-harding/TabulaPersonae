@@ -262,6 +262,12 @@ describe("ActionCard", () => {
     })
   })
 
+  it("names its details popover after the action", () => {
+    render(() => <ActionCard {...makeProps()} />)
+    fireEvent.click(screen.getByRole("button", { name: /details for test action/i }))
+    expect(screen.getByRole("dialog", { name: "Test Action" })).toBeInTheDocument()
+  })
+
   describe("uses tracker vs cast buttons", () => {
     it("shows PipTracker when maxUses=3 and onCast is not provided", () => {
       render(() => <ActionCard {...makeProps({ maxUses: 3, uses: 0, onUsesChange: vi.fn() })} />)

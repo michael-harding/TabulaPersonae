@@ -93,8 +93,8 @@ declare global {
 }
 
 /** Gives every page this test opens `window.contrast`. Call before the first navigation. */
-export function useContrastHelpers(page: Page): Promise<void> {
-  return page.addInitScript(installContrastHelpers)
+export async function useContrastHelpers(page: Page): Promise<void> {
+  await page.addInitScript(installContrastHelpers)
 }
 
 export const SHEET_TABS = ["Combat", "Spells", "Features", "Inventory", "Character"]

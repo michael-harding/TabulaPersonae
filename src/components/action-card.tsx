@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
 import { PipTracker, type PipIcon } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { Popover, PopoverTrigger, PopoverContent, PopoverArrow } from "@/components/ui/popover"
+import { Popover, PopoverTrigger, PopoverContent, PopoverArrow, PopoverTitle } from "@/components/ui/popover"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
 import { cn, TOUCH_TARGET, TOUCH_TARGET_BOX } from "@/lib/utils"
@@ -145,7 +145,7 @@ export function ActionCard(props: ActionCardProps) {
               <PopoverContent>
                   <PopoverArrow />
                   <div class="space-y-2">
-                    <div class="font-semibold text-sm">{props.name}</div>
+                    <PopoverTitle as="div" class="font-semibold text-sm">{props.name}</PopoverTitle>
                     <Show when={spellSubtitle()}>
                       <div class="text-xs text-muted-foreground">
                         {spellSubtitle()}

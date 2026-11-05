@@ -189,6 +189,49 @@ test.describe("Contrast", () => {
   }
 })
 
+// The stats bar is frosted glass that the sheet scrolls behind.
+test.describe("Stats bar", () => {
+  test.beforeEach(({ page }) => useContrastHelpers(page))
+
+  // Translucent is not the same as looking like glass, as a heavy tint showed: the blur could hardly
+  // be seen. So this looks at what is actually drawn, with a block of colour behind the bar: the block
+  // has to show through clearly, and its edge has to be soft.
+  test("visibly frosts what passes behind it", async ({ page }) => {
+    await seedGuest(page, testCharacter)
+    await openSheet(page, testCharacter.id)
+    const block = { x: 300, width: 200 }
+    await page.evaluate(({ x, width }) => {
+      const bar = document.querySelector("[data-sem=stats-bar]")!
+      const panel = document.createElement("div")
+      panel.style.cssText = `position:fixed;top:0;left:${x}px;width:${width}px;height:200px;z-index:40;background:#8b5cf6`
+      bar.parentElement!.insertBefore(panel, bar)
+      const hideContent = document.createElement("style")
+      hideContent.textContent = "[data-sem=stats-bar] * { visibility: hidden !important }"
+      document.head.appendChild(hideContent)
+    }, block)
+    await finishAnimations(page)
+    const shot = await page.screenshot({ clip: { x: 0, y: 25, width: 700, height: 1 } })
+    const colourAt = (points: number[]) => page.evaluate(async ({ png, points }) => {
+      const image = new Image()
+      image.src = `data:image/png;base64,${png}`
+      await image.decode()
+      const canvas = document.createElement("canvas")
+      canvas.width = image.width
+      canvas.height = image.height
+      const context = canvas.getContext("2d")!
+      context.drawImage(image, 0, 0)
+      return points.map((x) => {
+        const [r, g, b] = context.getImageData(x, 0, 1, 1).data
+        return window.contrast.ratio([r, g, b, 1], [255, 255, 255, 1])
+      })
+    }, { png: shot.toString("base64"), points })
+    const [centre, justOutside, farAway] = await colourAt([block.x + block.width / 2, block.x + block.width + 4, 650])
+    const relative = (a: number, b: number) => Math.max(a, b) / Math.min(a, b)
+    expect(relative(centre, farAway), "the block shows through the bar").toBeGreaterThanOrEqual(1.5)
+    expect(relative(justOutside, farAway), "its colour spreads past its edge, which is the blur").toBeGreaterThanOrEqual(1.1)
+  })
+})
+
 // Hover states are mostly a change of colour, so this is where a pairing goes wrong unnoticed. The
 // default theme, plus the presets whose shades lose the most contrast if a fill is ever lightened.
 test.describe("Contrast while hovering", () => {

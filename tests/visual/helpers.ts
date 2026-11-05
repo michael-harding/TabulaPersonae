@@ -1,11 +1,6 @@
-import { expect, type Page } from "@playwright/test"
-// Scoped to WCAG 2.1 A/AA tags, matching ACCESSIBILITY.md's stated target conformance level —
-// excludes axe's "best-practice" extras (e.g. the no-WCAG-tag "region" rule flagging
-// Kobalte portal content rendered outside <main>) that aren't part of that target.
-import AxeBuilder from "@axe-core/playwright"
+import { type Page } from "@playwright/test"
 
 import type { Character } from "../../src/lib/character-types"
-import { contrastScan, finishAnimations } from "../e2e/test"
 
 /** Tall enough that no modal scrolls, so a change below its fold still shows in the screenshot. */
 export const TALL = { width: 1280, height: 1600 }
@@ -47,21 +42,4 @@ export async function parkPointer(page: Page) {
 /** The open modal. */
 export function dialog(page: Page) {
   return page.getByRole("dialog")
-}
-
-/** Scans the page as it is now, once open/close animations have settled. */
-export async function expectAxeClean(page: Page) {
-  await finishAnimations(page)
-  const axeResults = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze()
-  expect(axeResults.violations).toEqual([])
-}
-
-/**
- * Scans the page, then gets axe's verdict on all of the open dialog's text, which a scan of the
- * whole page does not reach (see contrastScan). This hides the page, so screenshot before it.
- * `within` narrows the verdict to a popup open inside the dialog, which covers what is under it.
- */
-export async function expectDialogAxeClean(page: Page, within = "[role=dialog]") {
-  await expectAxeClean(page)
-  expect(await contrastScan(page, within)).toEqual({ violations: [], undecided: [] })
 }

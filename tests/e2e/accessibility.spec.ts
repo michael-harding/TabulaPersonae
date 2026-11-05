@@ -1,8 +1,9 @@
 import { type Locator, type Page } from "@playwright/test"
 
-import { testCharacter, secondCharacter } from "../visual/fixtures"
+import { publicCharacter, testCharacter, secondCharacter } from "../visual/fixtures"
+import { byName, FEATURE_TYPES, MODALS, OVERLAYS, PHONE_MODALS, type ModalCase } from "../visual/popup-cases"
 import { openSheet, seedGuest } from "./helpers"
-import { axeBuilder, finishAnimations, test, expect } from "./test"
+import { axeBuilder, contrastScan, finishAnimations, test, expect } from "./test"
 
 // Every test here is itself an axe scan of the state it sets up.
 test.use({ axeAfterEach: false })
@@ -57,6 +58,20 @@ test.describe("Character sheet page", () => {
     await expectNoViolations(page)
   })
 
+  for (const [name, hitPoints] of [["full", { current: 44, maximum: 44, temporary: 0 }], ["half", { current: 22, maximum: 44, temporary: 0 }]] as const) {
+    test(`${name} HP has no accessibility violations`, async ({ page }) => {
+      await seedGuest(page, { ...testCharacter, hitPoints })
+      await openSheet(page, testCharacter.id)
+      await expectNoViolations(page)
+    })
+  }
+
+  test("empty notes have no accessibility violations", async ({ page }) => {
+    await seedGuest(page, { ...testCharacter, personalityTraits: "", ideals: "", bonds: "", flaws: "", backstory: "", notes: "" })
+    await openSheet(page, testCharacter.id, "Character")
+    await expectNoViolations(page)
+  })
+
   for (const tab of ["Character", "Spells", "Inventory"]) {
     test(`${tab.toLowerCase()} tab has no accessibility violations`, async ({ page }) => {
       await seedGuest(page, testCharacter)
@@ -98,6 +113,97 @@ test.describe("A menu opened inside a dialog", () => {
     await modal.getByRole("button", { name: "Add skill advantage" }).click()
 
     await expect(page.getByRole("menuitem").first()).toBeVisible()
+    await expectNoViolations(page)
+  })
+})
+
+// Every modal and popup with a visual baseline is scanned as well (see popup-cases.ts). The chromium
+// and chromium-dark projects cover the themes, and the mobile project the ones tagged for a phone.
+async function openModal(page: Page, modal: ModalCase) {
+  await seedGuest(page, testCharacter, { expandSections: true })
+  await openSheet(page, testCharacter.id, modal.tab)
+  await modal.open(page)
+  await expect(page.getByRole("dialog")).toBeVisible()
+  await page.mouse.move(0, 0)
+}
+
+/**
+ * Scans the whole page, then gets axe's verdict on all of the open dialog's text (see contrastScan).
+ * `within` narrows that to a popup open inside the dialog: it covers the text under it, which gets
+ * its verdict with the popup closed.
+ */
+async function expectDialogClean(page: Page, within = "[role=dialog]") {
+  await expectNoViolations(page)
+  expect(await contrastScan(page, within)).toEqual({ violations: [], undecided: [] })
+}
+
+test.describe("Modals", () => {
+  for (const modal of MODALS) {
+    const tag = PHONE_MODALS.includes(modal.name) ? "@mobile " : ""
+    test(`${tag}${modal.name} has no accessibility violations`, async ({ page }) => {
+      await openModal(page, modal)
+      await expectDialogClean(page, modal.name === "feature-add-type-open" ? "[role=listbox]" : undefined)
+    })
+  }
+
+  for (const type of FEATURE_TYPES) {
+    test(`feature-add-type ${type} has no accessibility violations`, async ({ page }) => {
+      await openModal(page, byName("feature-add-type-open"))
+      await page.getByRole("dialog").getByRole("option", { name: type, exact: true }).click()
+      await expect(page.getByRole("dialog").getByRole("listbox")).toHaveCount(0)
+      await page.mouse.move(0, 0)
+      await expectDialogClean(page)
+    })
+  }
+
+  // A phone can't fit the item form, so the modal scrolls. Scrolled, its edge cuts across text, which
+  // axe cannot judge; the same form gets its verdict unscrolled, in the "item-edit-weapon" test above.
+  test("@mobile item-edit-weapon scrolled to the footer has no accessibility violations", async ({ page }) => {
+    await openModal(page, byName("item-edit-weapon"))
+    await page.getByRole("dialog").evaluate((el) => el.scrollTo(0, el.scrollHeight))
+    await expectNoViolations(page)
+  })
+})
+
+test.describe("Popups", () => {
+  for (const overlay of OVERLAYS) {
+    const tag = overlay.name === "header-menu" ? "@mobile " : ""
+    test(`${tag}${overlay.name} has no accessibility violations`, async ({ page }) => {
+      await seedGuest(page, overlay.character ?? testCharacter, { expandSections: true })
+      await openSheet(page, (overlay.character ?? testCharacter).id, overlay.tab)
+      await expect(await overlay.open(page)).toBeVisible()
+      await page.mouse.move(0, 0)
+      await expectNoViolations(page)
+    })
+  }
+})
+
+test.describe("Tab settings page", () => {
+  test("the add tab form has no accessibility violations", async ({ page }) => {
+    await seedGuest(page, [])
+    await page.goto("/settings/tabs")
+    await page.locator('[data-test="add-tab-button"]').click()
+    await expect(page.locator('[data-test="new-tab-name-input"]')).toBeVisible()
+    await expectNoViolations(page)
+  })
+})
+
+test.describe("Public share page", () => {
+  const seedPublic = (page: Page, id: string, character: unknown) => page.addInitScript(({ id, character }) => {
+    localStorage.setItem(`dnd-public-char-${id}`, JSON.stringify(character))
+  }, { id, character })
+
+  test("default tab has no accessibility violations", async ({ page }) => {
+    await seedPublic(page, publicCharacter.id, publicCharacter)
+    await page.goto(`/share/${publicCharacter.id}`)
+    await expect(page.getByRole("heading", { level: 1, name: publicCharacter.name })).toBeVisible()
+    await expectNoViolations(page)
+  })
+
+  test("a character that was not found has no accessibility violations", async ({ page }) => {
+    await seedPublic(page, "nonexistent-char-id", null)
+    await page.goto("/share/nonexistent-char-id")
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
     await expectNoViolations(page)
   })
 })
