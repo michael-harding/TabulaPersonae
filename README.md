@@ -8,8 +8,8 @@ A D&D 5e/5.5e character sheet web app built with SolidJS and Firebase.
 - **Full 5e sheet** — ability scores, combat stats, skills, spells, equipment/inventory (including magic items with rarity, attunement, and modifiers), actions, features, and notes
 - **Feature-driven grants** — class features, species traits, backgrounds, and feats can grant spellcasting ability, hit dice/hit points, saving throw/skill/other proficiencies, size, movement speeds, senses, resistances/immunities, languages, carrying capacity, ability score bonuses, and Max HP bonuses, with level-tiered effects and tooltips naming each contributing feature
 - **Customizable tabs** — arrange sheet content into user-defined tabs, each with its own set of drag-and-drop-ordered modules
-- **Calculated stats with manual override** — initiative, proficiency bonus, armor class, size, movement speed, Max HP, passive perception/insight/investigation, spell save DC, and spell attack/modifier are auto-derived from character data, each with a per-field toggle for a manual value
-- **Short & long rest** — track HP, hit dice, spell slot recovery, and equipment recharge (e.g. wands, charged items)
+- **Calculated stats with manual override** — initiative, proficiency bonus, armor class, movement speed, Max HP, passive perception/insight/investigation, spell save DC, and spell attack/modifier are auto-derived from character data, each with a per-field toggle for a manual value
+- **Short & long rest** — track HP, hit dice, spell slot recovery, Exhaustion levels, and equipment recharge (e.g. wands, charged items)
 - **Markdown notes** — character notes, description fields, and action/spell descriptions render as sanitized Markdown
 - **Public character sharing** — generate a read-only `/share/:id` link and QR code that works without an account
 - **Import / Export** — JSON round-trip and PDF character sheet import (D&D Beyond–style PDFs), with reconciliation for conflicting or partial imports
@@ -17,8 +17,8 @@ A D&D 5e/5.5e character sheet web app built with SolidJS and Firebase.
 - **Cloud sync** — Firestore-backed storage when signed in, localStorage fallback when offline or unauthenticated
 - **Installable / offline-ready** — PWA with service worker caching
 - **Dark mode** — system-aware theme toggle
-- **Accessibility** — WCAG 2.1 AA target, enforced with axe-core in component tests and axe-playwright in E2E tests
-- **Automated testing** — Vitest unit/integration tests with enforced coverage thresholds, Playwright E2E and visual regression tests (Chromium + Firefox), and Vitest benchmarks
+- **Accessibility** — WCAG 2.1 AA target, enforced with axe-core in component tests and axe-playwright in E2E tests, plus E2E audits of color contrast, touch target size, and visible focus in both themes
+- **Automated testing** — Vitest unit/integration tests with enforced coverage thresholds, Playwright E2E tests against the Firebase Local Emulator Suite, visual regression tests (Chromium + Firefox), and Vitest benchmarks
 
 ## Tech Stack
 
@@ -43,6 +43,7 @@ A D&D 5e/5.5e character sheet web app built with SolidJS and Firebase.
 
 - Node.js 20+
 - pnpm
+- Java (JDK 21) — only for the E2E tests, which run against the Firebase Local Emulator Suite
 
 ### Install
 
@@ -78,6 +79,8 @@ pnpm dev
 | Command | Description |
 |---|---|
 | `pnpm dev` | Start dev server |
+| `pnpm dev:e2e` | Start the dev server against the Firebase emulators (port 5174), as the E2E tests use it |
+| `pnpm emulators` | Start the Firebase Auth and Firestore emulators under the `demo-tabulapersonae` project |
 | `pnpm build` | Production build |
 | `pnpm preview` | Preview production build |
 | `pnpm lint` | ESLint |
@@ -86,7 +89,7 @@ pnpm dev
 | `pnpm test:watch` | Unit tests in watch mode |
 | `pnpm test:coverage` | Unit tests with coverage; fails below 80% overall or 90% for auth, storage, and core character logic |
 | `pnpm test:bench` | Run Vitest benchmarks |
-| `pnpm test:e2e` | Run Playwright E2E tests (functional + accessibility + performance) |
+| `pnpm test:e2e` | Run Playwright E2E tests (functional + accessibility + performance); starts the emulators and the e2e dev server itself |
 | `pnpm test:visual` | Run Playwright visual regression tests |
 | `pnpm test:visual:update` | Update Playwright visual snapshots |
 | `pnpm test:visual:chromium` | Visual tests, Chromium only |
