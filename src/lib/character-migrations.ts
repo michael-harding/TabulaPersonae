@@ -1,5 +1,5 @@
 import type { Character, Equipment, Feature, SenseType } from "./character-types"
-import { ABILITY_KEYS, calculateEquippedAC, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, makeSizeTrait, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import { ABILITY_KEYS, calculateEquippedAC, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, hasChargesTracking, inferFeatureType, makeSizeTrait, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
 // Exported for the legacy-character test fixtures, which must leave out exactly these keys
 export const CALCULATED_VALUE_FLAGS = [
@@ -96,14 +96,16 @@ const OLD_DEFAULT_SIZE = "Medium"
  * Size is a Species Trait (set on the Features tab), no longer a field with a custom override. A
  * size the user entered becomes a Species Trait granting it, so it is kept in the place it now
  * belongs: a stored custom size (the flag false, or absent from before it existed) other than the
- * old default, which only the user could have set. Nothing is added when a trait already grants a
- * size.
+ * old default, which only the user could have set. Nothing is added when a Feature grants a size at
+ * any level, not only the current one: a second trait would contend with it once both applied.
  */
+const grantsSize = (feature: Feature) => (feature.levelEffects ?? []).some((tier) => tier.effects?.size)
+
 function importCustomSize(raw: StoredCharacter): Feature | undefined {
   const size = typeof raw.size === "string" ? raw.size.trim() : ""
   if (size === "") return undefined
   const entered = raw.useCalculatedSize !== true && size !== OLD_DEFAULT_SIZE
-  if (!entered || getEffectiveSize(raw).size !== "") return undefined
+  if (!entered || FEATURE_LIST_FIELDS.some((field) => safeFeatures(raw[field]).some(grantsSize))) return undefined
   return makeSizeTrait(size, "Grants this character's size, carried over from when size was entered directly.")
 }
 

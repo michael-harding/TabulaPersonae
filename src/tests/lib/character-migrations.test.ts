@@ -323,6 +323,17 @@ describe("migrateCharacter", () => {
       const withTrait = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [granted], size: "Tiny", useCalculatedSize: false })
       expect(sizeTraits(withTrait)).toEqual([granted])
     })
+
+    // Regression: only traits active at the current level were checked, so a level-3 character with
+    // a trait granting Large at level 5 gained a second, conflicting Size trait
+    it("adds nothing when a Feature grants a size only at a higher level", () => {
+      const later = {
+        id: "t1", name: "Large Form", description: "", source: "species-trait" as const, featureType: "Size" as const,
+        levelEffects: [{ level: 5, effects: { size: "Large" } }],
+      }
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), level: 3, speciesTraits: [later], size: "Small", useCalculatedSize: false })
+      expect(sizeTraits(migrated)).toEqual([later])
+    })
   })
 
   // Exhaustion was an on/off condition before it had levels. A stored "Exhaustion" proves level 1
