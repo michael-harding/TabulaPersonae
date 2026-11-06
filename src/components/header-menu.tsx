@@ -285,6 +285,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
                 onChange={handleFileImport}
                 class="hidden"
                 id="header-character-import"
+                data-test="import-json-input"
               />
               <label for="header-character-import" class={buttonVariants({ class: "w-full gap-2 cursor-pointer" })}>
                 <FileText class="h-4 w-4" aria-hidden="true" />
@@ -302,6 +303,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
                 onChange={handlePdfImport}
                 class="hidden"
                 id="header-character-pdf-import"
+                data-test="import-pdf-input"
               />
               <label
                 for="header-character-pdf-import"

@@ -397,6 +397,32 @@ describe("CombatStatsModule", () => {
       expect(screen.getByText(/\/20/)).toBeInTheDocument()
     })
 
+    // Regression: Save wrote back a copy of the whole character taken when editing began, so it
+    // undid what the always-live controls (and other modules) had already saved meanwhile
+    it("keeps changes saved while editing, by its live controls or elsewhere, when Save is clicked", () => {
+      const [character, setCharacter] = createStore<Character>(
+        makeCharacter({ conditions: ["Prone"], exhaustionLevel: 1, hitPoints: { current: 0, maximum: 20, temporary: 0 } })
+      )
+      const onUpdate = vi.fn((next: Character) => setCharacter(reconcile(next)))
+      render(() => <CombatStatsModule character={character} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: "Increase Exhaustion level" }))
+      fireEvent.click(screen.getByTestId("condition-remove-Prone"))
+      fireEvent.click(screen.getByTestId("death-save-failures-slot-0"))
+      setCharacter("abilityScores", "strength", 18)
+      const currentInput = screen.getAllByRole("spinbutton")[0]
+      fireEvent.input(currentInput, { target: { value: "7" } })
+      fireEvent.blur(currentInput)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenLastCalledWith(expect.objectContaining({
+        exhaustionLevel: 2,
+        conditions: [],
+        deathSaves: expect.objectContaining({ failures: 1 }),
+        abilityScores: expect.objectContaining({ strength: 18 }),
+        hitPoints: expect.objectContaining({ current: 7 }),
+      }))
+    })
+
     it("drops the previous character's in-progress edits when the character is switched mid-edit", () => {
       // The sheet swaps characters in place (same mounted module, new id), so edits started on
       // one character must not be saved onto the next.

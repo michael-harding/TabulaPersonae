@@ -126,10 +126,11 @@ export function sheetColorShades(hex: string): { light: string; dark: string } |
 }
 
 /**
- * The style that gives a sheet its colour, or undefined to keep the theme's. The element also
- * needs the data-sheet-color attribute, which is what globals.css applies the shades through.
+ * The attributes that give a sheet its colour, spread onto the sheet's root element: the shades,
+ * and the data-sheet-color attribute globals.css applies them through. None keeps the theme's colour.
  */
-export function sheetColorStyle(hex: string | undefined): Record<string, string> | undefined {
+export function sheetColorAttributes(hex: string | undefined): { "data-sheet-color"?: ""; style?: Record<string, string> } {
   const shades = hex == null ? null : sheetColorShades(hex)
-  return shades == null ? undefined : { "--sheet-primary-light": shades.light, "--sheet-primary-dark": shades.dark }
+  if (shades == null) return {}
+  return { "data-sheet-color": "", style: { "--sheet-primary-light": shades.light, "--sheet-primary-dark": shades.dark } }
 }

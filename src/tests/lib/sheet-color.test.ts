@@ -1,4 +1,4 @@
-import { contrastRatio, oklchToHex, parseHex, readableOn, SHEET_COLOR_PRESETS, sheetColorShades, sheetColorStyle, THEME_SURFACES, toOklch } from "@/lib/sheet-color"
+import { contrastRatio, oklchToHex, parseHex, readableOn, SHEET_COLOR_PRESETS, sheetColorAttributes, sheetColorShades, THEME_SURFACES, toOklch } from "@/lib/sheet-color"
 
 import { themeToken } from "./theme-tokens"
 
@@ -56,15 +56,18 @@ describe("sheetColorShades", () => {
   })
 })
 
-describe("sheetColorStyle", () => {
-  it("gives a sheet the shade for each theme, which globals.css applies", () => {
+describe("sheetColorAttributes", () => {
+  it("gives a sheet the shade for each theme, and the attribute globals.css applies them through", () => {
     const shades = sheetColorShades("#8b5cf6")!
-    expect(sheetColorStyle("#8b5cf6")).toEqual({ "--sheet-primary-light": shades.light, "--sheet-primary-dark": shades.dark })
+    expect(sheetColorAttributes("#8b5cf6")).toEqual({
+      "data-sheet-color": "",
+      style: { "--sheet-primary-light": shades.light, "--sheet-primary-dark": shades.dark },
+    })
   })
 
   it("gives nothing, so the theme's own colour applies, without a usable sheet colour", () => {
-    expect(sheetColorStyle(undefined)).toBeUndefined()
-    expect(sheetColorStyle("not a colour")).toBeUndefined()
+    expect(sheetColorAttributes(undefined)).toEqual({})
+    expect(sheetColorAttributes("not a colour")).toEqual({})
   })
 })
 

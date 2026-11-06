@@ -33,6 +33,7 @@ import {
   getEffectiveCarryingCapacity,
   getCarryingCapacityBreakdown,
   getEffectiveSize,
+  makeSizeTrait,
   getExhaustionEffects,
   displayedConditions,
   speciesGrantTooltip,
@@ -1114,6 +1115,14 @@ describe("getEffectiveSize", () => {
 
     const at = { classFeatures: [], speciesTraits: [feature], feats: [], level: 5 }
     expect(getEffectiveSize(at)).toEqual({ size: "Large", source: "Large Form Species Trait" })
+  })
+})
+
+describe("makeSizeTrait", () => {
+  it("makes a Species Trait that grants the size", () => {
+    const trait = makeSizeTrait("Small", "From the sheet.")
+    expect(trait).toMatchObject({ name: "Size", description: "From the sheet.", source: "species-trait", featureType: "Size" })
+    expect(getEffectiveSize({ classFeatures: [], speciesTraits: [trait], feats: [], level: 1 })).toEqual({ size: "Small", source: "Size Species Trait" })
   })
 })
 

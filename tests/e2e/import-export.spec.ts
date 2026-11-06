@@ -30,8 +30,8 @@ async function exportFrom(page: Page, item: string | RegExp): Promise<{ download
 async function importFile(page: Page, file: string | { name: string; mimeType: string; buffer: Buffer }) {
   await openMenuItem(page, "Import")
   await expect(page.locator('[data-test="import-dialog"]')).toBeVisible()
-  const input = path.extname(typeof file === "string" ? file : file.name) === ".pdf" ? "#header-character-pdf-import" : "#header-character-import"
-  await page.locator(input).setInputFiles(file)
+  const input = path.extname(typeof file === "string" ? file : file.name) === ".pdf" ? "import-pdf-input" : "import-json-input"
+  await page.locator(`[data-test="${input}"]`).setInputFiles(file)
 }
 
 const jsonFile = (name: string, data: unknown) => ({ name, mimeType: "application/json", buffer: Buffer.from(JSON.stringify(data)) })

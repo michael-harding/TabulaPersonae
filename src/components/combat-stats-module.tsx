@@ -26,10 +26,13 @@ interface CombatStatsModuleProps {
   onUpdate: (character: Character) => void
 }
 
+// Only the fields this module's edit form owns. Conditions, exhaustion, condition immunities and
+// death saves save as they change in either mode, and other modules can change the character
+// while this one is editing, so Save merges these onto the live character rather than writing
+// back a copy of all of it taken when editing began.
 const toEdit = (c: Character) => {
   const percSkill = c.skills?.perception
   return {
-    ...c,
     hitPoints: {
       current: c.hitPoints?.current ?? 0,
       maximum: c.hitPoints?.maximum ?? 1,
@@ -45,7 +48,6 @@ const toEdit = (c: Character) => {
     climbSpeed: c.climbSpeed ?? 0,
     burrowSpeed: c.burrowSpeed ?? 0,
     proficiencyBonus: c.proficiencyBonus || 2,
-    deathSaves: { successes: c.deathSaves?.successes || 0, failures: c.deathSaves?.failures || 0 },
     useCalculatedInitiative: c.useCalculatedInitiative ?? false,
     useCalculatedProficiencyBonus: c.useCalculatedProficiencyBonus ?? false,
     useCalculatedArmorClass: c.useCalculatedArmorClass ?? true,
@@ -73,11 +75,11 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   createEffect(on(() => props.character.id, () => {
     setEdited(toEdit(props.character))
   }, { defer: true }))
-  const current = () => (isEditing() ? edited() : props.character)
+  const current = createMemo((): Character => (isEditing() ? { ...props.character, ...edited() } : props.character))
 
   const persist = () => {
     ;(document.activeElement as HTMLElement | null)?.blur()
-    const data = edited()
+    const data = { ...props.character, ...edited() }
     const effMax = getEffectiveMaxHp(data)
     const normalized = {
       ...data,
@@ -86,6 +88,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
         maximum: maximumHpField.resolvedValue(),
         current: Math.max(0, Math.min(data.hitPoints?.current ?? 0, effMax)),
       },
+      deathSaves: { successes: data.deathSaves?.successes || 0, failures: data.deathSaves?.failures || 0 },
       initiative: initiativeField.resolvedValue(),
       proficiencyBonus: profBonusField.resolvedValue(),
       armorClass: acField.resolvedValue(),
@@ -107,7 +110,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const updateHP = (field: "current" | "maximum" | "temporary" | "temporaryMaximum", value: number) =>
     setEdited((prev) => {
       const next = { ...prev.hitPoints, [field]: value }
-      const effMax = getEffectiveMaxHp({ ...prev, hitPoints: next })
+      const effMax = getEffectiveMaxHp({ ...props.character, ...prev, hitPoints: next })
       next.current = Math.max(0, Math.min(next.current ?? 0, effMax))
       return { ...prev, hitPoints: next }
     })

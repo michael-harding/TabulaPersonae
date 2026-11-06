@@ -821,6 +821,18 @@ export function getEffectiveSize(character: FeatureEffectCharacter): { size: str
   return { size: featureTotals.size ?? "", source: featureTotals.sizeSource }
 }
 
+/** A Species Trait granting a size: what a size from outside the Features tab becomes. */
+export function makeSizeTrait(size: string, description: string): Feature {
+  return {
+    id: crypto.randomUUID(),
+    name: "Size",
+    description,
+    source: "species-trait",
+    featureType: "Size",
+    levelEffects: [{ level: 1, effects: { size } }],
+  }
+}
+
 /**
  * The tooltip of a value a Species Trait grants — a speed or the size — in the "value (Source)"
  * form every calculated value uses. A speed is given in feet.

@@ -512,11 +512,13 @@ export function ActionsModule(props: ActionsModuleProps) {
     })
   }
 
-  const renderSpell = (spell: Spell) => {
+  // A spell cast as "1 bonus action or 1 reaction" is listed in both sections, so the section keeps
+  // its test hooks and its upcast picker apart from the other copy
+  const renderSpell = (spell: Spell, section: 'action' | 'bonus' | 'reaction') => {
     const { canCast, upcastLevels, hasHigherSlots } = createSpellAccessors(spell, () => props.character.spellSlots)
     return (
       <ActionCard
-        data-test={`action-card-spell-${spell.id}`}
+        data-test={`action-card-${section}-spell-${spell.id}`}
         name={spell.name}
         spellLevel={spell.level}
         spellSchool={spell.school}
@@ -531,7 +533,7 @@ export function ActionsModule(props: ActionsModuleProps) {
         damage={spell.damage}
         gain={spell.gain}
         description={spell.description}
-        spellId={spell.id}
+        spellId={`${section}-${spell.id}`}
         castable={canCast}
         onCast={spell.level > 0 ? (spell.freeCast ? () => {} : () => castSpell(spell.level)) : undefined}
         upcastLevels={upcastLevels}
@@ -655,7 +657,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                     />
                   )}
                 </For>
-                <For each={attackSpells()}>{(spell) => renderSpell(spell)}</For>
+                <For each={attackSpells()}>{(spell) => renderSpell(spell, 'action')}</For>
                 <For each={featuresByKind().actions}>{(feature) => renderFeature(feature)}</For>
                 <For each={equipmentByKind().actions}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.attacks || []}>
@@ -704,7 +706,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No bonus actions added yet.</div>}
             >
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <For each={bonusActionSpells()}>{(spell) => renderSpell(spell)}</For>
+                <For each={bonusActionSpells()}>{(spell) => renderSpell(spell, 'bonus')}</For>
                 <For each={featuresByKind().bonuses}>{(feature) => renderFeature(feature)}</For>
                 <For each={equipmentByKind().bonuses}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.bonusActions || []}>
@@ -753,7 +755,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No reactions added yet.</div>}
             >
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <For each={reactionSpells()}>{(spell) => renderSpell(spell)}</For>
+                <For each={reactionSpells()}>{(spell) => renderSpell(spell, 'reaction')}</For>
                 <For each={featuresByKind().reactions}>{(feature) => renderFeature(feature)}</For>
                 <For each={equipmentByKind().reactions}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.reactions || []}>

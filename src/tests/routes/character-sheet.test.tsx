@@ -329,6 +329,15 @@ describe("CharacterSheet colour", () => {
     expect(sheet).not.toHaveAttribute("data-sheet-color")
     expect(sheet.style.getPropertyValue("--sheet-primary-light")).toBe("")
   })
+
+  it("goes back to the theme's own colour when the sheet colour is reset", async () => {
+    const sheet = await renderWithColour("#eab308")
+    fireEvent.click(screen.getByRole("tab", { name: "Character" }))
+    fireEvent.click(await screen.findByTestId("sheet-color-reset-button"))
+    await waitFor(() => expect(sheet).not.toHaveAttribute("data-sheet-color"))
+    expect(sheet.style.getPropertyValue("--sheet-primary-light")).toBe("")
+    expect(sheet.style.getPropertyValue("--sheet-primary-dark")).toBe("")
+  })
 })
 
 describe("CharacterSheet header actions", () => {

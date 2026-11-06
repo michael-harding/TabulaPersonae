@@ -29,10 +29,10 @@ describe("ActionCard", () => {
       render(() => (
         <>
           <ActionCard {...makeProps({ ...props, "data-test": "action-card-bonus-ba1" })} />
-          <ActionCard {...makeProps({ ...props, "data-test": "action-card-spell-sp1" })} />
+          <ActionCard {...makeProps({ ...props, "data-test": "action-card-bonus-spell-sp1" })} />
         </>
       ))
-      for (const card of ["action-card-bonus-ba1", "action-card-spell-sp1"]) {
+      for (const card of ["action-card-bonus-ba1", "action-card-bonus-spell-sp1"]) {
         expect(screen.getByTestId(card)).toBeInTheDocument()
         for (const part of ["details-trigger", "edit-button", "uses-stepper"]) expect(screen.getByTestId(`${card}-${part}`)).toBeInTheDocument()
       }

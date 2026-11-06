@@ -2,6 +2,7 @@ import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFString, type 
 
 import type { AbilityScores, ActionKind, Attack, Character, Equipment, Feature, FeatureKind, Skills, Spell } from "./character-types"
 import { createDefaultCharacter } from "./character-types"
+import { makeSizeTrait } from "./character-utils"
 
 type SpellSlots = Character["spellSlots"]
 type SpellSlotLevel = keyof SpellSlots
@@ -562,14 +563,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
   // Size is granted by a Species Trait, so the sheet's size becomes one
   const size = f("SIZE")
   if (size) {
-    result.speciesTraits = [...(result.speciesTraits ?? []), {
-      id: crypto.randomUUID(),
-      name: "Size",
-      description: "Grants this character's size, from the imported character sheet.",
-      source: "species-trait",
-      featureType: "Size",
-      levelEffects: [{ level: 1, effects: { size } }],
-    }]
+    result.speciesTraits = [...(result.speciesTraits ?? []), makeSizeTrait(size, "Grants this character's size, from the imported character sheet.")]
   }
 
   // --- Spellcasting (page 4) ---

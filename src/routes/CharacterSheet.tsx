@@ -6,7 +6,7 @@ import Sunrise from "lucide-solid/icons/sunrise"
 import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Settings from "lucide-solid/icons/settings"
 
-import { sheetColorStyle } from "@/lib/sheet-color"
+import { sheetColorAttributes } from "@/lib/sheet-color"
 import { type Character } from "@/lib/character-types"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
@@ -124,7 +124,7 @@ export default function CharacterSheet() {
     >
       <Show when={charStore.data}>
         {(getChar) => (
-          <div data-sem="character-sheet-route" class="bg-background" data-sheet-color={sheetColorStyle(getChar().sheetColor) == null ? undefined : ""} style={sheetColorStyle(getChar().sheetColor)}>
+          <div data-sem="character-sheet-route" class="bg-background" {...sheetColorAttributes(getChar().sheetColor)}>
             <StatsBar character={getChar()} />
 
             <header class="border-b bg-card">

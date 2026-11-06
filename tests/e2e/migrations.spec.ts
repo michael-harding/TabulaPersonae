@@ -93,7 +93,7 @@ test.describe("A character saved by an older version", () => {
     await page.goto("/")
     await page.locator('[data-test="header-menu-trigger"]').click()
     await page.getByRole("menuitem", { name: "Import" }).click()
-    await page.locator("#header-character-import").setInputFiles({
+    await page.locator('[data-test="import-json-input"]').setInputFiles({
       name: "bram.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(legacy)),
     })
     await expect(page.getByText("Import Successful", { exact: true })).toBeVisible()

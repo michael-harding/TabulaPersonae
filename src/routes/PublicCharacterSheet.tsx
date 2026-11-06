@@ -3,7 +3,7 @@ import { useParams, useSearchParams, A } from "@solidjs/router"
 import Scroll from "lucide-solid/icons/scroll"
 import Lock from "lucide-solid/icons/lock"
 
-import { sheetColorStyle } from "@/lib/sheet-color"
+import { sheetColorAttributes } from "@/lib/sheet-color"
 import { type Character } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -83,7 +83,7 @@ export default function PublicCharacterSheet() {
       >
         {(getChar) => (
           <ReadOnlyProvider value={true}>
-            <div data-sem="public-character-sheet-route" class="bg-background" data-sheet-color={sheetColorStyle(getChar().sheetColor) == null ? undefined : ""} style={sheetColorStyle(getChar().sheetColor)}>
+            <div data-sem="public-character-sheet-route" class="bg-background" {...sheetColorAttributes(getChar().sheetColor)}>
               <StatsBar character={getChar()} />
 
               <header class="border-b bg-card">

@@ -1,5 +1,5 @@
 import type { Character, Equipment, Feature, SenseType } from "./character-types"
-import { ABILITY_KEYS, calculateEquippedAC, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import { ABILITY_KEYS, calculateEquippedAC, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, makeSizeTrait, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
 const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass",
@@ -103,14 +103,7 @@ function importCustomSize(raw: StoredCharacter): Feature | undefined {
   if (size === "") return undefined
   const entered = raw.useCalculatedSize !== true && size !== OLD_DEFAULT_SIZE
   if (!entered || getEffectiveSize(raw).size !== "") return undefined
-  return {
-    id: crypto.randomUUID(),
-    name: "Size",
-    description: "Grants this character's size, carried over from when size was entered directly.",
-    source: "species-trait",
-    featureType: "Size",
-    levelEffects: [{ level: 1, effects: { size } }],
-  }
+  return makeSizeTrait(size, "Grants this character's size, carried over from when size was entered directly.")
 }
 
 /**
