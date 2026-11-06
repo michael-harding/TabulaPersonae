@@ -8,6 +8,7 @@ import Trash2 from "lucide-solid/icons/trash-2"
 import Pencil from "lucide-solid/icons/pencil"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
+import Dices from "lucide-solid/icons/dices"
 import Layers from "lucide-solid/icons/layers"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
@@ -1160,6 +1161,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                   </CollapsibleTrigger>
                   <Show when={!isReadOnly}>
                     <Button
+                      data-test={`add-feature-${section.kind}`}
                       variant="outline"
                       size="sm"
                       class="gap-1 h-7 ml-2"
@@ -1278,11 +1280,14 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                   }
                                 >
                                   <PipTracker
+                                    data-test={`feature-uses-${feature.id}`}
                                     total={maxUses}
                                     used={feature.uses ?? 0}
                                     onToggle={(v) => handleFeatureUsesChange(section.field, feature.id, v)}
                                     usedTitle="Charge spent (click to restore)"
                                     availableTitle="Charge available (click to use)"
+                                    usedLabel="Charge spent"
+                                    availableLabel="Charge available"
                                     readOnly={isReadOnly}
                                   />
                                 </Show>
@@ -1306,11 +1311,15 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                 }
                               >
                                 <PipTracker
+                                  data-test={`hit-dice-${feature.id}`}
+                                  icon={Dices}
                                   total={props.character.level ?? 1}
                                   used={props.character.spentHitDice ?? 0}
                                   onToggle={handleSpentHitDiceChange}
                                   usedTitle="Hit die spent"
                                   availableTitle="Hit die available"
+                                  usedLabel="Hit die spent"
+                                  availableLabel="Hit die available"
                                   readOnly={isReadOnly}
                                 />
                               </Show>

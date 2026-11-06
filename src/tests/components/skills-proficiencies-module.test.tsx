@@ -1,5 +1,6 @@
 import userEvent from "@testing-library/user-event"
 import { axe } from "vitest-axe"
+import { createStore } from "solid-js/store"
 
 import { SkillsProficienciesModule } from "@/components/skills-proficiencies-module"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -1118,5 +1119,25 @@ describe("SkillsProficienciesModule", () => {
       expect(screen.queryByText("Granted")).not.toBeInTheDocument()
       expect(screen.getAllByText("Prof").length).toBeGreaterThan(0)
     })
+  })
+})
+
+// Regression: Save wrote back a copy of the whole character taken when editing began, so it undid
+// changes other modules saved while this one was being edited
+describe("SkillsProficienciesModule — changes saved elsewhere while editing", () => {
+  it("keeps them when Save is clicked", () => {
+    const [character, setCharacter] = createStore<Character>(makeCharacter())
+    const onUpdate = vi.fn()
+    render(() => <SkillsProficienciesModule character={character} onUpdate={onUpdate} />)
+    clickEditButton()
+    fireEvent.click(screen.getByTestId("skill-proficient-perception"))
+    setCharacter("hitPoints", "current", 3)
+    setCharacter("conditions", ["Prone"])
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+    expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      skills: expect.objectContaining({ perception: expect.objectContaining({ proficient: true }) }),
+      hitPoints: expect.objectContaining({ current: 3 }),
+      conditions: ["Prone"],
+    }))
   })
 })

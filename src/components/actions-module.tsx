@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, on, untrack, For, Show } from "solid-js"
+import { createSignal, createMemo, For, Show } from "solid-js"
 import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
 import Clock from "lucide-solid/icons/clock"
@@ -7,11 +7,13 @@ import Zap from "lucide-solid/icons/zap"
 import Shield from "lucide-solid/icons/shield"
 import Sparkles from "lucide-solid/icons/sparkles"
 import ChevronDown from "lucide-solid/icons/chevron-down"
+import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, DAMAGE_TYPE_OPTIONS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
+import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { Button } from "@/components/ui/button"
@@ -119,7 +121,7 @@ function ActionForm(props: ActionFormProps) {
 
       <div>
         <Label for="action-type">Type</Label>
-        <Combobox value={formData().type} onValueChange={(v) => setFormData(p => ({ ...p, type: v }))} options={ACTION_TYPE_LABELS} />
+        <Combobox id="action-type" value={formData().type} onValueChange={(v) => setFormData(p => ({ ...p, type: v }))} options={ACTION_TYPE_LABELS} />
       </div>
 
       <Show when={props.kind === "reaction"}>
@@ -146,7 +148,7 @@ function ActionForm(props: ActionFormProps) {
         </div>
         <div>
           <Label for="action-damage-type">Damage Type</Label>
-          <Combobox value={formData().damageType} onValueChange={(v) => setFormData(p => ({ ...p, damageType: v }))} options={DAMAGE_TYPE_OPTIONS} />
+          <Combobox id="action-damage-type" value={formData().damageType} onValueChange={(v) => setFormData(p => ({ ...p, damageType: v }))} options={DAMAGE_TYPE_OPTIONS} />
         </div>
       </Show>
 
@@ -217,7 +219,8 @@ type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
 
 type StoredAction = ActionFormData & { id: string }
 
-interface ActionsEditState {
+// The fields this module's edit form shows (see useModuleEdit for how Save writes them)
+interface ActionsDraft {
   useCalculatedSpellAttackBonus: boolean
   spellAttackBonus: number
   useCalculatedSpellSaveDC: boolean
@@ -226,7 +229,7 @@ interface ActionsEditState {
   spellModifier: number
 }
 
-const toEdit = (c: Character): ActionsEditState => {
+const toDraft = (c: Character): ActionsDraft => {
   const useCalculatedSpellAttackBonus = c.useCalculatedSpellAttackBonus ?? true
   const useCalculatedSpellSaveDC = c.useCalculatedSpellSaveDC ?? true
   const useCalculatedSpellModifier = c.useCalculatedSpellModifier ?? true
@@ -242,12 +245,17 @@ const toEdit = (c: Character): ActionsEditState => {
 
 export function ActionsModule(props: ActionsModuleProps) {
   const isReadOnly = useReadOnly()
-  const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
-  // The sheet swaps characters in place, so in-progress edits must not carry over to the next one.
-  createEffect(on(() => props.character.id, () => {
-    setEdited(toEdit(props.character))
-  }, { defer: true }))
+  const edit = useModuleEdit({
+    character: () => props.character,
+    toDraft,
+    resolve: (draft): Partial<Character> => ({
+      ...draft,
+      spellAttackBonus: spellAttackField.resolvedValue(),
+      spellSaveDC: spellSaveDCField.resolvedValue(),
+      spellModifier: spellModifierField.resolvedValue(),
+    }),
+    onUpdate: (c) => props.onUpdate(c),
+  })
   const [isActionModalOpen, setIsActionModalOpen] = createSignal(false)
   const [isBonusActionModalOpen, setIsBonusActionModalOpen] = createSignal(false)
   const [isReactionModalOpen, setIsReactionModalOpen] = createSignal(false)
@@ -312,48 +320,32 @@ export function ActionsModule(props: ActionsModuleProps) {
   )
 
   const spellAttackField = useCalculatedValue({
-    useCalculated: () => (isEditing() ? edited().useCalculatedSpellAttackBonus : (props.character.useCalculatedSpellAttackBonus ?? true)),
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSpellAttackBonus: v })),
-    manualValue: () => (isEditing() ? edited().spellAttackBonus : (props.character.spellAttackBonus ?? spellAttackBonus())),
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, spellAttackBonus: v })),
+    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellAttackBonus : (props.character.useCalculatedSpellAttackBonus ?? true)),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellAttackBonus: v })),
+    manualValue: () => (edit.isEditing() ? edit.draft().spellAttackBonus : (props.character.spellAttackBonus ?? spellAttackBonus())),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellAttackBonus: v })),
     calculatedValue: spellAttackBonus,
     calculatedTooltip: spellAttackTooltip,
   })
 
   const spellModifierField = useCalculatedValue({
-    useCalculated: () => (isEditing() ? edited().useCalculatedSpellModifier : (props.character.useCalculatedSpellModifier ?? true)),
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSpellModifier: v })),
-    manualValue: () => (isEditing() ? edited().spellModifier : (props.character.spellModifier ?? spellModifier())),
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, spellModifier: v })),
+    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellModifier : (props.character.useCalculatedSpellModifier ?? true)),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellModifier: v })),
+    manualValue: () => (edit.isEditing() ? edit.draft().spellModifier : (props.character.spellModifier ?? spellModifier())),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellModifier: v })),
     calculatedValue: spellModifier,
     calculatedTooltip: spellModifierTooltip,
   })
 
   const spellSaveDCField = useCalculatedValue({
-    useCalculated: () => (isEditing() ? edited().useCalculatedSpellSaveDC : (props.character.useCalculatedSpellSaveDC ?? true)),
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSpellSaveDC: v })),
-    manualValue: () => (isEditing() ? edited().spellSaveDC : (props.character.spellSaveDC ?? spellSaveDC())),
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, spellSaveDC: v })),
+    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellSaveDC : (props.character.useCalculatedSpellSaveDC ?? true)),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellSaveDC: v })),
+    manualValue: () => (edit.isEditing() ? edit.draft().spellSaveDC : (props.character.spellSaveDC ?? spellSaveDC())),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellSaveDC: v })),
     calculatedValue: spellSaveDC,
     calculatedTooltip: spellSaveDCTooltip,
   })
 
-  const persist = () => {
-    const data = edited()
-    const normalized = {
-      ...props.character,
-      useCalculatedSpellAttackBonus: data.useCalculatedSpellAttackBonus,
-      spellAttackBonus: spellAttackField.resolvedValue(),
-      useCalculatedSpellSaveDC: data.useCalculatedSpellSaveDC,
-      spellSaveDC: spellSaveDCField.resolvedValue(),
-      useCalculatedSpellModifier: data.useCalculatedSpellModifier,
-      spellModifier: spellModifierField.resolvedValue(),
-    }
-    props.onUpdate(normalized)
-  }
-  const handleSave = () => { persist(); setIsEditing(false) }
-  const handleSaveKeepEditing = () => { persist() }
-  const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   const equippedWeaponAttacks = createMemo(() => getEquippedWeaponAttacks(props.character))
 
@@ -511,10 +503,13 @@ export function ActionsModule(props: ActionsModuleProps) {
     })
   }
 
-  const renderSpell = (spell: Spell) => {
+  // A spell cast as "1 bonus action or 1 reaction" is listed in both sections, so the section keeps
+  // its test hooks and its upcast picker apart from the other copy
+  const renderSpell = (spell: Spell, section: 'action' | 'bonus' | 'reaction') => {
     const { canCast, upcastLevels, hasHigherSlots } = createSpellAccessors(spell, () => props.character.spellSlots)
     return (
       <ActionCard
+        data-test={`action-card-${section}-spell-${spell.id}`}
         name={spell.name}
         spellLevel={spell.level}
         spellSchool={spell.school}
@@ -529,7 +524,7 @@ export function ActionsModule(props: ActionsModuleProps) {
         damage={spell.damage}
         gain={spell.gain}
         description={spell.description}
-        spellId={spell.id}
+        spellId={`${section}-${spell.id}`}
         castable={canCast}
         onCast={spell.level > 0 ? (spell.freeCast ? () => {} : () => castSpell(spell.level)) : undefined}
         upcastLevels={upcastLevels}
@@ -543,6 +538,7 @@ export function ActionsModule(props: ActionsModuleProps) {
 
   const renderFeature = (feature: Feature) => (
     <ActionCard
+      data-test={`action-card-feature-${feature.id}`}
       name={feature.name}
       badgeLabel={FEATURE_KIND_LABELS[feature.source] ?? feature.source}
       range={feature.range}
@@ -556,6 +552,8 @@ export function ActionsModule(props: ActionsModuleProps) {
 
   const renderEquipmentAction = (item: Equipment) => (
     <ActionCard
+      data-test={`action-card-item-${item.id}`}
+      pipIcon={Backpack}
       name={item.name}
       badgeLabel={item.type.charAt(0).toUpperCase() + item.type.slice(1)}
       description={item.description}
@@ -571,20 +569,20 @@ export function ActionsModule(props: ActionsModuleProps) {
       data-sem="actions-module"
       icon={<Sword class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Actions & Attacks"
-      isEditing={isEditing()}
-      onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
-      onSave={handleSave}
-      onSaveKeepEditing={handleSaveKeepEditing}
-      onCancel={handleCancel}
+      isEditing={edit.isEditing()}
+      onEdit={edit.start}
+      onSave={edit.save}
+      onSaveKeepEditing={edit.commit}
+      onCancel={edit.cancel}
       contentClass="space-y-6"
     >
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg">
           <div class="text-center">
             <CalculatedValue data-test="spell-attack"
               label="Spell Attack"
               labelClass="text-sm font-medium"
               icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
-              editable={isEditing()}
+              editable={edit.isEditing()}
               {...spellAttackField.binding()}
               format={formatModifier}
             />
@@ -594,7 +592,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               label="Spell Modifier"
               labelClass="text-sm font-medium"
               icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
-              editable={isEditing()}
+              editable={edit.isEditing()}
               {...spellModifierField.binding()}
               format={formatModifier}
             />
@@ -604,7 +602,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               label="Spell Save DC"
               labelClass="text-sm font-medium"
               icon={<Shield class="h-4 w-4 text-primary" aria-hidden="true" />}
-              editable={isEditing()}
+              editable={edit.isEditing()}
               {...spellSaveDCField.binding()}
             />
           </div>
@@ -639,6 +637,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                 <For each={equippedWeaponAttacks()}>
                   {(w) => (
                     <ActionCard
+                      data-test={`action-card-${w.id}`}
                       name={w.name}
                       badgeLabel="Weapon"
                       attackBonus={w.attackBonus}
@@ -649,12 +648,13 @@ export function ActionsModule(props: ActionsModuleProps) {
                     />
                   )}
                 </For>
-                <For each={attackSpells()}>{(spell) => renderSpell(spell)}</For>
+                <For each={attackSpells()}>{(spell) => renderSpell(spell, 'action')}</For>
                 <For each={featuresByKind().actions}>{(feature) => renderFeature(feature)}</For>
                 <For each={equipmentByKind().actions}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.attacks || []}>
                   {(attack) => (
                     <ActionCard
+                      data-test={`action-card-attack-${attack.id}`}
                       name={attack.name}
                       badgeLabel={ACTION_TYPE_LABEL[attack.type] ?? attack.type}
                       attackBonus={attack.attackBonus}
@@ -697,12 +697,13 @@ export function ActionsModule(props: ActionsModuleProps) {
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No bonus actions added yet.</div>}
             >
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <For each={bonusActionSpells()}>{(spell) => renderSpell(spell)}</For>
+                <For each={bonusActionSpells()}>{(spell) => renderSpell(spell, 'bonus')}</For>
                 <For each={featuresByKind().bonuses}>{(feature) => renderFeature(feature)}</For>
                 <For each={equipmentByKind().bonuses}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.bonusActions || []}>
                   {(bonus) => (
                     <ActionCard
+                      data-test={`action-card-bonus-${bonus.id}`}
                       name={bonus.name}
                       badgeLabel={ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}
                       attackBonus={bonus.attackBonus}
@@ -745,12 +746,13 @@ export function ActionsModule(props: ActionsModuleProps) {
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No reactions added yet.</div>}
             >
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <For each={reactionSpells()}>{(spell) => renderSpell(spell)}</For>
+                <For each={reactionSpells()}>{(spell) => renderSpell(spell, 'reaction')}</For>
                 <For each={featuresByKind().reactions}>{(feature) => renderFeature(feature)}</For>
                 <For each={equipmentByKind().reactions}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.reactions || []}>
                   {(reaction) => (
                     <ActionCard
+                      data-test={`action-card-reaction-${reaction.id}`}
                       name={reaction.name}
                       badgeLabel={ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}
                       trigger={reaction.trigger}
@@ -799,6 +801,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                 <For each={props.character.otherActions || []}>
                   {(other) => (
                     <ActionCard
+                      data-test={`action-card-other-${other.id}`}
                       name={other.name}
                       badgeLabel={ACTION_TYPE_LABEL[other.type] ?? other.type}
                       attackBonus={other.attackBonus}

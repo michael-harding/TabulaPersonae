@@ -214,10 +214,18 @@ describe("TabSettings page", () => {
     })
   })
 
+  // ACCESSIBILITY.md §13, and a name for the field: it had none
+  it("names the rename field after its tab, and makes the field and its buttons 44px tall", async () => {
+    render(() => <TabSettings />)
+    fireEvent.click(screen.getByRole("button", { name: "Rename Combat" }))
+    const input = await screen.findByRole("textbox", { name: "New name for Combat" })
+    expect(input).toHaveClass("h-11")
+    for (const name of [/^save$/i, /^cancel$/i]) expect(screen.getByRole("button", { name })).toHaveClass("h-11")
+  })
+
   it("rename flow: clicking rename shows input, saving calls saveTabConfig with new label", async () => {
     render(() => <TabSettings />)
-    const renameButtons = screen.getAllByRole("button", { name: /rename tab/i })
-    fireEvent.click(renameButtons[0])
+    fireEvent.click(screen.getByRole("button", { name: "Rename Combat" }))
     const input = await screen.findByDisplayValue("Combat")
     fireEvent.input(input, { target: { value: "Offense" } })
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }))
@@ -287,8 +295,8 @@ describe("TabSettings page — reordering", () => {
   describe("modules within a tab", () => {
     function renderWithCombatExpanded() {
       render(() => <TabSettings />)
-      if (!screen.queryByTestId("remove-module-actions")) fireEvent.click(screen.getByTestId("tab-toggle-tab-combat"))
-      expect(screen.getByTestId("remove-module-actions")).toBeInTheDocument()
+      if (!screen.queryByTestId("remove-module-tab-combat-actions")) fireEvent.click(screen.getByTestId("tab-toggle-tab-combat"))
+      expect(screen.getByTestId("remove-module-tab-combat-actions")).toBeInTheDocument()
     }
 
     it("saves that tab's modules in their new order, leaving other tabs alone", () => {
@@ -316,13 +324,28 @@ describe("TabSettings page — reordering", () => {
     it("collapses and expands a tab from its toggle", () => {
       renderWithCombatExpanded()
       const toggle = () => screen.getByTestId("tab-toggle-tab-combat")
-      expect(toggle()).toHaveAccessibleName("Collapse tab")
+      expect(toggle()).toHaveAccessibleName("Collapse Combat")
 
       fireEvent.click(toggle())
-      expect(toggle()).toHaveAccessibleName("Expand tab")
+      expect(toggle()).toHaveAccessibleName("Expand Combat")
 
       fireEvent.click(toggle())
-      expect(toggle()).toHaveAccessibleName("Collapse tab")
+      expect(toggle()).toHaveAccessibleName("Collapse Combat")
+    })
+
+    // In a list of tabs and modules, "Rename tab" or "Drag to reorder" alone could be any of them
+    it("names the tab or module each control belongs to", () => {
+      renderWithCombatExpanded()
+      for (const name of ["Drag Combat to reorder", "Rename Combat", "Collapse Combat", "Drag Spells to reorder", "Rename Spells", "Expand Spells", "Drag Actions & Attacks to reorder"]) {
+        expect(screen.getByRole("button", { name }), name).toBeInTheDocument()
+      }
+    })
+
+    // TESTING.md §6: a module can be in more than one tab, so its row's hooks include the tab
+    it("gives each module row hooks unique to its tab", () => {
+      renderWithCombatExpanded()
+      expect(screen.getByTestId("module-drag-handle-tab-combat-actions")).toBeInTheDocument()
+      expect(screen.queryByTestId("remove-module-actions")).not.toBeInTheDocument()
     })
   })
 })

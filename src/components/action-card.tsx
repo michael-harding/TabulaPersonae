@@ -7,12 +7,12 @@ import { useReadOnly } from "@/lib/read-only-context"
 import { Chip } from "@/components/ui/chip"
 import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
-import { PipTracker } from "@/components/ui/pip-tracker"
+import { PipTracker, type PipIcon } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { Popover, PopoverTrigger, PopoverContent, PopoverArrow } from "@/components/ui/popover"
+import { Popover, PopoverTrigger, PopoverContent, PopoverArrow, PopoverTitle } from "@/components/ui/popover"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
-import { cn, TOUCH_TARGET } from "@/lib/utils"
+import { cn, TOUCH_TARGET, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 function getOrdinalSuffix(num: number): string {
   const suffixes = ["th", "st", "nd", "rd"]
@@ -21,6 +21,8 @@ function getOrdinalSuffix(num: number): string {
 }
 
 export interface ActionCardProps {
+  /** Page-unique, and the prefix of every hook inside the card: names can repeat. */
+  "data-test": string
   // Header
   name: string
   // Omit for spells — badge falls back to the spell level (Cantrip, 1st, 2nd...)
@@ -60,6 +62,8 @@ export interface ActionCardProps {
   maxUses?: number
   rechargeOn?: "short-rest" | "long-rest"
   onUsesChange?: (v: number) => void
+  /** Marks the uses tracker's available pips. The tracker's own default unless given. */
+  pipIcon?: PipIcon
 
   // Spell cast buttons — mutually exclusive with uses tracker
   spellId?: string
@@ -121,7 +125,7 @@ export function ActionCard(props: ActionCardProps) {
   const hasUsesTracker = () => (props.maxUses ?? 0) > 0 && !hasCastButtons()
 
   return (
-    <div data-sem="action-card" class="p-3 border rounded-lg flex flex-col gap-2">
+    <div data-sem="action-card" data-test={props["data-test"]} class="p-3 border rounded-lg flex flex-col gap-2">
 
       {/* Row 1 — Header */}
       <div class="flex items-start gap-2">
@@ -130,16 +134,18 @@ export function ActionCard(props: ActionCardProps) {
             {props.name}
             <Popover gutter={8}>
               <PopoverTrigger
-                class="inline-flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                // A real 44×44 box: an invisible hit area could cover the edit button beside it, and
+                // pulling the box into a shorter row would let the row below cover its lower edge
+                class={cn(TOUCH_TARGET_BOX, "rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring")}
                 aria-label={`Details for ${props.name}`}
-                data-test={`action-details-trigger-${props.name}`}
+                data-test={`${props["data-test"]}-details-trigger`}
               >
                 <CircleHelp class="w-4 h-4" aria-hidden="true" />
               </PopoverTrigger>
               <PopoverContent>
                   <PopoverArrow />
                   <div class="space-y-2">
-                    <div class="font-semibold text-sm">{props.name}</div>
+                    <PopoverTitle as="div" class="font-semibold text-sm">{props.name}</PopoverTitle>
                     <Show when={spellSubtitle()}>
                       <div class="text-xs text-muted-foreground">
                         {spellSubtitle()}
@@ -212,7 +218,7 @@ export function ActionCard(props: ActionCardProps) {
                 type="button"
                 class={cn(TOUCH_TARGET, "text-muted-foreground hover:text-foreground transition-colors")}
                 aria-label={`Edit ${props.name}`}
-                data-test={`action-edit-button-${props.name}`}
+                data-test={`${props["data-test"]}-edit-button`}
                 onClick={() => props.onEdit?.()}
               >
                 <Pencil class="h-4 w-4" aria-hidden="true" />
@@ -250,15 +256,15 @@ export function ActionCard(props: ActionCardProps) {
             <Show when={props.concentration}>
               <Chip
                 variant={concentrationActive() ? "default" : "outline"}
-                class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground border-muted-foreground/40"}${!isReadOnly ? " cursor-pointer" : ""}`}
-                data-test={`concentration-badge-${props.name}-${concentrationActive() ? "active" : "inactive"}`}
+                class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground"}${!isReadOnly ? " cursor-pointer" : ""}`}
+                data-test={`${props["data-test"]}-concentration-badge-${concentrationActive() ? "active" : "inactive"}`}
                 onClick={isReadOnly ? undefined : () => setConcentrationActive(v => !v)}
               >
                 Concentration
               </Chip>
             </Show>
             <Show when={durationLabel()}>
-              <Chip variant="outline" class="text-xs text-muted-foreground border-muted-foreground/40">
+              <Chip variant="outline" class="text-xs text-muted-foreground">
                 {durationLabel()}
               </Chip>
             </Show>
@@ -272,7 +278,7 @@ export function ActionCard(props: ActionCardProps) {
                 return (
                   <div
                     class={`px-2 py-1 border-2 rounded font-semibold whitespace-nowrap text-sm ${colorClass}`}
-                    data-test={`effect-pill-${props.name}-${p().color}`}
+                    data-test={`${props["data-test"]}-effect-pill-${p().color}`}
                   >
                     {p().text}
                   </div>
@@ -296,7 +302,7 @@ export function ActionCard(props: ActionCardProps) {
               when={(props.maxUses ?? 0) <= 5}
               fallback={
                 // value/onChange are inverted: display shows remaining uses, storage tracks used count
-                <StepperInput data-test={`action-uses-stepper-${props.name}`}
+                <StepperInput data-test={`${props["data-test"]}-uses-stepper`}
                   value={remainingUses(props.uses, props.maxUses)}
                   min={0}
                   max={props.maxUses}
@@ -307,11 +313,15 @@ export function ActionCard(props: ActionCardProps) {
               }
             >
               <PipTracker
+                data-test={`${props["data-test"]}-uses`}
+                icon={props.pipIcon}
                 total={props.maxUses!}
                 used={props.uses ?? 0}
                 onToggle={props.onUsesChange!}
                 usedTitle="Charge spent (click to restore)"
                 availableTitle="Charge available (click to use)"
+                usedLabel="Charge spent"
+                availableLabel="Charge available"
                 readOnly={isReadOnly}
               />
             </Show>
@@ -326,7 +336,7 @@ export function ActionCard(props: ActionCardProps) {
                         variant="secondary"
                         size="sm"
                         class="h-11 min-w-[44px] px-2 text-xs"
-                        data-test={`action-upcast-level-${props.name}-${level}`}
+                        data-test={`${props["data-test"]}-upcast-level-${level}`}
                         onClick={() => props.onCastAtLevel?.(level)}
                       >
                         {getOrdinalSuffix(level)}
@@ -339,7 +349,9 @@ export function ActionCard(props: ActionCardProps) {
                 variant="outline"
                 size="sm"
                 class="h-11 px-4"
-                data-test={`action-cast-button-${props.name}`}
+                data-test={`${props["data-test"]}-cast-button`}
+                // Named for the spell: in a list of cards, "Cast" alone could be any of them
+                aria-label={`Cast ${props.name}`}
                 disabled={!props.castable?.()}
                 onClick={props.onCast}
               >
@@ -350,8 +362,8 @@ export function ActionCard(props: ActionCardProps) {
                   variant="outline"
                   size="sm"
                   class="h-11 w-11 p-0"
-                  aria-label="Upcast"
-                  data-test={`action-upcast-toggle-${props.name}`}
+                  aria-label={`Upcast ${props.name}`}
+                  data-test={`${props["data-test"]}-upcast-toggle`}
                   disabled={!props.upcastLevels?.().length}
                   onClick={() => props.onUpcastSpellId?.(
                     props.upcastSpellId?.() === props.spellId ? null : (props.spellId ?? null)

@@ -1,5 +1,5 @@
 > **Document Authority**: This document is the authoritative testing standard for this repository. It supplements `CONSTITUTION.md` §7; where the two conflict, `CONSTITUTION.md` rules.
-> **Last updated:** 2026-05-28
+> **Last updated:** 2026-11-04
 
 ---
 
@@ -7,7 +7,7 @@
 
 ## 1. Scope
 
-This document governs all tests in this repository: unit, integration, and visual regression. It covers tooling, test structure, mock data, selectors, coverage targets, and process requirements.
+This document governs all tests in this repository: unit, integration, visual regression, and end-to-end (E2E). It covers tooling, test structure, mock data, selectors, coverage targets, and process requirements.
 
 ---
 
@@ -18,7 +18,7 @@ This document governs all tests in this repository: unit, integration, and visua
 | **Unit** | Vitest | Pure functions, utilities, and domain logic | `src/tests/lib/` |
 | **Integration** | Vitest + @solidjs/testing-library + axe-core | Component behavior with mocked dependencies; user interactions; WCAG 2.1 AA checks on rendered components | `src/tests/components/`, `src/tests/routes/` |
 | **Visual** | Playwright | Cross-browser visual regression testing | `tests/` (project root) |
-| **E2E** | Playwright + axe-playwright | Full user flows from the browser perspective against a running app; WCAG 2.1 AA checks on all pages and scenarios *(planned)* | `tests/e2e/` |
+| **E2E** | Playwright + axe-playwright + Firebase Local Emulator Suite | Full user flows from the browser perspective against a running app, signed-in flows against local Firebase emulators (§5); WCAG 2.1 AA checks on all pages and scenarios | `tests/e2e/` |
 
 Unit and integration tests are fast and cover the majority of cases. Visual regression tests verify cross-browser rendering fidelity. E2E tests are reserved for scenarios that genuinely require a full running app. `src/tests/` mirrors `src/` so the test file for any module is always predictable to find.
 
@@ -56,6 +56,24 @@ Unit and integration tests are fast and cover the majority of cases. Visual regr
 - All mock objects must satisfy the TypeScript interfaces used in the application.
 - Factories must include fixtures for edge cases: error paths, empty lists, partial or invalid data, and pagination boundaries.
 
+### E2E against the Firebase Local Emulator Suite
+
+The `vi.mock()` rule above applies to unit and integration tests. E2E tests run the real Firebase SDK against Google's Firebase Local Emulator Suite (Auth and Firestore, from the `firebase-tools` dev dependency), so signed-in flows and `firestore.rules` are exercised as in production while nothing reaches a real Firebase project.
+
+- **Prerequisite:** a Java runtime, JDK 21 (`java -version`). The first run downloads the emulator binaries, so it needs an internet connection once.
+- **Running:** `pnpm test:e2e` starts both servers itself: the emulators (`pnpm emulators`) and the e2e dev server (`pnpm dev:e2e`, port 5174, Vite mode `e2e`). Either can be started by hand for debugging; a running one is reused locally. The emulator UI is at `http://127.0.0.1:4000`.
+- **Demo project only:** the emulators run under the `demo-tabulapersonae` project id. `src/lib/firebase.ts` connects to them only on the dev server with `VITE_FIREBASE_EMULATORS=true`, and refuses a project id without the `demo-` prefix, so real configuration can never be used by a test run. A production build cannot connect to an emulator.
+- **Network guard:** every E2E test fails if its browser makes any request to a `googleapis.com`, `firebaseio.com` or `firebaseapp.com` host (`tests/e2e/test.ts`). A test that opens a second browser context guards it with `guardAgainstFirebase`.
+- **Isolation:** all tests share one emulator and run in parallel, so nothing is cleared during a run (`tests/e2e/global-setup.ts` clears it once at the start). Each test works under its own users (`createUser`) and gives seeded characters ids no other test uses (`withUniqueId`), both in `tests/e2e/emulator.ts`.
+- **Administrator access:** `seedDoc`, `seedCharacter` and `readDoc` use the emulator's `Bearer owner` token, which bypasses `firestore.rules`. It is for test setup and assertions only; the app under test always goes through the rules.
+- **Seed once:** browser storage is seeded with `seedDevice`/`seedGuest` (`tests/e2e/helpers.ts`), which write only on the first page load. A plain `addInitScript` runs again on every reload, which would undo the changes a test is checking were saved, and re-seed after a sign-out.
+- **Waiting:** pages are waited for by their content, never by `networkidle` — signed in, Firestore keeps a connection open, so the network never goes idle.
+
+### E2E test tags
+
+- **`@mobile`** in a test's title runs it in the `mobile` project as well (a Pixel 7 profile: phone-sized, touch). Tag the core flows a player uses at the table.
+- **`@perf`** marks a timing test with a budget (`tests/e2e/performance.spec.ts`). Timing tests run in the `chromium` project only.
+
 ### Keeping mocks current
 
 When data shapes in `src/lib/` change, apply the following steps in the same changeset:
@@ -89,12 +107,24 @@ This decouples test selectors from styling and layout decisions: a component can
 ## 8. Accessibility in Tests
 
 - axe-core must run as part of the Vitest integration test suite for every rendered UI component.
-- axe-playwright must run against every Playwright E2E scenario. Visual regression tests must also include axe-playwright checks where applicable.
+- axe-playwright must run against every Playwright E2E scenario. Visual regression tests must NOT include axe-playwright checks.
 - Both must enforce WCAG 2.1 AA compliance. A test suite is not complete if axe checks are absent from any integration test that renders UI or any E2E scenario.
+- axe cannot evaluate contrast under jsdom, so the Vitest checks do not cover color, and in the browser it checks text only. Contrast is tested by `src/tests/lib/theme-contrast.test.ts` and `tests/e2e/contrast.spec.ts`, and focus visibility by `tests/e2e/focus-visible.spec.ts` (`ACCESSIBILITY.md` §4, §9, §14). A new color token pair or a new kind of control belongs in those, and a new page or modal belongs in `SCENES` in `tests/e2e/contrast-audit.ts`. Every modal and popup must have an axe scan in `tests/e2e/accessibility.spec.ts`.
 
 ---
 
-## 9. Flaky Test Policy
+## 9. Visual Regression Coverage
+
+- Every modal, and every state of a modal whose layout differs (add, edit, each form variant), must have a visual baseline.
+- Every popup rendered above the page — menu, select or combobox list, popover, tooltip — must have a baseline in its open state.
+- Every module with an edit mode must have a baseline in view mode and in edit mode.
+- Shared overlay components must have a baseline in both themes and at phone width (390px).
+- A baseline must capture the state a change would affect: a popup that opens inside a modal is captured open, inside that modal.
+- A new modal, popup, or edit mode is not done until its baseline exists.
+
+---
+
+## 10. Flaky Test Policy
 
 - Flaky tests must be labelled (e.g. a `flaky-test` GitHub label) and have an issue opened with reproduction steps.
 - Flaky tests must be quarantined (skipped with a documented reference to the tracking issue) until the underlying cause is fixed.
@@ -102,14 +132,13 @@ This decouples test selectors from styling and layout decisions: a component can
 
 ---
 
-## 10. Test Skipping Policy
+## 11. Test Skipping Policy
 
 - Skipping any test requires explicit human approval.
-- A skipped test must include a comment referencing the approval (e.g. issue number or PR).
 
 ---
 
-## 11. Definition of Done
+## 12. Definition of Done
 
 **A single test is done when:**
 - TypeScript compilation passes with no errors.
@@ -120,4 +149,5 @@ This decouples test selectors from styling and layout decisions: a component can
 - All tests in the suite pass.
 - No tests are skipped without documented human approval.
 - All UI components touched by the suite have at least one integration test.
-- axe checks are present and passing for every rendered UI component and every E2E/visual scenario.
+- axe checks are present and passing for every rendered UI component and every E2E scenario.
+- Every modal, popup, and edit mode the suite touches has a visual baseline (§9).

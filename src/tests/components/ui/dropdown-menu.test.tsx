@@ -75,6 +75,20 @@ describe("DropdownMenu", () => {
     expect(screen.getByRole("menuitem", { name: "Item C (disabled)" })).toBeInTheDocument()
   })
 
+  // A long menu (18 skills at 44px each) is taller than many screens; it scrolls instead of
+  // running off the screen, where its last items could not be reached
+  it("fits the space the screen has for it, and scrolls when longer", async () => {
+    await openMenu()
+    expect(screen.getByRole("menu")).toHaveClass("max-h-[var(--kb-popper-content-available-height)]", "overflow-y-auto")
+    expect(screen.getByRole("menu")).not.toHaveClass("overflow-hidden")
+  })
+
+  // ACCESSIBILITY.md §13: each item is a 44px-tall touch target
+  it("makes every item at least 44px tall", async () => {
+    await openMenu()
+    for (const item of screen.getAllByRole("menuitem")) expect(item).toHaveClass("min-h-11")
+  })
+
   it("renders the label text", async () => {
     await openMenu()
     expect(screen.getByText("Actions")).toBeInTheDocument()

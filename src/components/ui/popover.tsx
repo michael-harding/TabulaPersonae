@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 export const Popover = PopoverPrimitive
 export const PopoverTrigger = PopoverPrimitive.Trigger
 export const PopoverArrow = PopoverPrimitive.Arrow
+export const PopoverTitle = PopoverPrimitive.Title
 
 export function PopoverContent(props: ComponentProps<typeof PopoverPrimitive.Content>) {
   const [local, others] = splitProps(props, ["class"])

@@ -55,7 +55,7 @@ describe("ChipButton", () => {
     render(() => <ChipButton data-test="chip" action="add" onClick={vi.fn()}>A</ChipButton>)
     const button = screen.getByTestId("chip")
     expect(button).toHaveClass("group")
-    expect(button.querySelector("span")).toHaveClass("group-hover:bg-secondary/80", "group-hover:border-secondary-foreground")
+    expect(button.querySelector("span")).toHaveClass("group-hover:border-secondary-foreground")
   })
 
   it("takes its hover style from its variant — only the removable variants get a destructive border", () => {
@@ -68,10 +68,10 @@ describe("ChipButton", () => {
       </>
     ))
     const pill = (id: string) => screen.getByTestId(id).querySelector("span")!
-    expect(pill("secondary")).toHaveClass("group-hover:bg-secondary/80", "group-hover:border-secondary-foreground")
+    expect(pill("secondary")).toHaveClass("group-hover:border-secondary-foreground")
     expect(pill("secondary")).not.toHaveClass("group-hover:border-destructive")
     expect(pill("outline")).toHaveClass("group-hover:bg-accent", "group-hover:border-accent-foreground")
-    expect(pill("removable-secondary")).toHaveClass("bg-secondary", "group-hover:bg-secondary/80", "group-hover:border-destructive")
+    expect(pill("removable-secondary")).toHaveClass("bg-secondary", "group-hover:border-destructive")
     expect(pill("removable-outline")).toHaveClass("text-foreground", "group-hover:bg-accent", "group-hover:border-destructive")
     expect(pill("removable-outline")).not.toHaveClass("bg-secondary")
   })
@@ -166,7 +166,7 @@ describe("ToggleChip", () => {
     expect(chip).not.toBeDisabled()
     fireEvent.click(chip)
     expect(onClick).not.toHaveBeenCalled()
-    expect(chip.querySelector("span")).not.toHaveClass("group-hover:bg-secondary/80")
+    expect(chip.querySelector("span")).not.toHaveClass("group-hover:border-secondary-foreground")
   })
 
   it("has no accessibility violations", async () => {
@@ -239,7 +239,7 @@ describe("CheckableChip", () => {
 
   it("draws both halves from the shared chip variants, with a destructive hover border on the remove half", () => {
     renderChip()
-    expect(screen.getByTestId("skill-athletics-remove").querySelector("span")).toHaveClass("bg-secondary", "group-hover:bg-secondary/80", "group-hover:border-destructive")
+    expect(screen.getByTestId("skill-athletics-remove").querySelector("span")).toHaveClass("bg-secondary", "group-hover:border-destructive")
     expect(screen.getByTestId("skill-athletics-check").closest("span")).toHaveClass("group-hover:bg-accent", "group-hover:border-accent-foreground")
   })
 

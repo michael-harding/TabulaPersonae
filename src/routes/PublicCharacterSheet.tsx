@@ -1,8 +1,9 @@
-import { createSignal, createEffect, onCleanup, Show, For } from "solid-js"
+import { createSignal, createEffect, createMemo, onCleanup, Show, For } from "solid-js"
 import { useParams, useSearchParams, A } from "@solidjs/router"
 import Scroll from "lucide-solid/icons/scroll"
 import Lock from "lucide-solid/icons/lock"
 
+import { sheetColorAttributes } from "@/lib/sheet-color"
 import { type Character } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -33,6 +34,9 @@ export default function PublicCharacterSheet() {
   const [character, setCharacter] = createSignal<Character | null>(null)
   const [isLoading, setIsLoading] = createSignal(true)
   const [activeTab, setActiveTab] = createSignal(initialTab)
+
+  // Recomputed only when the colour changes, not whenever the sheet's root re-renders
+  const sheetColor = createMemo(() => sheetColorAttributes(character()?.sheetColor))
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)
@@ -82,7 +86,7 @@ export default function PublicCharacterSheet() {
       >
         {(getChar) => (
           <ReadOnlyProvider value={true}>
-            <div data-sem="public-character-sheet-route" class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
+            <div data-sem="public-character-sheet-route" class="bg-background" {...sheetColor()}>
               <StatsBar character={getChar()} />
 
               <header class="border-b bg-card">
@@ -103,7 +107,7 @@ export default function PublicCharacterSheet() {
                         </p>
                       </div>
                     </div>
-                    <A href="/" class="text-sm text-muted-foreground hover:text-foreground transition-colors" data-test="app-home-link">
+                    <A href="/" class="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground transition-colors" data-test="app-home-link">
                       TabulaPersonae ↗
                     </A>
                   </div>

@@ -7,9 +7,11 @@ vi.mock("firebase/app", () => ({
 
 vi.mock("firebase/auth", () => ({
   getAuth: vi.fn(() => ({ name: "auth" })),
+  connectAuthEmulator: vi.fn(),
 }))
 
 vi.mock("firebase/firestore", () => ({
+  connectFirestoreEmulator: vi.fn(),
   initializeFirestore: vi.fn(() => ({ name: "db" })),
   persistentLocalCache: vi.fn((settings) => ({ kind: "persistent", ...settings })),
   persistentMultipleTabManager: vi.fn(() => ({ kind: "persistentMultipleTab" })),
@@ -25,6 +27,7 @@ describe("firebase", () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
   })
 
   it("hands out the Auth and Firestore instances once initialized", async () => {
@@ -112,6 +115,71 @@ describe("firebase", () => {
       const { clearFirestoreCache } = await import("@/lib/firebase")
 
       await expect(clearFirestoreCache()).rejects.toThrow("Firebase is unavailable because it failed to initialize")
+    })
+  })
+
+  // The e2e tests run against the Firebase Local Emulator Suite (see firebase.json).
+  describe("emulators", () => {
+    async function connectCalls() {
+      const { connectAuthEmulator } = await import("firebase/auth")
+      const { connectFirestoreEmulator } = await import("firebase/firestore")
+      return { connectAuthEmulator, connectFirestoreEmulator }
+    }
+
+    beforeEach(async () => {
+      const { connectAuthEmulator, connectFirestoreEmulator } = await connectCalls()
+      vi.mocked(connectAuthEmulator).mockClear()
+      vi.mocked(connectFirestoreEmulator).mockClear()
+    })
+
+    it("connects Auth and Firestore to the emulators when asked to on the dev server", async () => {
+      vi.stubEnv("DEV", true)
+      vi.stubEnv("VITE_FIREBASE_EMULATORS", "true")
+      vi.stubEnv("VITE_FIREBASE_PROJECT_ID", "demo-tabulapersonae")
+      const { connectAuthEmulator, connectFirestoreEmulator } = await connectCalls()
+      const { getDb } = await import("@/lib/firebase")
+
+      expect(getDb()).toEqual({ name: "db" })
+      expect(connectAuthEmulator).toHaveBeenCalledWith({ name: "auth" }, "http://127.0.0.1:9099", { disableWarnings: true })
+      expect(connectFirestoreEmulator).toHaveBeenCalledWith({ name: "db" }, "127.0.0.1", 8080)
+    })
+
+    it("connects to the real services when the emulators are not asked for", async () => {
+      vi.stubEnv("DEV", true)
+      vi.stubEnv("VITE_FIREBASE_EMULATORS", "")
+      vi.stubEnv("VITE_FIREBASE_PROJECT_ID", "demo-tabulapersonae")
+      const { connectAuthEmulator, connectFirestoreEmulator } = await connectCalls()
+      await import("@/lib/firebase")
+
+      expect(connectAuthEmulator).not.toHaveBeenCalled()
+      expect(connectFirestoreEmulator).not.toHaveBeenCalled()
+    })
+
+    it("never connects to the emulators outside the dev server, even when asked to", async () => {
+      vi.stubEnv("DEV", false)
+      vi.stubEnv("VITE_FIREBASE_EMULATORS", "true")
+      vi.stubEnv("VITE_FIREBASE_PROJECT_ID", "demo-tabulapersonae")
+      const { connectAuthEmulator, connectFirestoreEmulator } = await connectCalls()
+      await import("@/lib/firebase")
+
+      expect(connectAuthEmulator).not.toHaveBeenCalled()
+      expect(connectFirestoreEmulator).not.toHaveBeenCalled()
+    })
+
+    it("refuses to start with a project id that is not a demo- project, connecting nothing", async () => {
+      vi.stubEnv("DEV", true)
+      vi.stubEnv("VITE_FIREBASE_EMULATORS", "true")
+      vi.stubEnv("VITE_FIREBASE_PROJECT_ID", "tabulapersonae-prod")
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+      const { connectAuthEmulator, connectFirestoreEmulator } = await connectCalls()
+      const { getDb } = await import("@/lib/firebase")
+
+      expect(() => getDb()).toThrow("Firebase is unavailable because it failed to initialize")
+      expect(errorSpy).toHaveBeenCalledWith("Firebase initialization error:", expect.objectContaining({
+        message: expect.stringContaining("demo- project id"),
+      }))
+      expect(connectAuthEmulator).not.toHaveBeenCalled()
+      expect(connectFirestoreEmulator).not.toHaveBeenCalled()
     })
   })
 })

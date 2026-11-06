@@ -1,4 +1,5 @@
-import type { Character } from "../../src/lib/character-types"
+import { CALCULATED_VALUE_FLAGS } from "../../src/lib/character-migrations"
+import { createDefaultCharacter, type Character } from "../../src/lib/character-types"
 
 export const testCharacter: Character = {
   id: "visual-test-char-1",
@@ -11,7 +12,6 @@ export const testCharacter: Character = {
   level: 5,
   experiencePoints: 6500,
   edition: "2024",
-  size: "Medium",
 
   abilityScores: {
     strength: 12,
@@ -351,4 +351,43 @@ export const publicCharacter: Character = {
 export function seedLocalStorage(characters: Character[]) {
   localStorage.setItem("dnd-characters", JSON.stringify(characters))
   localStorage.setItem("dnd-skip-auth", "true")
+}
+
+/**
+ * A character as an older version of the app saved it, in the shapes the migration unit tests
+ * (src/tests/lib/character-migrations.test.ts) document, not invented ones:
+ *   - none of the calculated-value flags (CALCULATED_VALUE_FLAGS, which is how the migration
+ *     recognises a character saved before them);
+ *   - spellcasting ability and hit die as plain fields, before Features granted them;
+ *   - a Feature without `featureType`, as PDF import created them;
+ *   - items with the single `uses` field that became `charges` (magic item with charges) and
+ *     `consumedUses` (consumable);
+ *   - damage resistances typed as free text;
+ *   - Exhaustion as a plain condition, before it had levels.
+ * Not typed as Character: it is deliberately not one.
+ */
+export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const current: Record<string, unknown> = { ...createDefaultCharacter() }
+  for (const flag of CALCULATED_VALUE_FLAGS) delete current[flag]
+  return {
+    ...current,
+    id: "legacy-char-1",
+    name: "Bram Oakhollow",
+    race: "Dwarf",
+    class: "Cleric",
+    level: 3,
+    spellcastingAbility: "wisdom",
+    hitDice: "3d8",
+    classFeatures: [
+      { id: "lf-channel", name: "Channel Divinity", description: "Turn Undead.", source: "class-feature" },
+    ],
+    equipment: [
+      { id: "le-wand", name: "Wand of Magic Missiles", quantity: 1, weight: 1, description: "", equipped: true, type: "other", magic: true, maxUses: 7, uses: 2 },
+      { id: "le-potion", name: "Potion of Healing", quantity: 3, weight: 0.5, description: "", equipped: false, type: "consumable", uses: 1 },
+    ],
+    damageResistances: ["poison"],
+    // Before exhaustion had levels it was an on/off condition
+    conditions: ["Exhaustion"],
+    ...overrides,
+  }
 }

@@ -200,6 +200,17 @@ describe("SpellsModule", () => {
   })
 
   describe("spell operations", () => {
+    // In a list, "Edit spell" or "Delete spell" alone could be any of them
+    it("names the spell each edit and delete button belongs to", () => {
+      const spells = [makeSpell({ id: "a", name: "Fire Bolt" }), makeSpell({ id: "b", name: "Mage Hand" })]
+      render(() => <SpellsModule character={makeCharacter({ spells })} onUpdate={vi.fn()} />)
+      for (const name of ["Fire Bolt", "Mage Hand"]) {
+        expect(screen.getByRole("button", { name: `Edit ${name}` })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: `Delete ${name}` })).toBeInTheDocument()
+      }
+      expect(screen.queryByRole("button", { name: "Edit spell" })).not.toBeInTheDocument()
+    })
+
     it("calls onUpdate when a spell is deleted", () => {
       const onUpdate = vi.fn()
       const cantrip = makeSpell({ name: "Fire Bolt", level: 0 })

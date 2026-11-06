@@ -72,6 +72,12 @@ describe("PublicCharacterSheet", () => {
       expect(screen.getByText("Gandalf")).toBeInTheDocument()
     })
 
+    // ACCESSIBILITY.md §13: the link is a full 44px tall
+    it("gives the link back to the app a 44px-tall touch target", async () => {
+      await renderAndLoad()
+      expect(screen.getByTestId("app-home-link")).toHaveClass("inline-flex", "min-h-11", "items-center")
+    })
+
     it("renders a Read-only badge", async () => {
       await renderAndLoad()
       expect(screen.getByText("Read-only")).toBeInTheDocument()

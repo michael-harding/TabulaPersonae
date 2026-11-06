@@ -149,14 +149,14 @@ function SpellForm(props: SpellFormProps) {
         </div>
         <div>
           <Label for="spell-school">School</Label>
-          <Combobox data-test="spell-school-combobox" value={formData().school} onValueChange={(v) => setFormData((p) => ({ ...p, school: v }))} options={SPELL_SCHOOLS} />
+          <Combobox id="spell-school" data-test="spell-school-combobox" value={formData().school} onValueChange={(v) => setFormData((p) => ({ ...p, school: v }))} options={SPELL_SCHOOLS} />
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
           <Label for="casting-time">Casting Time</Label>
-          <Combobox data-test="spell-casting-time-combobox" value={formData().castingTime} onValueChange={(v) => setFormData((p) => ({ ...p, castingTime: v }))} options={CASTING_TIMES} />
+          <Combobox id="casting-time" data-test="spell-casting-time-combobox" value={formData().castingTime} onValueChange={(v) => setFormData((p) => ({ ...p, castingTime: v }))} options={CASTING_TIMES} />
         </div>
         <div>
           <Label for="range">Range</Label>
@@ -485,7 +485,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                 </Show>
               </div>
             </Show>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg">
               <div class="text-center">
                 <div class="flex items-center justify-center gap-1 mb-1">
                   <Target class="h-4 w-4 text-primary" aria-hidden="true" />
@@ -666,12 +666,12 @@ export function SpellsModule(props: SpellsModuleProps) {
                                   <Show when={!isReadOnly}>
                                     <div class="flex items-center gap-2 ml-4">
                                       <Tooltip content="Edit spell">
-                                        <Button data-test={`edit-spell-${spell.id}`} variant="ghost" size="sm" aria-label="Edit spell" onClick={() => setEditingSpell(spell)}>
+                                        <Button data-test={`edit-spell-${spell.id}`} variant="ghost" size="sm" aria-label={`Edit ${spell.name}`} onClick={() => setEditingSpell(spell)}>
                                           <Edit class="h-4 w-4" aria-hidden="true" />
                                         </Button>
                                       </Tooltip>
                                       <Tooltip content="Delete spell">
-                                        <ConfirmButton data-test={`delete-spell-${spell.id}`} variant="ghost" size="sm" verb="Delete" subject="spell" onConfirm={() => handleDeleteSpell(spell.id)}>
+                                        <ConfirmButton data-test={`delete-spell-${spell.id}`} variant="ghost" size="sm" verb="Delete" subject={spell.name} onConfirm={() => handleDeleteSpell(spell.id)}>
                                           <Trash2 class="h-4 w-4" aria-hidden="true" />
                                         </ConfirmButton>
                                       </Tooltip>

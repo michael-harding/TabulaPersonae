@@ -351,11 +351,11 @@ export interface Character {
 
   // Active conditions (both editions)
   conditions?: string[]
+  /** Levels of Exhaustion, 0–6 (absent means 0). Not one of `conditions`, which have no levels. */
+  exhaustionLevel?: number
 
   // 2024-only
   subclass?: string
-  size?: string
-  useCalculatedSize?: boolean
   classFeatures?: Feature[]
   speciesTraits?: Feature[]
   feats?: Feature[]
@@ -492,8 +492,6 @@ export function createDefaultCharacter(): Character {
     conditions: [],
 
     subclass: "",
-    size: "Medium",
-    useCalculatedSize: true,
     useCalculatedSenses: { darkvision: true, blindsight: true, tremorsense: true, truesight: true },
     // Every character has a hit die, unlike spellcasting — so a starter grant is created up front
     // rather than left for the player to add, matching what every class already provides at level 1.

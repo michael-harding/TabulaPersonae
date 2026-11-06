@@ -3,7 +3,7 @@ import { axe } from "vitest-axe"
 
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Feature, Equipment } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Feature, Equipment, OtherAction } from "@/lib/character-types"
 
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
@@ -31,6 +31,10 @@ function makeAttack(overrides: Partial<Attack> = {}): Attack {
 
 function makeBonusAction(overrides: Partial<BonusAction> = {}): BonusAction {
   return { id: "b1", name: "Second Wind", type: "class-feature", description: "", ...overrides }
+}
+
+function makeOtherAction(overrides: Partial<OtherAction> = {}): OtherAction {
+  return { id: "o1", name: "Speak with Animals", type: "ability", description: "", ...overrides }
 }
 
 function makeFeature(overrides: Partial<Feature> = {}): Feature {
@@ -85,6 +89,11 @@ describe("RestModal", () => {
     it("shows available hit dice count", () => {
       openModal(makeCharacter({ level: 3, spentHitDice: 1 }))
       expect(within(getDialog()).getByText(/2 d8 available/i)).toBeInTheDocument()
+    })
+
+    it("marks each hit die with dice", () => {
+      openModal(makeCharacter({ level: 3, spentHitDice: 1 }))
+      expect(within(getDialog()).getByTestId("rest-hit-dice-slot-0").querySelector(".lucide-dices")).not.toBeNull()
     })
 
     it("lists actions with rechargeOn 'short-rest' in the features section", () => {
@@ -253,7 +262,15 @@ describe("RestModal", () => {
       const dialog = getDialog()
       expect(within(dialog).getByText(/Regain all lost Hit Points/i)).toBeInTheDocument()
       expect(within(dialog).getByText(/All spell slots restored/i)).toBeInTheDocument()
-      expect(within(dialog).getByText(/Exhaustion reduced by 1/i)).toBeInTheDocument()
+      expect(within(dialog).getByText(/Exhaustion level reduced by 1/i)).toBeInTheDocument()
+    })
+
+    // 2014 PHB: a long rest lowers exhaustion only if the creature also ate and drank. The sheet
+    // takes that as given, so neither edition shows the condition.
+    it.each(["2014", "2024"] as const)("lists the exhaustion benefit without a condition in %s", (edition) => {
+      openModal(makeCharacter({ edition }))
+      switchToLong()
+      expect(within(getDialog()).getByText("Exhaustion level reduced by 1")).toBeInTheDocument()
     })
 
     it("lists both short-rest and long-rest actions in recharging features", () => {
@@ -346,16 +363,23 @@ describe("RestModal", () => {
       expect(updated.spellSlots[2].used).toBe(0)
     })
 
-    it("calls onRest with Exhaustion removed from conditions", () => {
+    it.each([[3, 2], [1, 0]])("lowers exhaustion from level %i to %i", (from, to) => {
       const onRest = vi.fn()
-      openModal(makeCharacter({ conditions: ["Exhaustion", "Poisoned"] }), onRest)
+      openModal(makeCharacter({ exhaustionLevel: from }), onRest)
       switchToLong()
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
-      const updated: Character = onRest.mock.calls[0][0]
-      expect(updated.conditions).not.toContain("Exhaustion")
+      expect(onRest.mock.calls[0][0].exhaustionLevel).toBe(to)
     })
 
-    it("does not remove non-Exhaustion conditions", () => {
+    it("adds no exhaustion level to a character without exhaustion", () => {
+      const onRest = vi.fn()
+      openModal(makeCharacter(), onRest)
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      expect(onRest.mock.calls[0][0]).not.toHaveProperty("exhaustionLevel")
+    })
+
+    it("does not remove any condition", () => {
       const onRest = vi.fn()
       openModal(makeCharacter({ conditions: ["Poisoned", "Blinded"] }), onRest)
       switchToLong()
@@ -462,6 +486,58 @@ describe("RestModal", () => {
       const updated: Character = onRest.mock.calls[0][0]
       expect(updated.classFeatures![0].uses).toBe(0)
     })
+  })
+
+  // "Other" actions recharge like every other kind of action; they were once left out.
+  it("leaves exhaustion alone on a short rest", () => {
+    const onRest = vi.fn()
+    openModal(makeCharacter({ exhaustionLevel: 2 }), onRest)
+    fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+    expect(onRest.mock.calls[0][0].exhaustionLevel).toBe(2)
+  })
+
+  describe("other actions recharge", () => {
+    const pick = (name: RegExp) => fireEvent.click(within(getDialog()).getByRole("button", { name }))
+    const confirm = () => fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+    const char = () => makeCharacter({
+      otherActions: [
+        makeOtherAction({ id: "o1", name: "Bardic Trick", rechargeOn: "short-rest", uses: 1, maxUses: 1 }),
+        makeOtherAction({ id: "o2", name: "Speak with Animals", rechargeOn: "long-rest", uses: 3, maxUses: 3 }),
+      ],
+    })
+
+    it("lists and resets short-rest other actions on a short rest, leaving long-rest ones spent", () => {
+      const onRest = vi.fn()
+      openModal(char(), onRest)
+      expect(within(getDialog()).getByText("Bardic Trick")).toBeInTheDocument()
+      expect(within(getDialog()).queryByText("Speak with Animals")).not.toBeInTheDocument()
+      confirm()
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.otherActions.map((a) => a.uses)).toEqual([0, 3])
+    })
+
+    it("lists and resets every recharging other action on a long rest", () => {
+      const onRest = vi.fn()
+      openModal(char(), onRest)
+      pick(/long rest/i)
+      expect(within(getDialog()).getByText("Bardic Trick")).toBeInTheDocument()
+      expect(within(getDialog()).getByText("Speak with Animals")).toBeInTheDocument()
+      confirm()
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.otherActions.map((a) => a.uses)).toEqual([0, 0])
+    })
+  })
+
+  // WCAG 4.1.2: the highlighted border is the only other sign of which rest is chosen.
+  it("tells assistive tech which kind of rest is chosen", () => {
+    openModal(makeCharacter())
+    const short = within(getDialog()).getByRole("button", { name: /short rest/i })
+    const long = within(getDialog()).getByRole("button", { name: /long rest/i })
+    expect(short).toHaveAttribute("aria-pressed", "true")
+    expect(long).toHaveAttribute("aria-pressed", "false")
+    fireEvent.click(long)
+    expect(short).toHaveAttribute("aria-pressed", "false")
+    expect(long).toHaveAttribute("aria-pressed", "true")
   })
 
   describe("equipment recharge", () => {

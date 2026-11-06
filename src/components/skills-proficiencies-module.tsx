@@ -1,7 +1,9 @@
-import { createSignal, createEffect, createMemo, on, untrack, For, Show } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
 
 import type { Character } from "@/lib/character-types"
+import { pickFields } from "@/lib/changes"
+import { useModuleEdit } from "@/hooks/use-module-edit"
 import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, SKILL_ABILITY_MAP, SKILL_DISPLAY_NAMES, ABILITY_DISPLAY_NAMES, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
@@ -88,13 +90,29 @@ function SkillAdvantagePips(props: {
   )
 }
 
+const SKILLS_EDIT_FIELDS = [
+  "skills", "savingThrows", "senses", "useCalculatedSenses",
+  "passivePerception", "passiveInsight", "passiveInvestigation",
+  "useCalculatedPassivePerception", "useCalculatedPassiveInsight", "useCalculatedPassiveInvestigation",
+  "languages", "otherProficiencies", "damageResistances", "damageImmunities", "damageVulnerabilities",
+] as const satisfies readonly (keyof Character)[]
+
+// The fields this module's edit form shows (see useModuleEdit for how Save writes them)
+const toDraft = (c: Character) => pickFields(c, SKILLS_EDIT_FIELDS)
+
 export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps) {
-  const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(untrack(() => props.character))
-
-  createEffect(on(() => props.character.id, () => setEdited(props.character)))
-
-  const current = () => isEditing() ? edited() : props.character
+  const edit = useModuleEdit({
+    character: () => props.character,
+    toDraft,
+    resolve: (draft): Partial<Character> => ({
+      ...draft,
+      passivePerception: passivePerceptionStat.resolvedValue(),
+      passiveInsight: passiveInsightStat.resolvedValue(),
+      passiveInvestigation: passiveInvestigationStat.resolvedValue(),
+    }),
+    onUpdate: (c) => props.onUpdate(c),
+  })
+  const current = edit.merged
   const effectiveScores = createMemo(() => getEffectiveAbilityScores(current()))
   const modifierTotals = createMemo(() => getEquipmentModifierTotals(current().equipment))
   const featureTotals = createMemo(() => getActiveFeatureEffects(current()))
@@ -129,9 +147,9 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
       label: `Passive ${SKILL_DISPLAY_NAMES[skillKey]}`,
       ...useCalculatedValue({
         useCalculated: () => current()[useField] ?? true,
-        setUseCalculated: (v) => setEdited((prev) => ({ ...prev, [useField]: v })),
+        setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, [useField]: v })),
         manualValue: () => current()[field] ?? calc(),
-        setManualValue: (v) => setEdited((prev) => ({ ...prev, [field]: v })),
+        setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, [field]: v })),
         calculatedValue: calc,
         calculatedTooltip: tooltip,
       }),
@@ -143,24 +161,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   const passiveInvestigationStat = makePassiveStat("investigation", "passiveInvestigation", "useCalculatedPassiveInvestigation")
   const passiveStats = [passivePerceptionStat, passiveInsightStat, passiveInvestigationStat]
 
-  const persist = () => {
-    const data = edited()
-    const normalized = {
-      ...data,
-      passivePerception: passivePerceptionStat.resolvedValue(),
-      passiveInsight: passiveInsightStat.resolvedValue(),
-      passiveInvestigation: passiveInvestigationStat.resolvedValue(),
-    }
-    props.onUpdate(normalized)
-  }
-  const handleSave = () => { persist(); setIsEditing(false) }
-  const handleSaveKeepEditing = () => { persist() }
-  const handleCancel = () => {
-    setEdited(props.character); setIsEditing(false)
-  }
-
   const toggleSkillProf = (skill: SkillKey) => {
-    setEdited((prev) => ({
+    edit.setDraft((prev) => ({
       ...prev,
       skills: {
         ...prev.skills,
@@ -174,7 +176,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   }
 
   const toggleSkillExp = (skill: SkillKey) => {
-    setEdited((prev) => ({
+    edit.setDraft((prev) => ({
       ...prev,
       skills: {
         ...prev.skills,
@@ -190,7 +192,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   // Advantage and disadvantage are mutually exclusive manual states — toggling one on clears the
   // other, so the pair of booleans behaves like a tri-state control (none / advantage / disadvantage).
   const toggleSkillAdvantage = (skill: SkillKey) => {
-    setEdited((prev) => ({
+    edit.setDraft((prev) => ({
       ...prev,
       skills: {
         ...prev.skills,
@@ -200,7 +202,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   }
 
   const toggleSkillDisadvantage = (skill: SkillKey) => {
-    setEdited((prev) => ({
+    edit.setDraft((prev) => ({
       ...prev,
       skills: {
         ...prev.skills,
@@ -210,7 +212,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   }
 
   const toggleSavingThrow = (ability: AbilityKey) => {
-    setEdited((prev) => ({
+    edit.setDraft((prev) => ({
       ...prev,
       savingThrows: { ...prev.savingThrows, [ability]: !prev.savingThrows?.[ability] },
     }))
@@ -219,7 +221,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   type TagListField = "languages" | "otherProficiencies" | "damageResistances" | "damageImmunities" | "damageVulnerabilities"
 
   const setTags = (field: TagListField, values: string[]) => {
-    setEdited((prev) => ({ ...prev, [field]: values }))
+    edit.setDraft((prev) => ({ ...prev, [field]: values }))
   }
 
   return (
@@ -228,11 +230,11 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
       data-test="skills-proficiencies-module"
       icon={<BookOpen class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Skills & Proficiencies"
-      isEditing={isEditing()}
-      onEdit={() => { setEdited(props.character); setIsEditing(true) }}
-      onSave={handleSave}
-      onSaveKeepEditing={handleSaveKeepEditing}
-      onCancel={handleCancel}
+      isEditing={edit.isEditing()}
+      onEdit={edit.start}
+      onSave={edit.save}
+      onSaveKeepEditing={edit.commit}
+      onCancel={edit.cancel}
       contentClass="space-y-6"
     >
         {/* Saving Throws */}
@@ -257,7 +259,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                     <div class="flex items-center gap-2">
                       <span class="text-sm font-medium">{ABILITY_ABBREVIATIONS[ability]}</span>
                       <Show
-                        when={isEditing()}
+                        when={edit.isEditing()}
                         fallback={
                           <Show when={isProficient()}>
                             <Chip variant="secondary" class={COMPACT_PILL}>Prof</Chip>
@@ -309,13 +311,13 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                   return formula
                 }
                 return (
-                  <div data-sem="skill-block" class={cn("break-inside-avoid flex items-center justify-between rounded even:bg-[color-mix(in_oklch,var(--foreground)_3%,transparent)] hover:bg-[color-mix(in_oklch,var(--foreground)_5%,transparent)] [&:nth-child(3n)]:mb-3", isEditing() ? "px-1" : "p-1")}>
+                  <div data-sem="skill-block" class={cn("break-inside-avoid flex items-center justify-between rounded even:bg-[color-mix(in_oklch,var(--foreground)_3%,transparent)] hover:bg-[color-mix(in_oklch,var(--foreground)_5%,transparent)] [&:nth-child(3n)]:mb-3", edit.isEditing() ? "px-1" : "p-1")}>
                     <div class="flex items-center gap-3 w-full min-w-0 transition-colors duration-150">
                       <div class="flex-1 min-w-0">
                         {/* The toggle chips drop to a second line when the column is too narrow for name + chips + A/D pips. */}
                         <div class="flex flex-wrap items-center gap-x-2">
-                          <span data-test={`skill-name-${skillKey}`} class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Chip variant="secondary" class={COMPACT_PILL}>Prof</Chip></Show><Show when={effectiveSkill().expertise}><Chip variant="default" class={COMPACT_PILL}>Exp</Chip></Show></span></Show></span>
-                          <Show when={isEditing()}>
+                          <span data-test={`skill-name-${skillKey}`} class="font-medium">{SKILL_DISPLAY_NAMES[skillKey]} <span class="text-xs text-muted-foreground font-normal">({ABILITY_ABBREVIATIONS[ability]})</span><Show when={!edit.isEditing()}><span class="inline-flex gap-1 ml-1 align-middle"><Show when={effectiveSkill().proficient}><Chip variant="secondary" class={COMPACT_PILL}>Prof</Chip></Show><Show when={effectiveSkill().expertise}><Chip variant="default" class={COMPACT_PILL}>Exp</Chip></Show></span></Show></span>
+                          <Show when={edit.isEditing()}>
                             <div class="flex items-center gap-1">
                               <Tooltip content={effectiveSkill().granted ? `Granted by ${effectiveSkill().grantedBy}` : "Proficiency (adds proficiency bonus)"} toggleOnClick={effectiveSkill().granted}>
                                 <ToggleChip
@@ -355,7 +357,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                         isManualOverride={effectiveAdvantage().isManualOverride}
                         advantageSources={effectiveAdvantage().advantageSources}
                         disadvantageSources={effectiveAdvantage().disadvantageSources}
-                        editable={isEditing()}
+                        editable={edit.isEditing()}
                         onToggleAdvantage={() => toggleSkillAdvantage(skillKey)}
                         onToggleDisadvantage={() => toggleSkillDisadvantage(skillKey)}
                       />
@@ -379,10 +381,10 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             <For each={passiveStats}>
               {(stat) => (
                 <div class="flex flex-col items-center p-2 rounded border text-center w-full">
-                  <CalculatedValue data-test={`passive-${stat.skillKey}`}
+                  <CalculatedValue data-test={`senses-passive-${stat.skillKey}`}
                     label={stat.label}
                     labelClass="text-xs text-muted-foreground"
-                    editable={isEditing()}
+                    editable={edit.isEditing()}
                     {...stat.binding()}
                   />
                 </div>
@@ -394,9 +396,9 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
               {(sense) => {
                 const senseField = useCalculatedValue({
                   useCalculated: () => current().useCalculatedSenses?.[sense] ?? true,
-                  setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSenses: { ...prev.useCalculatedSenses, [sense]: v } })),
+                  setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSenses: { ...prev.useCalculatedSenses, [sense]: v } })),
                   manualValue: () => current().senses?.[sense] ?? 0,
-                  setManualValue: (v) => setEdited((prev) => ({ ...prev, senses: { ...prev.senses, [sense]: v } })),
+                  setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, senses: { ...prev.senses, [sense]: v } })),
                   calculatedValue: () => effectiveSenses()[sense],
                   calculatedTooltip: () => {
                     const grants = [...modifierTotals().senseGrants[sense], ...featureTotals().senseGrants[sense]]
@@ -406,12 +408,12 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                   },
                 })
                 return (
-                  <Show when={isEditing() || senseField.resolvedValue() !== 0}>
+                  <Show when={edit.isEditing() || senseField.resolvedValue() !== 0}>
                     <div class="flex flex-col items-center p-2 rounded border text-center w-full">
                       <CalculatedValue data-test={`sense-${sense}`}
                         label={SENSE_LABELS[sense]}
                         labelClass="text-xs text-muted-foreground"
-                        editable={isEditing()}
+                        editable={edit.isEditing()}
                         min={0}
                         format={(n) => `${n} ft`}
                         {...senseField.binding()}
@@ -443,7 +445,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
               const source = effectiveDamageResistances().grantedBy[v]
               return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
             }}
-            editing={isEditing()}
+            editing={edit.isEditing()}
             onChange={(next) => setTags("damageResistances", next)}
           />
           <ChipListEditor
@@ -461,7 +463,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
               const source = effectiveDamageImmunities().grantedBy[v]
               return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
             }}
-            editing={isEditing()}
+            editing={edit.isEditing()}
             onChange={(next) => setTags("damageImmunities", next)}
           />
           <ChipListEditor
@@ -479,7 +481,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
               const source = effectiveDamageVulnerabilities().grantedBy[v]
               return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
             }}
-            editing={isEditing()}
+            editing={edit.isEditing()}
             onChange={(next) => setTags("damageVulnerabilities", next)}
           />
         </div>
@@ -500,7 +502,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             const source = effectiveLanguages().grantedBy[v]
             return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
           }}
-          editing={isEditing()}
+          editing={edit.isEditing()}
           onChange={(next) => setTags("languages", next)}
         />
 
@@ -521,7 +523,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             const source = effectiveProficiencies().grantedBy[v]
             return source === "equipment" ? "Granted by equipment" : `Granted by ${source} — edit in Features`
           }}
-          editing={isEditing()}
+          editing={edit.isEditing()}
           onChange={(next) => setTags("otherProficiencies", next)}
         />
 

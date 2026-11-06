@@ -5,7 +5,7 @@ import Sword from "lucide-solid/icons/sword"
 import Heart from "lucide-solid/icons/heart"
 
 import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility, displayedConditions } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 
@@ -38,12 +38,12 @@ export function StatsBar(props: StatsBarProps) {
     const abilityAbbr = ability.slice(0, 3).toUpperCase()
     return `Spell Hit: ${abilityAbbr} ${formatModifier(abilityMod)} + Prof +${prof} = ${formatModifier(hitBonus())} · DC: 8 + ${abilityAbbr} ${formatModifier(abilityMod)} + Prof +${prof} = ${spellSaveDC()}`
   })
-  const conditions = createMemo(() => props.character.conditions ?? [])
+  const conditions = createMemo(() => displayedConditions(props.character))
 
   return (
-    <div data-sem="stats-bar" class="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+    <div data-sem="stats-bar" class="sticky top-0 z-50 backdrop-blur contrast-more:bg-background border-b">
       {/* HP progress bar */}
-      <div class="relative h-1.5 w-full overflow-hidden bg-secondary/30">
+      <div class="relative h-1.5 w-full overflow-hidden">
         <div
           class={`absolute left-0 top-0 h-full transition-all duration-300 ${hpColor()}`}
           style={{ width: `${hpPercentage()}%` }}
@@ -111,7 +111,7 @@ export function StatsBar(props: StatsBarProps) {
           <span class="text-sm font-bold whitespace-nowrap">
             <span data-test="current-hp">{currentHp()}</span>
             <Show when={tempHp() > 0}>
-              <span class="text-secondary dark:text-blue-300">+{tempHp()}</span>
+              <span data-test="temp-hp" class="text-secondary dark:text-blue-300">+{tempHp()}</span>
             </Show>
             <span class="text-muted-foreground font-normal">/{maxHp()}</span>
           </span>

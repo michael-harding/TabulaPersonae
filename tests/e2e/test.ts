@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from "@playwright/test"
+import { test as base, expect, type BrowserContext, type Page } from "@playwright/test"
 import AxeBuilder from "@axe-core/playwright"
 import axe from "axe-core"
 
@@ -21,6 +21,30 @@ export function axeBuilder(page: Page): AxeBuilder {
 }
 
 /**
+ * axe's text contrast check, where "could not decide" is reported too, so that nothing goes
+ * unchecked unseen. `within` limits it to an open popup. axe compares everything stacked under a
+ * piece of text, even beneath an opaque dialog, and gives up on text that the page behind happens
+ * to cross. What is behind cannot affect it, so it is hidden, and axe then reaches a verdict on all
+ * of the dialog's text. The page stays hidden, so make this the last look at it.
+ */
+export async function contrastScan(page: Page, within?: string) {
+  await finishAnimations(page)
+  const builder = axeBuilder(page).withRules(["color-contrast"])
+  if (within != null) {
+    builder.include(within)
+    await page.evaluate((within) => {
+      const popup = document.querySelector(within)
+      for (const child of Array.from(document.body.children)) {
+        if (!child.contains(popup)) (child as HTMLElement).style.visibility = "hidden"
+      }
+    }, within)
+  }
+  const { violations, incomplete } = await builder.analyze()
+  const undecided = incomplete.flatMap(({ nodes }) => nodes.map(({ html, any }) => ({ html, reason: any[0]?.data?.messageKey })))
+  return { violations, undecided }
+}
+
+/**
  * Waits for running animations and transitions to end. A popup that is fading out is still in the
  * page with its colours part-way to transparent, which axe reads as a contrast failure that no
  * user ever sees. Animations that repeat forever (a loading pulse) are not waited for.
@@ -37,7 +61,59 @@ export async function finishAnimations(page: Page): Promise<void> {
 // from here instead of from @playwright/test, and each test's final page state is then scanned
 // once the test itself has passed. A spec whose tests already are axe scans turns the automatic
 // one off with `test.use({ axeAfterEach: false })`.
-export const test = base.extend<{ axeAfterEach: boolean; axeScan: void }>({
+// TESTING.md §5: no test may reach real Firebase. The app is pointed at the local emulators (see
+// src/lib/firebase.ts); this catches it if that ever stops being true. Matched on the host: the Auth
+// emulator's own URLs contain "identitytoolkit.googleapis.com" in their path, on host 127.0.0.1.
+const FIREBASE_HOSTS = /(^|\.)(googleapis\.com|firebaseio\.com|firebaseapp\.com)$/
+
+/**
+ * Blocks every request from a browser context to real Firebase, returning the URLs it blocked.
+ * Every test's own context is guarded automatically; a test that opens another context guards it
+ * with this and checks the list is empty.
+ */
+export async function guardAgainstFirebase(context: BrowserContext): Promise<string[]> {
+  const reached: string[] = []
+  await context.route((url) => FIREBASE_HOSTS.test(url.hostname), (route) => {
+    reached.push(route.request().url())
+    return route.abort("blockedbyclient")
+  })
+  return reached
+}
+
+/**
+ * The data-test values used by more than one element on the page. TESTING.md §6: each must be
+ * unique within the page, so that a selector names exactly one element.
+ */
+export function duplicateTestHooks(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const counts = new Map<string, number>()
+    for (const element of Array.from(document.querySelectorAll("[data-test]"))) {
+      const hook = element.getAttribute("data-test")!
+      counts.set(hook, (counts.get(hook) ?? 0) + 1)
+    }
+    return [...counts].filter(([, count]) => count > 1).map(([hook, count]) => `${hook} ×${count}`).sort()
+  })
+}
+
+export const test = base.extend<{ axeAfterEach: boolean; axeScan: void; firebaseGuard: void; uniqueTestHooks: void }>({
+  // Every scenario's final state is checked, so a component that repeats a hook fails wherever it
+  // is first used, not just where a test happens to target it.
+  uniqueTestHooks: [
+    async ({ page }, use, testInfo) => {
+      await use()
+      if (testInfo.status !== testInfo.expectedStatus || page.isClosed()) return
+      expect(await duplicateTestHooks(page), "data-test values used more than once (TESTING.md §6)").toEqual([])
+    },
+    { auto: true },
+  ],
+  firebaseGuard: [
+    async ({ context }, use) => {
+      const reached = await guardAgainstFirebase(context)
+      await use()
+      expect(reached, "requests to real Firebase (the app should only talk to the emulators)").toEqual([])
+    },
+    { auto: true },
+  ],
   axeAfterEach: [true, { option: true }],
   axeScan: [
     async ({ page, axeAfterEach }, use, testInfo) => {

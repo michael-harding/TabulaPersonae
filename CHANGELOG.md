@@ -5,6 +5,32 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.3] - 2026-11-06
+
+### Added
+- **Accessibility contrast audit** — the rendered app is now checked in the browser for WCAG AA contrast, in both the light and dark themes: text and placeholders against 4.5:1, and form control boundaries, icon-only buttons, color swatches and their selection ring against 3:1. It covers every character sheet tab in view and edit mode, every modal and editor, the sign-in, character list, Tab Settings and shared-character pages, each preset sheet color on every tab, and controls while hovered; the stats bar is also checked to stay solid under the system's increased-contrast setting and to visibly frost what scrolls behind it. Unit tests check every pairing of the theme's color tokens against the same ratios. Alongside it, new audits check that every control shows a visible focus outline from the keyboard and that touch targets are at least 44px, including on a phone-sized touch screen. The contrast, focus and touch-target fixes under Changed below are what these audits found
+- **Broader test coverage** — end-to-end tests now run the real Firebase SDK against the Firebase Local Emulator Suite under a `demo-` project, so signed-in flows and `firestore.rules` are exercised as in production without reaching a real Firebase project; any request to a live Firebase host fails the test. New end-to-end suites cover sign-in and sign-up, the character list, editing every module, saving across modules, import and export, migrating legacy characters, short and long rests, public sharing, sign-out, cloud sync and theme persistence, and the core flows also run on a phone-sized touch screen. Visual regression baselines now cover every modal and its variants and every popup in its open state, in both themes in Chromium and Firefox, and each of them also gets an accessibility scan. Unit coverage stands at 98.7% of lines and 93.7% of branches
+- **Exhaustion levels** — Exhaustion is now tracked as a level from 1 to 6 rather than as an on/off condition. Choosing it from Add Condition starts it at level 1, a stepper beside the conditions sets the level, and the effects of that level under the character's edition are listed beneath it (the 2014 cumulative table, or the 2024 rule of −2 to d20 Tests and −5 ft Speed per level). The stats bar shows it as "Exhaustion 2" and so on. A long rest now removes one level instead of clearing Exhaustion entirely. Characters saved with the Exhaustion condition are given level 1
+- Available pips in usage trackers are now marked with an icon — a sparkle for feature charges, a wand for spell slots, a backpack for item uses and dice for hit dice — so used and available pips can be told apart without relying on color
+
+### Changed
+- **Size is now set only as a Species Trait** — the Size field and its custom override were removed from Combat Stats; size is granted by a "Size" Species Trait on the Features tab, like every other grant. A size entered by hand on an existing character is carried over as a "Size" Species Trait when the character loads, unless a feature already grants a size or the stored value is the old "Medium" default, which every character was saved with whether or not anyone chose it. Importing a PDF character sheet turns its Size into a "Size" Species Trait too
+- A character's sheet color is now shown in a shade that stays readable against the light and dark themes, keeping its hue; the color you picked is still what is saved. The selected swatch is outlined in a theme color, and the pipette on the custom swatch stays visible on any color
+- Every control now shows a visible focus outline when reached with the keyboard, including checkboxes and the edit-mode switches
+- Form field borders, the focus outline, error messages in the dark theme, the Save button in edit mode and the sign-in success message now meet WCAG AA contrast, and the tinted panel backgrounds that lowered text contrast were removed. With the system's increased-contrast setting on, the stats bar has a solid background
+- More controls now have a touch target of at least 44px: the sign-in form's fields, tabs, buttons and links, menu and dropdown options, the Tab Settings rename field and its buttons, and the details button on action cards. A menu taller than the space available now scrolls
+- The signed-in account (or "Not Logged In") is now shown at the top of the header menu instead of beside the menu button
+- Buttons and controls that repeat down a list are now named for what they act on, so screen readers can tell them apart: Cast and Upcast name the spell, Edit and Delete name the spell, Toggle attuned names the item, and the Tab Settings drag, rename and expand controls name their tab or module. The Short Rest/Long Rest choice, the Heroic Inspiration toggle and the sheet color swatches announce whether they are selected, and the details popover on an action card is named for it
+- Read-only usage trackers on a shared sheet announce each pip as, for example, "Charge spent" or "Charge available" rather than as instructions to click
+
+### Fixed
+- Saving one section of the sheet no longer undoes changes made elsewhere while it was being edited — by another section's save, a rest, or controls that save straight away such as conditions and death saves. Only the fields changed in the section's form are saved
+- Short and long rests now restore the uses of custom actions in the Other section
+- Opening the upcast picker for a spell listed under both Bonus Actions and Reactions now opens it only in the section clicked
+- Notifications are announced by screen readers exactly once, and failures are announced straight away; the notifications area can be reached by landmark navigation
+- The Spell School and Casting Time fields in the spell editor, and the Type and Damage Type fields in the action editor, are now connected to their labels
+- The Terms of Use consent dialog can be scrolled on a short screen, so its buttons are always reachable
+
 ## [v1.6.2] - 2026-10-12
 
 ### Added

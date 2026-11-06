@@ -21,6 +21,12 @@ describe("TermsOfUse page", () => {
     expect(link).toHaveAttribute("href", "/auth")
   })
 
+  // ACCESSIBILITY.md §13
+  it("makes the link back a 44px-tall touch target", () => {
+    render(() => <TermsOfUse />)
+    expect(screen.getByRole("link", { name: /back/i })).toHaveClass("inline-flex", "min-h-11")
+  })
+
   it("renders the substantive body content", () => {
     render(() => <TermsOfUse />)
     expect(screen.getByRole("heading", { name: /use of the app/i })).toBeInTheDocument()

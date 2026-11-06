@@ -82,7 +82,7 @@ export function ConfirmButton(props: ConfirmButtonProps) {
       disabled={local.disabled}
       aria-label={armed() ? name(confirmText()) : name(local.verb)}
       data-armed={armed() ? "" : undefined}
-      class={cn(local.class, armed() && "w-auto px-2 text-xs whitespace-nowrap bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:text-destructive-foreground")}
+      class={cn(local.class, armed() && "w-auto px-2 text-xs whitespace-nowrap bg-destructive text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground")}
       onClick={handleClick}
       onKeyDown={(e: KeyboardEvent) => {
         if (e.key === "Escape" && armed()) {

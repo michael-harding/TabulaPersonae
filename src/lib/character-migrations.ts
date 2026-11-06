@@ -1,14 +1,14 @@
 import type { Character, Equipment, Feature, SenseType } from "./character-types"
-import { ABILITY_KEYS, calculateEquippedAC, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import { ABILITY_KEYS, calculateEquippedAC, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, hasChargesTracking, inferFeatureType, makeSizeTrait, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
-const CALCULATED_VALUE_FLAGS = [
+// Exported for the legacy-character test fixtures, which must leave out exactly these keys
+export const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass",
   "useCalculatedSpeed",
   "useCalculatedFlySpeed",
   "useCalculatedSwimSpeed",
   "useCalculatedClimbSpeed",
   "useCalculatedBurrowSpeed",
-  "useCalculatedSize",
   // useCalculatedSenses is object-valued (per-sense), not boolean like its siblings above, so it's
   // listed here purely as an early-return presence sentinel — its actual backfill logic lives in
   // the dedicated block below, not in the generic backfill() helper.
@@ -21,10 +21,21 @@ const FEATURE_LIST_FIELDS = ["classFeatures", "speciesTraits", "feats", "backgro
 const DAMAGE_TYPE_LIST_FIELDS = ["damageResistances", "damageImmunities", "damageVulnerabilities"] as const
 
 /**
+ * Fields an earlier version of the app stored that the current model no longer has. A migration
+ * may read them, to carry their data over, but never writes them back.
+ */
+interface RetiredFields {
+  /** Before size was a Species Trait: a custom size, used when `useCalculatedSize` was false. */
+  size?: unknown
+  useCalculatedSize?: unknown
+}
+const RETIRED_FIELDS: (keyof RetiredFields)[] = ["size", "useCalculatedSize"]
+
+/**
  * A character record as read back from storage or an import file. Any earlier version of the app
  * may have written it, so every field of the current model may be missing.
  */
-type StoredCharacter = Partial<Character>
+type StoredCharacter = Partial<Character> & RetiredFields
 
 // `unknown`: the value comes straight from JSON.parse or Firestore, so nothing is known about it.
 // This guard is where stored data starts being trusted. It checks that the value is an object and
@@ -74,6 +85,28 @@ function importLegacyFeatureGrants(raw: StoredCharacter): Feature[] | undefined 
   }
 
   return additions.length > 0 ? [...safeFeatures(raw.classFeatures), ...additions] : undefined
+}
+
+// What every new character was saved with, and what the old Size field showed until changed. A
+// stored "Medium" is no evidence that anyone chose it, with or without the custom-size flag: the
+// migration that added the flag stored `false` for the old default as well (see migrateCharacter).
+const OLD_DEFAULT_SIZE = "Medium"
+
+/**
+ * Size is a Species Trait (set on the Features tab), no longer a field with a custom override. A
+ * size the user entered becomes a Species Trait granting it, so it is kept in the place it now
+ * belongs: a stored custom size (the flag false, or absent from before it existed) other than the
+ * old default, which only the user could have set. Nothing is added when a Feature grants a size at
+ * any level, not only the current one: a second trait would contend with it once both applied.
+ */
+const grantsSize = (feature: Feature) => (feature.levelEffects ?? []).some((tier) => tier.effects?.size)
+
+function importCustomSize(raw: StoredCharacter): Feature | undefined {
+  const size = typeof raw.size === "string" ? raw.size.trim() : ""
+  if (size === "") return undefined
+  const entered = raw.useCalculatedSize !== true && size !== OLD_DEFAULT_SIZE
+  if (!entered || FEATURE_LIST_FIELDS.some((field) => safeFeatures(raw[field]).some(grantsSize))) return undefined
+  return makeSizeTrait(size, "Grants this character's size, carried over from when size was entered directly.")
 }
 
 /**
@@ -154,7 +187,6 @@ export function migrateCharacter(raw: unknown): Character {
     backfill("useCalculatedSwimSpeed", raw.swimSpeed, movement.swim)
     backfill("useCalculatedClimbSpeed", raw.climbSpeed, movement.climb)
     backfill("useCalculatedBurrowSpeed", raw.burrowSpeed, movement.burrow)
-    backfill("useCalculatedSize", raw.size, getEffectiveSize(raw).size)
 
     if (!("useCalculatedSenses" in raw)) {
       const senseTotals = getEffectiveSenses(raw)
@@ -170,10 +202,20 @@ export function migrateCharacter(raw: unknown): Character {
     if (importedFeatures) patch.classFeatures = importedFeatures
   }
 
+  const sizeTrait = importCustomSize(raw)
+  if (sizeTrait) patch.speciesTraits = [...safeFeatures(raw.speciesTraits), sizeTrait]
+
   for (const field of FEATURE_LIST_FIELDS) {
     const current = safeFeatures((patch[field] as Feature[] | undefined) ?? raw[field])
     const backfilled = backfillFeatureTypes(current)
     if (backfilled) patch[field] = backfilled
+  }
+
+  // Exhaustion was an on/off condition before it had levels. The stored condition proves level 1
+  // and nothing more, so that is what it becomes; a stored level is never second-guessed.
+  if (Array.isArray(raw.conditions) && raw.conditions.includes(EXHAUSTION)) {
+    patch.conditions = raw.conditions.filter((condition) => condition !== EXHAUSTION)
+    if (raw.exhaustionLevel == null) patch.exhaustionLevel = 1
   }
 
   if (Array.isArray(raw.equipment)) {
@@ -193,7 +235,11 @@ export function migrateCharacter(raw: unknown): Character {
 
   // Trusted, not checked: a record this app wrote has every required field (id, name, ...), so once
   // the fields added since are backfilled it is a complete `Character`. See isStoredCharacter.
-  const migrated = Object.keys(patch).length > 0 ? { ...raw, ...patch } : raw
+  const retired = RETIRED_FIELDS.filter((field) => field in raw)
+  if (Object.keys(patch).length === 0 && retired.length === 0) return raw as Character
+  const migrated: StoredCharacter = { ...raw, ...patch }
+  // Their data has been carried over above; they are no longer part of a character
+  for (const field of retired) delete migrated[field]
   return migrated as Character
 }
 

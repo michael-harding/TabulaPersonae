@@ -6,6 +6,7 @@ import Sunrise from "lucide-solid/icons/sunrise"
 import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Settings from "lucide-solid/icons/settings"
 
+import { sheetColorAttributes } from "@/lib/sheet-color"
 import { type Character } from "@/lib/character-types"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
@@ -103,6 +104,9 @@ export default function CharacterSheet() {
     })
   }
 
+  // Recomputed only when the colour changes, not whenever the sheet's root re-renders
+  const sheetColor = createMemo(() => sheetColorAttributes(charStore.data?.sheetColor))
+
   const handleImport = (toImport: Character[]) => {
     const { imported, saved } = saveImportedCharacters(toImport, storageManager().saveCharacter)
     if (imported.length > 0) navigate(`/character/${imported[0].id}`)
@@ -123,12 +127,12 @@ export default function CharacterSheet() {
     >
       <Show when={charStore.data}>
         {(getChar) => (
-          <div data-sem="character-sheet-route" class="bg-background" style={getChar().sheetColor ? { "--primary": getChar().sheetColor } : {}}>
+          <div data-sem="character-sheet-route" class="bg-background" {...sheetColor()}>
             <StatsBar character={getChar()} />
 
             <header class="border-b bg-card">
               <div class="max-w-7xl mx-auto px-4 py-4">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-2">
                   <div class="flex items-center gap-4">
                     <Scroll class="h-8 w-8 text-primary" aria-hidden="true" />
                     <div class="flex items-center gap-3">
@@ -142,6 +146,7 @@ export default function CharacterSheet() {
                         <button
                           type="button"
                           aria-label="Toggle Heroic Inspiration"
+                          aria-pressed={!!getChar().heroicInspiration}
                           onClick={() => updateCharacter({ ...getChar(), heroicInspiration: !getChar().heroicInspiration })}
                           class={`ml-2 transition-colors ${getChar().heroicInspiration ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400"}`}
                           style={{ background: "none", border: "none", padding: "0", cursor: "pointer" }}

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, on, untrack, Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Heart from "lucide-solid/icons/heart"
 import Plus from "lucide-solid/icons/plus"
@@ -8,17 +8,18 @@ import CheckCircle from "lucide-solid/icons/check-circle"
 import XCircle from "lucide-solid/icons/x-circle"
 
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, getEffectiveSize, SIZES, ABILITY_TITLE_CASE } from "@/lib/character-utils"
+import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, speciesGrantTooltip, ABILITY_TITLE_CASE, EXHAUSTION, MAX_EXHAUSTION_LEVEL, getExhaustionEffects } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
+import { useModuleEdit } from "@/hooks/use-module-edit"
 import { EditableModule } from "@/components/editable-module"
 import { ChipListEditor } from "@/components/ui/chip-list-editor"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
+import { InlineStepper } from "@/components/ui/inline-stepper"
 import { CalculatedValue } from "@/components/ui/calculated-value"
-import { CalculatedValueSelect } from "@/components/ui/calculated-value-select"
 import { useReadOnly } from "@/lib/read-only-context"
 
 interface CombatStatsModuleProps {
@@ -26,16 +27,11 @@ interface CombatStatsModuleProps {
   onUpdate: (character: Character) => void
 }
 
-function movementTooltip(value: number | string, source: string | undefined): string {
-  if (!source) return "No species trait grants this — add one in Features, or switch to custom entry"
-  const formatted = typeof value === "number" ? `${value} ft` : value
-  return `${formatted} (${source})`
-}
-
-const toEdit = (c: Character) => {
+// The fields this module's edit form shows (see useModuleEdit for how Save writes them).
+// Conditions, exhaustion, condition immunities and death saves save as they change, in either mode.
+const toDraft = (c: Character) => {
   const percSkill = c.skills?.perception
   return {
-    ...c,
     hitPoints: {
       current: c.hitPoints?.current ?? 0,
       maximum: c.hitPoints?.maximum ?? 1,
@@ -51,8 +47,6 @@ const toEdit = (c: Character) => {
     climbSpeed: c.climbSpeed ?? 0,
     burrowSpeed: c.burrowSpeed ?? 0,
     proficiencyBonus: c.proficiencyBonus || 2,
-    deathSaves: { successes: c.deathSaves?.successes || 0, failures: c.deathSaves?.failures || 0 },
-    size: c.size ?? "Medium",
     useCalculatedInitiative: c.useCalculatedInitiative ?? false,
     useCalculatedProficiencyBonus: c.useCalculatedProficiencyBonus ?? false,
     useCalculatedArmorClass: c.useCalculatedArmorClass ?? true,
@@ -62,7 +56,6 @@ const toEdit = (c: Character) => {
     useCalculatedSwimSpeed: c.useCalculatedSwimSpeed ?? true,
     useCalculatedClimbSpeed: c.useCalculatedClimbSpeed ?? true,
     useCalculatedBurrowSpeed: c.useCalculatedBurrowSpeed ?? true,
-    useCalculatedSize: c.useCalculatedSize ?? true,
     passivePerception: c.passivePerception ?? getPassiveScore(
       c.abilityScores?.wisdom ?? 10,
       c.proficiencyBonus ?? 2,
@@ -75,25 +68,18 @@ const toEdit = (c: Character) => {
 
 export function CombatStatsModule(props: CombatStatsModuleProps) {
   const isReadOnly = useReadOnly()
-  const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
-  // The sheet swaps characters in place, so in-progress edits must not carry over to the next one.
-  createEffect(on(() => props.character.id, () => {
-    setEdited(toEdit(props.character))
-  }, { defer: true }))
-  const current = () => (isEditing() ? edited() : props.character)
-
-  const persist = () => {
-    ;(document.activeElement as HTMLElement | null)?.blur()
-    const data = edited()
-    const effMax = getEffectiveMaxHp(data)
-    const normalized = {
-      ...data,
+  const edit = useModuleEdit({
+    character: () => props.character,
+    toDraft,
+    resolve: (draft): Partial<Character> => ({
+      ...draft,
       hitPoints: {
-        ...data.hitPoints,
+        ...draft.hitPoints,
         maximum: maximumHpField.resolvedValue(),
-        current: Math.max(0, Math.min(data.hitPoints?.current ?? 0, effMax)),
+        current: Math.max(0, Math.min(draft.hitPoints.current, getEffectiveMaxHp({ ...props.character, ...draft }))),
       },
+      // Not edited in the form (death saves save as they are clicked): only filled in where missing
+      deathSaves: { successes: props.character.deathSaves?.successes || 0, failures: props.character.deathSaves?.failures || 0 },
       initiative: initiativeField.resolvedValue(),
       proficiencyBonus: profBonusField.resolvedValue(),
       armorClass: acField.resolvedValue(),
@@ -103,23 +89,21 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       swimSpeed: swimSpeedField.resolvedValue(),
       climbSpeed: climbSpeedField.resolvedValue(),
       burrowSpeed: burrowSpeedField.resolvedValue(),
-      size: sizeField.resolvedValue(),
-    }
-    props.onUpdate(normalized)
-  }
-  const handleSave = () => { persist(); setIsEditing(false) }
-  const handleSaveKeepEditing = () => { persist() }
-  const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
+    }),
+    onUpdate: (c) => props.onUpdate(c),
+  })
+  const current = edit.merged
+  const blurFocused = () => (document.activeElement as HTMLElement | null)?.blur()
 
   const edition = createMemo(() => props.character.edition ?? "2024")
 
-  const updateHP = (field: "current" | "maximum" | "temporary" | "temporaryMaximum", value: number) =>
-    setEdited((prev) => {
-      const next = { ...prev.hitPoints, [field]: value }
-      const effMax = getEffectiveMaxHp({ ...prev, hitPoints: next })
-      next.current = Math.max(0, Math.min(next.current ?? 0, effMax))
-      return { ...prev, hitPoints: next }
-    })
+  const updateHP = (field: "current" | "maximum" | "temporary" | "temporaryMaximum", value: number) => {
+    const prev = edit.draft()
+    const next = { ...prev.hitPoints, [field]: value }
+    const effMax = getEffectiveMaxHp({ ...props.character, ...prev, hitPoints: next })
+    next.current = Math.max(0, Math.min(next.current ?? 0, effMax))
+    edit.setDraft({ ...prev, hitPoints: next })
+  }
 
   const adjustHitPoints = (amount: number) => {
     if (isReadOnly) return
@@ -154,9 +138,25 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
     hpPercentage, hpColor, tempHpWidth, tempHpLeft,
   } = useHpDisplay(() => props.character)
 
-  const setConditions = (conditions: string[]) => {
+  // Exhaustion is listed with the conditions but stored as a level, not as one of them
+  const exhaustionLevel = () => props.character.exhaustionLevel ?? 0
+  const conditionValues = () => [...(props.character.conditions ?? []), ...(exhaustionLevel() > 0 ? [EXHAUSTION] : [])]
+  const conditionLabel = (condition: string) =>
+    condition === EXHAUSTION && exhaustionLevel() > 0 ? `${EXHAUSTION} ${exhaustionLevel()}` : condition
+
+  const setConditions = (next: string[]) => {
     if (isReadOnly) return
-    props.onUpdate({ ...props.character, conditions })
+    // Choosing Exhaustion starts it at level 1; removing it ends it
+    const level = next.includes(EXHAUSTION) ? Math.max(exhaustionLevel(), 1) : 0
+    props.onUpdate({
+      ...props.character,
+      conditions: next.filter((condition) => condition !== EXHAUSTION),
+      ...(level !== exhaustionLevel() ? { exhaustionLevel: level } : {}),
+    })
+  }
+  const setExhaustionLevel = (exhaustionLevel: number) => {
+    if (isReadOnly) return
+    props.onUpdate({ ...props.character, exhaustionLevel })
   }
 
   const setConditionImmunities = (conditionImmunities: string[]) => {
@@ -167,7 +167,6 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const effectiveConditionImmunities = createMemo(() => getEffectiveConditionImmunities(props.character))
   const effectiveMovement = createMemo(() => getEffectiveMovementSpeeds(props.character))
   const movementGrants = createMemo(() => getMovementSpeedGrants(props.character))
-  const effectiveSize = createMemo(() => getEffectiveSize(props.character))
 
   const passivePerceptionCalc = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
@@ -203,9 +202,9 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
   const acField = useCalculatedValue({
     useCalculated: () => current().useCalculatedArmorClass ?? true,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedArmorClass: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedArmorClass: v })),
     manualValue: () => current().armorClass ?? 10,
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, armorClass: v })),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, armorClass: v })),
     calculatedValue: () => equippedAC().ac,
     calculatedTooltip: acTooltip,
   })
@@ -214,7 +213,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
   const maximumHpField = useCalculatedValue({
     useCalculated: () => current().useCalculatedMaximumHp ?? false,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedMaximumHp: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedMaximumHp: v })),
     manualValue: () => current().hitPoints?.maximum ?? 1,
     setManualValue: (v) => updateHP("maximum", v),
     calculatedValue: () => maxHpCalc().hp,
@@ -223,81 +222,72 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
   const speedField = useCalculatedValue({
     useCalculated: () => current().useCalculatedSpeed ?? true,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSpeed: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpeed: v })),
     manualValue: () => current().speed ?? 30,
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, speed: v })),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, speed: v })),
     calculatedValue: () => effectiveMovement().walk,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().walk, movementGrants().walk),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().walk, movementGrants().walk),
   })
 
   const flySpeedField = useCalculatedValue({
     useCalculated: () => current().useCalculatedFlySpeed ?? true,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedFlySpeed: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedFlySpeed: v })),
     manualValue: () => current().flySpeed ?? 0,
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, flySpeed: v })),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, flySpeed: v })),
     calculatedValue: () => effectiveMovement().fly,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().fly, movementGrants().fly),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().fly, movementGrants().fly),
   })
 
   const swimSpeedField = useCalculatedValue({
     useCalculated: () => current().useCalculatedSwimSpeed ?? true,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSwimSpeed: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSwimSpeed: v })),
     manualValue: () => current().swimSpeed ?? 0,
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, swimSpeed: v })),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, swimSpeed: v })),
     calculatedValue: () => effectiveMovement().swim,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().swim, movementGrants().swim),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().swim, movementGrants().swim),
   })
 
   const climbSpeedField = useCalculatedValue({
     useCalculated: () => current().useCalculatedClimbSpeed ?? true,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedClimbSpeed: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedClimbSpeed: v })),
     manualValue: () => current().climbSpeed ?? 0,
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, climbSpeed: v })),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, climbSpeed: v })),
     calculatedValue: () => effectiveMovement().climb,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().climb, movementGrants().climb),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().climb, movementGrants().climb),
   })
 
   const burrowSpeedField = useCalculatedValue({
     useCalculated: () => current().useCalculatedBurrowSpeed ?? true,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedBurrowSpeed: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedBurrowSpeed: v })),
     manualValue: () => current().burrowSpeed ?? 0,
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, burrowSpeed: v })),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, burrowSpeed: v })),
     calculatedValue: () => effectiveMovement().burrow,
-    calculatedTooltip: () => movementTooltip(effectiveMovement().burrow, movementGrants().burrow),
-  })
-
-  const sizeField = useCalculatedValue<string>({
-    useCalculated: () => current().useCalculatedSize ?? true,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedSize: v })),
-    manualValue: () => current().size ?? "Medium",
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, size: v })),
-    calculatedValue: () => effectiveSize().size,
-    calculatedTooltip: () => movementTooltip(effectiveSize().size, effectiveSize().source),
+    calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().burrow, movementGrants().burrow),
   })
 
   const initiativeField = useCalculatedValue({
     useCalculated: () => current().useCalculatedInitiative ?? false,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedInitiative: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedInitiative: v })),
     manualValue: () => current().initiative ?? 0,
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, initiative: v })),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, initiative: v })),
     calculatedValue: calcInitiative,
     calculatedTooltip: initiativeTooltip,
   })
 
   const profBonusField = useCalculatedValue({
     useCalculated: () => current().useCalculatedProficiencyBonus ?? false,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedProficiencyBonus: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedProficiencyBonus: v })),
     manualValue: () => current().proficiencyBonus ?? 2,
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, proficiencyBonus: v })),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, proficiencyBonus: v })),
     calculatedValue: calcProfBonus,
     calculatedTooltip: profBonusTooltip,
   })
 
   const passivePerceptionField = useCalculatedValue({
     useCalculated: () => current().useCalculatedPassivePerception ?? true,
-    setUseCalculated: (v) => setEdited((prev) => ({ ...prev, useCalculatedPassivePerception: v })),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedPassivePerception: v })),
     manualValue: () => current().passivePerception ?? passivePerceptionCalc(),
-    setManualValue: (v) => setEdited((prev) => ({ ...prev, passivePerception: v })),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, passivePerception: v })),
     calculatedValue: passivePerceptionCalc,
     calculatedTooltip: passivePerceptionTooltip,
   })
@@ -308,11 +298,11 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
       data-test="combat-stats-module"
       icon={<ShieldIcon class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Combat Stats"
-      isEditing={isEditing()}
-      onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
-      onSave={handleSave}
-      onSaveKeepEditing={handleSaveKeepEditing}
-      onCancel={handleCancel}
+      isEditing={edit.isEditing()}
+      onEdit={edit.start}
+      onSave={() => { blurFocused(); edit.save() }}
+      onSaveKeepEditing={() => { blurFocused(); edit.commit() }}
+      onCancel={edit.cancel}
       contentClass="space-y-6"
     >
         {/* Hit Points */}
@@ -322,7 +312,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               <Heart class="h-4 w-4 text-destructive" aria-hidden="true" />
               Hit Points
             </Label>
-            <Show when={!isEditing() && !isReadOnly}>
+            <Show when={!edit.isEditing() && !isReadOnly}>
               <div class="flex gap-1">
                 <Button data-test="hp-decrease-button" size="sm" variant="outline" aria-label="Decrease HP" onClick={() => adjustHitPoints(-1)} disabled={currentHP() <= 0}>
                   <Minus class="h-3 w-3" aria-hidden="true" />
@@ -334,7 +324,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             </Show>
           </div>
 
-          <Show when={isEditing()} fallback={
+          <Show when={edit.isEditing()} fallback={
             <div class="space-y-2">
               <div class="flex justify-between items-center">
                 <span class="text-2xl font-bold">
@@ -344,7 +334,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                 </span>
                 <span class="text-sm text-muted-foreground">{Math.round(hpPercentage())}%</span>
               </div>
-              <div class="relative h-2 w-full overflow-hidden bg-secondary/30 rounded-full">
+              <div class="relative h-2 w-full overflow-hidden rounded-full">
                 <div
                   class={`absolute left-0 top-0 h-full transition-all duration-300 ${hpColor()}`}
                   style={{ width: `${hpPercentage()}%` }}
@@ -375,16 +365,16 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
             <div class="flex flex-wrap items-end justify-center gap-4">
               <div class="space-y-1">
                 <Label class="text-xs">Current</Label>
-                <StepperInput data-test="current-hp-stepper" min={0} value={edited().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} aria-label="Current hit points" />
+                <StepperInput data-test="current-hp-stepper" min={0} value={edit.draft().hitPoints?.current ?? 0} onChange={(v) => updateHP("current", v)} aria-label="Current hit points" />
               </div>
-              <CalculatedValue data-test="max-hp" label="Maximum" editable={isEditing()} min={1} {...maximumHpField.binding()} />
+              <CalculatedValue data-test="max-hp" label="Maximum" editable={edit.isEditing()} min={1} {...maximumHpField.binding()} />
               <div class="space-y-1">
                 <Label class="text-xs">Temporary</Label>
-                <StepperInput data-test="temp-hp-stepper" min={0} value={edited().hitPoints?.temporary ?? 0} onChange={(v) => updateHP("temporary", v)} aria-label="Temporary hit points" />
+                <StepperInput data-test="temp-hp-stepper" min={0} value={edit.draft().hitPoints?.temporary ?? 0} onChange={(v) => updateHP("temporary", v)} aria-label="Temporary hit points" />
               </div>
               <div class="space-y-1">
                 <Label class="text-xs">Temp Max HP</Label>
-                <StepperInput data-test="temp-max-hp-stepper" min={-999} value={edited().hitPoints?.temporaryMaximum ?? 0} onChange={(v) => updateHP("temporaryMaximum", v)} aria-label="Temporary maximum hit points" />
+                <StepperInput data-test="temp-max-hp-stepper" min={-999} value={edit.draft().hitPoints?.temporaryMaximum ?? 0} onChange={(v) => updateHP("temporaryMaximum", v)} aria-label="Temporary maximum hit points" />
               </div>
             </div>
           </Show>
@@ -403,14 +393,18 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   <CheckCircle class="h-3 w-3" aria-hidden="true" /> Successes
                 </div>
                 <PipTracker
+                  data-test="death-save-successes"
                   total={3}
                   used={props.character.deathSaves?.successes || 0}
                   onToggle={(n) => toggleDeathSave("successes", n)}
-                  filledClass="bg-green-500 border-green-500 hover:bg-green-400"
-                  emptyClass="bg-background border-green-500 hover:bg-green-100"
+                  icon={null}
+                  filledClass="bg-green-600 border-green-600 hover:bg-green-700"
+                  emptyClass="bg-background border-green-600 hover:bg-green-100"
                   filledIcon={<CheckCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Success (click to remove)"
                   availableTitle="Click to add success"
+                  usedLabel="Success"
+                  availableLabel="No success"
                   readOnly={isReadOnly}
                 />
               </div>
@@ -419,14 +413,18 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                   <XCircle class="h-3 w-3" aria-hidden="true" /> Failures
                 </div>
                 <PipTracker
+                  data-test="death-save-failures"
                   total={3}
                   used={props.character.deathSaves?.failures || 0}
                   onToggle={(n) => toggleDeathSave("failures", n)}
-                  filledClass="bg-red-500 border-red-500 hover:bg-red-400"
+                  icon={null}
+                  filledClass="bg-red-500 border-red-500 hover:bg-red-600"
                   emptyClass="bg-background border-red-500 hover:bg-red-100"
                   filledIcon={<XCircle class="h-4 w-4 text-white" aria-hidden="true" />}
                   usedTitle="Failure (click to remove)"
                   availableTitle="Click to add failure"
+                  usedLabel="Failure"
+                  availableLabel="No failure"
                   readOnly={isReadOnly}
                 />
               </div>
@@ -450,9 +448,24 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           emptyText="None"
           editing={!isReadOnly}
           options={CONDITIONS}
-          values={props.character.conditions ?? []}
+          values={conditionValues()}
+          optionLabel={conditionLabel}
           onChange={setConditions}
         />
+        <Show when={exhaustionLevel() > 0}>
+          {/* mt-3: the stepper's hit areas reach 10px above it, clear of the chips */}
+          <div data-sem="exhaustion" class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <Show when={!isReadOnly}>
+              <span class="inline-flex items-center gap-2">
+                <span class="text-muted-foreground">Exhaustion level</span>
+                <InlineStepper data-test="exhaustion-level" label="Exhaustion level" value={exhaustionLevel()} min={1} max={MAX_EXHAUSTION_LEVEL} onChange={setExhaustionLevel} />
+              </span>
+            </Show>
+            <p data-test="exhaustion-effects" class="text-xs text-muted-foreground">
+              {edition()} rules: {getExhaustionEffects(edition(), exhaustionLevel()).join(" · ")}
+            </p>
+          </div>
+        </Show>
 
         {/* Condition Immunities */}
         <ChipListEditor
@@ -478,7 +491,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           <div class="text-center">
             <CalculatedValue data-test="armor-class"
               label="Armor Class"
-              editable={isEditing()}
+              editable={edit.isEditing()}
               {...acField.binding()}
             />
           </div>
@@ -487,7 +500,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           <div class="text-center">
             <CalculatedValue data-test="initiative"
               label="Initiative"
-              editable={isEditing()}
+              editable={edit.isEditing()}
               {...initiativeField.binding()}
               format={formatModifier}
             />
@@ -497,12 +510,12 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           <div class="text-center">
             <CalculatedValue data-test="speed"
               label="Speed"
-              editable={isEditing()}
+              editable={edit.isEditing()}
               {...speedField.binding()}
               format={(n) => `${n} ft`}
             />
             <Show
-              when={isEditing()}
+              when={edit.isEditing()}
               fallback={
                 <div class="flex flex-wrap justify-center gap-x-2 text-xs text-muted-foreground mt-0.5">
                   <Show when={flySpeedField.resolvedValue() > 0}><span>Fly {flySpeedField.resolvedValue()} ft</span></Show>
@@ -513,10 +526,10 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
               }
             >
               <div class="grid grid-cols-2 gap-1 mt-2">
-                <CalculatedValue data-test="fly-speed" variant="compact" label="Fly" editable={isEditing()} min={0} {...flySpeedField.binding()} format={(n) => `${n} ft`} />
-                <CalculatedValue data-test="swim-speed" variant="compact" label="Swim" editable={isEditing()} min={0} {...swimSpeedField.binding()} format={(n) => `${n} ft`} />
-                <CalculatedValue data-test="climb-speed" variant="compact" label="Climb" editable={isEditing()} min={0} {...climbSpeedField.binding()} format={(n) => `${n} ft`} />
-                <CalculatedValue data-test="burrow-speed" variant="compact" label="Burrow" editable={isEditing()} min={0} {...burrowSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="fly-speed" variant="compact" label="Fly" editable={edit.isEditing()} min={0} {...flySpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="swim-speed" variant="compact" label="Swim" editable={edit.isEditing()} min={0} {...swimSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="climb-speed" variant="compact" label="Climb" editable={edit.isEditing()} min={0} {...climbSpeedField.binding()} format={(n) => `${n} ft`} />
+                <CalculatedValue data-test="burrow-speed" variant="compact" label="Burrow" editable={edit.isEditing()} min={0} {...burrowSpeedField.binding()} format={(n) => `${n} ft`} />
               </div>
             </Show>
           </div>
@@ -525,7 +538,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           <div class="text-center">
             <CalculatedValue data-test="proficiency-bonus"
               label="Proficiency Bonus"
-              editable={isEditing()}
+              editable={edit.isEditing()}
               {...profBonusField.binding()}
               format={formatModifier}
             />
@@ -535,17 +548,10 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
           <div class="text-center">
             <CalculatedValue data-test="passive-perception"
               label={passivePerceptionLabel()}
-              editable={isEditing()}
+              editable={edit.isEditing()}
               {...passivePerceptionField.binding()}
             />
           </div>
-
-          {/* Size — 2024 only */}
-          <Show when={edition() === "2024"}>
-            <div class="text-center">
-              <CalculatedValueSelect data-test="size" label="Size" editable={isEditing()} options={SIZES} {...sizeField.binding()} />
-            </div>
-          </Show>
         </div>
 
     </EditableModule>

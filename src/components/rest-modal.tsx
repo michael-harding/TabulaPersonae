@@ -1,5 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import FlameKindling from "lucide-solid/icons/flame-kindling"
+import Dices from "lucide-solid/icons/dices"
 
 import type { Character, Equipment } from "@/lib/character-types"
 import { getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest } from "@/lib/character-utils"
@@ -40,6 +41,7 @@ export function RestModal(props: RestModalProps) {
       ...(props.character.attacks ?? []),
       ...(props.character.bonusActions ?? []),
       ...(props.character.reactions ?? []),
+      ...(props.character.otherActions ?? []),
       ...safeFeatures(props.character.classFeatures),
       ...safeFeatures(props.character.speciesTraits),
       ...safeFeatures(props.character.feats),
@@ -67,6 +69,7 @@ export function RestModal(props: RestModalProps) {
     const attacks = char.attacks ?? []
     const bonusActions = char.bonusActions ?? []
     const reactions = char.reactions ?? []
+    const otherActions = char.otherActions ?? []
 
     if (restType() === "short") {
       const spent = dicesToSpend()
@@ -84,6 +87,7 @@ export function RestModal(props: RestModalProps) {
         attacks: resetMatching(attacks, "short-rest"),
         bonusActions: resetMatching(bonusActions, "short-rest"),
         reactions: resetMatching(reactions, "short-rest"),
+        otherActions: resetMatching(otherActions, "short-rest"),
         classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest"),
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest"),
@@ -100,10 +104,13 @@ export function RestModal(props: RestModalProps) {
         hitPoints: { ...char.hitPoints, current: getEffectiveMaxHp(char), temporary: 0 },
         spentHitDice: 0,
         spellSlots: resetSpellSlots,
-        conditions: (char.conditions ?? []).filter((c) => c !== "Exhaustion"),
+        // A long rest removes one level of Exhaustion. 2014 adds "if the creature also ate and drank",
+        // which the sheet takes as given for every long rest.
+        ...((char.exhaustionLevel ?? 0) > 0 ? { exhaustionLevel: (char.exhaustionLevel ?? 0) - 1 } : {}),
         attacks: resetMatching(attacks, "short-rest", "long-rest"),
         bonusActions: resetMatching(bonusActions, "short-rest", "long-rest"),
         reactions: resetMatching(reactions, "short-rest", "long-rest"),
+        otherActions: resetMatching(otherActions, "short-rest", "long-rest"),
         classFeatures: resetMatching(safeFeatures(char.classFeatures), "short-rest", "long-rest"),
         speciesTraits: resetMatching(safeFeatures(char.speciesTraits), "short-rest", "long-rest"),
         feats: resetMatching(safeFeatures(char.feats), "short-rest", "long-rest"),
@@ -130,8 +137,9 @@ export function RestModal(props: RestModalProps) {
             <button
               type="button"
               data-test="rest-type-short-button"
+              aria-pressed={restType() === "short"}
               onClick={() => { setRestType("short"); setDicesToSpend(0); setRollResult(null) }}
-              class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "short" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
+              class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "short" ? "border-primary" : "border-border"}`}
             >
               <div class="font-semibold">Short Rest</div>
               <div class="text-xs text-muted-foreground mt-0.5">1 hour</div>
@@ -139,8 +147,9 @@ export function RestModal(props: RestModalProps) {
             <button
               type="button"
               data-test="rest-type-long-button"
+              aria-pressed={restType() === "long"}
               onClick={() => { setRestType("long"); setDicesToSpend(0); setRollResult(null) }}
-              class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "long" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"}`}
+              class={`p-3 rounded-lg border-2 text-left transition-colors ${restType() === "long" ? "border-primary" : "border-border"}`}
             >
               <div class="font-semibold">Long Rest</div>
               <div class="text-xs text-muted-foreground mt-0.5">8 hours</div>
@@ -148,7 +157,7 @@ export function RestModal(props: RestModalProps) {
           </div>
 
           {/* Benefits */}
-          <div class="p-3 bg-muted/50 rounded-lg space-y-1">
+          <div class="p-3 rounded-lg space-y-1">
             <div class="text-sm font-medium">Benefits</div>
             <Show
               when={restType() === "short"}
@@ -157,7 +166,7 @@ export function RestModal(props: RestModalProps) {
                   <li>Regain all lost Hit Points</li>
                   <li>All spent Hit Dice restored</li>
                   <li>All spell slots restored</li>
-                  <li>Exhaustion reduced by 1</li>
+                  <li>Exhaustion level reduced by 1</li>
                   <li>Long-rest features recharge</li>
                   <li>Reset temporary hit points to 0</li>
                 </ul>
@@ -200,6 +209,8 @@ export function RestModal(props: RestModalProps) {
                   }
                 >
                   <PipTracker
+                    data-test="rest-hit-dice"
+                    icon={Dices}
                     total={availableHitDice()}
                     used={dicesToSpend()}
                     onToggle={setDicesToSpend}

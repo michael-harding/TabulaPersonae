@@ -57,7 +57,7 @@ export function EditableModule(props: EditableModuleProps) {
                   </Button>
                 </Tooltip>
                 <Tooltip content="Save changes">
-                  <Button data-test={`${props["data-test"]}-save`} variant="outline" size="sm" aria-label="Save changes" onClick={props.onSave} class="border-green-500 text-green-500 hover:!bg-green-500/30 hover:!text-green-500">
+                  <Button data-test={`${props["data-test"]}-save`} variant="outline" size="sm" aria-label="Save changes" onClick={props.onSave} class="border-green-700 text-green-700 dark:border-green-400 dark:text-green-400 hover:!bg-green-500/30 hover:!text-green-700 dark:hover:!text-green-400">
                     <Check class="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </Tooltip>

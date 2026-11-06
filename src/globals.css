@@ -20,8 +20,10 @@
   --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.55 0.25 15);
   --destructive-foreground: oklch(1 0 0);
+  /* Destructive as text on the page background (an error message), not as a fill. */
+  --destructive-text: oklch(0.55 0.25 15);
   --border: oklch(0.9 0 0);
-  --input: oklch(0.98 0 0);
+  --input: oklch(0.62 0 0);
   --ring: oklch(0.55 0.15 200);
   --chart-1: oklch(0.45 0.2 260);
   --chart-2: oklch(0.35 0 0);
@@ -56,9 +58,11 @@
   --accent-foreground: oklch(0.95 0 0);
   --destructive: oklch(0.45 0.2 15);
   --destructive-foreground: oklch(0.95 0 0);
+  /* The fill red is 2.3:1 on the dark background; text needs 4.5:1 (WCAG 1.4.3). */
+  --destructive-text: oklch(0.72 0.17 15);
   --border: oklch(0.25 0 0);
-  --input: oklch(0.35 0 0);
-  --ring: oklch(0.45 0 0);
+  --input: oklch(0.55 0 0);
+  --ring: oklch(0.7 0 0);
   --chart-1: oklch(0.55 0.2 260);
   --chart-2: oklch(0.7 0.15 160);
   --chart-3: oklch(0.75 0.2 70);
@@ -74,9 +78,26 @@
   --sidebar-ring: oklch(0.45 0 0);
 }
 
+/* A character's sheet colour, as one readable shade per theme (see src/lib/sheet-color.ts). Text
+   on the shade uses the surface colour, which the shade is readable against. */
+[data-sheet-color] {
+  --primary: var(--sheet-primary-light);
+  --primary-foreground: oklch(1 0 0);
+}
+.dark [data-sheet-color] {
+  --primary: var(--sheet-primary-dark);
+  --primary-foreground: var(--background);
+}
+
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+  }
+  /* ACCESSIBILITY.md §4: every control shows focus, whether or not it asks for a ring of its own.
+     A control's focus-visible:outline-none and ring utilities come later, so they replace this. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
   body {
     @apply bg-background text-foreground;

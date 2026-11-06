@@ -321,7 +321,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       </div>
 
       <Show when={formData.type === "weapon"}>
-        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
+        <div class="space-y-3 border rounded-md p-3">
           <p class="text-sm font-medium">Weapon Stats</p>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -387,7 +387,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       </Show>
 
       <Show when={formData.type === "armor"}>
-        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
+        <div class="space-y-3 border rounded-md p-3">
           <p class="text-sm font-medium">Armor Stats</p>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -467,7 +467,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       </div>
 
       <Show when={formData.magic}>
-        <div class="space-y-3 border rounded-md p-3 bg-muted/30">
+        <div class="space-y-3 border rounded-md p-3">
           <p class="text-sm font-medium flex items-center gap-1">
             <Gem class="h-3.5 w-3.5" aria-hidden="true" />
             Magic Item Details

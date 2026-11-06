@@ -41,10 +41,11 @@ const config: Config = {
         destructive: {
           DEFAULT: "var(--destructive)",
           foreground: "var(--destructive-foreground)",
+          text: "var(--destructive-text)",
         },
         border: "var(--border)",
         input: "var(--input)",
-        ring: "hsl(var(--ring))",
+        ring: "var(--ring)",
         chart: {
           "1": "var(--chart-1)",
           "2": "var(--chart-2)",

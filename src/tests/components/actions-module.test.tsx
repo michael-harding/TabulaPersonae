@@ -675,6 +675,25 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       expect(screen.getByRole("button", { name: "3rd" })).toBeInTheDocument()
     })
 
+    // TESTING.md §6: a spell cast as a bonus action or a reaction is listed in both sections, so
+    // each copy needs its own hooks, and opening Upcast on one must not open the other
+    it("keeps a spell listed in two sections apart by section", () => {
+      const char = makeCharacter({
+        spells: [makeUpcastSpell({ castingTime: "1 bonus action or 1 reaction" })],
+        spellSlots: {
+          ...createDefaultCharacter().spellSlots,
+          1: { total: 2, used: 0 },
+          2: { total: 1, used: 0 },
+        },
+      })
+      render(() => <ActionsModule character={char} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("action-card-bonus-spell-sp-upcast")).toBeInTheDocument()
+      expect(screen.getByTestId("action-card-reaction-spell-sp-upcast")).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId("action-card-bonus-spell-sp-upcast-upcast-toggle"))
+      expect(screen.getByTestId("action-card-bonus-spell-sp-upcast-upcast-level-2")).toBeInTheDocument()
+      expect(screen.queryByTestId("action-card-reaction-spell-sp-upcast-upcast-level-2")).not.toBeInTheDocument()
+    })
+
     it("upcast button works for bonus action spells", () => {
       const char = makeCharacter({
         spells: [makeUpcastSpell({ castingTime: "1 bonus action" })],
@@ -1202,6 +1221,18 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
         />
       ))
       expect(screen.getByText("Consumable")).toBeInTheDocument()
+    })
+
+    it("marks each available use on an equipment action card with a backpack, as the inventory does", () => {
+      render(() => (
+        <ActionsModule
+          character={makeCharacter({
+            equipment: [makeConsumable({ id: "item-2", actionKind: "bonus-action", maxUses: 3, consumedUses: 0 })],
+          })}
+          onUpdate={vi.fn()}
+        />
+      ))
+      expect(screen.getAllByLabelText("Charge available (click to use)")[0].querySelector(".lucide-backpack")).not.toBeNull()
     })
 
     it("clicking the uses tracker on an equipment action card updates the item's uses", () => {

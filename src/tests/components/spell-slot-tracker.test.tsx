@@ -106,6 +106,12 @@ describe("SpellSlotTracker", () => {
     expect(results.violations).toHaveLength(0)
   })
 
+  it("marks each available slot with a wand", () => {
+    render(() => <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 1 } })} onToggle={vi.fn()} />)
+    expect(screen.getByTestId("spell-slot-level-1-pips-slot-0").querySelector("svg")).toBeNull()
+    expect(screen.getByTestId("spell-slot-level-1-pips-slot-1").querySelector(".lucide-wand-sparkles")).not.toBeNull()
+  })
+
   describe("readOnly mode", () => {
     it("renders pips as non-interactive spans (no buttons) when readOnly context is active", () => {
       render(() => (
@@ -117,8 +123,9 @@ describe("SpellSlotTracker", () => {
         </ReadOnlyProvider>
       ))
       expect(screen.queryAllByRole("button")).toHaveLength(0)
-      expect(screen.queryAllByLabelText("Available slot (click to use)")).toHaveLength(2)
-      expect(screen.queryAllByLabelText("Used slot (click to restore)")).toHaveLength(1)
+      // Read-only: named by state, since they cannot be clicked
+      expect(screen.queryAllByRole("img", { name: "Available slot" })).toHaveLength(2)
+      expect(screen.queryAllByRole("img", { name: "Used slot" })).toHaveLength(1)
     })
 
     it("still renders the level label when readOnly", () => {

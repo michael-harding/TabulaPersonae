@@ -1,6 +1,7 @@
 import { type Page, type Locator } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
+import { openSheet, seedGuest } from "./helpers"
 import { axeBuilder, test, expect } from "./test"
 
 // Every popup (DropdownMenu, Combobox, Select) must close on a second click of the control that
@@ -28,12 +29,8 @@ async function expectOpenCloseOpen(page: Page, control: Locator) {
 
 test.describe("Popups close on a second click", () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript((data: unknown) => {
-      localStorage.setItem("dnd-characters", JSON.stringify([data]))
-      localStorage.setItem("dnd-skip-auth", "true")
-    }, testCharacter)
-    await page.goto(`/character/${testCharacter.id}`)
-    await page.waitForLoadState("networkidle")
+    await seedGuest(page, testCharacter)
+    await openSheet(page, testCharacter.id)
   })
 
   test("DropdownMenu trigger", async ({ page }) => {
@@ -51,7 +48,7 @@ test.describe("Popups close on a second click", () => {
     })
 
     test("Combobox chevron", async ({ page }) => {
-      await expectOpenCloseOpen(page, page.locator('[data-test="class-combobox"] ~ button'))
+      await expectOpenCloseOpen(page, page.locator('[data-test="class-combobox-toggle"]'))
     })
 
     test("Select trigger", async ({ page }) => {

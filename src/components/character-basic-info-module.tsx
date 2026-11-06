@@ -1,7 +1,8 @@
-import { createSignal, createEffect, on, untrack, For, Show } from "solid-js"
+import { For, Show } from "solid-js"
 import User from "lucide-solid/icons/user"
 
 import type { Character } from "@/lib/character-types"
+import { useModuleEdit } from "@/hooks/use-module-edit"
 import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -35,9 +36,10 @@ const ALIGNMENTS = [
   "Lawful Evil","Neutral Evil","Chaotic Evil",
 ]
 
-const toEdit = (c: Character) => ({
-  ...c,
+// The fields this module's edit form shows (see useModuleEdit for how Save writes them)
+const toDraft = (c: Character) => ({
   name: c.name || "",
+  level: c.level,
   race: c.race || "",
   class: c.class || "",
   subclass: c.subclass || "",
@@ -46,27 +48,18 @@ const toEdit = (c: Character) => ({
   experiencePoints: c.experiencePoints || 0,
 })
 
-type EditState = ReturnType<typeof toEdit>
+type Draft = ReturnType<typeof toDraft>
 
 export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
-  const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
-  createEffect(on(() => props.character.id, () => {
-    setEdited(toEdit(props.character))
-  }))
+  const edit = useModuleEdit({ character: () => props.character, toDraft, onUpdate: (c) => props.onUpdate(c) })
 
   const edition = () => props.character.edition ?? "2024"
   const raceLabel = () => edition() === "2014" ? "Race" : "Species"
   const raceList = () => edition() === "2014" ? RACES : SPECIES
 
-  const updateField = <K extends keyof EditState>(field: K, value: EditState[K]) => {
-    setEdited((prev) => ({ ...prev, [field]: value }))
+  const updateField = <K extends keyof Draft>(field: K, value: Draft[K]) => {
+    edit.setDraft((prev) => ({ ...prev, [field]: value }))
   }
-
-  const persist = () => { props.onUpdate(edited()) }
-  const handleSave = () => { persist(); setIsEditing(false) }
-  const handleSaveKeepEditing = () => { persist() }
-  const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
   return (
     <EditableModule
@@ -74,46 +67,46 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
       data-test="character-basic-info-module"
       icon={<User class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Character Information"
-      isEditing={isEditing()}
-      onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
-      onSave={handleSave}
-      onSaveKeepEditing={handleSaveKeepEditing}
-      onCancel={handleCancel}
+      isEditing={edit.isEditing()}
+      onEdit={edit.start}
+      onSave={edit.save}
+      onSaveKeepEditing={edit.commit}
+      onCancel={edit.cancel}
       contentClass="space-y-4"
     >
-        {isEditing() ? (
+        {edit.isEditing() ? (
           <>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label for="name">Character Name</Label>
-                <Input id="name" value={edited().name} onInput={(e) => updateField("name", e.currentTarget.value)} placeholder="Enter character name" />
+                <Input id="name" value={edit.draft().name} onInput={(e) => updateField("name", e.currentTarget.value)} placeholder="Enter character name" />
               </div>
               <div>
                 <Label for="level">Level</Label>
-                <NumericInput id="level" min={1} max={20} value={edited().level || 1} onChange={(v) => updateField("level", v)} />
+                <NumericInput id="level" min={1} max={20} value={edit.draft().level || 1} onChange={(v) => updateField("level", v)} />
               </div>
               <div>
                 <Label for="race">{raceLabel()}</Label>
-                <Combobox id="race" data-test="race-combobox" value={edited().race} onValueChange={(v) => updateField("race", v)} options={raceList()} placeholder={`Select ${raceLabel().toLowerCase()}`} />
+                <Combobox id="race" data-test="race-combobox" value={edit.draft().race} onValueChange={(v) => updateField("race", v)} options={raceList()} placeholder={`Select ${raceLabel().toLowerCase()}`} />
               </div>
               <div>
                 <Label for="class">Class</Label>
-                <Combobox id="class" data-test="class-combobox" value={edited().class} onValueChange={(v) => updateField("class", v)} options={CLASSES} placeholder="Select class" />
+                <Combobox id="class" data-test="class-combobox" value={edit.draft().class} onValueChange={(v) => updateField("class", v)} options={CLASSES} placeholder="Select class" />
               </div>
               <Show when={edition() === "2024"}>
                 <div>
                   <Label for="subclass">Subclass</Label>
-                  <Input id="subclass" value={edited().subclass || ""} onInput={(e) => updateField("subclass", e.currentTarget.value)} placeholder="Enter subclass" />
+                  <Input id="subclass" value={edit.draft().subclass || ""} onInput={(e) => updateField("subclass", e.currentTarget.value)} placeholder="Enter subclass" />
                 </div>
               </Show>
               <div>
                 <Label for="background">Background</Label>
-                <Input id="background" value={edited().background} onInput={(e) => updateField("background", e.currentTarget.value)} placeholder="Enter background" />
+                <Input id="background" value={edit.draft().background} onInput={(e) => updateField("background", e.currentTarget.value)} placeholder="Enter background" />
               </div>
               <div>
                 <Label for="alignment">Alignment</Label>
-                <Select value={edited().alignment} onValueChange={(v) => updateField("alignment", v)}>
-                  <SelectTrigger id="alignment"><SelectValue placeholder="Select alignment" /></SelectTrigger>
+                <Select value={edit.draft().alignment} onValueChange={(v) => updateField("alignment", v)}>
+                  <SelectTrigger id="alignment" data-test="alignment-select"><SelectValue placeholder="Select alignment" /></SelectTrigger>
                   <SelectContent>
                     <For each={ALIGNMENTS}>{(a) => <SelectItem value={a}>{a}</SelectItem>}</For>
                   </SelectContent>
@@ -122,7 +115,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
             </div>
             <div>
               <Label for="xp">Experience Points</Label>
-              <NumericInput id="xp" min={0} value={edited().experiencePoints || 0} onChange={(v) => updateField("experiencePoints", v)} />
+              <NumericInput id="xp" min={0} value={edit.draft().experiencePoints || 0} onChange={(v) => updateField("experiencePoints", v)} />
             </div>
           </>
         ) : (

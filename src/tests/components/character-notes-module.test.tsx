@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
+import { createStore } from "solid-js/store"
 
 import { CharacterNotesModule } from "@/components/character-notes-module"
 import { createDefaultCharacter } from "@/lib/character-types"
+import type { Character } from "@/lib/character-types"
 
 import { render, screen, fireEvent } from "../test-utils"
 
@@ -248,5 +250,25 @@ describe("CharacterNotesModule", () => {
     const { container } = render(() => <CharacterNotesModule character={emptyCharacter} onUpdate={vi.fn()} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+})
+
+// Regression: Save wrote back a copy of the whole character taken when editing began, so it undid
+// changes other modules saved while this one was being edited
+describe("CharacterNotesModule — changes saved elsewhere while editing", () => {
+  it("keeps them when Save is clicked", () => {
+    const [character, setCharacter] = createStore<Character>(createDefaultCharacter())
+    const onUpdate = vi.fn()
+    render(() => <CharacterNotesModule character={character} onUpdate={onUpdate} />)
+    enterEditMode()
+    fireEvent.input(screen.getByLabelText(/^bonds$/i), { target: { value: "My mentor" } })
+    setCharacter("hitPoints", "current", 3)
+    setCharacter("conditions", ["Prone"])
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+    expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      bonds: "My mentor",
+      hitPoints: expect.objectContaining({ current: 3 }),
+      conditions: ["Prone"],
+    }))
   })
 })
