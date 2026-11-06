@@ -14,21 +14,34 @@ interface CharacterNotesModuleProps {
   onUpdate: (character: Character) => void
 }
 
+const NOTES_FIELDS = [
+  "age", "height", "weight", "eyes", "skin", "hair", "appearance", "personalityTraits", "ideals", "bonds", "flaws",
+  "backstory", "alliesAndOrganizations", "treasure", "notes",
+] as const satisfies readonly (keyof Character)[]
+type NotesField = (typeof NOTES_FIELDS)[number]
+
+// Only the fields this module's edit form owns: other modules can change the character while this
+// one is editing, so Save merges these onto the live character rather than writing back a copy of
+// all of it taken when editing began.
+const toEdit = (c: Character): Pick<Character, NotesField> =>
+  Object.fromEntries(NOTES_FIELDS.map((field) => [field, c[field]])) as Pick<Character, NotesField>
+
 export function CharacterNotesModule(props: CharacterNotesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
-  const [editedCharacter, setEditedCharacter] = createSignal(untrack(() => props.character))
+  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
 
   createEffect(on(() => props.character.id, () => {
-    setEditedCharacter(props.character)
+    setEdited(toEdit(props.character))
   }))
 
+  const editedCharacter = (): Character => ({ ...props.character, ...edited() })
   const persist = () => { props.onUpdate(editedCharacter()) }
   const handleSave = () => { persist(); setIsEditing(false) }
   const handleSaveKeepEditing = () => { persist() }
-  const handleCancel = () => { setEditedCharacter(props.character); setIsEditing(false) }
+  const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
 
-  const updateField = (field: keyof Character, value: string) => {
-    setEditedCharacter((prev) => ({ ...prev, [field]: value }))
+  const updateField = (field: NotesField, value: string) => {
+    setEdited((prev) => ({ ...prev, [field]: value }))
   }
 
   const current = () => isEditing() ? editedCharacter() : props.character
@@ -82,7 +95,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
       icon={<FileText class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Character Background & Notes"
       isEditing={isEditing()}
-      onEdit={() => { setEditedCharacter(props.character); setIsEditing(true) }}
+      onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
       onSave={handleSave}
       onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}

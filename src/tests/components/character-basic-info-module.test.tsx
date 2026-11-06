@@ -1,7 +1,9 @@
 import { axe } from "vitest-axe"
+import { createStore } from "solid-js/store"
 
 import { CharacterBasicInfoModule } from "@/components/character-basic-info-module"
 import { createDefaultCharacter } from "@/lib/character-types"
+import type { Character } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 import { cleanup, render, screen, fireEvent } from "../test-utils"
@@ -300,5 +302,26 @@ describe("CharacterBasicInfoModule", () => {
       ))
       expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument()
     })
+  })
+})
+
+// Regression: Save wrote back a copy of the whole character taken when editing began, so it undid
+// changes other modules saved while this one was being edited
+describe("CharacterBasicInfoModule — changes saved elsewhere while editing", () => {
+  it("keeps them when Save is clicked", () => {
+    const [character, setCharacter] = createStore<Character>({ ...populatedCharacter })
+    const onUpdate = vi.fn()
+    render(() => <CharacterBasicInfoModule character={character} onUpdate={onUpdate} />)
+    clickEditButton()
+    fireEvent.input(screen.getByLabelText(/character name/i), { target: { value: "Strider" } })
+    setCharacter("hitPoints", "current", 3)
+    setCharacter("conditions", ["Prone"])
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+    expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      name: "Strider",
+      level: 10,
+      hitPoints: expect.objectContaining({ current: 3 }),
+      conditions: ["Prone"],
+    }))
   })
 })

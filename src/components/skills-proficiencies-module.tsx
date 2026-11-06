@@ -88,13 +88,27 @@ function SkillAdvantagePips(props: {
   )
 }
 
+const SKILLS_EDIT_FIELDS = [
+  "skills", "savingThrows", "senses", "useCalculatedSenses",
+  "passivePerception", "passiveInsight", "passiveInvestigation",
+  "useCalculatedPassivePerception", "useCalculatedPassiveInsight", "useCalculatedPassiveInvestigation",
+  "languages", "otherProficiencies", "damageResistances", "damageImmunities", "damageVulnerabilities",
+] as const satisfies readonly (keyof Character)[]
+type SkillsEditState = Pick<Character, (typeof SKILLS_EDIT_FIELDS)[number]>
+
+// Only the fields this module's edit form owns: other modules can change the character while this
+// one is editing, so Save merges these onto the live character rather than writing back a copy of
+// all of it taken when editing began.
+const toEdit = (c: Character): SkillsEditState =>
+  Object.fromEntries(SKILLS_EDIT_FIELDS.map((field) => [field, c[field]])) as SkillsEditState
+
 export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps) {
   const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(untrack(() => props.character))
+  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
 
-  createEffect(on(() => props.character.id, () => setEdited(props.character)))
+  createEffect(on(() => props.character.id, () => setEdited(toEdit(props.character))))
 
-  const current = () => isEditing() ? edited() : props.character
+  const current = createMemo((): Character => isEditing() ? { ...props.character, ...edited() } : props.character)
   const effectiveScores = createMemo(() => getEffectiveAbilityScores(current()))
   const modifierTotals = createMemo(() => getEquipmentModifierTotals(current().equipment))
   const featureTotals = createMemo(() => getActiveFeatureEffects(current()))
@@ -144,9 +158,9 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   const passiveStats = [passivePerceptionStat, passiveInsightStat, passiveInvestigationStat]
 
   const persist = () => {
-    const data = edited()
     const normalized = {
-      ...data,
+      ...props.character,
+      ...edited(),
       passivePerception: passivePerceptionStat.resolvedValue(),
       passiveInsight: passiveInsightStat.resolvedValue(),
       passiveInvestigation: passiveInvestigationStat.resolvedValue(),
@@ -156,7 +170,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   const handleSave = () => { persist(); setIsEditing(false) }
   const handleSaveKeepEditing = () => { persist() }
   const handleCancel = () => {
-    setEdited(props.character); setIsEditing(false)
+    setEdited(toEdit(props.character)); setIsEditing(false)
   }
 
   const toggleSkillProf = (skill: SkillKey) => {
@@ -229,7 +243,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
       icon={<BookOpen class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Skills & Proficiencies"
       isEditing={isEditing()}
-      onEdit={() => { setEdited(props.character); setIsEditing(true) }}
+      onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
       onSave={handleSave}
       onSaveKeepEditing={handleSaveKeepEditing}
       onCancel={handleCancel}

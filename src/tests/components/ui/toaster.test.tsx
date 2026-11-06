@@ -90,12 +90,14 @@ describe("Toaster", () => {
   })
 
   // WCAG 4.1.3 Status Messages: a toast appears without taking focus, so assistive tech only
-  // learns of it from a live region. The landmark also keeps toasts, which render after <main>,
-  // inside a region that landmark navigation can reach.
-  it("is a Notifications landmark that is in the page before any toast appears", () => {
+  // learns of it from a live region, which must be in the page before the toast is added to it
+  // (ACCESSIBILITY.md §12). The landmark also keeps toasts, which render after <main>, inside a
+  // region that landmark navigation can reach.
+  it("is a Notifications landmark holding a polite and an assertive live region before any toast appears", () => {
     render(() => <Toaster />)
     const region = screen.getByRole("region", { name: "Notifications" })
-    expect(region).toHaveAttribute("aria-live", "polite")
+    expect(region.querySelector('[aria-live="polite"]')).toBeInTheDocument()
+    expect(region.querySelector('[aria-live="assertive"]')).toBeInTheDocument()
   })
 
   // The region is fixed over the page even when empty (a band across the top of a phone screen),
@@ -105,22 +107,40 @@ describe("Toaster", () => {
     const { toast } = useToast()
     toast({ title: "Saved" })
     expect(screen.getByRole("region", { name: "Notifications" })).toHaveClass("pointer-events-none")
-    expect(screen.getByRole("status")).toHaveClass("pointer-events-auto")
+    expect(screen.getByText("Saved").closest('[data-sem="toast"]')).toHaveClass("pointer-events-auto")
   })
 
-  it("announces a toast politely as a status message", () => {
+  it("announces a toast politely", () => {
     render(() => <Toaster />)
     const { toast } = useToast()
     toast({ title: "Saved", description: "Your changes were saved." })
-    expect(screen.getByRole("status")).toHaveTextContent("SavedYour changes were saved.")
+    expect(screen.getByText("Saved").closest("[aria-live]")).toHaveAttribute("aria-live", "polite")
   })
 
-  it("announces a destructive toast at once, as an alert", () => {
+  it("announces a destructive toast at once", () => {
     render(() => <Toaster />)
     const { toast } = useToast()
     toast({ title: "Something went wrong", variant: "destructive" })
-    expect(screen.getByRole("alert")).toHaveTextContent("Something went wrong")
+    expect(screen.getByText("Something went wrong").closest("[aria-live]")).toHaveAttribute("aria-live", "assertive")
+  })
+
+  // Regression: the region was a live region and each toast had a live role of its own as well, so
+  // a toast could be announced twice, and an alert's urgency was blurred by the polite parent
+  it("announces each toast through one live region only", () => {
+    render(() => <Toaster />)
+    const { toast } = useToast()
+    toast({ title: "Saved" })
+    toast({ title: "Something went wrong", variant: "destructive" })
+    const region = screen.getByRole("region", { name: "Notifications" })
+    expect(region).not.toHaveAttribute("aria-live")
+    for (const title of ["Saved", "Something went wrong"]) {
+      const toastEl = screen.getByText(title).closest('[data-sem="toast"]')!
+      expect(toastEl).not.toHaveAttribute("role")
+      expect(toastEl.querySelector("[aria-live], [role=status], [role=alert]")).toBeNull()
+      expect(toastEl.parentElement!.closest("[aria-live]")!.parentElement!.closest("[aria-live]")).toBeNull()
+    }
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
   })
 
   it("has no accessibility violations for a real toast composition", async () => {

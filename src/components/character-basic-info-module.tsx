@@ -35,9 +35,12 @@ const ALIGNMENTS = [
   "Lawful Evil","Neutral Evil","Chaotic Evil",
 ]
 
+// Only the fields this module's edit form owns: other modules can change the character while this
+// one is editing, so Save merges these onto the live character rather than writing back a copy of
+// all of it taken when editing began.
 const toEdit = (c: Character) => ({
-  ...c,
   name: c.name || "",
+  level: c.level,
   race: c.race || "",
   class: c.class || "",
   subclass: c.subclass || "",
@@ -63,7 +66,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
     setEdited((prev) => ({ ...prev, [field]: value }))
   }
 
-  const persist = () => { props.onUpdate(edited()) }
+  const persist = () => { props.onUpdate({ ...props.character, ...edited() }) }
   const handleSave = () => { persist(); setIsEditing(false) }
   const handleSaveKeepEditing = () => { persist() }
   const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
