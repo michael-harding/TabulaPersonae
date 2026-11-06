@@ -193,6 +193,17 @@ test.describe("Contrast", () => {
 test.describe("Stats bar", () => {
   test.beforeEach(({ page }) => useContrastHelpers(page))
 
+  test("is solid for someone whose system asks for more contrast", async ({ page }) => {
+    await page.emulateMedia({ contrast: "more" })
+    await seedGuest(page, testCharacter)
+    await openSheet(page, testCharacter.id)
+    const alpha = await page.evaluate(() => {
+      const bar = document.querySelector("[data-sem=stats-bar]")!
+      return window.contrast.rgba(getComputedStyle(bar).backgroundColor)[3]
+    })
+    expect(alpha).toBe(1)
+  })
+
   // Translucent is not the same as looking like glass, as a heavy tint showed: the blur could hardly
   // be seen. So this looks at what is actually drawn, with a block of colour behind the bar: the block
   // has to show through clearly, and its edge has to be soft.

@@ -41,7 +41,7 @@ export function StatsBar(props: StatsBarProps) {
   const conditions = createMemo(() => displayedConditions(props.character))
 
   return (
-    <div data-sem="stats-bar" class="sticky top-0 z-50 backdrop-blur border-b">
+    <div data-sem="stats-bar" class="sticky top-0 z-50 backdrop-blur contrast-more:bg-background border-b">
       {/* HP progress bar */}
       <div class="relative h-1.5 w-full overflow-hidden">
         <div

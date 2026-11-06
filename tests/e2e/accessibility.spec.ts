@@ -1,7 +1,7 @@
 import { type Locator, type Page } from "@playwright/test"
 
 import { publicCharacter, testCharacter, secondCharacter } from "../visual/fixtures"
-import { byName, FEATURE_TYPES, MODALS, OVERLAYS, PHONE_MODALS, type ModalCase } from "../visual/popup-cases"
+import { byName, FEATURE_TYPES, MODALS, OVERLAYS, PHONE_MODALS, type ModalCase } from "../popup-cases"
 import { openSheet, seedGuest } from "./helpers"
 import { axeBuilder, contrastScan, finishAnimations, test, expect } from "./test"
 
@@ -117,8 +117,8 @@ test.describe("A menu opened inside a dialog", () => {
   })
 })
 
-// Every modal and popup with a visual baseline is scanned as well (see popup-cases.ts). The chromium
-// and chromium-dark projects cover the themes, and the mobile project the ones tagged for a phone.
+// Every modal and popup is scanned (see tests/popup-cases.ts). The chromium and chromium-dark projects
+// cover the themes, and the mobile project the ones tagged for a phone.
 async function openModal(page: Page, modal: ModalCase) {
   await seedGuest(page, testCharacter, { expandSections: true })
   await openSheet(page, testCharacter.id, modal.tab)

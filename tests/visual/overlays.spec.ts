@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test"
 
 import { testCharacter } from "./fixtures"
 import { openSheet, parkPointer, PHONE, type Theme } from "./helpers"
-import { OVERLAYS, type OverlayCase } from "./popup-cases"
+import { OVERLAYS, type OverlayCase } from "../popup-cases"
 
 // Every popup that renders above the page is screenshotted open (TESTING.md "Visual Regression
 // Coverage"), scoped to the popup itself so the page around it doesn't churn the baseline.

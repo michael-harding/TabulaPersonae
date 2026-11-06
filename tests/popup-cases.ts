@@ -1,14 +1,13 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
-import type { Character } from "../../src/lib/character-types"
-import { testCharacter } from "./fixtures"
-import { dialog } from "./helpers"
+import type { Character } from "../src/lib/character-types"
+import { testCharacter } from "./visual/fixtures"
 
-// Every modal and every popup above the page. Listed once and used twice, so that anything with a
-// visual baseline (modals.spec.ts, overlays.spec.ts) also gets its accessibility scan
-// (tests/e2e/accessibility.spec.ts).
+// Every modal and every popup above the page, and how to open it. The test suites share this one
+// list, so that none of them can miss one.
 
 const click = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`).click()
+const dialog = (page: Page) => page.getByRole("dialog")
 
 async function openFeatureType(page: Page) {
   await click(page, "add-feature-class-feature")
@@ -74,7 +73,7 @@ export const FEATURE_TYPES = [
 ]
 export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 
-/** The modals with a baseline at phone width, and an accessibility scan on the phone project. */
+/** The modals also checked at phone width. */
 export const PHONE_MODALS = ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "import"]
 
 const byTest = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`)

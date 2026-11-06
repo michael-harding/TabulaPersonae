@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test"
 
 import { testCharacter } from "./fixtures"
 import { openSheet, dialog, parkPointer, TALL, PHONE, type Theme } from "./helpers"
-import { byName, FEATURE_TYPES, MODALS, PHONE_MODALS, slug, type ModalCase } from "./popup-cases"
+import { byName, FEATURE_TYPES, MODALS, PHONE_MODALS, slug, type ModalCase } from "../popup-cases"
 
 // Every modal is screenshotted open (TESTING.md "Visual Regression Coverage"). The default
 // screenshot is the dialog element alone, so a change to the page behind the overlay doesn't churn
