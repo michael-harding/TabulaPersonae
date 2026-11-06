@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test"
 
 import { testCharacter, secondCharacter } from "./fixtures"
+import { openSheet } from "./helpers"
 
 test.describe("Home page", () => {
   test("empty state", async ({ page }) => {
@@ -57,15 +58,7 @@ test.describe("Character sheet page", () => {
 
 test.describe("Character sheet tabs", () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript((char) => {
-      localStorage.setItem("dnd-characters", JSON.stringify([char]))
-      localStorage.setItem("dnd-skip-auth", "true")
-      localStorage.setItem(`dnd-collapsible-actions-${char.id}`, JSON.stringify(["actions", "bonus-actions", "reactions", "other"]))
-      localStorage.setItem(`dnd-collapsible-spells-${char.id}`, JSON.stringify([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
-      localStorage.setItem(`dnd-collapsible-features-${char.id}`, JSON.stringify(["class-feature", "species-trait", "feat"]))
-    }, testCharacter)
-    await page.goto(`/character/${testCharacter.id}`)
-    await page.waitForLoadState("networkidle")
+    await openSheet(page, testCharacter)
   })
 
   test("combat tab — actions expanded", async ({ page }) => {

@@ -104,7 +104,8 @@ export function RestModal(props: RestModalProps) {
         hitPoints: { ...char.hitPoints, current: getEffectiveMaxHp(char), temporary: 0 },
         spentHitDice: 0,
         spellSlots: resetSpellSlots,
-        // A long rest removes one level of Exhaustion (2014: if the creature also ate and drank)
+        // A long rest removes one level of Exhaustion. 2014 adds "if the creature also ate and drank",
+        // which the sheet takes as given for every long rest.
         ...((char.exhaustionLevel ?? 0) > 0 ? { exhaustionLevel: (char.exhaustionLevel ?? 0) - 1 } : {}),
         attacks: resetMatching(attacks, "short-rest", "long-rest"),
         bonusActions: resetMatching(bonusActions, "short-rest", "long-rest"),
@@ -165,7 +166,7 @@ export function RestModal(props: RestModalProps) {
                   <li>Regain all lost Hit Points</li>
                   <li>All spent Hit Dice restored</li>
                   <li>All spell slots restored</li>
-                  <li>{props.character.edition === "2014" ? "Exhaustion level reduced by 1 (if you ate and drank)" : "Exhaustion level reduced by 1"}</li>
+                  <li>Exhaustion level reduced by 1</li>
                   <li>Long-rest features recharge</li>
                   <li>Reset temporary hit points to 0</li>
                 </ul>

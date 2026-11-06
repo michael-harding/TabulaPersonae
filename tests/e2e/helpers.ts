@@ -3,6 +3,7 @@ import { expect, type Locator, type Page } from "@playwright/test"
 import { CONFIRM_GUARD_MS } from "../../src/components/ui/confirm-button"
 import type { Character } from "../../src/lib/character-types"
 import type { UserTabConfig } from "../../src/lib/tab-config-types"
+import { expandedSectionsStorage } from "../sheet-storage"
 
 // Marks that a test's localStorage has been seeded. Not under the app's `dnd-` prefix, so signing
 // out (which clears every `dnd-` key) does not make the next page load seed it all over again.
@@ -26,7 +27,8 @@ interface SeedOptions {
  * deleted, and a reload could never show that a change was really saved.
  */
 export async function seedDevice(page: Page, characters: Character[], options: SeedOptions = {}): Promise<void> {
-  await page.addInitScript(({ characters, options, seededKey }) => {
+  const sections = options.expandSections ? Object.assign({}, ...characters.map(({ id }) => expandedSectionsStorage(id))) as Record<string, string> : {}
+  await page.addInitScript(({ characters, options, seededKey, sections }) => {
     if (localStorage.getItem(seededKey) != null) return
     localStorage.setItem(seededKey, "true")
     localStorage.setItem("dnd-characters", JSON.stringify(characters))
@@ -34,14 +36,8 @@ export async function seedDevice(page: Page, characters: Character[], options: S
     if (options.termsAccepted) localStorage.setItem("dnd-terms-accepted", "true")
     if (options.tabConfig != null) localStorage.setItem("dnd-tab-config", JSON.stringify(options.tabConfig))
     if (options.theme != null) localStorage.setItem("theme", options.theme)
-    if (options.expandSections) {
-      for (const { id } of characters) {
-        localStorage.setItem(`dnd-collapsible-actions-${id}`, JSON.stringify(["actions", "bonus-actions", "reactions", "other"]))
-        localStorage.setItem(`dnd-collapsible-spells-${id}`, JSON.stringify([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
-        localStorage.setItem(`dnd-collapsible-features-${id}`, JSON.stringify(["class-feature", "species-trait", "feat"]))
-      }
-    }
-  }, { characters, options, seededKey: SEEDED_KEY })
+    for (const [key, value] of Object.entries(sections)) localStorage.setItem(key, value)
+  }, { characters, options, seededKey: SEEDED_KEY, sections })
 }
 
 /** Seeds characters for a visitor using the app without an account. */

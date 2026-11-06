@@ -1,7 +1,9 @@
-import { createSignal, createEffect, on, untrack, Show, For } from "solid-js"
+import { Show, For } from "solid-js"
 import FileText from "lucide-solid/icons/file-text"
 
 import type { Character } from "@/lib/character-types"
+import { pickFields } from "@/lib/changes"
+import { useModuleEdit } from "@/hooks/use-module-edit"
 import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,31 +22,17 @@ const NOTES_FIELDS = [
 ] as const satisfies readonly (keyof Character)[]
 type NotesField = (typeof NOTES_FIELDS)[number]
 
-// Only the fields this module's edit form owns: other modules can change the character while this
-// one is editing, so Save merges these onto the live character rather than writing back a copy of
-// all of it taken when editing began.
-const toEdit = (c: Character): Pick<Character, NotesField> =>
-  Object.fromEntries(NOTES_FIELDS.map((field) => [field, c[field]])) as Pick<Character, NotesField>
+// The fields this module's edit form shows (see useModuleEdit for how Save writes them)
+const toDraft = (c: Character) => pickFields(c, NOTES_FIELDS)
 
 export function CharacterNotesModule(props: CharacterNotesModuleProps) {
-  const [isEditing, setIsEditing] = createSignal(false)
-  const [edited, setEdited] = createSignal(untrack(() => toEdit(props.character)))
-
-  createEffect(on(() => props.character.id, () => {
-    setEdited(toEdit(props.character))
-  }))
-
-  const editedCharacter = (): Character => ({ ...props.character, ...edited() })
-  const persist = () => { props.onUpdate(editedCharacter()) }
-  const handleSave = () => { persist(); setIsEditing(false) }
-  const handleSaveKeepEditing = () => { persist() }
-  const handleCancel = () => { setEdited(toEdit(props.character)); setIsEditing(false) }
+  const edit = useModuleEdit({ character: () => props.character, toDraft, onUpdate: (c) => props.onUpdate(c) })
 
   const updateField = (field: NotesField, value: string) => {
-    setEdited((prev) => ({ ...prev, [field]: value }))
+    edit.setDraft((prev) => ({ ...prev, [field]: value }))
   }
 
-  const current = () => isEditing() ? editedCharacter() : props.character
+  const current = edit.merged
   const edition = () => props.character.edition ?? "2024"
 
   const PHYSICAL_FIELDS = [
@@ -94,14 +82,14 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
       data-test="character-notes-module"
       icon={<FileText class="h-5 w-5 text-primary" aria-hidden="true" />}
       title="Character Background & Notes"
-      isEditing={isEditing()}
-      onEdit={() => { setEdited(toEdit(props.character)); setIsEditing(true) }}
-      onSave={handleSave}
-      onSaveKeepEditing={handleSaveKeepEditing}
-      onCancel={handleCancel}
+      isEditing={edit.isEditing()}
+      onEdit={edit.start}
+      onSave={edit.save}
+      onSaveKeepEditing={edit.commit}
+      onCancel={edit.cancel}
       contentClass="space-y-6"
     >
-        {isEditing() ? (
+        {edit.isEditing() ? (
           <>
             {/* Physical Details */}
             <div>
@@ -113,7 +101,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
                     <Input
                       id={`phys-${field}`}
                       data-test={`physical-${field}-input`}
-                      value={(editedCharacter()[field] as string) || ""}
+                      value={(edit.merged()[field] as string) || ""}
                       onInput={(e) => updateField(field, e.currentTarget.value)}
                       placeholder={label}
                       class="mt-1 text-sm"
@@ -127,7 +115,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
               <Label for="appearance">Appearance</Label>
               <Textarea
                 id="appearance"
-                value={editedCharacter().appearance || ""}
+                value={edit.merged().appearance || ""}
                 onInput={(e) => updateField("appearance", e.currentTarget.value)}
                 placeholder="Describe your character's appearance..."
                 rows={3}
@@ -141,7 +129,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
               <Label for="personality-traits">Personality Traits</Label>
               <Textarea
                 id="personality-traits"
-                value={editedCharacter().personalityTraits}
+                value={edit.merged().personalityTraits}
                 onInput={(e) => updateField("personalityTraits", e.currentTarget.value)}
                 placeholder="Describe your character's personality traits, quirks, and mannerisms..."
                 rows={3}
@@ -153,7 +141,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
               <Label for="ideals">Ideals</Label>
               <Textarea
                 id="ideals"
-                value={editedCharacter().ideals}
+                value={edit.merged().ideals}
                 onInput={(e) => updateField("ideals", e.currentTarget.value)}
                 placeholder="What principles and values drive your character..."
                 rows={3}
@@ -165,7 +153,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
               <Label for="bonds">Bonds</Label>
               <Textarea
                 id="bonds"
-                value={editedCharacter().bonds}
+                value={edit.merged().bonds}
                 onInput={(e) => updateField("bonds", e.currentTarget.value)}
                 placeholder="Important people, places, or things your character cares about..."
                 rows={3}
@@ -177,7 +165,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
               <Label for="flaws">Flaws</Label>
               <Textarea
                 id="flaws"
-                value={editedCharacter().flaws}
+                value={edit.merged().flaws}
                 onInput={(e) => updateField("flaws", e.currentTarget.value)}
                 placeholder="Your character's weaknesses, vices, or fears..."
                 rows={3}
@@ -191,7 +179,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
               <Label for="backstory">Backstory</Label>
               <Textarea
                 id="backstory"
-                value={editedCharacter().backstory}
+                value={edit.merged().backstory}
                 onInput={(e) => updateField("backstory", e.currentTarget.value)}
                 placeholder="Tell your character's story..."
                 rows={6}
@@ -207,7 +195,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
                 <Label for="allies-organizations">Allies & Organizations</Label>
                 <Textarea
                   id="allies-organizations"
-                  value={editedCharacter().alliesAndOrganizations || ""}
+                  value={edit.merged().alliesAndOrganizations || ""}
                   onInput={(e) => updateField("alliesAndOrganizations", e.currentTarget.value)}
                   placeholder="Allies, contacts, and organizations your character belongs to..."
                   rows={4}
@@ -219,7 +207,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
                 <Label for="treasure">Treasure</Label>
                 <Textarea
                   id="treasure"
-                  value={editedCharacter().treasure || ""}
+                  value={edit.merged().treasure || ""}
                   onInput={(e) => updateField("treasure", e.currentTarget.value)}
                   placeholder="Valuables, gems, art objects, and other treasures..."
                   rows={3}
@@ -234,7 +222,7 @@ export function CharacterNotesModule(props: CharacterNotesModuleProps) {
               <Label for="notes">Additional Notes</Label>
               <Textarea
                 id="notes"
-                value={editedCharacter().notes}
+                value={edit.merged().notes}
                 onInput={(e) => updateField("notes", e.currentTarget.value)}
                 placeholder="Campaign notes, character goals, relationships..."
                 rows={4}

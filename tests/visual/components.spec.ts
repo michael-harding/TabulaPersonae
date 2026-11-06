@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test"
 
 import { testCharacter, secondCharacter, publicCharacter } from "./fixtures"
+import { openSheet } from "./helpers"
 
 // All component screenshots are taken by navigating to the full character sheet
 // and scoping the screenshot to a specific card element.
@@ -239,15 +240,7 @@ test.describe("CharacterBasicInfoModule component", () => {
 test.describe("ActionCard uses tracker — interactive vs read-only", () => {
   test("pip tracker — interactive (normal character sheet)", async ({ page }) => {
     // testCharacter.otherActions has "Speak with Animals" with uses:3/maxUses:3
-    await page.addInitScript((char) => {
-      localStorage.setItem("dnd-characters", JSON.stringify([char]))
-      localStorage.setItem("dnd-skip-auth", "true")
-      localStorage.setItem(`dnd-collapsible-actions-${char.id}`, JSON.stringify(["actions", "bonus-actions", "reactions", "other"]))
-    }, testCharacter)
-    await page.goto(`/character/${testCharacter.id}`)
-    await page.waitForLoadState("networkidle")
-    await page.getByRole("tab", { name: "Combat" }).click()
-    await page.waitForLoadState("networkidle")
+    await openSheet(page, testCharacter, { tab: "Combat" })
     const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Speak with Animals" })
     await expect(card).toHaveScreenshot("action-card-pip-tracker-interactive.png")
   })

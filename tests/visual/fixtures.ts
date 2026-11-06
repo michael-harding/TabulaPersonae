@@ -1,3 +1,4 @@
+import { CALCULATED_VALUE_FLAGS } from "../../src/lib/character-migrations"
 import { createDefaultCharacter, type Character } from "../../src/lib/character-types"
 
 export const testCharacter: Character = {
@@ -352,17 +353,11 @@ export function seedLocalStorage(characters: Character[]) {
   localStorage.setItem("dnd-skip-auth", "true")
 }
 
-// The calculated-value flags added after launch. A character saved before them has none of these
-// keys, which is how the migration recognises it (see migrateCharacter).
-const CALCULATED_VALUE_FLAGS = [
-  "useCalculatedArmorClass", "useCalculatedSpeed", "useCalculatedFlySpeed", "useCalculatedSwimSpeed",
-  "useCalculatedClimbSpeed", "useCalculatedBurrowSpeed", "useCalculatedSenses",
-] as const
-
 /**
  * A character as an older version of the app saved it, in the shapes the migration unit tests
  * (src/tests/lib/character-migrations.test.ts) document, not invented ones:
- *   - none of the calculated-value flags;
+ *   - none of the calculated-value flags (CALCULATED_VALUE_FLAGS, which is how the migration
+ *     recognises a character saved before them);
  *   - spellcasting ability and hit die as plain fields, before Features granted them;
  *   - a Feature without `featureType`, as PDF import created them;
  *   - items with the single `uses` field that became `charges` (magic item with charges) and

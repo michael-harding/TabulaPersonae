@@ -1517,3 +1517,33 @@ describe("CombatStatsModule — a character saved before these fields existed", 
     expect(saved).not.toHaveProperty("useCalculatedSize")
   })
 })
+
+// Regression: Save wrote back every field of the form as it was when editing began, so it undid
+// changes made elsewhere to those same fields while this module was being edited
+describe("CombatStatsModule — changes made elsewhere to its fields while editing", () => {
+  it("keeps HP restored by a rest", () => {
+    const [character, setCharacter] = createStore<Character>(makeCharacter())
+    const onUpdate = vi.fn()
+    render(() => <CombatStatsModule character={character} onUpdate={onUpdate} />)
+    clickEditButton()
+    setCharacter("hitPoints", "current", 20)
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+    expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      hitPoints: expect.objectContaining({ current: 20 }),
+    }))
+  })
+
+  it("keeps a custom Passive Perception saved by the Skills module", () => {
+    // Wis 10, not proficient: the stored value is the calculated one
+    const [character, setCharacter] = createStore<Character>(makeCharacter({ passivePerception: 10, useCalculatedPassivePerception: true }))
+    const onUpdate = vi.fn()
+    render(() => <CombatStatsModule character={character} onUpdate={onUpdate} />)
+    clickEditButton()
+    setCharacter({ passivePerception: 15, useCalculatedPassivePerception: false })
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+    expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      passivePerception: 15,
+      useCalculatedPassivePerception: false,
+    }))
+  })
+})

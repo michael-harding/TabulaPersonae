@@ -1,4 +1,5 @@
 import { testCharacter, secondCharacter } from "../visual/fixtures"
+import { byName, FEATURE_TYPES } from "../popup-cases"
 import { openSheet, seedGuest } from "./helpers"
 import { test, expect } from "./test"
 
@@ -74,5 +75,16 @@ test.describe("Rest dialog", () => {
     // HP unchanged: a long or short rest would have changed it or the temporary HP
     await expect(page.locator('[data-test="current-hp"]')).toHaveText("38")
     await expect(page.locator('[data-test="temp-hp"]')).toHaveText("+5")
+  })
+})
+
+test.describe("Add Feature dialog", () => {
+  // tests/popup-cases.ts lists the feature types so that the visual and accessibility suites cover
+  // each one's form. This fails when that list and the dialog's drift apart.
+  test("lists every feature type", async ({ page }) => {
+    await seedGuest(page, testCharacter)
+    await openSheet(page, testCharacter.id, "Features")
+    await byName("feature-add-type-open").open(page)
+    await expect(page.getByRole("dialog").getByRole("option")).toHaveText(["None", ...FEATURE_TYPES])
   })
 })

@@ -63,8 +63,8 @@ export const MODALS: ModalCase[] = [
 export const byName = (name: string) => MODALS.find((m) => m.name === name)!
 
 // Mirrors FEATURE_TYPES in src/components/features-module.tsx — the Feature form's fields differ
-// per type. The "lists every feature type" test fails when the two drift, so a new type can't
-// ship without a baseline.
+// per type. The "lists every feature type" test (tests/e2e/character-sheet.spec.ts) fails when the
+// two drift, so a new type can't ship without a baseline.
 export const FEATURE_TYPES = [
   "Action", "Spellcasting Ability", "Hit Points", "Size", "Max HP Bonus",
   "Saving Throw Proficiency", "Skill Proficiency", "Other Proficiency", "Speed", "Senses",

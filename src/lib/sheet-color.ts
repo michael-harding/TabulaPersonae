@@ -99,8 +99,14 @@ export function readableOn(hex: string): "#000000" | "#ffffff" {
   return contrastRatio(hex, "#000000") >= contrastRatio(hex, "#ffffff") ? "#000000" : "#ffffff"
 }
 
+// The surfaces as rendered, worked out once rather than on every shade search
+const THEME_SURFACE_HEXES = {
+  light: THEME_SURFACES.light.map(oklchToHex),
+  dark: THEME_SURFACES.dark.map(oklchToHex),
+}
+
 function shadeFor(hex: string, color: Oklch, theme: "light" | "dark"): string {
-  const surfaces = THEME_SURFACES[theme].map(oklchToHex)
+  const surfaces = THEME_SURFACE_HEXES[theme]
   const readable = (candidate: string) => surfaces.every((surface) => contrastRatio(candidate, surface) >= TARGET_CONTRAST)
   if (readable(hex)) return hex
   // Light surfaces need a darker shade, dark ones a lighter one. Search for the lightness nearest

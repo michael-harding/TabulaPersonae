@@ -30,11 +30,6 @@ test.describe("Modals — desktop", () => {
     })
   }
 
-  test("Add Feature lists every feature type", async ({ page }) => {
-    await openModal(page, byName("feature-add-type-open"))
-    await expect(dialog(page).getByRole("option")).toHaveText(["None", ...FEATURE_TYPES])
-  })
-
   for (const type of FEATURE_TYPES) {
     test(`feature-add-type ${type}`, async ({ page }) => {
       await openModal(page, byName("feature-add-type-open"))

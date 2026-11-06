@@ -265,15 +265,10 @@ describe("RestModal", () => {
       expect(within(dialog).getByText(/Exhaustion level reduced by 1/i)).toBeInTheDocument()
     })
 
-    // 2014 PHB: a long rest lowers exhaustion only if the creature also ate and drank
-    it("adds the 2014 condition: only if the character ate and drank", () => {
-      openModal(makeCharacter({ edition: "2014" }))
-      switchToLong()
-      expect(within(getDialog()).getByText("Exhaustion level reduced by 1 (if you ate and drank)")).toBeInTheDocument()
-    })
-
-    it("has no such condition in 2024", () => {
-      openModal(makeCharacter({ edition: "2024" }))
+    // 2014 PHB: a long rest lowers exhaustion only if the creature also ate and drank. The sheet
+    // takes that as given, so neither edition shows the condition.
+    it.each(["2014", "2024"] as const)("lists the exhaustion benefit without a condition in %s", (edition) => {
+      openModal(makeCharacter({ edition }))
       switchToLong()
       expect(within(getDialog()).getByText("Exhaustion level reduced by 1")).toBeInTheDocument()
     })

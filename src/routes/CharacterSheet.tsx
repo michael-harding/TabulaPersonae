@@ -104,6 +104,9 @@ export default function CharacterSheet() {
     })
   }
 
+  // Recomputed only when the colour changes, not whenever the sheet's root re-renders
+  const sheetColor = createMemo(() => sheetColorAttributes(charStore.data?.sheetColor))
+
   const handleImport = (toImport: Character[]) => {
     const { imported, saved } = saveImportedCharacters(toImport, storageManager().saveCharacter)
     if (imported.length > 0) navigate(`/character/${imported[0].id}`)
@@ -124,7 +127,7 @@ export default function CharacterSheet() {
     >
       <Show when={charStore.data}>
         {(getChar) => (
-          <div data-sem="character-sheet-route" class="bg-background" {...sheetColorAttributes(getChar().sheetColor)}>
+          <div data-sem="character-sheet-route" class="bg-background" {...sheetColor()}>
             <StatsBar character={getChar()} />
 
             <header class="border-b bg-card">

@@ -1,7 +1,8 @@
 import type { Character, Equipment, Feature, SenseType } from "./character-types"
 import { ABILITY_KEYS, calculateEquippedAC, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, getEffectiveSize, hasChargesTracking, inferFeatureType, makeSizeTrait, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
 
-const CALCULATED_VALUE_FLAGS = [
+// Exported for the legacy-character test fixtures, which must leave out exactly these keys
+export const CALCULATED_VALUE_FLAGS = [
   "useCalculatedArmorClass",
   "useCalculatedSpeed",
   "useCalculatedFlySpeed",
