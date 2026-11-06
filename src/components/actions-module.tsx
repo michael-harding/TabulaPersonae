@@ -641,8 +641,10 @@ export function ActionsModule(props: ActionsModuleProps) {
                       name={w.name}
                       badgeLabel="Weapon"
                       attackBonus={w.attackBonus}
+                      attackBonusTooltip={w.attackBonusTooltip}
                       range={w.range}
                       damage={w.damage}
+                      damageTooltip={w.damageTooltip}
                       damageType={w.damageType}
                       description={w.description}
                     />

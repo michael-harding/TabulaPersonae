@@ -75,6 +75,7 @@ interface EquipmentFormData {
     weaponRange: string
     attackAbility: "str" | "dex" | "finesse"
     proficient: boolean
+    bonus?: number
   }
   armorStats?: {
     baseAC: number
@@ -233,6 +234,13 @@ function cloneFormData(data: EquipmentFormData): EquipmentFormData {
   return structuredClone(unwrap(data))
 }
 
+// A zero bonus means no bonus, so it is left out of the saved item rather than stored as 0.
+function weaponStatsToSave(stats: EquipmentFormData["weaponStats"]): Equipment["weaponStats"] {
+  if (!stats) return undefined
+  const { bonus, ...rest } = stats
+  return bonus ? { ...rest, bonus } : rest
+}
+
 function EquipmentForm(props: EquipmentFormProps) {
   const [formData, setFormData] = createStore<EquipmentFormData>(cloneFormData(props.initialData))
   const [openAbilityScores, setOpenAbilityScores] = createSignal(hasAbilityScoreValues(props.initialData))
@@ -372,6 +380,17 @@ function EquipmentForm(props: EquipmentFormProps) {
                   </For>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <Label for="weapon-bonus">Attack &amp; Damage Bonus</Label>
+              <NumericInput
+                id="weapon-bonus"
+                data-test="weapon-bonus"
+                value={formData.weaponStats?.bonus ?? 0}
+                onChange={(v) => setFormData("weaponStats", "bonus", v)}
+              />
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -966,7 +985,7 @@ export function EquipmentItemModal(props: EquipmentItemModalProps) {
       equipped: formData.equipped,
       type: formData.type,
       actionKind: formData.actionKind || undefined,
-      weaponStats: formData.weaponStats,
+      weaponStats: weaponStatsToSave(formData.weaponStats),
       armorStats: formData.armorStats,
       ...magicFields(formData),
     }

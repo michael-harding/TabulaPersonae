@@ -102,6 +102,8 @@ export interface Equipment extends Omit<UseableEntry, "uses"> {
     weaponRange: string
     attackAbility: "str" | "dex" | "finesse"
     proficient: boolean
+    // Flat bonus added to both attack and damage rolls, e.g. 1 for a +1 weapon. Omitted when 0.
+    bonus?: number
   }
   armorStats?: {
     baseAC: number

@@ -210,6 +210,37 @@ describe("EquipmentItemModal", () => {
       )
     })
 
+    it("saves a weapon bonus", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Longsword +1" } })
+      fireEvent.click(screen.getByTestId("item-type"))
+      fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
+      fireEvent.input(screen.getByTestId("weapon-damage"), { target: { value: "1d8" } })
+      fireEvent.input(screen.getByTestId("weapon-bonus"), { target: { value: "1" } })
+      fireEvent.blur(screen.getByTestId("weapon-bonus"))
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ weaponStats: expect.objectContaining({ damage: "1d8", bonus: 1 }) })
+      )
+    })
+
+    it("loads an existing weapon bonus and drops it from the saved item when set back to 0", () => {
+      const onSave = vi.fn()
+      const item: Equipment = {
+        id: "w1", name: "Longsword +1", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon",
+        weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true, bonus: 1 },
+      }
+      render(() => <EquipmentItemModal open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
+      expect(screen.getByTestId("weapon-bonus")).toHaveValue(1)
+      fireEvent.input(screen.getByTestId("weapon-bonus"), { target: { value: "0" } })
+      fireEvent.blur(screen.getByTestId("weapon-bonus"))
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave.mock.calls[0][0].weaponStats).toEqual(
+        { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true }
+      )
+    })
+
     it("clears weaponStats when the type is changed away from Weapon before saving", () => {
       const onSave = vi.fn()
       render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)

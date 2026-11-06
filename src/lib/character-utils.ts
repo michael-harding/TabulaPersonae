@@ -1084,7 +1084,9 @@ export interface DerivedWeaponAttack {
   name: string
   type: "attack"
   attackBonus: number
+  attackBonusTooltip: string
   damage: string
+  damageTooltip: string
   damageType: string
   range: string
   description: string
@@ -1107,19 +1109,27 @@ export function getEquippedWeaponAttacks(
       item.equipped && item.type === "weapon" && item.weaponStats != null
     )
     .map((item) => {
-      const { damage, damageType, weaponRange, attackAbility, proficient } = item.weaponStats
-      const abilityMod =
-        attackAbility === "dex" ? dexMod
-        : attackAbility === "finesse" ? Math.max(strMod, dexMod)
-        : strMod
-      const attackBonus = abilityMod + (proficient ? profBonus : 0)
-      const damageStr = abilityMod >= 0 ? `${damage}+${abilityMod}` : `${damage}${abilityMod}`
+      const { damage, damageType, weaponRange, attackAbility, proficient, bonus = 0 } = item.weaponStats
+      const usesDex = attackAbility === "dex" || (attackAbility === "finesse" && dexMod > strMod)
+      const abilityMod = usesDex ? dexMod : strMod
+      const abilityLabel = usesDex ? ABILITY_TITLE_CASE.dexterity : ABILITY_TITLE_CASE.strength
+      const attackBonus = abilityMod + bonus + (proficient ? profBonus : 0)
+      const damageMod = abilityMod + bonus
+      const damageStr = damageMod >= 0 ? `${damage}+${damageMod}` : `${damage}${damageMod}`
+      const bonusTerm = formatBonusTerm(bonus, "Weapon Bonus")
+      const attackBonusTooltip = `${formatModifier(abilityMod)} (${abilityLabel})${bonusTerm}${proficient ? formatTerm(profBonus, "Prof") : ""}`
+      // With no dice entered, the ability modifier leads, so it carries its own sign.
+      const damageTooltip = damage
+        ? `${damage}${formatTerm(abilityMod, abilityLabel)}${bonusTerm}`
+        : `${formatModifier(abilityMod)} (${abilityLabel})${bonusTerm}`
       return {
         id: `weapon-${item.id}`,
         name: item.name,
         type: "attack" as const,
         attackBonus,
+        attackBonusTooltip,
         damage: damageStr,
+        damageTooltip,
         damageType,
         range: weaponRange,
         description: item.description,

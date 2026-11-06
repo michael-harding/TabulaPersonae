@@ -6,7 +6,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, cleanupPortals, confirmClick } from "../test-utils"
+import { render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -1310,6 +1310,27 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     it("does not render weapon when weaponStats is absent", () => {
       render(() => <ActionsModule character={makeCharacter({ equipment: [makeWeaponEquipment({ weaponStats: undefined })] })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Longsword")).not.toBeInTheDocument()
+    })
+
+    it("explains the weapon's damage in a tooltip that follows a change to the ability score", async () => {
+      const [character, setCharacter] = createStore(makeCharacter({ equipment: [makeWeaponEquipment()] }))
+      setCharacter("abilityScores", "strength", 16)
+      render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
+      const pillTrigger = () => screen.getByTestId("action-card-weapon-wpn-1-effect-pill-red").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(pillTrigger())
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("1d8 + 3 (Str)"))
+      // The derived attack is rebuilt, so its card (and the open tooltip) is replaced.
+      setCharacter("abilityScores", "strength", 18)
+      fireEvent.focus(pillTrigger())
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("1d8 + 4 (Str)"))
+    })
+
+    it("explains the weapon's attack bonus in a tooltip", async () => {
+      const character = makeCharacter({ equipment: [makeWeaponEquipment()], proficiencyBonus: 2 })
+      character.abilityScores = { ...character.abilityScores, strength: 16 }
+      render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
+      fireEvent.focus(screen.getByTestId("action-card-weapon-wpn-1-attack-bonus").closest('[data-sem="tooltip-trigger"]')!)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 2 (Prof)"))
     })
   })
 
