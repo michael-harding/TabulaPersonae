@@ -42,6 +42,9 @@ export default defineConfig({
       url: "http://127.0.0.1:8080/",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      // The CLI runs the Firestore emulator (Java) in its own process group, so Playwright's
+      // default SIGKILL of this group misses it and it keeps :8080. SIGTERM lets the CLI stop it.
+      gracefulShutdown: { signal: "SIGTERM", timeout: 15_000 },
     },
     {
       // The dev server pointed at the emulators (see package.json and src/lib/firebase.ts).
