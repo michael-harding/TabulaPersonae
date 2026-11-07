@@ -252,12 +252,12 @@ function SpellForm(props: SpellFormProps) {
         </div>
       </Show>
 
-      <div class="flex gap-2 pt-4">
+      <div class="flex gap-2 justify-end pt-4">
+        <Button data-test="spell-form-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
         <Button data-test="spell-form-submit" onClick={() => props.onSubmit(formData())} class="gap-2">
           <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Spell" : "Add Spell"}
         </Button>
-        <Button data-test="spell-form-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
       </div>
     </div>
   )

@@ -827,12 +827,12 @@ function EquipmentForm(props: EquipmentFormProps) {
         <Label for="equipped">Currently equipped</Label>
       </div>
 
-      <div class="flex gap-2 pt-4">
+      <div class="flex gap-2 justify-end pt-4">
+        <Button data-test="equipment-modal-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
         <Button data-test="equipment-modal-submit" onClick={() => props.onSubmit(unwrap(formData))} class="gap-2">
           <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Item" : "Add Item"}
         </Button>
-        <Button data-test="equipment-modal-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
       </div>
     </div>
   )
