@@ -210,6 +210,7 @@ describe("AbilityScoresModule", () => {
       fireEvent.focus(wisCheckbox.closest('[data-sem="tooltip-trigger"]') ?? wisCheckbox)
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent("Granted by Divine Sense Class Feature")
+      expect(wisCheckbox.closest('[data-sem="tooltip-trigger"]')).toHaveAccessibleName("Wisdom saving throw proficient")
     })
 
     it("does not call onUpdate when cancel is clicked", () => {
@@ -259,6 +260,12 @@ describe("AbilityScoresModule", () => {
       render(() => <AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
       // 6 ability cards + 1 STR saving throw (only STR is proficient in makeCharacter)
       expect(screen.getAllByRole("group")).toHaveLength(7)
+    })
+
+    it("names the score and saving throw triggers with the ability, which sits outside them", () => {
+      render(() => <AbilityScoresModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("strength-score-value").closest('[data-sem="tooltip-trigger"]')).toHaveAccessibleName("Strength 16, modifier +3")
+      expect(screen.getByTestId("strength-saving-throw-value").closest('[data-sem="tooltip-trigger"]')).toHaveAccessibleName("Strength saving throw +6, proficient")
     })
 
     it("shows ability modifier formula in tooltip when card is focused", async () => {

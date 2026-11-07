@@ -171,6 +171,7 @@ describe("SkillsProficienciesModule", () => {
       })
       render(() => <SkillsProficienciesModule character={character} onUpdate={vi.fn()} />)
       expect(screen.getByText("A")).toBeInTheDocument()
+      expect(screen.getByRole("group", { name: "Advantage" })).toContainElement(screen.getByText("A"))
     })
 
     it("does not show A pip when no skills have advantage", () => {
@@ -580,6 +581,12 @@ describe("SkillsProficienciesModule", () => {
     it("renders 27 focusable tooltip triggers in view mode (6 saves + 18 skills + 3 senses)", () => {
       render(() => <SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getAllByRole("group")).toHaveLength(27)
+    })
+
+    it("names each saving throw and skill trigger by what it is, not just its bare modifier", () => {
+      render(() => <SkillsProficienciesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      expect(savingThrowTrigger("strength")).toHaveAccessibleName("Strength saving throw +6")
+      expect(skillTrigger("stealth")).toHaveAccessibleName(`Stealth ${screen.getByTestId("skill-modifier-stealth").textContent}`)
     })
 
     it("shows ability mod + proficiency bonus for a proficient saving throw", async () => {

@@ -72,6 +72,25 @@ describe("Tooltip", () => {
     expect(trigger).toHaveAttribute("role", "group")
   })
 
+  it("names a focusable trigger by its own text", () => {
+    render(() => (
+      <Tooltip content="More info" triggerFocusable>
+        <span>Attack: +6 to hit</span>
+      </Tooltip>
+    ))
+    expect(screen.getByRole("group", { name: "Attack: +6 to hit" })).toBeInTheDocument()
+  })
+
+  it("names a focusable trigger by triggerLabel when given one, in place of its text", () => {
+    render(() => (
+      <Tooltip content="More info" triggerFocusable triggerLabel="Stealth +5">
+        <span>+5</span>
+      </Tooltip>
+    ))
+    const trigger = screen.getByRole("group", { name: "Stealth +5" })
+    expect(trigger).not.toHaveAttribute("aria-labelledby")
+  })
+
   it("leaves the trigger non-focusable with no role when triggerFocusable is not set", () => {
     render(() => (
       <Tooltip content="More info">
@@ -81,6 +100,7 @@ describe("Tooltip", () => {
     const trigger = screen.getByText("Hover me").closest('[data-sem="tooltip-trigger"]')!
     expect(trigger).not.toHaveAttribute("tabindex")
     expect(trigger).not.toHaveAttribute("role")
+    expect(trigger).not.toHaveAttribute("aria-labelledby")
   })
 
   it("applies triggerClass to the trigger and class to the content", async () => {

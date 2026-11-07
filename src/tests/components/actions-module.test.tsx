@@ -6,7 +6,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, cleanupPortals, confirmClick } from "../test-utils"
+import { render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -1311,6 +1311,27 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       render(() => <ActionsModule character={makeCharacter({ equipment: [makeWeaponEquipment({ weaponStats: undefined })] })} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Longsword")).not.toBeInTheDocument()
     })
+
+    it("explains the weapon's damage in a tooltip that follows a change to the ability score", async () => {
+      const [character, setCharacter] = createStore(makeCharacter({ equipment: [makeWeaponEquipment()] }))
+      setCharacter("abilityScores", "strength", 16)
+      render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
+      const pillTrigger = () => screen.getByTestId("action-card-weapon-wpn-1-effect-pill-red").closest('[data-sem="tooltip-trigger"]')!
+      fireEvent.focus(pillTrigger())
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("1d8 + 3 (Str)"))
+      // The derived attack is rebuilt, so its card (and the open tooltip) is replaced.
+      setCharacter("abilityScores", "strength", 18)
+      fireEvent.focus(pillTrigger())
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("1d8 + 4 (Str)"))
+    })
+
+    it("explains the weapon's attack bonus in a tooltip", async () => {
+      const character = makeCharacter({ equipment: [makeWeaponEquipment()], proficiencyBonus: 2 })
+      character.abilityScores = { ...character.abilityScores, strength: 16 }
+      render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
+      fireEvent.focus(screen.getByTestId("action-card-weapon-wpn-1-attack-bonus").closest('[data-sem="tooltip-trigger"]')!)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 2 (Prof)"))
+    })
   })
 
   describe("collapsible section headers", () => {
@@ -1399,6 +1420,17 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
 
   it("has no accessibility violations", async () => {
     const { container } = render(() => <ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
+  })
+
+  it("has no accessibility violations with an equipped weapon's calculated attack and damage", async () => {
+    const longsword: Equipment = {
+      id: "wpn-1", name: "Longsword", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon",
+      weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+    }
+    const { container } = render(() => <ActionsModule character={makeCharacter({ equipment: [longsword] })} onUpdate={vi.fn()} />)
+    expect(screen.getByTestId("action-card-weapon-wpn-1-attack-bonus")).toBeInTheDocument()
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

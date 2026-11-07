@@ -3,7 +3,7 @@ import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Dices from "lucide-solid/icons/dices"
 
 import type { Character, Equipment } from "@/lib/character-types"
-import { getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -221,7 +221,7 @@ export function RestModal(props: RestModalProps) {
                 <Show when={dicesToSpend() > 0}>
                   <p class="text-xs text-muted-foreground">
                     Roll {dicesToSpend()}d{dieSize()}
-                    {conMod() !== 0 ? ` ${conMod() >= 0 ? "+" : ""}${conMod()} per die` : ""} (min 1 per die)
+                    {conMod() !== 0 ? ` ${formatModifier(conMod())} per die` : ""} (min 1 per die)
                   </p>
                 </Show>
               </Show>

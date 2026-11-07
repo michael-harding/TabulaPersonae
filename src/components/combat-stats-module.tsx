@@ -8,7 +8,7 @@ import CheckCircle from "lucide-solid/icons/check-circle"
 import XCircle from "lucide-solid/icons/x-circle"
 
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, speciesGrantTooltip, ABILITY_TITLE_CASE, EXHAUSTION, MAX_EXHAUSTION_LEVEL, getExhaustionEffects } from "@/lib/character-utils"
+import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, formatLeadingTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, speciesGrantTooltip, ABILITY_TITLE_CASE, EXHAUSTION, MAX_EXHAUSTION_LEVEL, getExhaustionEffects } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { useModuleEdit } from "@/hooks/use-module-edit"
@@ -195,7 +195,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const calcInitiative = () => equippedInitiative().initiative
   const initiativeTooltip = () => equippedInitiative().breakdown
   const calcProfBonus = createMemo(() => getProficiencyBonus(props.character.level ?? 1))
-  const profBonusTooltip = createMemo(() => `${formatModifier(calcProfBonus())} (Level ${props.character.level ?? 1})`)
+  const profBonusTooltip = createMemo(() => formatLeadingTerm(calcProfBonus(), `Level ${props.character.level ?? 1}`))
 
   const equippedAC = createMemo(() => calculateEquippedAC(props.character))
   const acTooltip = createMemo(() => equippedAC().breakdown)

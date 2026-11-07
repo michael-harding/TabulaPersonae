@@ -11,7 +11,7 @@ import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, DAMAGE_TYPE_OPTIONS } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatLeadingTerm, getSpellAttackBreakdown, getSpellSaveDCBreakdown, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, DAMAGE_TYPE_OPTIONS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -306,18 +306,10 @@ export function ActionsModule(props: ActionsModuleProps) {
     return ability ? ABILITY_TITLE_CASE[ability] : ""
   })
   const spellModifierTooltip = createMemo(() =>
-    effectiveSpellcastingAbility() ? `${formatModifier(spellModifier())} (${spellAbilityLabel()})` : "No spellcasting ability set"
+    effectiveSpellcastingAbility() ? formatLeadingTerm(spellModifier(), spellAbilityLabel()) : "No spellcasting ability set"
   )
-  const spellAttackTooltip = createMemo(() =>
-    effectiveSpellcastingAbility()
-      ? `${formatModifier(spellModifier())} (${spellAbilityLabel()})${formatTerm(props.character.proficiencyBonus || 2, "Prof")}`
-      : "No spellcasting ability set"
-  )
-  const spellSaveDCTooltip = createMemo(() =>
-    effectiveSpellcastingAbility()
-      ? `8${formatTerm(props.character.proficiencyBonus || 2, "Prof")}${formatTerm(spellModifier(), spellAbilityLabel())}`
-      : "No spellcasting ability set"
-  )
+  const spellAttackTooltip = createMemo(() => getSpellAttackBreakdown(props.character))
+  const spellSaveDCTooltip = createMemo(() => getSpellSaveDCBreakdown(props.character))
 
   const spellAttackField = useCalculatedValue({
     useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellAttackBonus : (props.character.useCalculatedSpellAttackBonus ?? true)),
@@ -641,8 +633,10 @@ export function ActionsModule(props: ActionsModuleProps) {
                       name={w.name}
                       badgeLabel="Weapon"
                       attackBonus={w.attackBonus}
+                      attackBonusTooltip={w.attackBonusTooltip}
                       range={w.range}
                       damage={w.damage}
+                      damageTooltip={w.damageTooltip}
                       damageType={w.damageType}
                       description={w.description}
                     />

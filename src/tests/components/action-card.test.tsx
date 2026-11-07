@@ -4,7 +4,7 @@ import { ActionCard } from "@/components/action-card"
 import type { ActionCardProps } from "@/components/action-card"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 
 function makeProps(overrides: Partial<ActionCardProps> = {}): ActionCardProps {
   return {
@@ -112,10 +112,42 @@ describe("ActionCard", () => {
     })
   })
 
+  describe("attack bonus tooltip", () => {
+    it("shows the attack bonus breakdown in a tooltip when given one", async () => {
+      render(() => <ActionCard {...makeProps({ attackBonus: 6, attackBonusTooltip: "+3 (Str) + 1 (Weapon Bonus) + 2 (Prof)" })} />)
+      expect(screen.getByRole("group", { name: "Attack: +6 to hit" })).toContainElement(screen.getByTestId("action-card-test-attack-bonus"))
+      fireEvent.focus(screen.getByTestId("action-card-test-attack-bonus").closest('[data-sem="tooltip-trigger"]')!)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 1 (Weapon Bonus) + 2 (Prof)"))
+    })
+
+    it("shows an entered attack bonus without a tooltip trigger", () => {
+      render(() => <ActionCard {...makeProps({ attackBonus: 5 })} />)
+      expect(screen.getByText(/\+5 to hit/)).toBeInTheDocument()
+      expect(screen.queryByTestId("action-card-test-attack-bonus")).toBeNull()
+    })
+  })
+
   describe("effect pills", () => {
     it("shows red pill when damage provided", () => {
       render(() => <ActionCard {...makeProps({ damage: "2d6", damageType: "fire" })} />)
       expect(screen.getByText("2d6 fire")).toBeInTheDocument()
+    })
+
+    it("shows the damage breakdown in a tooltip on the damage pill when given one", async () => {
+      render(() => <ActionCard {...makeProps({ damage: "1d8+4", damageType: "slashing", damageTooltip: "1d8 + 3 (Str) + 1 (Weapon Bonus)" })} />)
+      expect(screen.getByRole("group", { name: "Damage 1d8+4 slashing" })).toBeInTheDocument()
+      fireEvent.focus(screen.getByTestId("action-card-test-effect-pill-red").closest('[data-sem="tooltip-trigger"]')!)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("1d8 + 3 (Str) + 1 (Weapon Bonus)"))
+    })
+
+    it("gives an entered damage pill no tooltip trigger", () => {
+      render(() => <ActionCard {...makeProps({ damage: "2d6", damageType: "fire" })} />)
+      expect(screen.getByTestId("action-card-test-effect-pill-red").closest('[data-sem="tooltip-trigger"]')).toBeNull()
+    })
+
+    it("does not put the damage tooltip on a gain pill that outranks the damage", () => {
+      render(() => <ActionCard {...makeProps({ gain: "1d8", damage: "2d6", damageTooltip: "2d6 + 0 (Str)" })} />)
+      expect(screen.getByTestId("action-card-test-effect-pill-green").closest('[data-sem="tooltip-trigger"]')).toBeNull()
     })
 
     it("shows green pill when gain provided", () => {
@@ -319,6 +351,15 @@ describe("ActionCard", () => {
 
   it("has no accessibility violations", async () => {
     const { container } = render(() => <ActionCard {...makeProps()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
+  })
+
+  it("has no accessibility violations with calculated attack bonus and damage tooltips", async () => {
+    const { container } = render(() => (
+      <ActionCard {...makeProps({ attackBonus: 6, attackBonusTooltip: "+3 (Str) + 1 (Weapon Bonus) + 2 (Prof)", damage: "1d8+4", damageType: "slashing", damageTooltip: "1d8 + 3 (Str) + 1 (Weapon Bonus)" })} />
+    ))
+    expect(container.querySelectorAll('[data-sem="tooltip-trigger"]')).toHaveLength(2)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

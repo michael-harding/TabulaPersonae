@@ -40,6 +40,8 @@ export interface ActionCardProps {
   // Stats — all optional, shown when truthy / not undefined
   castingTime?: string   // detail popover only
   attackBonus?: number   // "Attack: +5 to hit"
+  /** Breakdown of a calculated attackBonus, shown as its tooltip. */
+  attackBonusTooltip?: string
   range?: string
   attackSave?: string
   components?: string
@@ -50,6 +52,8 @@ export interface ActionCardProps {
 
   // Effect pills — priority: gain > tempHp > damage
   damage?: string
+  /** Breakdown of a calculated damage roll, shown as the damage pill's tooltip. */
+  damageTooltip?: string
   damageType?: string
   gain?: string
   tempHp?: string
@@ -237,7 +241,16 @@ export function ActionCard(props: ActionCardProps) {
               <div><strong>Trigger:</strong> {props.trigger}</div>
             </Show>
             <Show when={props.attackBonus != null}>
-              <div><strong>Attack:</strong> {formatModifier(props.attackBonus!)} to hit</div>
+              <div>
+                {/* The whole line is the trigger, so the focused stop reads "Attack: +6 to hit", not a bare "+6". */}
+                <Show when={props.attackBonusTooltip} fallback={<><strong>Attack:</strong> {formatModifier(props.attackBonus!)} to hit</>}>
+                  {(tooltip) => (
+                    <Tooltip content={tooltip()} triggerFocusable>
+                      <span data-test={`${props["data-test"]}-attack-bonus`}><strong>Attack:</strong> {formatModifier(props.attackBonus!)} to hit</span>
+                    </Tooltip>
+                  )}
+                </Show>
+              </div>
             </Show>
             <Show when={props.range}>
               <div><strong>Range:</strong> {props.range}</div>
@@ -275,13 +288,20 @@ export function ActionCard(props: ActionCardProps) {
                   : p().color === "blue"
                   ? "border-blue-500 text-blue-700 dark:text-blue-400"
                   : "border-red-500 text-red-700 dark:text-red-400"
-                return (
+                const pillElement = () => (
                   <div
                     class={`px-2 py-1 border-2 rounded font-semibold whitespace-nowrap text-sm ${colorClass}`}
                     data-test={`${props["data-test"]}-effect-pill-${p().color}`}
                   >
                     {p().text}
                   </div>
+                )
+                // Only the damage pill can be calculated; gain and temp HP are entered text.
+                const damageTooltip = () => (p().color === "red" ? props.damageTooltip : undefined)
+                return (
+                  <Show when={damageTooltip()} fallback={pillElement()}>
+                    {(tooltip) => <Tooltip content={tooltip()} triggerFocusable triggerLabel={`Damage ${p().text}`}>{pillElement()}</Tooltip>}
+                  </Show>
                 )
               }}
             </Show>

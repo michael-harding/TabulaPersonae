@@ -50,7 +50,7 @@ export function CalculatedValue(props: CalculatedValueProps) {
         <Show
           when={showInput()}
           fallback={
-            <Tooltip content={tooltipContent()} triggerFocusable>
+            <Tooltip content={tooltipContent()} triggerFocusable triggerLabel={`${props.label} ${format(displayValue())}`}>
               <div
                 data-test={`${props["data-test"]}-display`}
                 class={

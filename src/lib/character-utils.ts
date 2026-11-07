@@ -946,6 +946,20 @@ export function computeSpellModifier(character: Character): number {
   return getAbilityModifier(getEffectiveAbilityScore(character, ability))
 }
 
+/** The tooltip breakdown of getSpellAttackBonus. */
+export function getSpellAttackBreakdown(character: Character): string {
+  const ability = getEffectiveSpellcastingAbility(character)
+  if (!ability) return "No spellcasting ability set"
+  return `${formatLeadingTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}${formatTerm(character.proficiencyBonus || 2, "Prof")}`
+}
+
+/** The tooltip breakdown of getSpellSaveDC. */
+export function getSpellSaveDCBreakdown(character: Character): string {
+  const ability = getEffectiveSpellcastingAbility(character)
+  if (!ability) return "No spellcasting ability set"
+  return `8${formatTerm(character.proficiencyBonus || 2, "Prof")}${formatTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}`
+}
+
 export const SKILL_ABILITY_MAP = {
   acrobatics: "dexterity",
   animalHandling: "wisdom",
@@ -1084,7 +1098,9 @@ export interface DerivedWeaponAttack {
   name: string
   type: "attack"
   attackBonus: number
+  attackBonusTooltip: string
   damage: string
+  damageTooltip: string
   damageType: string
   range: string
   description: string
@@ -1108,18 +1124,26 @@ export function getEquippedWeaponAttacks(
     )
     .map((item) => {
       const { damage, damageType, weaponRange, attackAbility, proficient } = item.weaponStats
-      const abilityMod =
-        attackAbility === "dex" ? dexMod
-        : attackAbility === "finesse" ? Math.max(strMod, dexMod)
-        : strMod
-      const attackBonus = abilityMod + (proficient ? profBonus : 0)
-      const damageStr = abilityMod >= 0 ? `${damage}+${abilityMod}` : `${damage}${abilityMod}`
+      const bonus = isItemModifierActive(item) ? (item.modifiers?.weaponBonus ?? 0) : 0
+      const usesDex = attackAbility === "dex" || (attackAbility === "finesse" && dexMod > strMod)
+      const abilityMod = usesDex ? dexMod : strMod
+      const abilityLabel = usesDex ? ABILITY_TITLE_CASE.dexterity : ABILITY_TITLE_CASE.strength
+      const attackBonus = abilityMod + bonus + (proficient ? profBonus : 0)
+      const damageMod = abilityMod + bonus
+      const damageStr = `${damage}${formatModifier(damageMod)}`
+      const bonusTerm = formatBonusTerm(bonus, "Weapon Bonus")
+      const abilityTerm = formatLeadingTerm(abilityMod, abilityLabel)
+      const attackBonusTooltip = `${abilityTerm}${bonusTerm}${proficient ? formatTerm(profBonus, "Prof") : ""}`
+      // With no dice entered, the ability modifier leads, so it carries its own sign.
+      const damageTooltip = `${damage ? `${damage}${formatTerm(abilityMod, abilityLabel)}` : abilityTerm}${bonusTerm}`
       return {
         id: `weapon-${item.id}`,
         name: item.name,
         type: "attack" as const,
         attackBonus,
+        attackBonusTooltip,
         damage: damageStr,
+        damageTooltip,
         damageType,
         range: weaponRange,
         description: item.description,
@@ -1137,6 +1161,11 @@ export function formatBonusTerm(bonus: number, label: string): string {
 /** Like formatBonusTerm, but never suppressed at zero — for terms that are always part of the formula (e.g. a Dex modifier that can legitimately be +0). */
 export function formatTerm(amount: number, label: string): string {
   return amount >= 0 ? ` + ${amount} (${label})` : ` - ${Math.abs(amount)} (${label})`
+}
+
+/** The first term of a formula: with no term before it to carry an operator, the amount carries its own sign. */
+export function formatLeadingTerm(amount: number, label: string): string {
+  return `${formatModifier(amount)} (${label})`
 }
 
 export function calculateEquippedAC(
@@ -1204,7 +1233,7 @@ export function calculateInitiative(
   const itemBonus = itemTotals.initiative
   return {
     initiative: dexMod + itemBonus,
-    breakdown: `${formatModifier(dexMod)} (${ABILITY_TITLE_CASE.dexterity})${formatBonusTerm(itemBonus, "item bonus")}`,
+    breakdown: `${formatLeadingTerm(dexMod, ABILITY_TITLE_CASE.dexterity)}${formatBonusTerm(itemBonus, "item bonus")}`,
   }
 }
 

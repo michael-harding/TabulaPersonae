@@ -60,6 +60,8 @@ export type SenseType = "darkvision" | "blindsight" | "tremorsense" | "truesight
 export interface ItemModifiers {
   armorClass?: number
   initiative?: number
+  // Flat bonus to a weapon's own attack and damage rolls, e.g. 1 for a +1 weapon. Weapons only.
+  weaponBonus?: number
   savingThrows?: Partial<Record<keyof AbilityScores, number>>
   abilityScores?: Partial<Record<keyof AbilityScores, number>>
   resistances?: string[]

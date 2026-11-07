@@ -7,6 +7,7 @@ import {
   getSpellAttackBonus,
   computeSpellModifier,
   formatModifier,
+  formatLeadingTerm,
   SKILL_ABILITY_MAP,
   SKILL_DISPLAY_NAMES,
   normalizeDamageTypes,
@@ -278,6 +279,14 @@ describe("Character Utils", () => {
       expect(formatModifier(-1)).toBe("-1")
       expect(formatModifier(-5)).toBe("-5")
       expect(formatModifier(-10)).toBe("-10")
+    })
+  })
+
+  describe("formatLeadingTerm", () => {
+    it("signs the amount itself, since no operator precedes the first term", () => {
+      expect(formatLeadingTerm(3, "Str")).toBe("+3 (Str)")
+      expect(formatLeadingTerm(0, "Dex")).toBe("+0 (Dex)")
+      expect(formatLeadingTerm(-1, "Dex")).toBe("-1 (Dex)")
     })
   })
 
@@ -1173,6 +1182,67 @@ describe("getEquippedWeaponAttacks", () => {
       equipment: [makeWeaponItem({ weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: false } })] }
     const [atk] = getEquippedWeaponAttacks(char)
     expect(atk.attackBonus).toBe(3) // STR +3 only
+  })
+
+  it("adds a weapon bonus to both the attack bonus and the damage modifier", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem({ magic: true, requiresAttunement: false, modifiers: { weaponBonus: 1 } })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(6) // STR +3 + bonus +1 + prof +2
+    expect(atk.damage).toBe("1d8+4") // STR +3 + bonus +1
+  })
+
+  it("combines a weapon bonus with a negative ability modifier into one damage term", () => {
+    const scores = { ...baseScores, strength: 6 } // STR -2
+    const char = { ...createDefaultCharacter(), abilityScores: scores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem({ magic: true, requiresAttunement: false, modifiers: { weaponBonus: 1 } })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(1) // STR -2 + bonus +1 + prof +2
+    expect(atk.damage).toBe("1d8-1")
+  })
+
+  it.each<[string, Partial<Equipment>]>([
+    ["is not magic", { magic: false, modifiers: { weaponBonus: 1 } }],
+    ["requires attunement but is not attuned", { magic: true, requiresAttunement: true, attuned: false, modifiers: { weaponBonus: 1 } }],
+  ])("ignores the weapon bonus while the weapon %s", (_label, overrides) => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem(overrides)] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(5) // STR +3 + prof +2
+    expect(atk.damage).toBe("1d8+3")
+    expect(atk.attackBonusTooltip).toBe("+3 (Str) + 2 (Prof)")
+  })
+
+  it("breaks down the attack bonus and damage in tooltips, naming each source", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem({ magic: true, requiresAttunement: false, modifiers: { weaponBonus: 1 } })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonusTooltip).toBe("+3 (Str) + 1 (Weapon Bonus) + 2 (Prof)")
+    expect(atk.damageTooltip).toBe("1d8 + 3 (Str) + 1 (Weapon Bonus)")
+  })
+
+  it("leaves zero bonus and missing proficiency out of the tooltips, but keeps a +0 ability term", () => {
+    const scores = { ...baseScores, strength: 10 } // STR +0
+    const char = { ...createDefaultCharacter(), abilityScores: scores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem({ weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: false } })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonusTooltip).toBe("+0 (Str)")
+    expect(atk.damageTooltip).toBe("1d8 + 0 (Str)")
+  })
+
+  it("names the ability a finesse weapon actually used in its tooltips", () => {
+    const scores = { ...baseScores, strength: 12, dexterity: 16 } // STR +1, DEX +3
+    const char = { ...createDefaultCharacter(), abilityScores: scores, proficiencyBonus: 2,
+      equipment: [makeWeaponItem({ weaponStats: { damage: "1d6", damageType: "piercing", weaponRange: "5 ft", attackAbility: "finesse", proficient: true } })] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonusTooltip).toBe("+3 (Dex) + 2 (Prof)")
+    expect(atk.damageTooltip).toBe("1d6 + 3 (Dex)")
+  })
+
+  it("shows a negative ability modifier as subtraction in the damage tooltip", () => {
+    const scores = { ...baseScores, strength: 8 } // STR -1
+    const char = { ...createDefaultCharacter(), abilityScores: scores, proficiencyBonus: 2, equipment: [makeWeaponItem()] }
+    expect(getEquippedWeaponAttacks(char)[0].damageTooltip).toBe("1d8 - 1 (Str)")
   })
 
   it("sets isDerived: true on all results", () => {

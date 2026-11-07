@@ -5,6 +5,21 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.7.0] - 2026-11-07
+
+### Added
+- **+X weapons** — a magic weapon can now carry an Attack & Damage Bonus (e.g. 1 for a +1 longsword), set in the item editor's magic item section. It is added to the weapon's attack roll and damage on the Actions tab while the item's magic bonuses are active — that is, once attuned if it requires attunement — and is listed as "Atk & Dmg +1" in the inventory. The bonus is offered for weapons only, and changing an item's type away from Weapon removes it
+- **Weapon attack breakdowns** — an equipped weapon's attack bonus and damage on the Actions tab now have tooltips that name each source, e.g. "+3 (Dexterity) + 1 (Weapon Bonus) + 2 (Prof)" and "1d8 + 3 (Dexterity) + 1 (Weapon Bonus)". A finesse weapon names the ability it actually uses. Attacks and damage entered by hand get no tooltip
+
+### Changed
+- In the item editor, the "AC & Initiative Bonus" group is now "Combat Bonuses" and also holds a weapon's Attack & Damage Bonus
+- In the item and spell editors, the Save and Cancel buttons now sit at the right, with Cancel first and the save button last
+- Values with a breakdown tooltip are now announced by screen readers with what they are, not just the number or letter shown: for example "Stealth +5", "Dexterity saving throw +4", "Spell Hit +5, Spell Save DC 13", "Damage 1d8+3 slashing", "Ritual" or "Advantage" rather than a bare "+5" or "R". The whole "Attack: +5 to hit" line of a weapon attack is the tooltip target, so it is read in full
+- The spell Hit/DC tooltip in the stats bar now uses the same breakdown as the Actions tab, naming the spellcasting ability, e.g. "+3 (Intelligence) + 2 (Prof)"
+
+### Fixed
+- When a custom Spell Attack Bonus or Spell Save DC is set, the stats bar's tooltip now shows "Custom" for it instead of a calculated breakdown that did not add up to the value shown
+
 ## [v1.6.3] - 2026-11-06
 
 ### Added
