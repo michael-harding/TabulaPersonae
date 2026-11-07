@@ -1116,9 +1116,9 @@ export function getEquippedWeaponAttacks(
       const abilityLabel = usesDex ? ABILITY_TITLE_CASE.dexterity : ABILITY_TITLE_CASE.strength
       const attackBonus = abilityMod + bonus + (proficient ? profBonus : 0)
       const damageMod = abilityMod + bonus
-      const damageStr = damageMod >= 0 ? `${damage}+${damageMod}` : `${damage}${damageMod}`
+      const damageStr = `${damage}${formatModifier(damageMod)}`
       const bonusTerm = formatBonusTerm(bonus, "Weapon Bonus")
-      const abilityTerm = `${formatModifier(abilityMod)} (${abilityLabel})`
+      const abilityTerm = formatLeadingTerm(abilityMod, abilityLabel)
       const attackBonusTooltip = `${abilityTerm}${bonusTerm}${proficient ? formatTerm(profBonus, "Prof") : ""}`
       // With no dice entered, the ability modifier leads, so it carries its own sign.
       const damageTooltip = `${damage ? `${damage}${formatTerm(abilityMod, abilityLabel)}` : abilityTerm}${bonusTerm}`
@@ -1147,6 +1147,11 @@ export function formatBonusTerm(bonus: number, label: string): string {
 /** Like formatBonusTerm, but never suppressed at zero — for terms that are always part of the formula (e.g. a Dex modifier that can legitimately be +0). */
 export function formatTerm(amount: number, label: string): string {
   return amount >= 0 ? ` + ${amount} (${label})` : ` - ${Math.abs(amount)} (${label})`
+}
+
+/** The first term of a formula: with no term before it to carry an operator, the amount carries its own sign. */
+export function formatLeadingTerm(amount: number, label: string): string {
+  return `${formatModifier(amount)} (${label})`
 }
 
 export function calculateEquippedAC(
@@ -1214,7 +1219,7 @@ export function calculateInitiative(
   const itemBonus = itemTotals.initiative
   return {
     initiative: dexMod + itemBonus,
-    breakdown: `${formatModifier(dexMod)} (${ABILITY_TITLE_CASE.dexterity})${formatBonusTerm(itemBonus, "item bonus")}`,
+    breakdown: `${formatLeadingTerm(dexMod, ABILITY_TITLE_CASE.dexterity)}${formatBonusTerm(itemBonus, "item bonus")}`,
   }
 }
 

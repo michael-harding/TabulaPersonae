@@ -1424,6 +1424,17 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     expect(results.violations).toHaveLength(0)
   })
 
+  it("has no accessibility violations with an equipped weapon's calculated attack and damage", async () => {
+    const longsword: Equipment = {
+      id: "wpn-1", name: "Longsword", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon",
+      weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+    }
+    const { container } = render(() => <ActionsModule character={makeCharacter({ equipment: [longsword] })} onUpdate={vi.fn()} />)
+    expect(screen.getByTestId("action-card-weapon-wpn-1-attack-bonus")).toBeInTheDocument()
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
+  })
+
   describe("readOnly mode", () => {
     function renderReadOnly(overrides: Partial<Character> = {}) {
       return render(() => (

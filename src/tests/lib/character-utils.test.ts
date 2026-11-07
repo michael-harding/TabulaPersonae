@@ -7,6 +7,7 @@ import {
   getSpellAttackBonus,
   computeSpellModifier,
   formatModifier,
+  formatLeadingTerm,
   SKILL_ABILITY_MAP,
   SKILL_DISPLAY_NAMES,
   normalizeDamageTypes,
@@ -278,6 +279,14 @@ describe("Character Utils", () => {
       expect(formatModifier(-1)).toBe("-1")
       expect(formatModifier(-5)).toBe("-5")
       expect(formatModifier(-10)).toBe("-10")
+    })
+  })
+
+  describe("formatLeadingTerm", () => {
+    it("signs the amount itself, since no operator precedes the first term", () => {
+      expect(formatLeadingTerm(3, "Str")).toBe("+3 (Str)")
+      expect(formatLeadingTerm(0, "Dex")).toBe("+0 (Dex)")
+      expect(formatLeadingTerm(-1, "Dex")).toBe("-1 (Dex)")
     })
   })
 

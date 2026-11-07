@@ -115,7 +115,7 @@ describe("ActionCard", () => {
   describe("attack bonus tooltip", () => {
     it("shows the attack bonus breakdown in a tooltip when given one", async () => {
       render(() => <ActionCard {...makeProps({ attackBonus: 6, attackBonusTooltip: "+3 (Str) + 1 (Weapon Bonus) + 2 (Prof)" })} />)
-      expect(screen.getByTestId("action-card-test-attack-bonus")).toHaveTextContent("+6")
+      expect(screen.getByTestId("action-card-test-attack-bonus")).toHaveTextContent(/^Attack: \+6 to hit$/)
       fireEvent.focus(screen.getByTestId("action-card-test-attack-bonus").closest('[data-sem="tooltip-trigger"]')!)
       await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 1 (Weapon Bonus) + 2 (Prof)"))
     })
@@ -350,6 +350,15 @@ describe("ActionCard", () => {
 
   it("has no accessibility violations", async () => {
     const { container } = render(() => <ActionCard {...makeProps()} />)
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
+  })
+
+  it("has no accessibility violations with calculated attack bonus and damage tooltips", async () => {
+    const { container } = render(() => (
+      <ActionCard {...makeProps({ attackBonus: 6, attackBonusTooltip: "+3 (Str) + 1 (Weapon Bonus) + 2 (Prof)", damage: "1d8+4", damageType: "slashing", damageTooltip: "1d8 + 3 (Str) + 1 (Weapon Bonus)" })} />
+    ))
+    expect(container.querySelectorAll('[data-sem="tooltip-trigger"]')).toHaveLength(2)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })

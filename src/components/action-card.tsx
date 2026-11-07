@@ -242,15 +242,14 @@ export function ActionCard(props: ActionCardProps) {
             </Show>
             <Show when={props.attackBonus != null}>
               <div>
-                <strong>Attack:</strong>{" "}
-                <Show when={props.attackBonusTooltip} fallback={formatModifier(props.attackBonus!)}>
+                {/* The whole line is the trigger, so the focused stop reads "Attack: +6 to hit", not a bare "+6". */}
+                <Show when={props.attackBonusTooltip} fallback={<><strong>Attack:</strong> {formatModifier(props.attackBonus!)} to hit</>}>
                   {(tooltip) => (
                     <Tooltip content={tooltip()} triggerFocusable>
-                      <span data-test={`${props["data-test"]}-attack-bonus`}>{formatModifier(props.attackBonus!)}</span>
+                      <span data-test={`${props["data-test"]}-attack-bonus`}><strong>Attack:</strong> {formatModifier(props.attackBonus!)} to hit</span>
                     </Tooltip>
                   )}
                 </Show>
-                {" "}to hit
               </div>
             </Show>
             <Show when={props.range}>

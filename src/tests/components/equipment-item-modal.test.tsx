@@ -258,6 +258,23 @@ describe("EquipmentItemModal", () => {
       expect(onSave.mock.calls[0][0].modifiers).toEqual({ armorClass: 1 })
     })
 
+    it("does not bring back the attack and damage bonus when the type is changed away from Weapon and back", () => {
+      const onSave = vi.fn()
+      const item: Equipment = {
+        id: "w1", name: "Longsword +1", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon",
+        weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+        magic: true, requiresAttunement: false, rarity: "uncommon", modifiers: { weaponBonus: 1 },
+      }
+      render(() => <EquipmentItemModal open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("item-type"))
+      fireEvent.click(screen.getByRole("option", { name: "Other" }))
+      fireEvent.click(screen.getByTestId("item-type"))
+      fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
+      expect(screen.getByTestId("modifier-weapon-bonus")).toHaveValue(0)
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave.mock.calls[0][0].modifiers).toBeUndefined()
+    })
+
     it("clears weaponStats when the type is changed away from Weapon before saving", () => {
       const onSave = vi.fn()
       render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)

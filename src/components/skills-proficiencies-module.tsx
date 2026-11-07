@@ -4,7 +4,7 @@ import BookOpen from "lucide-solid/icons/book-open"
 import type { Character } from "@/lib/character-types"
 import { pickFields } from "@/lib/changes"
 import { useModuleEdit } from "@/hooks/use-module-edit"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, SKILL_ABILITY_MAP, SKILL_DISPLAY_NAMES, ABILITY_DISPLAY_NAMES, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, formatLeadingTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, SKILL_ABILITY_MAP, SKILL_DISPLAY_NAMES, ABILITY_DISPLAY_NAMES, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { ChipListEditor } from "@/components/ui/chip-list-editor"
@@ -249,7 +249,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 const modifier = () => getSavingThrowModifier(effectiveScores()[ability], current().proficiencyBonus, isProficient(), saveItemBonus())
                 const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
                 const saveTooltip = () => {
-                  let formula = `${formatModifier(abilityMod())} (${ABILITY_ABBREVIATIONS[ability]})`
+                  let formula = formatLeadingTerm(abilityMod(), ABILITY_ABBREVIATIONS[ability])
                   if (isProficient()) formula += formatTerm(current().proficiencyBonus, "Prof")
                   formula += formatBonusTerm(saveItemBonus(), "Item")
                   return formula
@@ -305,7 +305,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 const modifier = () => getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, effectiveSkill().proficient, effectiveSkill().expertise)
                 const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
                 const skillTooltip = () => {
-                  let formula = `${formatModifier(abilityMod())} (${ABILITY_ABBREVIATIONS[ability]})`
+                  let formula = formatLeadingTerm(abilityMod(), ABILITY_ABBREVIATIONS[ability])
                   if (effectiveSkill().proficient) formula += formatTerm(current().proficiencyBonus, "Prof")
                   if (effectiveSkill().expertise) formula += formatTerm(current().proficiencyBonus, "Exp")
                   return formula

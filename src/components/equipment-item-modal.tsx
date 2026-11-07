@@ -268,8 +268,9 @@ function EquipmentForm(props: EquipmentFormProps) {
     setFormData("type", type as EquipmentType)
     if (type === "weapon") {
       if (!formData.weaponStats) setFormData("weaponStats", { damage: "", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true })
-    } else if (formData.weaponStats) {
-      setFormData("weaponStats", undefined)
+    } else {
+      if (formData.weaponStats) setFormData("weaponStats", undefined)
+      setFormData("modifierWeaponBonus", 0)
     }
     if (type === "armor") {
       if (!formData.armorStats) setFormData("armorStats", { baseAC: 11, armorType: "light" })
@@ -895,7 +896,7 @@ function buildModifiers(formData: EquipmentFormData): ItemModifiers | undefined 
   if (formData.magic) {
     if (formData.modifierArmorClass !== 0) modifiers.armorClass = formData.modifierArmorClass
     if (formData.modifierInitiative !== 0) modifiers.initiative = formData.modifierInitiative
-    if (formData.type === "weapon" && formData.modifierWeaponBonus !== 0) modifiers.weaponBonus = formData.modifierWeaponBonus
+    if (formData.modifierWeaponBonus !== 0) modifiers.weaponBonus = formData.modifierWeaponBonus
     const savingThrows = Object.fromEntries(
       ABILITY_KEYS.filter((a) => formData.modifierSavingThrows[a] !== 0).map((a) => [a, formData.modifierSavingThrows[a]])
     ) as Partial<Record<keyof AbilityScores, number>>

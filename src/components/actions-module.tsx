@@ -11,7 +11,7 @@ import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, DAMAGE_TYPE_OPTIONS } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatTerm, formatLeadingTerm, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, DAMAGE_TYPE_OPTIONS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -306,11 +306,11 @@ export function ActionsModule(props: ActionsModuleProps) {
     return ability ? ABILITY_TITLE_CASE[ability] : ""
   })
   const spellModifierTooltip = createMemo(() =>
-    effectiveSpellcastingAbility() ? `${formatModifier(spellModifier())} (${spellAbilityLabel()})` : "No spellcasting ability set"
+    effectiveSpellcastingAbility() ? formatLeadingTerm(spellModifier(), spellAbilityLabel()) : "No spellcasting ability set"
   )
   const spellAttackTooltip = createMemo(() =>
     effectiveSpellcastingAbility()
-      ? `${formatModifier(spellModifier())} (${spellAbilityLabel()})${formatTerm(props.character.proficiencyBonus || 2, "Prof")}`
+      ? `${formatLeadingTerm(spellModifier(), spellAbilityLabel())}${formatTerm(props.character.proficiencyBonus || 2, "Prof")}`
       : "No spellcasting ability set"
   )
   const spellSaveDCTooltip = createMemo(() =>

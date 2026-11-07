@@ -2,7 +2,7 @@ import { createSignal, createEffect, createMemo, on, For, Show } from "solid-js"
 import Zap from "lucide-solid/icons/zap"
 
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, formatModifier, formatTerm, formatBonusTerm, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, getAbilityScoreBaseMax, ABILITY_ABBREVIATIONS, ABILITY_TITLE_CASE, ABILITY_DISPLAY_NAMES, ABILITY_KEYS } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, formatTerm, formatBonusTerm, formatLeadingTerm, getSavingThrowModifier, getEquipmentModifierTotals, getActiveFeatureEffects, getCalculatedAbilityScore, getAbilityScoreBaseMax, ABILITY_ABBREVIATIONS, ABILITY_TITLE_CASE, ABILITY_DISPLAY_NAMES, ABILITY_KEYS } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { EditableModule } from "@/components/editable-module"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -131,7 +131,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
               const ownProfSave = () => isEditing() ? editedSaves()[ability] : (safeSaves()[ability] || false)
               const isProfSave = () => ownProfSave() || !!grantedBySave()
               const savingThrowMod = () => getSavingThrowModifier(abilityField.resolvedValue(), props.character.proficiencyBonus, true, saveItemBonus())
-              const saveTooltip = () => `${formatModifier(modifier())} (${ABILITY_TITLE_CASE[ability]})`
+              const saveTooltip = () => formatLeadingTerm(modifier(), ABILITY_TITLE_CASE[ability])
                 + formatTerm(props.character.proficiencyBonus ?? 0, "Prof")
                 + formatBonusTerm(saveItemBonus(), "Item")
 
