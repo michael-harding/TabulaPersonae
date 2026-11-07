@@ -61,6 +61,11 @@ describe("CalculatedValue", () => {
     expect(label).not.toHaveClass("text-sm", "text-muted-foreground")
   })
 
+  it("names the tooltip trigger by its label and displayed value, since the label sits outside it", () => {
+    render(() => <CalculatedValue {...baseProps({ format: (n) => `+${n}` })} />)
+    expect(screen.getByRole("group", { name: "Strength +14" })).toBeInTheDocument()
+  })
+
   it("shows the calculated value when not custom", () => {
     render(() => <CalculatedValue {...baseProps()} />)
     expect(screen.getByText("14")).toBeInTheDocument()

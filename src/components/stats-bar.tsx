@@ -5,7 +5,7 @@ import Sword from "lucide-solid/icons/sword"
 import Heart from "lucide-solid/icons/heart"
 
 import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getAbilityModifier, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveAbilityScore, getEffectiveSpellcastingAbility, displayedConditions } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getSpellAttackBreakdown, getSpellSaveDCBreakdown, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveSpellcastingAbility, displayedConditions } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 
@@ -23,20 +23,18 @@ export function StatsBar(props: StatsBarProps) {
     (props.character.useCalculatedInitiative ?? false) ? calculateInitiative(props.character).initiative : (props.character.initiative ?? 0)
   )
   const hasSpellcasting = createMemo(() => !!getEffectiveSpellcastingAbility(props.character))
+  const useCalculatedSpellSaveDC = () => props.character.useCalculatedSpellSaveDC ?? true
+  const useCalculatedHitBonus = () => props.character.useCalculatedSpellAttackBonus ?? true
   const spellSaveDC = createMemo(() =>
-    (props.character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(props.character) : props.character.spellSaveDC
+    useCalculatedSpellSaveDC() ? getSpellSaveDC(props.character) : props.character.spellSaveDC
   )
   const hitBonus = createMemo(() =>
-    (props.character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBonus(props.character) : props.character.spellAttackBonus
+    useCalculatedHitBonus() ? getSpellAttackBonus(props.character) : props.character.spellAttackBonus
   )
   const spellTooltip = createMemo(() => {
-    const ability = getEffectiveSpellcastingAbility(props.character)
-    if (!ability) return ""
-    const score = getEffectiveAbilityScore(props.character, ability)
-    const abilityMod = getAbilityModifier(score)
-    const prof = props.character.proficiencyBonus ?? 2
-    const abilityAbbr = ability.slice(0, 3).toUpperCase()
-    return `Spell Hit: ${abilityAbbr} ${formatModifier(abilityMod)} + Prof +${prof} = ${formatModifier(hitBonus())} · DC: 8 + ${abilityAbbr} ${formatModifier(abilityMod)} + Prof +${prof} = ${spellSaveDC()}`
+    const hit = useCalculatedHitBonus() ? getSpellAttackBreakdown(props.character) : "Custom"
+    const dc = useCalculatedSpellSaveDC() ? getSpellSaveDCBreakdown(props.character) : "Custom"
+    return `Spell Hit: ${hit} · DC: ${dc}`
   })
   const conditions = createMemo(() => displayedConditions(props.character))
 
@@ -79,7 +77,7 @@ export function StatsBar(props: StatsBarProps) {
           {/* Hit/DC — only if spellcasting ability set */}
           <Show when={hasSpellcasting()}>
             <div class="w-px h-4 bg-border shrink-0" />
-            <Tooltip content={spellTooltip()} triggerFocusable>
+            <Tooltip content={spellTooltip()} triggerFocusable triggerLabel={`Spell Hit ${formatModifier(hitBonus())}, Spell Save DC ${spellSaveDC()}`}>
               <div class="flex items-center gap-1 shrink-0">
                 <Sword class="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                 <span class="text-sm font-bold">{formatModifier(hitBonus())}</span>

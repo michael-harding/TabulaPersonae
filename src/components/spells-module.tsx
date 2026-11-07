@@ -624,7 +624,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                                       <Chip variant="outline" class="text-xs">{spell.school}</Chip>
                                       <Chip variant="outline" class="text-xs">Level: {spell.level}</Chip>
                                       <Show when={spell.ritual}>
-                                        <Tooltip content="Ritual" triggerFocusable>
+                                        <Tooltip content="Ritual" triggerFocusable triggerLabel="Ritual">
                                           <Chip data-test={`spell-ritual-${spell.id}`} variant="secondary" class="text-xs">R</Chip>
                                         </Tooltip>
                                       </Show>

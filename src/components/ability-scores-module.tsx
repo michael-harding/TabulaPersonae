@@ -170,7 +170,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                           />
                         }
                       >
-                        <Tooltip content={`Granted by ${grantedBySave()}`} triggerFocusable>
+                        <Tooltip content={`Granted by ${grantedBySave()}`} triggerFocusable triggerLabel={`${ABILITY_DISPLAY_NAMES[ability]} saving throw proficient`}>
                           <Checkbox
                             aria-label={`${ABILITY_DISPLAY_NAMES[ability]} saving throw`}
                             data-test={`${ability}-save-prof-checkbox`}
@@ -187,6 +187,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                     <Tooltip
                       content={scoreTooltip()}
                       triggerFocusable
+                      triggerLabel={`${ABILITY_DISPLAY_NAMES[ability]} ${abilityField.resolvedValue()}, modifier ${formatModifier(modifier())}`}
                       triggerClass="w-full"
                     >
                       <div class="ring-1 ring-black rounded-lg p-3 w-full" data-test={`${ability}-score-value`}>
@@ -199,6 +200,7 @@ export function AbilityScoresModule(props: AbilityScoresModuleProps) {
                     <Tooltip
                       content={saveTooltip()}
                       triggerFocusable
+                      triggerLabel={`${ABILITY_DISPLAY_NAMES[ability]} saving throw ${formatModifier(savingThrowMod())}, proficient`}
                       triggerClass="w-full"
                     >
                       <div class="space-y-1 w-full" data-test={`${ability}-saving-throw-value`}>

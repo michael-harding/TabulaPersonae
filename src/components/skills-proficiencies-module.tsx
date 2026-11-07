@@ -77,12 +77,12 @@ function SkillAdvantagePips(props: {
         </div>
       </Show>
       <Show when={!props.editable && props.state === "advantage"}>
-        <Tooltip content={tooltip("advantage")} triggerFocusable>
+        <Tooltip content={tooltip("advantage")} triggerFocusable triggerLabel="Advantage">
           <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white text-xs font-bold leading-none">A</span>
         </Tooltip>
       </Show>
       <Show when={!props.editable && props.state === "disadvantage"}>
-        <Tooltip content={tooltip("disadvantage")} triggerFocusable>
+        <Tooltip content={tooltip("disadvantage")} triggerFocusable triggerLabel="Disadvantage">
           <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-xs font-bold leading-none">D</span>
         </Tooltip>
       </Show>
@@ -281,7 +281,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                         </Tooltip>
                       </Show>
                     </div>
-                    <Tooltip content={saveTooltip()} triggerFocusable>
+                    <Tooltip content={saveTooltip()} triggerFocusable triggerLabel={`${ABILITY_DISPLAY_NAMES[ability]} saving throw ${formatModifier(modifier())}`}>
                       <span data-test={`saving-throw-modifier-${ability}`} class="font-semibold">{formatModifier(modifier())}</span>
                     </Tooltip>
                   </div>
@@ -361,7 +361,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                         onToggleAdvantage={() => toggleSkillAdvantage(skillKey)}
                         onToggleDisadvantage={() => toggleSkillDisadvantage(skillKey)}
                       />
-                      <Tooltip content={skillTooltip()} triggerFocusable>
+                      <Tooltip content={skillTooltip()} triggerFocusable triggerLabel={`${SKILL_DISPLAY_NAMES[skillKey]} ${formatModifier(modifier())}`}>
                         <span data-test={`skill-modifier-${skillKey}`} class="font-semibold">{formatModifier(modifier())}</span>
                       </Tooltip>
                     </div>

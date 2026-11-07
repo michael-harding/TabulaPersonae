@@ -192,8 +192,24 @@ describe("StatsBar", () => {
       fireEvent.focus(screen.getByRole("group"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // WIS 18 → +4, Prof +3 → Hit +7, DC 15
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Spell Hit: WIS +4 + Prof +3 = +7")
-      expect(screen.getByRole("tooltip")).toHaveTextContent("DC: 8 + WIS +4 + Prof +3 = 15")
+      expect(screen.getByRole("tooltip")).toHaveTextContent(/^Spell Hit: \+4 \(Wis\) \+ 3 \(Prof\) · DC: 8 \+ 3 \(Prof\) \+ 4 \(Wis\)$/)
+    })
+
+    it("names the spell hit/DC trigger with both values, since its icon and short labels carry no context", () => {
+      render(() => <StatsBar character={makeSpellcaster()} />)
+      expect(screen.getByRole("group", { name: "Spell Hit +7, Spell Save DC 15" })).toBeInTheDocument()
+    })
+
+    it("shows Custom, with no breakdown, for a custom spell attack bonus or save DC", async () => {
+      render(() => <StatsBar character={{ ...makeSpellcaster(), useCalculatedSpellAttackBonus: false, spellAttackBonus: 9, useCalculatedSpellSaveDC: false, spellSaveDC: 17 }} />)
+      fireEvent.focus(screen.getByRole("group"))
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent(/^Spell Hit: Custom · DC: Custom$/))
+    })
+
+    it("explains only the calculated value when the other is custom", async () => {
+      render(() => <StatsBar character={{ ...makeSpellcaster(), useCalculatedSpellSaveDC: false, spellSaveDC: 17 }} />)
+      fireEvent.focus(screen.getByRole("group"))
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent(/^Spell Hit: \+4 \(Wis\) \+ 3 \(Prof\) · DC: Custom$/))
     })
 
     it("reflects an item-boosted spellcasting ability score in the tooltip breakdown", async () => {
@@ -208,9 +224,8 @@ describe("StatsBar", () => {
       render(() => <StatsBar character={character} />)
       fireEvent.focus(screen.getByRole("group"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
-      // WIS 18+2=20 → +5, Prof +3 → Hit +8, DC 16 — the tooltip's own arithmetic must match
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Spell Hit: WIS +5 + Prof +3 = +8")
-      expect(screen.getByRole("tooltip")).toHaveTextContent("DC: 8 + WIS +5 + Prof +3 = 16")
+      // WIS 18+2=20 → +5, Prof +3 → Hit +8, DC 16
+      expect(screen.getByRole("tooltip")).toHaveTextContent(/^Spell Hit: \+5 \(Wis\) \+ 3 \(Prof\) · DC: 8 \+ 3 \(Prof\) \+ 5 \(Wis\)$/)
     })
   })
 })

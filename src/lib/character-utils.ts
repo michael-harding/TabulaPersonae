@@ -946,6 +946,20 @@ export function computeSpellModifier(character: Character): number {
   return getAbilityModifier(getEffectiveAbilityScore(character, ability))
 }
 
+/** The tooltip breakdown of getSpellAttackBonus. */
+export function getSpellAttackBreakdown(character: Character): string {
+  const ability = getEffectiveSpellcastingAbility(character)
+  if (!ability) return "No spellcasting ability set"
+  return `${formatLeadingTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}${formatTerm(character.proficiencyBonus || 2, "Prof")}`
+}
+
+/** The tooltip breakdown of getSpellSaveDC. */
+export function getSpellSaveDCBreakdown(character: Character): string {
+  const ability = getEffectiveSpellcastingAbility(character)
+  if (!ability) return "No spellcasting ability set"
+  return `8${formatTerm(character.proficiencyBonus || 2, "Prof")}${formatTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}`
+}
+
 export const SKILL_ABILITY_MAP = {
   acrobatics: "dexterity",
   animalHandling: "wisdom",

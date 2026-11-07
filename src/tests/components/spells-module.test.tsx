@@ -366,6 +366,7 @@ describe("SpellsModule", () => {
       render(() => <SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByText("1st Level"))
       await expectTapTooltip(screen.getByText("R"), "Ritual")
+      expect(screen.getByRole("group", { name: "Ritual" })).toContainElement(screen.getByText("R"))
     })
 
     it("does not show C or R badges for a plain spell", () => {

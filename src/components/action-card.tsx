@@ -300,7 +300,7 @@ export function ActionCard(props: ActionCardProps) {
                 const damageTooltip = () => (p().color === "red" ? props.damageTooltip : undefined)
                 return (
                   <Show when={damageTooltip()} fallback={pillElement()}>
-                    {(tooltip) => <Tooltip content={tooltip()} triggerFocusable>{pillElement()}</Tooltip>}
+                    {(tooltip) => <Tooltip content={tooltip()} triggerFocusable triggerLabel={`Damage ${p().text}`}>{pillElement()}</Tooltip>}
                   </Show>
                 )
               }}

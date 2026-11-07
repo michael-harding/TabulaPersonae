@@ -115,7 +115,7 @@ describe("ActionCard", () => {
   describe("attack bonus tooltip", () => {
     it("shows the attack bonus breakdown in a tooltip when given one", async () => {
       render(() => <ActionCard {...makeProps({ attackBonus: 6, attackBonusTooltip: "+3 (Str) + 1 (Weapon Bonus) + 2 (Prof)" })} />)
-      expect(screen.getByTestId("action-card-test-attack-bonus")).toHaveTextContent(/^Attack: \+6 to hit$/)
+      expect(screen.getByRole("group", { name: "Attack: +6 to hit" })).toContainElement(screen.getByTestId("action-card-test-attack-bonus"))
       fireEvent.focus(screen.getByTestId("action-card-test-attack-bonus").closest('[data-sem="tooltip-trigger"]')!)
       await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 1 (Weapon Bonus) + 2 (Prof)"))
     })
@@ -135,6 +135,7 @@ describe("ActionCard", () => {
 
     it("shows the damage breakdown in a tooltip on the damage pill when given one", async () => {
       render(() => <ActionCard {...makeProps({ damage: "1d8+4", damageType: "slashing", damageTooltip: "1d8 + 3 (Str) + 1 (Weapon Bonus)" })} />)
+      expect(screen.getByRole("group", { name: "Damage 1d8+4 slashing" })).toBeInTheDocument()
       fireEvent.focus(screen.getByTestId("action-card-test-effect-pill-red").closest('[data-sem="tooltip-trigger"]')!)
       await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("1d8 + 3 (Str) + 1 (Weapon Bonus)"))
     })
