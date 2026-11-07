@@ -1117,11 +1117,10 @@ export function getEquippedWeaponAttacks(
       const damageMod = abilityMod + bonus
       const damageStr = damageMod >= 0 ? `${damage}+${damageMod}` : `${damage}${damageMod}`
       const bonusTerm = formatBonusTerm(bonus, "Weapon Bonus")
-      const attackBonusTooltip = `${formatModifier(abilityMod)} (${abilityLabel})${bonusTerm}${proficient ? formatTerm(profBonus, "Prof") : ""}`
+      const abilityTerm = `${formatModifier(abilityMod)} (${abilityLabel})`
+      const attackBonusTooltip = `${abilityTerm}${bonusTerm}${proficient ? formatTerm(profBonus, "Prof") : ""}`
       // With no dice entered, the ability modifier leads, so it carries its own sign.
-      const damageTooltip = damage
-        ? `${damage}${formatTerm(abilityMod, abilityLabel)}${bonusTerm}`
-        : `${formatModifier(abilityMod)} (${abilityLabel})${bonusTerm}`
+      const damageTooltip = `${damage ? `${damage}${formatTerm(abilityMod, abilityLabel)}` : abilityTerm}${bonusTerm}`
       return {
         id: `weapon-${item.id}`,
         name: item.name,

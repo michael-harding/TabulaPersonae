@@ -234,13 +234,6 @@ function cloneFormData(data: EquipmentFormData): EquipmentFormData {
   return structuredClone(unwrap(data))
 }
 
-// A zero bonus means no bonus, so it is left out of the saved item rather than stored as 0.
-function weaponStatsToSave(stats: EquipmentFormData["weaponStats"]): Equipment["weaponStats"] {
-  if (!stats) return undefined
-  const { bonus, ...rest } = stats
-  return bonus ? { ...rest, bonus } : rest
-}
-
 function EquipmentForm(props: EquipmentFormProps) {
   const [formData, setFormData] = createStore<EquipmentFormData>(cloneFormData(props.initialData))
   const [openAbilityScores, setOpenAbilityScores] = createSignal(hasAbilityScoreValues(props.initialData))
@@ -985,7 +978,7 @@ export function EquipmentItemModal(props: EquipmentItemModalProps) {
       equipped: formData.equipped,
       type: formData.type,
       actionKind: formData.actionKind || undefined,
-      weaponStats: weaponStatsToSave(formData.weaponStats),
+      weaponStats: formData.weaponStats && { ...formData.weaponStats, bonus: formData.weaponStats.bonus || undefined },
       armorStats: formData.armorStats,
       ...magicFields(formData),
     }
