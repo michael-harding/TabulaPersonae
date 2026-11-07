@@ -1109,7 +1109,8 @@ export function getEquippedWeaponAttacks(
       item.equipped && item.type === "weapon" && item.weaponStats != null
     )
     .map((item) => {
-      const { damage, damageType, weaponRange, attackAbility, proficient, bonus = 0 } = item.weaponStats
+      const { damage, damageType, weaponRange, attackAbility, proficient } = item.weaponStats
+      const bonus = isItemModifierActive(item) ? (item.modifiers?.weaponBonus ?? 0) : 0
       const usesDex = attackAbility === "dex" || (attackAbility === "finesse" && dexMod > strMod)
       const abilityMod = usesDex ? dexMod : strMod
       const abilityLabel = usesDex ? ABILITY_TITLE_CASE.dexterity : ABILITY_TITLE_CASE.strength

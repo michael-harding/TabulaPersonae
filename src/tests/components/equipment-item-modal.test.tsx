@@ -210,35 +210,52 @@ describe("EquipmentItemModal", () => {
       )
     })
 
-    it("saves a weapon bonus", () => {
+    it("saves a magic weapon's attack and damage bonus entered in the Combat Bonuses group", () => {
       const onSave = vi.fn()
       render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Longsword +1" } })
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
-      fireEvent.input(screen.getByTestId("weapon-damage"), { target: { value: "1d8" } })
-      fireEvent.input(screen.getByTestId("weapon-bonus"), { target: { value: "1" } })
-      fireEvent.blur(screen.getByTestId("weapon-bonus"))
+      fireEvent.click(screen.getByText("This is a Magic Item"))
+      fireEvent.click(screen.getByTestId("modifier-group-combat-bonuses"))
+      setNumericValue(screen.getByTestId("modifier-weapon-bonus"), "1")
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
-      expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({ weaponStats: expect.objectContaining({ damage: "1d8", bonus: 1 }) })
-      )
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ modifiers: { weaponBonus: 1 } }))
     })
 
-    it("loads an existing weapon bonus and drops it from the saved item when set back to 0", () => {
+    it("opens the Combat Bonuses group on an existing weapon bonus and drops it from the saved item when set back to 0", () => {
       const onSave = vi.fn()
       const item: Equipment = {
         id: "w1", name: "Longsword +1", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon",
-        weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true, bonus: 1 },
+        weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+        magic: true, requiresAttunement: false, rarity: "uncommon", modifiers: { weaponBonus: 1 },
       }
       render(() => <EquipmentItemModal open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
-      expect(screen.getByTestId("weapon-bonus")).toHaveValue(1)
-      fireEvent.input(screen.getByTestId("weapon-bonus"), { target: { value: "0" } })
-      fireEvent.blur(screen.getByTestId("weapon-bonus"))
+      expect(screen.getByTestId("modifier-weapon-bonus")).toHaveValue(1)
+      setNumericValue(screen.getByTestId("modifier-weapon-bonus"), "0")
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
-      expect(onSave.mock.calls[0][0].weaponStats).toEqual(
-        { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true }
-      )
+      expect(onSave.mock.calls[0][0].modifiers).toBeUndefined()
+    })
+
+    it("offers the attack and damage bonus only for weapons", () => {
+      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByText("This is a Magic Item"))
+      fireEvent.click(screen.getByTestId("modifier-group-combat-bonuses"))
+      expect(screen.queryByTestId("modifier-weapon-bonus")).not.toBeInTheDocument()
+    })
+
+    it("drops the attack and damage bonus when the type is changed away from Weapon before saving", () => {
+      const onSave = vi.fn()
+      const item: Equipment = {
+        id: "w1", name: "Longsword +1", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon",
+        weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+        magic: true, requiresAttunement: false, rarity: "uncommon", modifiers: { weaponBonus: 1, armorClass: 1 },
+      }
+      render(() => <EquipmentItemModal open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("item-type"))
+      fireEvent.click(screen.getByRole("option", { name: "Other" }))
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave.mock.calls[0][0].modifiers).toEqual({ armorClass: 1 })
     })
 
     it("clears weaponStats when the type is changed away from Weapon before saving", () => {
@@ -346,12 +363,12 @@ describe("EquipmentItemModal", () => {
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "Vorpal Sword", rarity: "legendary" }))
     })
 
-    it("saves AC/initiative bonuses entered in the Bonuses group", () => {
+    it("saves AC/initiative bonuses entered in the Combat Bonuses group", () => {
       const onSave = vi.fn()
       render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Ring of Protection" } })
       fireEvent.click(screen.getByText("This is a Magic Item"))
-      fireEvent.click(screen.getByTestId("modifier-group-ac-initiative"))
+      fireEvent.click(screen.getByTestId("modifier-group-combat-bonuses"))
       setNumericValue(screen.getByTestId("modifier-ac"), "1")
       setNumericValue(screen.getByTestId("modifier-initiative"), "2")
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))

@@ -832,7 +832,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
       expect(within(modal).getByText("Magic Item Details")).toBeInTheDocument()
-      expect(within(modal).getByText("AC & Initiative Bonus")).toBeInTheDocument()
+      expect(within(modal).getByText("Combat Bonuses")).toBeInTheDocument()
     })
 
     it("submits nonzero AC, saving throw, and ability score bonuses as Equipment.modifiers", () => {
@@ -842,7 +842,7 @@ describe("EquipmentInventoryModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/item name/i), { target: { value: "Ring of Protection" } })
       fireEvent.click(within(modal).getByText("This is a Magic Item"))
-      fireEvent.click(within(modal).getByText("AC & Initiative Bonus"))
+      fireEvent.click(within(modal).getByText("Combat Bonuses"))
       setNumericValue(screen.getByTestId("modifier-ac"), "1")
       fireEvent.click(within(modal).getByText("Saving Throws"))
       setNumericValue(screen.getByTestId("modifier-save-wisdom"), "2")
@@ -1256,6 +1256,7 @@ describe("EquipmentInventoryModule", () => {
     it.each<[string, Equipment["modifiers"], string]>([
       ["an AC bonus", { armorClass: 1 }, "AC +1"],
       ["an initiative bonus", { initiative: 2 }, "Init +2"],
+      ["a weapon attack and damage bonus", { weaponBonus: 1 }, "Atk & Dmg +1"],
       ["a saving throw bonus", { savingThrows: { wisdom: 1 } }, "WIS Save +1"],
       ["an ability score bonus", { abilityScores: { strength: 2 } }, "STR +2"],
       ["an ability score floor", { abilityScoreFloors: { constitution: 19 } }, "CON floor 19"],

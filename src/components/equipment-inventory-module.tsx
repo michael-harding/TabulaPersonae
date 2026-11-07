@@ -343,6 +343,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           <Show when={item.modifiers?.initiative}>
                             <span>Init {formatModifier(item.modifiers!.initiative!)}</span>
                           </Show>
+                          <Show when={item.modifiers?.weaponBonus}>
+                            <span>Atk &amp; Dmg {formatModifier(item.modifiers!.weaponBonus!)}</span>
+                          </Show>
                           <For each={Object.entries(item.modifiers?.savingThrows ?? {})}>
                             {([ability, bonus]) => <span>{ABILITY_ABBREVIATIONS[ability as keyof AbilityScores]} Save {formatModifier(bonus as number)}</span>}
                           </For>

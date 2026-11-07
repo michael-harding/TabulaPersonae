@@ -75,7 +75,6 @@ interface EquipmentFormData {
     weaponRange: string
     attackAbility: "str" | "dex" | "finesse"
     proficient: boolean
-    bonus?: number
   }
   armorStats?: {
     baseAC: number
@@ -91,6 +90,7 @@ interface EquipmentFormData {
   rechargeOn: "" | "short-rest" | "long-rest"
   modifierArmorClass: number
   modifierInitiative: number
+  modifierWeaponBonus: number
   modifierSavingThrows: Record<keyof AbilityScores, number>
   modifierAbilityScores: Record<keyof AbilityScores, number>
   modifierResistances: string[]
@@ -131,6 +131,7 @@ const defaultEquipmentForm: EquipmentFormData = {
   rechargeOn: "",
   modifierArmorClass: 0,
   modifierInitiative: 0,
+  modifierWeaponBonus: 0,
   modifierSavingThrows: { ...ZERO_ABILITY_SCORES },
   modifierAbilityScores: { ...ZERO_ABILITY_SCORES },
   modifierResistances: [],
@@ -195,8 +196,8 @@ function hasLanguageValues(d: EquipmentFormData): boolean {
 function hasSkillEffectValues(d: EquipmentFormData): boolean {
   return d.modifierSkillAdvantage.length > 0 || d.modifierSkillDisadvantage.length > 0
 }
-function hasACInitiativeValues(d: EquipmentFormData): boolean {
-  return d.modifierArmorClass !== 0 || d.modifierInitiative !== 0
+function hasCombatBonusValues(d: EquipmentFormData): boolean {
+  return d.modifierArmorClass !== 0 || d.modifierInitiative !== 0 || d.modifierWeaponBonus !== 0
 }
 function hasChargesValues(d: EquipmentFormData): boolean {
   return d.charges !== 0 || d.maxUses !== 0 || d.rechargeOn !== ""
@@ -243,7 +244,7 @@ function EquipmentForm(props: EquipmentFormProps) {
   const [openMovement, setOpenMovement] = createSignal(hasMovementValues(props.initialData))
   const [openLanguages, setOpenLanguages] = createSignal(hasLanguageValues(props.initialData))
   const [openSkillEffects, setOpenSkillEffects] = createSignal(hasSkillEffectValues(props.initialData))
-  const [openACInitiative, setOpenACInitiative] = createSignal(hasACInitiativeValues(props.initialData))
+  const [openCombatBonuses, setOpenCombatBonuses] = createSignal(hasCombatBonusValues(props.initialData))
   const [openUses, setOpenUses] = createSignal(hasChargesValues(props.initialData))
   createEffect(
     on(
@@ -257,7 +258,7 @@ function EquipmentForm(props: EquipmentFormProps) {
         setOpenMovement(hasMovementValues(init))
         setOpenLanguages(hasLanguageValues(init))
         setOpenSkillEffects(hasSkillEffectValues(init))
-        setOpenACInitiative(hasACInitiativeValues(init))
+        setOpenCombatBonuses(hasCombatBonusValues(init))
         setOpenUses(hasChargesValues(init))
       }
     )
@@ -373,17 +374,6 @@ function EquipmentForm(props: EquipmentFormProps) {
                   </For>
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <Label for="weapon-bonus">Attack &amp; Damage Bonus</Label>
-              <NumericInput
-                id="weapon-bonus"
-                data-test="weapon-bonus"
-                value={formData.weaponStats?.bonus ?? 0}
-                onChange={(v) => setFormData("weaponStats", "bonus", v)}
-              />
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -581,29 +571,6 @@ function EquipmentForm(props: EquipmentFormProps) {
               </div>
             </ModifierGroup>
 
-            <ModifierGroup label="AC & Initiative Bonus" data-test="modifier-group-ac-initiative" open={openACInitiative()} onOpenChange={setOpenACInitiative}>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <Label for="modifier-ac">AC Bonus</Label>
-                  <NumericInput
-                    id="modifier-ac"
-                    data-test="modifier-ac"
-                    value={formData.modifierArmorClass}
-                    onChange={(v) => setFormData("modifierArmorClass", v)}
-                  />
-                </div>
-                <div>
-                  <Label for="modifier-initiative">Initiative Bonus</Label>
-                  <NumericInput
-                    id="modifier-initiative"
-                    data-test="modifier-initiative"
-                    value={formData.modifierInitiative}
-                    onChange={(v) => setFormData("modifierInitiative", v)}
-                  />
-                </div>
-              </div>
-            </ModifierGroup>
-
             <ModifierGroup label="Charges" data-test="modifier-group-charges" open={openUses()} onOpenChange={setOpenUses}>
               <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -637,6 +604,40 @@ function EquipmentForm(props: EquipmentFormProps) {
                   </Select>
                 </div>
               </Show>
+            </ModifierGroup>
+
+            <ModifierGroup label="Combat Bonuses" data-test="modifier-group-combat-bonuses" open={openCombatBonuses()} onOpenChange={setOpenCombatBonuses}>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <Label for="modifier-ac">AC Bonus</Label>
+                  <NumericInput
+                    id="modifier-ac"
+                    data-test="modifier-ac"
+                    value={formData.modifierArmorClass}
+                    onChange={(v) => setFormData("modifierArmorClass", v)}
+                  />
+                </div>
+                <div>
+                  <Label for="modifier-initiative">Initiative Bonus</Label>
+                  <NumericInput
+                    id="modifier-initiative"
+                    data-test="modifier-initiative"
+                    value={formData.modifierInitiative}
+                    onChange={(v) => setFormData("modifierInitiative", v)}
+                  />
+                </div>
+                <Show when={formData.type === "weapon"}>
+                  <div>
+                    <Label for="modifier-weapon-bonus">Attack &amp; Damage Bonus</Label>
+                    <NumericInput
+                      id="modifier-weapon-bonus"
+                      data-test="modifier-weapon-bonus"
+                      value={formData.modifierWeaponBonus}
+                      onChange={(v) => setFormData("modifierWeaponBonus", v)}
+                    />
+                  </div>
+                </Show>
+              </div>
             </ModifierGroup>
 
             <ModifierGroup label="Languages & Proficiencies" data-test="modifier-group-languages" open={openLanguages()} onOpenChange={setOpenLanguages}>
@@ -859,6 +860,7 @@ function formDataFromItem(item: Equipment | null): EquipmentFormData {
     rechargeOn: item.rechargeOn ?? "",
     modifierArmorClass: item.modifiers?.armorClass ?? 0,
     modifierInitiative: item.modifiers?.initiative ?? 0,
+    modifierWeaponBonus: item.modifiers?.weaponBonus ?? 0,
     modifierSavingThrows: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.savingThrows },
     modifierAbilityScores: { ...ZERO_ABILITY_SCORES, ...item.modifiers?.abilityScores },
     modifierResistances: item.modifiers?.resistances ?? [],
@@ -893,6 +895,7 @@ function buildModifiers(formData: EquipmentFormData): ItemModifiers | undefined 
   if (formData.magic) {
     if (formData.modifierArmorClass !== 0) modifiers.armorClass = formData.modifierArmorClass
     if (formData.modifierInitiative !== 0) modifiers.initiative = formData.modifierInitiative
+    if (formData.type === "weapon" && formData.modifierWeaponBonus !== 0) modifiers.weaponBonus = formData.modifierWeaponBonus
     const savingThrows = Object.fromEntries(
       ABILITY_KEYS.filter((a) => formData.modifierSavingThrows[a] !== 0).map((a) => [a, formData.modifierSavingThrows[a]])
     ) as Partial<Record<keyof AbilityScores, number>>
@@ -978,7 +981,7 @@ export function EquipmentItemModal(props: EquipmentItemModalProps) {
       equipped: formData.equipped,
       type: formData.type,
       actionKind: formData.actionKind || undefined,
-      weaponStats: formData.weaponStats && { ...formData.weaponStats, bonus: formData.weaponStats.bonus || undefined },
+      weaponStats: formData.weaponStats,
       armorStats: formData.armorStats,
       ...magicFields(formData),
     }

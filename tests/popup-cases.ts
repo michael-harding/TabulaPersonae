@@ -45,6 +45,17 @@ export const MODALS: ModalCase[] = [
   { name: "item-edit-weapon", tab: "Inventory", open: (page) => click(page, "equipment-edit-eq1") },
   { name: "item-edit-armor", tab: "Inventory", open: (page) => click(page, "equipment-edit-eq2") },
   { name: "item-edit-magic", tab: "Inventory", open: (page) => click(page, "magic-item-edit-mi1") },
+  // The weapon-only Attack & Damage Bonus sits inside the magic section's Combat Bonuses group.
+  // Opening the group scrolls the modal, so it is scrolled back to the top: a scroll edge cutting
+  // across text is something axe cannot judge.
+  {
+    name: "item-edit-weapon-magic-combat-bonuses", tab: "Inventory", open: async (page) => {
+      await click(page, "equipment-edit-eq1")
+      await dialog(page).getByText("This is a Magic Item").click()
+      await click(page, "modifier-group-combat-bonuses")
+      await dialog(page).evaluate((el) => el.scrollTo(0, 0))
+    },
+  },
   { name: "rest-short", open: (page) => click(page, "take-a-rest-button") },
   {
     name: "rest-long", open: async (page) => {
