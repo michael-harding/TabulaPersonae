@@ -1,3 +1,5 @@
+import type { Locator } from "@playwright/test"
+
 import { testCharacter, secondCharacter } from "../visual/fixtures"
 import { byName, FEATURE_TYPES } from "../popup-cases"
 import { openSheet, seedGuest } from "./helpers"
@@ -120,6 +122,22 @@ test.describe("Action card expanded view", () => {
     await page.keyboard.press("Escape")
     await expect(page.getByRole("dialog")).toBeHidden()
     await expect(name).toBeFocused()
+  })
+})
+
+// The sheet colour is on <body>, so popups portaled outside the sheet's own root show it too
+test.describe("Sheet colour in popups", () => {
+  test("the expanded action card's border is the sheet colour", async ({ page }) => {
+    await seedGuest(page, { ...testCharacter, sheetColor: "#22c55e" }, { expandSections: true })
+    await openSheet(page, testCharacter.id)
+    const borderColor = (locator: Locator) => locator.evaluate((el) => getComputedStyle(el).borderTopColor)
+    // A module's card is always outlined in the sheet's primary colour
+    const sheetPrimary = await borderColor(page.locator('[data-test="actions-module"]'))
+
+    await page.locator('[data-test="action-card-attack-atk1"]').getByRole("button", { name: "Longbow Strike" }).click()
+    const view = page.getByRole("dialog", { name: "Longbow Strike" })
+    await expect(view).toBeVisible()
+    expect(await borderColor(view)).toBe(sheetPrimary)
   })
 })
 

@@ -307,11 +307,12 @@ describe("CharacterSheet saving", () => {
   })
 })
 
+// On <body>, not the sheet's root: popups portaled to <body> (modals, menus, popovers) need it too
 describe("CharacterSheet colour", () => {
   async function renderWithColour(sheetColor: string | undefined) {
     mockStorageManager.getCharacters.mockResolvedValue([{ ...testCharacter, sheetColor }])
     await renderAndLoad()
-    return document.querySelector('[data-sem="character-sheet-route"]') as HTMLElement
+    return document.body
   }
 
   it("gives the sheet a readable shade of its colour for each theme", async () => {
@@ -335,6 +336,15 @@ describe("CharacterSheet colour", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Character" }))
     fireEvent.click(await screen.findByTestId("sheet-color-reset-button"))
     await waitFor(() => expect(sheet).not.toHaveAttribute("data-sheet-color"))
+    expect(sheet.style.getPropertyValue("--sheet-primary-light")).toBe("")
+    expect(sheet.style.getPropertyValue("--sheet-primary-dark")).toBe("")
+  })
+
+  it("takes its colour away when the sheet closes, so other pages keep the theme's", async () => {
+    const sheet = await renderWithColour("#eab308")
+    expect(sheet).toHaveAttribute("data-sheet-color")
+    cleanup()
+    expect(sheet).not.toHaveAttribute("data-sheet-color")
     expect(sheet.style.getPropertyValue("--sheet-primary-light")).toBe("")
     expect(sheet.style.getPropertyValue("--sheet-primary-dark")).toBe("")
   })

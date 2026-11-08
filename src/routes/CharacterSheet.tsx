@@ -6,7 +6,7 @@ import Sunrise from "lucide-solid/icons/sunrise"
 import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Settings from "lucide-solid/icons/settings"
 
-import { sheetColorAttributes } from "@/lib/sheet-color"
+import { useSheetColor } from "@/hooks/use-sheet-color"
 import { type Character } from "@/lib/character-types"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
@@ -104,8 +104,7 @@ export default function CharacterSheet() {
     })
   }
 
-  // Recomputed only when the colour changes, not whenever the sheet's root re-renders
-  const sheetColor = createMemo(() => sheetColorAttributes(charStore.data?.sheetColor))
+  useSheetColor(() => charStore.data?.sheetColor)
 
   const handleImport = (toImport: Character[]) => {
     const { imported, saved } = saveImportedCharacters(toImport, storageManager().saveCharacter)
@@ -127,7 +126,7 @@ export default function CharacterSheet() {
     >
       <Show when={charStore.data}>
         {(getChar) => (
-          <div data-sem="character-sheet-route" class="bg-background" {...sheetColor()}>
+          <div data-sem="character-sheet-route" class="bg-background">
             <StatsBar character={getChar()} />
 
             <header class="border-b bg-card">
