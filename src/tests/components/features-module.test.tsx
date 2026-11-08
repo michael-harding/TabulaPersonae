@@ -1,7 +1,7 @@
 import userEvent from "@testing-library/user-event"
 import { axe } from "vitest-axe"
 
-import { FeaturesModule } from "@/components/features-module"
+import { FeaturesModule, featureFromForm, featureToForm, defaultFeatureForm } from "@/components/features-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Feature } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -603,6 +603,103 @@ describe("FeaturesModule", () => {
         expect(screen.getByRole("combobox", { name: /uses scaling/i })).toHaveTextContent("Per Level")
         expect(screen.getByLabelText(/max uses per level/i)).toHaveValue(5)
       })
+    })
+  })
+
+  describe("highlights, attack, damage and gain fields", () => {
+    const openActionForm = () => {
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Action" }))
+      fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Breath Weapon" } })
+      return modal
+    }
+
+    it("saves the new fields of an Action feature", () => {
+      const onUpdate = vi.fn()
+      render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      const modal = openActionForm()
+      fireEvent.input(within(modal).getByLabelText("Highlights"), { target: { value: "Cone of *fire*" } })
+      fireEvent.input(within(modal).getByLabelText("Attack/Save"), { target: { value: "DEX save DC 13" } })
+      fireEvent.input(within(modal).getByLabelText("Damage"), { target: { value: "2d6" } })
+      fireEvent.input(within(modal).getByLabelText("Gain"), { target: { value: "1d10" } })
+      fireEvent.click(within(modal).getByRole("checkbox", { name: "Gain recurs each turn" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        classFeatures: expect.arrayContaining([expect.objectContaining({
+          name: "Breath Weapon", highlights: "Cone of *fire*", attackSave: "DEX save DC 13",
+          damage: "2d6", gain: "1d10", gainRecurring: true,
+        })]),
+      }))
+    })
+
+    it("pre-fills the new fields when editing", () => {
+      render(() => <FeaturesModule character={makeCharacter({ classFeatures: [makeFeature({
+        featureType: "Action", actionKind: "action", highlights: "Short", attackBonus: 5,
+        damage: "1d6", damageType: "Fire", damageRecurring: true,
+      })] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /edit action surge/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByLabelText("Highlights")).toHaveValue("Short")
+      expect(within(modal).getByLabelText("Attack Bonus")).toHaveValue(5)
+      expect(within(modal).getByLabelText("Damage")).toHaveValue("1d6")
+      expect(within(modal).getByLabelText("Damage Type")).toHaveValue("Fire")
+      expect(within(modal).getByRole("checkbox", { name: "Damage recurs each turn" })).toBeChecked()
+    })
+  })
+
+  describe("featureFromForm", () => {
+    const actionForm = { ...defaultFeatureForm, name: "Second Wind", featureType: "Action" as const, actionKind: "bonus-action" as const }
+
+    it("creates a feature of the given source with a fresh id", () => {
+      const feature = featureFromForm(actionForm, { source: "species-trait" })
+      expect(feature.id).toEqual(expect.any(String))
+      expect(feature.source).toBe("species-trait")
+    })
+
+    it("keeps the base's id, source and fields the form doesn't show", () => {
+      const base = { ...makeFeature({ id: "keep", source: "feat" }), legacy: 1 } as Feature
+      const feature = featureFromForm(actionForm, base)
+      expect(feature).toMatchObject({ id: "keep", source: "feat", legacy: 1 })
+    })
+
+    it("keeps an Action feature's attack, damage and gain fields", () => {
+      const feature = featureFromForm({
+        ...actionForm, attackBonus: 4, attackSave: "CON save", damage: "2d6", damageType: "Fire", damageRecurring: true,
+        gain: "1d10", gainType: "Healing", gainRecurring: true,
+      }, { source: "class-feature" })
+      expect(feature).toMatchObject({
+        attackBonus: 4, attackSave: "CON save", damage: "2d6", damageType: "Fire", damageRecurring: true,
+        gain: "1d10", gainType: "Healing", gainRecurring: true,
+      })
+    })
+
+    it("drops action fields when the feature has no action kind", () => {
+      const feature = featureFromForm({
+        ...actionForm, featureType: "", actionKind: "", attackBonus: 4, damage: "2d6", damageRecurring: true, gain: "1d10",
+      }, { source: "class-feature" })
+      expect(feature.attackBonus).toBeUndefined()
+      expect(feature.damage).toBeUndefined()
+      expect(feature.damageRecurring).toBeUndefined()
+      expect(feature.gain).toBeUndefined()
+    })
+
+    it("omits blank highlights and keeps them on any feature", () => {
+      expect(featureFromForm({ ...actionForm, highlights: "  " }, { source: "feat" }).highlights).toBeUndefined()
+      expect(featureFromForm({ ...defaultFeatureForm, name: "Tough", highlights: " +2 HP/level " }, { source: "feat" }).highlights).toBe("+2 HP/level")
+    })
+
+    it("round-trips through featureToForm", () => {
+      const feature = makeFeature({
+        featureType: "Action", actionKind: "action", type: "Attack", range: "15 ft", attackBonus: 5, attackSave: "DEX save",
+        damage: "2d6", damageType: "Fire", damageRecurring: true, gain: "1d4", gainType: "Temp HP", highlights: "Hi",
+        maxUses: 2, rechargeOn: "short-rest", level: 3,
+      })
+      expect(featureFromForm(featureToForm(feature), feature)).toEqual(expect.objectContaining({
+        type: "Attack", range: "15 ft", attackBonus: 5, attackSave: "DEX save", damage: "2d6", damageType: "Fire",
+        damageRecurring: true, gain: "1d4", gainType: "Temp HP", highlights: "Hi", maxUses: 2, rechargeOn: "short-rest", level: 3,
+      }))
     })
   })
 

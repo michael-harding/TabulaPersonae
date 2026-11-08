@@ -9,9 +9,12 @@ export function Card(props: ComponentProps<"div">) {
   )
 }
 
+// Narrower side padding on phones, where every pixel of width goes to the content
+const CARD_PADDING_X = "px-3 sm:px-6"
+
 export function CardHeader(props: ComponentProps<"div">) {
   const [local, others] = splitProps(props, ["class"])
-  return <div class={cn("flex flex-col space-y-1.5 p-6", local.class)} {...others} />
+  return <div class={cn("flex flex-col space-y-1.5 py-6", CARD_PADDING_X, local.class)} {...others} />
 }
 
 export function CardTitle(props: ComponentProps<"div">) {
@@ -28,10 +31,10 @@ export function CardDescription(props: ComponentProps<"div">) {
 
 export function CardContent(props: ComponentProps<"div">) {
   const [local, others] = splitProps(props, ["class"])
-  return <div class={cn("p-6 pt-0", local.class)} {...others} />
+  return <div class={cn("pb-6", CARD_PADDING_X, local.class)} {...others} />
 }
 
 export function CardFooter(props: ComponentProps<"div">) {
   const [local, others] = splitProps(props, ["class"])
-  return <div class={cn("flex items-center p-6 pt-0", local.class)} {...others} />
+  return <div class={cn("flex items-center pb-6", CARD_PADDING_X, local.class)} {...others} />
 }

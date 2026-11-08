@@ -512,7 +512,7 @@ describe("EquipmentInventoryModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /edit scroll of fireball/i }))
       const modal = screen.getByRole("dialog")
       const usedAsSection = within(modal).getByText("Used As Action").closest("div")!
-      expect(within(usedAsSection).getByText("action")).toBeInTheDocument()
+      expect(within(usedAsSection).getByText("Action")).toBeInTheDocument()
       fireEvent.click(within(modal).getByRole("button", { name: /update item/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({

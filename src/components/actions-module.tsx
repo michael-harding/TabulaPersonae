@@ -10,8 +10,8 @@ import ChevronDown from "lucide-solid/icons/chevron-down"
 import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, ActionType, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatLeadingTerm, getSpellAttackBreakdown, getSpellSaveDCBreakdown, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, DAMAGE_TYPE_OPTIONS } from "@/lib/character-utils"
+import type { Character, ActionType, Attack, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
+import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatLeadingTerm, getSpellAttackBreakdown, getSpellSaveDCBreakdown, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, RECHARGE_ON_OPTIONS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -23,12 +23,16 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { Chip } from "@/components/ui/chip"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
-import { ActionCard } from "@/components/action-card"
+import { ActionCard, ActionCardList, type SlotLevel } from "@/components/action-card"
+import { SpellEditModal } from "@/components/spell-edit-modal"
+import { FeatureEditModal } from "@/components/features-module"
+import { EquipmentItemModal } from "@/components/equipment-item-modal"
+import { DamageFields, GainFields } from "@/components/effect-fields"
 import { useReadOnly } from "@/lib/read-only-context"
 import { cn, HOVER_ACCENT } from "@/lib/utils"
 
@@ -69,11 +73,16 @@ interface ActionFormData {
   attackBonus: number
   damage: string
   damageType: string
+  damageRecurring: boolean
+  gain: string
+  gainType: string
+  gainRecurring: boolean
   range: string
   trigger: string
   uses: number
   maxUses: number
   rechargeOn: '' | 'short-rest' | 'long-rest'
+  highlights: string
   description: string
 }
 
@@ -96,11 +105,16 @@ function ActionForm(props: ActionFormProps) {
     attackBonus: props.initialData?.attackBonus ?? 0,
     damage: props.initialData?.damage ?? "",
     damageType: props.initialData?.damageType ?? "Slashing",
+    damageRecurring: props.initialData?.damageRecurring ?? false,
+    gain: props.initialData?.gain ?? "",
+    gainType: props.initialData?.gainType ?? "",
+    gainRecurring: props.initialData?.gainRecurring ?? false,
     range: props.initialData?.range ?? "",
     trigger: props.initialData?.trigger ?? "",
     uses: props.initialData?.uses ?? 0,
     maxUses: props.initialData?.maxUses ?? 0,
     rechargeOn: props.initialData?.rechargeOn ?? "",
+    highlights: props.initialData?.highlights ?? "",
     description: props.initialData?.description ?? "",
   })
 
@@ -140,17 +154,11 @@ function ActionForm(props: ActionFormProps) {
             <NumericInput id="action-attack-bonus" value={formData().attackBonus}
               onChange={(v) => setFormData(p => ({ ...p, attackBonus: v }))} placeholder="+5" />
           </div>
-          <div>
-            <Label for="action-damage">Damage</Label>
-            <Input id="action-damage" value={formData().damage}
-              onInput={(e) => setFormData(p => ({ ...p, damage: e.currentTarget.value }))} placeholder="1d8+3" />
-          </div>
         </div>
-        <div>
-          <Label for="action-damage-type">Damage Type</Label>
-          <Combobox id="action-damage-type" value={formData().damageType} onValueChange={(v) => setFormData(p => ({ ...p, damageType: v }))} options={DAMAGE_TYPE_OPTIONS} />
-        </div>
+        <DamageFields idPrefix="action" value={formData()} onChange={(patch) => setFormData(p => ({ ...p, ...patch }))} placeholder="e.g. 1d8+3" />
       </Show>
+
+      <GainFields idPrefix="action" value={formData()} onChange={(patch) => setFormData(p => ({ ...p, ...patch }))} placeholder="e.g. 1d8" />
 
       <div>
         <Label for="action-range">Range</Label>
@@ -174,14 +182,17 @@ function ActionForm(props: ActionFormProps) {
 
       <div>
         <Label for="action-recharge">Recharge On</Label>
-        <Select value={formData().rechargeOn} onValueChange={(v) => setFormData(p => ({ ...p, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
+        <Select options={RECHARGE_ON_OPTIONS} value={formData().rechargeOn} onValueChange={(v) => setFormData(p => ({ ...p, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
           <SelectTrigger id="action-recharge"><SelectValue placeholder="None" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">None</SelectItem>
-            <SelectItem value="short-rest">Short Rest</SelectItem>
-            <SelectItem value="long-rest">Long Rest</SelectItem>
-          </SelectContent>
+          <SelectContent />
         </Select>
+      </div>
+
+      <div>
+        <Label for="action-highlights">Highlights</Label>
+        <Textarea id="action-highlights" value={formData().highlights}
+          onInput={(e) => setFormData(p => ({ ...p, highlights: e.currentTarget.value }))}
+          placeholder="Shown on the action card (Markdown)" rows={2} />
       </div>
 
       <div>
@@ -202,17 +213,28 @@ function ActionForm(props: ActionFormProps) {
   )
 }
 
+/** The character's list a feature is stored in. */
+function featureField(feature: Feature): 'classFeatures' | 'speciesTraits' | 'feats' | 'backgroundFeatures' {
+  return feature.source === 'class-feature' ? 'classFeatures'
+    : feature.source === 'species-trait' ? 'speciesTraits'
+    : feature.source === 'background' ? 'backgroundFeatures' : 'feats'
+}
+
 function createSpellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
   const slotKey = spell.level as keyof Character['spellSlots']
   const slots = () => getSpellSlots()[slotKey]
   const canCast = () => spell.level > 0 && (!!spell.freeCast || (!!slots() && slots().used < slots().total))
-  const upcastLevels = () => ([2,3,4,5,6,7,8,9] as const)
+  const higherLevels = () => ([2,3,4,5,6,7,8,9] as const)
     .filter(l => l > spell.level)
-    .filter(l => { const s = getSpellSlots()[l]; return s && s.total > 0 && s.used < s.total })
-  const hasHigherSlots = () => ([2,3,4,5,6,7,8,9] as const)
-    .filter(l => l > spell.level)
-    .some(l => { const s = getSpellSlots()[l]; return s && s.total > 0 })
-  return { canCast, upcastLevels, hasHigherSlots }
+    .filter(l => (getSpellSlots()[l]?.total ?? 0) > 0)
+  // Whether the character has any slot level above the spell's, spent or not
+  const hasHigherSlots = () => higherLevels().length > 0
+  // The spell's own level and each higher level the character has slots of, with what's left
+  const slotLevels = (): SlotLevel[] => [spell.level, ...higherLevels()].map((level) => {
+    const s = getSpellSlots()[level as keyof Character['spellSlots']]
+    return { level, remaining: s ? Math.max(0, s.total - s.used) : 0 }
+  })
+  return { canCast, slotLevels, hasHigherSlots }
 }
 
 type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
@@ -281,7 +303,10 @@ export function ActionsModule(props: ActionsModuleProps) {
   const openAddOther = () => { setEditingOther(null); setIsOtherModalOpen(true) }
   const openEditOther = (item: StoredAction) => { setEditingOther(item); setIsOtherModalOpen(true) }
   const closeOtherModal = () => { setIsOtherModalOpen(false); setEditingOther(null) }
-  const [upcastSpellId, setUpcastSpellId] = createSignal<string | null>(null)
+  // The spell, feature or item an action card's Edit button opened, edited in its own module's form
+  const [editingSpell, setEditingSpell] = createSignal<Spell | null>(null)
+  const [editingFeature, setEditingFeature] = createSignal<Feature | null>(null)
+  const [editingItem, setEditingItem] = createSignal<Equipment | null>(null)
   const [expandedSections, setExpandedSections] = createPersistedSetSignal<ActionSection>(
     () => `dnd-collapsible-actions-${props.character.id}`,
     ['actions', 'bonus-actions', 'reactions', 'other']
@@ -400,15 +425,23 @@ export function ActionsModule(props: ActionsModuleProps) {
     updateSpellSlotUsed(level, slots.used + 1)
   }
 
-  const normalizeRechargeOn = (data: ActionFormData) =>
-    ({ ...data, rechargeOn: data.rechargeOn || undefined } as const)
+  // Blank optional fields are omitted rather than stored as "" or false
+  const normalizeActionForm = (data: ActionFormData) => ({
+    ...data,
+    rechargeOn: data.rechargeOn || undefined,
+    damageRecurring: data.damageRecurring || undefined,
+    gain: data.gain || undefined,
+    gainType: data.gainType || undefined,
+    gainRecurring: data.gainRecurring || undefined,
+    highlights: data.highlights.trim() || undefined,
+  } as const)
 
   const handleSaveAction = (data: ActionFormData) => {
     const editing = editingAttack()
     if (editing) {
-      props.onUpdate({ ...props.character, attacks: (props.character.attacks || []).map(a => a.id === editing.id ? { ...a, ...normalizeRechargeOn(data) } : a) })
+      props.onUpdate({ ...props.character, attacks: (props.character.attacks || []).map(a => a.id === editing.id ? { ...a, ...normalizeActionForm(data) } : a) })
     } else {
-      props.onUpdate({ ...props.character, attacks: [...(props.character.attacks || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
+      props.onUpdate({ ...props.character, attacks: [...(props.character.attacks || []), { id: crypto.randomUUID(), ...normalizeActionForm(data) }] })
     }
     closeActionModal()
   }
@@ -421,9 +454,9 @@ export function ActionsModule(props: ActionsModuleProps) {
   const handleSaveBonusAction = (data: ActionFormData) => {
     const editing = editingBonusAction()
     if (editing) {
-      props.onUpdate({ ...props.character, bonusActions: (props.character.bonusActions || []).map(b => b.id === editing.id ? { ...b, ...normalizeRechargeOn(data) } : b) })
+      props.onUpdate({ ...props.character, bonusActions: (props.character.bonusActions || []).map(b => b.id === editing.id ? { ...b, ...normalizeActionForm(data) } : b) })
     } else {
-      props.onUpdate({ ...props.character, bonusActions: [...(props.character.bonusActions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
+      props.onUpdate({ ...props.character, bonusActions: [...(props.character.bonusActions || []), { id: crypto.randomUUID(), ...normalizeActionForm(data) }] })
     }
     closeBonusActionModal()
   }
@@ -436,9 +469,9 @@ export function ActionsModule(props: ActionsModuleProps) {
   const handleSaveReaction = (data: ActionFormData) => {
     const editing = editingReaction()
     if (editing) {
-      props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).map(r => r.id === editing.id ? { ...r, ...normalizeRechargeOn(data) } : r) })
+      props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).map(r => r.id === editing.id ? { ...r, ...normalizeActionForm(data) } : r) })
     } else {
-      props.onUpdate({ ...props.character, reactions: [...(props.character.reactions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) }] })
+      props.onUpdate({ ...props.character, reactions: [...(props.character.reactions || []), { id: crypto.randomUUID(), ...normalizeActionForm(data) }] })
     }
     closeReactionModal()
   }
@@ -451,9 +484,9 @@ export function ActionsModule(props: ActionsModuleProps) {
   const handleSaveOther = (data: ActionFormData) => {
     const editing = editingOther()
     if (editing) {
-      props.onUpdate({ ...props.character, otherActions: (props.character.otherActions || []).map(o => o.id === editing.id ? { ...o, ...normalizeRechargeOn(data) } : o) })
+      props.onUpdate({ ...props.character, otherActions: (props.character.otherActions || []).map(o => o.id === editing.id ? { ...o, ...normalizeActionForm(data) } : o) })
     } else {
-      props.onUpdate({ ...props.character, otherActions: [...(props.character.otherActions || []), { id: crypto.randomUUID(), ...normalizeRechargeOn(data) } as OtherAction] })
+      props.onUpdate({ ...props.character, otherActions: [...(props.character.otherActions || []), { id: crypto.randomUUID(), ...normalizeActionForm(data) } as OtherAction] })
     }
     closeOtherModal()
   }
@@ -476,12 +509,10 @@ export function ActionsModule(props: ActionsModuleProps) {
     props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).map(r => r.id === id ? { ...r, uses: v } : r) })
   }
   const handleFeatureUsesChange = (feature: Feature, v: number) => {
-    const field = feature.source === 'class-feature' ? 'classFeatures'
-      : feature.source === 'species-trait' ? 'speciesTraits'
-      : feature.source === 'background' ? 'backgroundFeatures' : 'feats'
+    const field = featureField(feature)
     props.onUpdate({
       ...props.character,
-      [field]: safeFeatures(props.character[field as 'classFeatures' | 'speciesTraits' | 'feats' | 'backgroundFeatures']).map(f => f.id === feature.id ? { ...f, uses: v } : f),
+      [field]: safeFeatures(props.character[field]).map(f => f.id === feature.id ? { ...f, uses: v } : f),
     })
   }
   const handleEquipmentUsesChange = (id: string, v: number) => {
@@ -496,9 +527,9 @@ export function ActionsModule(props: ActionsModuleProps) {
   }
 
   // A spell cast as "1 bonus action or 1 reaction" is listed in both sections, so the section keeps
-  // its test hooks and its upcast picker apart from the other copy
+  // its test hooks apart from the other copy
   const renderSpell = (spell: Spell, section: 'action' | 'bonus' | 'reaction') => {
-    const { canCast, upcastLevels, hasHigherSlots } = createSpellAccessors(spell, () => props.character.spellSlots)
+    const { canCast, slotLevels, hasHigherSlots } = createSpellAccessors(spell, () => props.character.spellSlots)
     return (
       <ActionCard
         data-test={`action-card-${section}-spell-${spell.id}`}
@@ -514,16 +545,18 @@ export function ActionsModule(props: ActionsModuleProps) {
         components={spell.components}
         atHigherLevel={spell.atHigherLevel}
         damage={spell.damage}
+        damageType={spell.damageType}
+        damageRecurring={spell.damageRecurring}
         gain={spell.gain}
+        gainType={spell.gainType}
+        gainRecurring={spell.gainRecurring}
+        highlights={spell.highlights}
         description={spell.description}
-        spellId={`${section}-${spell.id}`}
         castable={canCast}
-        onCast={spell.level > 0 ? (spell.freeCast ? () => {} : () => castSpell(spell.level)) : undefined}
-        upcastLevels={upcastLevels}
-        onCastAtLevel={(level: number) => { castSpell(level); setUpcastSpellId(null) }}
-        hasHigherSlots={hasHigherSlots}
-        upcastSpellId={upcastSpellId}
-        onUpcastSpellId={setUpcastSpellId}
+        onCast={spell.level > 0 ? (spell.freeCast ? () => {} : castSpell) : undefined}
+        // A free cast spends no slot, so there's no level to choose
+        slotLevels={spell.level > 0 && !spell.freeCast && spell.atHigherLevel && hasHigherSlots() ? slotLevels : undefined}
+        onEdit={() => setEditingSpell(spell)}
       />
     )
   }
@@ -534,11 +567,21 @@ export function ActionsModule(props: ActionsModuleProps) {
       name={feature.name}
       badgeLabel={FEATURE_KIND_LABELS[feature.source] ?? feature.source}
       range={feature.range}
+      attackBonus={feature.attackBonus}
+      attackSave={feature.attackSave}
+      damage={feature.damage}
+      damageType={feature.damageType}
+      damageRecurring={feature.damageRecurring}
+      gain={feature.gain}
+      gainType={feature.gainType}
+      gainRecurring={feature.gainRecurring}
+      highlights={feature.highlights}
       description={feature.description}
       uses={feature.uses ?? 0}
       maxUses={effectiveMaxUses(feature, props.character.level ?? 1)}
       rechargeOn={feature.rechargeOn}
       onUsesChange={(v) => handleFeatureUsesChange(feature, v)}
+      onEdit={() => setEditingFeature(feature)}
     />
   )
 
@@ -548,13 +591,61 @@ export function ActionsModule(props: ActionsModuleProps) {
       pipIcon={Backpack}
       name={item.name}
       badgeLabel={item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+      damage={item.damage}
+      damageType={item.damageType}
+      damageRecurring={item.damageRecurring}
+      gain={item.gain}
+      gainType={item.gainType}
+      gainRecurring={item.gainRecurring}
+      highlights={item.highlights}
       description={item.description}
       uses={effectiveEquipmentUses(item)}
       maxUses={effectiveEquipmentMaxUses(item)}
       rechargeOn={item.rechargeOn}
       onUsesChange={(v) => handleEquipmentUsesChange(item.id, v)}
+      onEdit={() => setEditingItem(item)}
     />
   )
+
+  // A custom action, bonus action, reaction or other ability, edited in this module's own form
+  const renderCustomAction = (action: Attack, hookKind: string, onUsesChange: (v: number) => void, onEdit: () => void) => (
+    <ActionCard
+      data-test={`action-card-${hookKind}-${action.id}`}
+      name={action.name}
+      badgeLabel={ACTION_TYPE_LABEL[action.type] ?? action.type}
+      trigger={action.trigger}
+      attackBonus={action.attackBonus}
+      range={action.range}
+      damage={action.damage}
+      damageType={action.damageType}
+      damageRecurring={action.damageRecurring}
+      gain={action.gain}
+      gainType={action.gainType}
+      gainRecurring={action.gainRecurring}
+      highlights={action.highlights}
+      description={action.description}
+      uses={action.uses ?? 0}
+      maxUses={action.maxUses ?? 0}
+      rechargeOn={action.rechargeOn}
+      onUsesChange={onUsesChange}
+      onEdit={onEdit}
+    />
+  )
+
+  const equipmentById = (id: string) => (props.character.equipment ?? []).find((item) => item.id === id) ?? null
+  const handleSaveSpell = (saved: Spell) => {
+    props.onUpdate({ ...props.character, spells: safeSpells().map((s) => (s.id === saved.id ? saved : s)) })
+    setEditingSpell(null)
+  }
+  const handleSaveFeature = (saved: Feature) => {
+    const field = featureField(saved)
+    props.onUpdate({ ...props.character, [field]: safeFeatures(props.character[field]).map((f) => (f.id === saved.id ? saved : f)) })
+    setEditingFeature(null)
+  }
+  const handleSaveItem = (saved: Equipment) => {
+    props.onUpdate({ ...props.character, equipment: (props.character.equipment ?? []).map((item) => (item.id === saved.id ? saved : item)) })
+    setEditingItem(null)
+  }
 
   return (
     <EditableModule data-test="actions-module"
@@ -625,7 +716,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               when={equippedWeaponAttacks().length > 0 || attackSpells().length > 0 || (props.character.attacks?.length ?? 0) > 0 || featuresByKind().actions.length > 0 || equipmentByKind().actions.length > 0}
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No actions added yet.</div>}
             >
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ActionCardList>
                 <For each={equippedWeaponAttacks()}>
                   {(w) => (
                     <ActionCard
@@ -638,7 +729,10 @@ export function ActionsModule(props: ActionsModuleProps) {
                       damage={w.damage}
                       damageTooltip={w.damageTooltip}
                       damageType={w.damageType}
+                      damageRecurring={w.damageRecurring}
+                      highlights={w.highlights}
                       description={w.description}
+                      onEdit={() => setEditingItem(equipmentById(w.itemId))}
                     />
                   )}
                 </For>
@@ -647,24 +741,10 @@ export function ActionsModule(props: ActionsModuleProps) {
                 <For each={equipmentByKind().actions}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.attacks || []}>
                   {(attack) => (
-                    <ActionCard
-                      data-test={`action-card-attack-${attack.id}`}
-                      name={attack.name}
-                      badgeLabel={ACTION_TYPE_LABEL[attack.type] ?? attack.type}
-                      attackBonus={attack.attackBonus}
-                      range={attack.range}
-                      damage={attack.damage}
-                      damageType={attack.damageType}
-                      description={attack.description}
-                      uses={attack.uses ?? 0}
-                      maxUses={attack.maxUses ?? 0}
-                      rechargeOn={attack.rechargeOn}
-                      onUsesChange={(v) => handleAttackUsesChange(attack.id, v)}
-                      onEdit={() => openEditAction(attack as StoredAction)}
-                    />
+                    renderCustomAction(attack, "attack", (v) => handleAttackUsesChange(attack.id, v), () => openEditAction(attack as StoredAction))
                   )}
                 </For>
-              </div>
+              </ActionCardList>
             </Show>
           </CollapsibleContent>
         </Collapsible>
@@ -690,30 +770,16 @@ export function ActionsModule(props: ActionsModuleProps) {
               when={bonusActionSpells().length > 0 || (props.character.bonusActions?.length ?? 0) > 0 || featuresByKind().bonuses.length > 0 || equipmentByKind().bonuses.length > 0}
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No bonus actions added yet.</div>}
             >
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ActionCardList>
                 <For each={bonusActionSpells()}>{(spell) => renderSpell(spell, 'bonus')}</For>
                 <For each={featuresByKind().bonuses}>{(feature) => renderFeature(feature)}</For>
                 <For each={equipmentByKind().bonuses}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.bonusActions || []}>
                   {(bonus) => (
-                    <ActionCard
-                      data-test={`action-card-bonus-${bonus.id}`}
-                      name={bonus.name}
-                      badgeLabel={ACTION_TYPE_LABEL[bonus.type] ?? bonus.type}
-                      attackBonus={bonus.attackBonus}
-                      range={bonus.range}
-                      damage={bonus.damage}
-                      damageType={bonus.damageType}
-                      description={bonus.description}
-                      uses={bonus.uses ?? 0}
-                      maxUses={bonus.maxUses ?? 0}
-                      rechargeOn={bonus.rechargeOn}
-                      onUsesChange={(v) => handleBonusActionUsesChange(bonus.id, v)}
-                      onEdit={() => openEditBonusAction(bonus as StoredAction)}
-                    />
+                    renderCustomAction(bonus, "bonus", (v) => handleBonusActionUsesChange(bonus.id, v), () => openEditBonusAction(bonus as StoredAction))
                   )}
                 </For>
-              </div>
+              </ActionCardList>
             </Show>
           </CollapsibleContent>
         </Collapsible>
@@ -739,31 +805,16 @@ export function ActionsModule(props: ActionsModuleProps) {
               when={reactionSpells().length > 0 || (props.character.reactions?.length ?? 0) > 0 || featuresByKind().reactions.length > 0 || equipmentByKind().reactions.length > 0}
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No reactions added yet.</div>}
             >
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ActionCardList>
                 <For each={reactionSpells()}>{(spell) => renderSpell(spell, 'reaction')}</For>
                 <For each={featuresByKind().reactions}>{(feature) => renderFeature(feature)}</For>
                 <For each={equipmentByKind().reactions}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.reactions || []}>
                   {(reaction) => (
-                    <ActionCard
-                      data-test={`action-card-reaction-${reaction.id}`}
-                      name={reaction.name}
-                      badgeLabel={ACTION_TYPE_LABEL[reaction.type] ?? reaction.type}
-                      trigger={reaction.trigger}
-                      attackBonus={reaction.attackBonus}
-                      range={reaction.range}
-                      damage={reaction.damage}
-                      damageType={reaction.damageType}
-                      description={reaction.description}
-                      uses={reaction.uses ?? 0}
-                      maxUses={reaction.maxUses ?? 0}
-                      rechargeOn={reaction.rechargeOn}
-                      onUsesChange={(v) => handleReactionUsesChange(reaction.id, v)}
-                      onEdit={() => openEditReaction(reaction as StoredAction)}
-                    />
+                    renderCustomAction(reaction, "reaction", (v) => handleReactionUsesChange(reaction.id, v), () => openEditReaction(reaction as StoredAction))
                   )}
                 </For>
-              </div>
+              </ActionCardList>
             </Show>
           </CollapsibleContent>
         </Collapsible>
@@ -789,29 +840,15 @@ export function ActionsModule(props: ActionsModuleProps) {
               when={featuresByKind().others.length > 0 || (props.character.otherActions?.length ?? 0) > 0 || equipmentByKind().others.length > 0}
               fallback={<div class="text-center py-4 text-muted-foreground text-sm">No other abilities added yet.</div>}
             >
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ActionCardList>
                 <For each={featuresByKind().others}>{(feature) => renderFeature(feature)}</For>
                 <For each={equipmentByKind().others}>{(item) => renderEquipmentAction(item)}</For>
                 <For each={props.character.otherActions || []}>
                   {(other) => (
-                    <ActionCard
-                      data-test={`action-card-other-${other.id}`}
-                      name={other.name}
-                      badgeLabel={ACTION_TYPE_LABEL[other.type] ?? other.type}
-                      attackBonus={other.attackBonus}
-                      range={other.range}
-                      damage={other.damage}
-                      damageType={other.damageType}
-                      description={other.description}
-                      uses={other.uses ?? 0}
-                      maxUses={other.maxUses ?? 0}
-                      rechargeOn={other.rechargeOn}
-                      onUsesChange={(v) => handleOtherUsesChange(other.id, v)}
-                      onEdit={() => openEditOther(other as StoredAction)}
-                    />
+                    renderCustomAction(other, "other", (v) => handleOtherUsesChange(other.id, v), () => openEditOther(other as StoredAction))
                   )}
                 </For>
-              </div>
+              </ActionCardList>
             </Show>
           </CollapsibleContent>
         </Collapsible>
@@ -843,6 +880,29 @@ export function ActionsModule(props: ActionsModuleProps) {
           <ActionForm kind="other" initialData={editingOther() ?? undefined} onSubmit={handleSaveOther} onDelete={editingOther() ? handleDeleteOther : undefined} onCancel={closeOtherModal} />
         </ModalContent>
       </Modal>
+
+      {/* Opened by a spell, feature or item card's Edit button: the same form its own module uses */}
+      <SpellEditModal
+        open={editingSpell() != null}
+        spell={editingSpell()}
+        magicItems={(props.character.equipment ?? []).filter((item) => item.magic)}
+        onSave={handleSaveSpell}
+        onCancel={() => setEditingSpell(null)}
+      />
+      <FeatureEditModal
+        open={editingFeature() != null}
+        kind={editingFeature()?.source ?? 'class-feature'}
+        feature={editingFeature()}
+        characterLevel={props.character.level ?? 1}
+        onSave={handleSaveFeature}
+        onCancel={() => setEditingFeature(null)}
+      />
+      <EquipmentItemModal
+        open={editingItem() != null}
+        editingItem={editingItem()}
+        onSave={handleSaveItem}
+        onCancel={() => setEditingItem(null)}
+      />
     </EditableModule>
   )
 }

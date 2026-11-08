@@ -180,7 +180,7 @@ export default function CharacterSheet() {
               </div>
             </header>
 
-            <div class="max-w-7xl mx-auto px-4 pb-4">
+            <div class="max-w-7xl mx-auto px-1 pb-4">
               <TabsRoot value={activeTab()} onChange={_setActiveTab}>
                 <div class="flex items-center border-b border-border">
                   <TabsList class="border-b-0 flex-1">

@@ -43,6 +43,86 @@ test.describe("Tab navigation", () => {
   })
 })
 
+test.describe("Action card expanded view", () => {
+  test.beforeEach(async ({ page }) => {
+    await seedGuest(page, testCharacter, { expandSections: true })
+    await openSheet(page, testCharacter.id)
+  })
+
+  test("@mobile opens over the card from its top edge, centered on it, inside the viewport", async ({ page }) => {
+    const card = page.locator('[data-test="action-card-attack-atk1"]')
+    // Mid-screen, with room below: near the bottom it opens upward instead (tested below)
+    await card.evaluate((el) => el.scrollIntoView({ block: "center" }))
+    await card.getByRole("button", { name: "Longbow Strike" }).click()
+    const view = page.getByRole("dialog", { name: "Longbow Strike" })
+    await expect(view).toBeVisible()
+    // Measured once open: the click may have scrolled the card into view
+    const before = (await card.boundingBox())!
+    const after = (await view.boundingBox())!
+    const viewport = page.viewportSize()!
+
+    expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(1)
+    expect(after.width).toBeGreaterThan(before.width)
+    expect(after.x).toBeGreaterThanOrEqual(0)
+    expect(after.x + after.width).toBeLessThanOrEqual(viewport.width)
+    // Centered on the card unless that would cross the viewport's edge
+    const centeredX = before.x + before.width / 2 - after.width / 2
+    if (centeredX >= 16 && centeredX + after.width <= viewport.width - 16) {
+      expect(Math.abs(after.x - centeredX)).toBeLessThanOrEqual(1)
+    }
+  })
+
+  test("@mobile near the bottom of the screen, opens upward from the card's top edge", async ({ page }) => {
+    const card = page.locator('[data-test="action-card-attack-atk1"]')
+    const viewport = page.viewportSize()!
+    // Leave only the card's header showing at the bottom of the screen
+    const top = (await card.boundingBox())!.y
+    await page.evaluate((by) => window.scrollBy(0, by), top - (viewport.height - 80))
+    await card.getByRole("button", { name: "Longbow Strike" }).click()
+    const view = page.getByRole("dialog", { name: "Longbow Strike" })
+    await expect(view).toBeVisible()
+    const cardBox = (await card.boundingBox())!
+    const viewBox = (await view.boundingBox())!
+
+    expect(Math.abs(viewBox.y + viewBox.height - cardBox.y)).toBeLessThanOrEqual(1)
+    expect(viewBox.y).toBeGreaterThanOrEqual(0)
+  })
+
+  test("@mobile a click outside closes it, without opening the card the click lands on", async ({ page }) => {
+    const card = page.locator('[data-test="action-card-attack-atk1"]')
+    await card.evaluate((el) => el.scrollIntoView({ block: "center" }))
+    await card.getByRole("button", { name: "Longbow Strike" }).click()
+    await expect(page.getByRole("dialog", { name: "Longbow Strike" })).toBeVisible()
+
+    // Pass without Trace's card sits above Longbow Strike's, clear of its expanded view. A
+    // coordinate click, as the user's would be: the open view blocks the page underneath, which
+    // a locator click would refuse to click through.
+    const other = (await page.getByText("A veil of shadows").boundingBox())!
+    await page.mouse.click(other.x + other.width / 2, other.y + other.height / 2)
+
+    await expect(page.getByRole("dialog")).toBeHidden()
+    await expect(page.getByRole("dialog", { name: "Pass without Trace" })).toBeHidden()
+  })
+
+  test("@mobile closing returns focus to the card's name", async ({ page }) => {
+    const name = page.locator('[data-test="action-card-attack-atk1"]').getByRole("button", { name: "Longbow Strike" })
+    await name.click()
+    await page.getByRole("button", { name: "Close Longbow Strike" }).click()
+    await expect(page.getByRole("dialog")).toBeHidden()
+    await expect(name).toBeFocused()
+  })
+
+  test("opens from the keyboard and closes on Escape", async ({ page }) => {
+    const name = page.locator('[data-test="action-card-attack-atk1"]').getByRole("button", { name: "Longbow Strike" })
+    await name.focus()
+    await page.keyboard.press("Enter")
+    await expect(page.getByRole("dialog", { name: "Longbow Strike" })).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(page.getByRole("dialog")).toBeHidden()
+    await expect(name).toBeFocused()
+  })
+})
+
 test.describe("Death saves", () => {
   test("are shown only at 0 HP", async ({ page }) => {
     await seedGuest(page, [testCharacter, secondCharacter])

@@ -14,6 +14,7 @@ import {
   ABILITY_ABBREVIATIONS,
   ZERO_ABILITY_SCORES,
   ZERO_SENSES,
+  RECHARGE_ON_OPTIONS,
 } from "@/lib/character-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +23,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DamageFields, GainFields } from "@/components/effect-fields"
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { ModifierGroup } from "@/components/ui/modifier-group"
 import { ChipListEditor } from "@/components/ui/chip-list-editor"
@@ -34,12 +36,6 @@ export const RARITY_OPTIONS: { value: ItemRarity; label: string }[] = [
   { value: "very-rare", label: "Very Rare" },
   { value: "legendary", label: "Legendary" },
   { value: "artifact", label: "Artifact" },
-]
-
-const RECHARGE_OPTIONS: { value: "" | "short-rest" | "long-rest"; label: string }[] = [
-  { value: "", label: "None" },
-  { value: "short-rest", label: "Short Rest" },
-  { value: "long-rest", label: "Long Rest" },
 ]
 
 export const ACTION_KIND_OPTIONS: { value: ActionKind | ""; label: string }[] = [
@@ -65,13 +61,22 @@ interface EquipmentFormData {
   name: string
   quantity: number
   weight: number
+  highlights: string
   description: string
   equipped: boolean
   type: EquipmentType
   actionKind: ActionKind | ""
+  // A non-weapon item's effect when used as an action (a weapon's damage is in weaponStats)
+  damage: string
+  damageType: string
+  damageRecurring: boolean
+  gain: string
+  gainType: string
+  gainRecurring: boolean
   weaponStats?: {
     damage: string
     damageType: string
+    damageRecurring?: boolean
     weaponRange: string
     attackAbility: "str" | "dex" | "finesse"
     proficient: boolean
@@ -117,10 +122,17 @@ const defaultEquipmentForm: EquipmentFormData = {
   name: "",
   quantity: 1,
   weight: 0,
+  highlights: "",
   description: "",
   equipped: false,
   type: "other",
   actionKind: "",
+  damage: "",
+  damageType: "",
+  damageRecurring: false,
+  gain: "",
+  gainType: "",
+  gainRecurring: false,
   magic: false,
   requiresAttunement: true,
   attuned: false,
@@ -294,34 +306,35 @@ function EquipmentForm(props: EquipmentFormProps) {
 
       <div>
         <Label for="item-type">Item Type</Label>
-        <Select value={formData.type} onValueChange={handleTypeChange}>
+        <Select options={EQUIPMENT_TYPES} value={formData.type} onValueChange={handleTypeChange}>
           <SelectTrigger id="item-type" data-test="item-type">
             <SelectValue placeholder="Select type" />
           </SelectTrigger>
-          <SelectContent>
-            <For each={EQUIPMENT_TYPES}>
-              {(t) => <SelectItem value={t.value}>{t.label}</SelectItem>}
-            </For>
-          </SelectContent>
+          <SelectContent />
         </Select>
       </div>
 
       <div>
         <Label for="item-action-kind">Used As Action</Label>
         <Select
+          options={ACTION_KIND_OPTIONS}
           value={formData.actionKind}
           onValueChange={(v) => setFormData("actionKind", v as ActionKind | "")}
         >
           <SelectTrigger id="item-action-kind" data-test="item-action-kind">
             <SelectValue placeholder="None" />
           </SelectTrigger>
-          <SelectContent>
-            <For each={ACTION_KIND_OPTIONS}>
-              {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
-            </For>
-          </SelectContent>
+          <SelectContent />
         </Select>
       </div>
+
+      <Show when={formData.type !== "weapon" && formData.actionKind !== ""}>
+        <div class="space-y-3 border rounded-md p-3">
+          <p class="text-sm font-medium">Action Effect</p>
+          <DamageFields idPrefix="item" value={formData} onChange={(patch) => setFormData(patch)} placeholder="e.g. 1d4" />
+          <GainFields idPrefix="item" value={formData} onChange={(patch) => setFormData(patch)} placeholder="e.g. 2d4+2" />
+        </div>
+      </Show>
 
       <Show when={formData.type === "weapon"}>
         <div class="space-y-3 border rounded-md p-3">
@@ -349,6 +362,14 @@ function EquipmentForm(props: EquipmentFormProps) {
               />
             </div>
           </div>
+          <Checkbox
+            data-test="weapon-damage-recurring"
+            checked={!!formData.weaponStats?.damageRecurring}
+            onChange={(checked: boolean) => setFormData("weaponStats", "damageRecurring", checked)}
+            label="Damage recurs each turn"
+            labelClass="text-sm font-medium leading-none cursor-pointer"
+            containerClass="gap-3 min-h-[44px]"
+          />
           <div class="grid grid-cols-2 gap-3">
             <div>
               <Label for="weapon-range">Range</Label>
@@ -363,17 +384,14 @@ function EquipmentForm(props: EquipmentFormProps) {
             <div>
               <Label for="weapon-attack-ability">Attack Using</Label>
               <Select
+                options={ATTACK_ABILITY_OPTIONS}
                 value={formData.weaponStats?.attackAbility ?? "str"}
                 onValueChange={(v) => setFormData("weaponStats", "attackAbility", v as "str" | "dex" | "finesse")}
               >
                 <SelectTrigger id="weapon-attack-ability" data-test="weapon-attack-ability">
                   <SelectValue placeholder="Select ability" />
                 </SelectTrigger>
-                <SelectContent>
-                  <For each={ATTACK_ABILITY_OPTIONS}>
-                    {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
-                  </For>
-                </SelectContent>
+                <SelectContent />
               </Select>
             </div>
           </div>
@@ -396,17 +414,14 @@ function EquipmentForm(props: EquipmentFormProps) {
             <div>
               <Label for="armor-type">Armor Type</Label>
               <Select
+                options={ARMOR_TYPE_OPTIONS}
                 value={formData.armorStats?.armorType ?? "light"}
                 onValueChange={(v) => setFormData("armorStats", "armorType", v as "light" | "medium" | "heavy" | "shield")}
               >
                 <SelectTrigger id="armor-type" data-test="armor-type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
-                <SelectContent>
-                  <For each={ARMOR_TYPE_OPTIONS}>
-                    {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
-                  </For>
-                </SelectContent>
+                <SelectContent />
               </Select>
             </div>
             <Show
@@ -478,17 +493,14 @@ function EquipmentForm(props: EquipmentFormProps) {
           <div>
             <Label for="item-rarity">Rarity</Label>
             <Select
+              options={RARITY_OPTIONS}
               value={formData.rarity}
               onValueChange={(v) => setFormData("rarity", v as ItemRarity)}
             >
               <SelectTrigger id="item-rarity" data-test="item-rarity">
                 <SelectValue placeholder="Select rarity" />
               </SelectTrigger>
-              <SelectContent>
-                <For each={RARITY_OPTIONS}>
-                  {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                </For>
-              </SelectContent>
+              <SelectContent />
             </Select>
           </div>
           <div class="flex items-center gap-2">
@@ -591,17 +603,14 @@ function EquipmentForm(props: EquipmentFormProps) {
                 <div>
                   <Label for="item-recharge-on">Recharge On</Label>
                   <Select
+                    options={RECHARGE_ON_OPTIONS}
                     value={formData.rechargeOn}
                     onValueChange={(v) => setFormData("rechargeOn", v as "" | "short-rest" | "long-rest")}
                   >
                     <SelectTrigger id="item-recharge-on" data-test="item-recharge-on">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <For each={RECHARGE_OPTIONS}>
-                        {(r) => <SelectItem value={r.value}>{r.label}</SelectItem>}
-                      </For>
-                    </SelectContent>
+                    <SelectContent />
                   </Select>
                 </div>
               </Show>
@@ -807,6 +816,18 @@ function EquipmentForm(props: EquipmentFormProps) {
       </Show>
 
       <div>
+        <Label for="item-highlights">Highlights</Label>
+        <Textarea
+          id="item-highlights"
+          data-test="item-highlights"
+          value={formData.highlights}
+          onInput={(e) => setFormData("highlights", e.currentTarget.value)}
+          placeholder="Shown on the action card (Markdown)"
+          rows={2}
+        />
+      </div>
+
+      <div>
         <Label for="description">Description</Label>
         <Textarea
           id="description"
@@ -845,10 +866,17 @@ function formDataFromItem(item: Equipment | null): EquipmentFormData {
     name: item.name,
     quantity: item.quantity,
     weight: item.weight || 0,
+    highlights: item.highlights ?? "",
     description: item.description || "",
     equipped: item.equipped || false,
     type: item.type || "other",
     actionKind: item.actionKind ?? "",
+    damage: item.damage ?? "",
+    damageType: item.damageType ?? "",
+    damageRecurring: item.damageRecurring ?? false,
+    gain: item.gain ?? "",
+    gainType: item.gainType ?? "",
+    gainRecurring: item.gainRecurring ?? false,
     weaponStats: item.weaponStats,
     armorStats: item.armorStats,
     magic: item.magic ?? false,
@@ -952,6 +980,20 @@ function usesFields(formData: EquipmentFormData) {
   }
 }
 
+// A non-weapon item's damage and gain apply only while it's used as an action; otherwise they're
+// cleared, as are blank ones.
+function actionEffectFields(formData: EquipmentFormData) {
+  const applies = formData.type !== "weapon" && formData.actionKind !== ""
+  return {
+    damage: (applies && formData.damage) || undefined,
+    damageType: (applies && formData.damageType) || undefined,
+    damageRecurring: (applies && formData.damageRecurring) || undefined,
+    gain: (applies && formData.gain) || undefined,
+    gainType: (applies && formData.gainType) || undefined,
+    gainRecurring: (applies && formData.gainRecurring) || undefined,
+  }
+}
+
 function magicFields(formData: EquipmentFormData) {
   return {
     magic: formData.magic || undefined,
@@ -978,11 +1020,13 @@ export function EquipmentItemModal(props: EquipmentItemModalProps) {
       name: formData.name.trim(),
       quantity: formData.quantity,
       weight: formData.weight,
+      highlights: formData.highlights.trim() || undefined,
       description: formData.description.trim(),
       equipped: formData.equipped,
       type: formData.type,
       actionKind: formData.actionKind || undefined,
-      weaponStats: formData.weaponStats,
+      ...actionEffectFields(formData),
+      weaponStats: formData.weaponStats && { ...formData.weaponStats, damageRecurring: formData.weaponStats.damageRecurring || undefined },
       armorStats: formData.armorStats,
       ...magicFields(formData),
     }

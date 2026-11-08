@@ -36,6 +36,17 @@ export function cleanupPortals() {
   })
 }
 
+// Kobalte keeps a closing popup mounted, marked data-closed, until its CSS exit animation ends,
+// which jsdom never runs. This ends it, as the browser does once the animation is over: the popup
+// unmounts and returns focus.
+export function finishClosing(el: Element) {
+  // jsdom has no AnimationEvent, so a plain event carries the animation's name (none, as jsdom
+  // computes it)
+  const end = new Event("animationend", { bubbles: true })
+  Object.defineProperty(end, "animationName", { value: "" })
+  el.dispatchEvent(end)
+}
+
 /** Taps a tooltip-only element (Tooltip's `toggleOnClick`) and asserts the tooltip it shows. */
 export async function expectTapTooltip(el: Element, text: string | RegExp) {
   cleanupPortals()

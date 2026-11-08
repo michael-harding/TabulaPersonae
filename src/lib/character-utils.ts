@@ -1021,8 +1021,19 @@ export function safeFeatures(raw: Feature[] | string | undefined): Feature[] {
   return raw
 }
 
+/** The "Recharge On" choices every form offers for a limited-use entry; "" means it doesn't recharge. */
+export const RECHARGE_ON_OPTIONS: { value: '' | 'short-rest' | 'long-rest'; label: string }[] = [
+  { value: '', label: 'None' },
+  { value: 'short-rest', label: 'Short Rest' },
+  { value: 'long-rest', label: 'Long Rest' },
+]
+
 export const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
 export const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+
+/** Suggested gain types; the field also takes free text. "Temp HP" is shown in the health bar's temp HP color. */
+export const TEMP_HP_GAIN_TYPE = "Temp HP"
+export const GAIN_TYPE_OPTIONS = ["Healing", TEMP_HP_GAIN_TYPE]
 
 /**
  * Puts a list of damage types into its standard form: a value matching one of DAMAGE_TYPE_OPTIONS
@@ -1095,6 +1106,8 @@ export const BASE_ATTUNEMENT_LIMIT = 3
 
 export interface DerivedWeaponAttack {
   id: string
+  /** The equipment item the attack comes from, for editing it. */
+  itemId: string
   name: string
   type: "attack"
   attackBonus: number
@@ -1102,7 +1115,9 @@ export interface DerivedWeaponAttack {
   damage: string
   damageTooltip: string
   damageType: string
+  damageRecurring?: boolean
   range: string
+  highlights?: string
   description: string
   isDerived: true
 }
@@ -1123,7 +1138,7 @@ export function getEquippedWeaponAttacks(
       item.equipped && item.type === "weapon" && item.weaponStats != null
     )
     .map((item) => {
-      const { damage, damageType, weaponRange, attackAbility, proficient } = item.weaponStats
+      const { damage, damageType, damageRecurring, weaponRange, attackAbility, proficient } = item.weaponStats
       const bonus = isItemModifierActive(item) ? (item.modifiers?.weaponBonus ?? 0) : 0
       const usesDex = attackAbility === "dex" || (attackAbility === "finesse" && dexMod > strMod)
       const abilityMod = usesDex ? dexMod : strMod
@@ -1138,6 +1153,7 @@ export function getEquippedWeaponAttacks(
       const damageTooltip = `${damage ? `${damage}${formatTerm(abilityMod, abilityLabel)}` : abilityTerm}${bonusTerm}`
       return {
         id: `weapon-${item.id}`,
+        itemId: item.id,
         name: item.name,
         type: "attack" as const,
         attackBonus,
@@ -1145,7 +1161,9 @@ export function getEquippedWeaponAttacks(
         damage: damageStr,
         damageTooltip,
         damageType,
+        damageRecurring,
         range: weaponRange,
+        highlights: item.highlights,
         description: item.description,
         isDerived: true as const,
       }

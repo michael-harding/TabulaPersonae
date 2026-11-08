@@ -4,6 +4,28 @@ export interface CharacterEntry {
   id: string
   name: string
   description: string
+  /** Markdown summary shown on the entry's action card; the full description is in its expanded view. */
+  highlights?: string
+}
+
+/**
+ * Damage an entry deals. `damageRecurring` marks damage that repeats, e.g. at the start of each of
+ * the target's turns.
+ */
+export interface DamageFields {
+  damage?: string
+  damageType?: string
+  damageRecurring?: boolean
+}
+
+/**
+ * What an entry restores or grants, e.g. "2d4+2" with gainType "Healing" or "Temp HP".
+ * `gainRecurring` marks a gain that repeats each turn.
+ */
+export interface GainFields {
+  gain?: string
+  gainType?: string
+  gainRecurring?: boolean
 }
 
 export interface UseableEntry extends CharacterEntry {
@@ -86,7 +108,9 @@ export interface ItemModifiers {
   skillDisadvantage?: (keyof Skills)[]
 }
 
-export interface Equipment extends Omit<UseableEntry, "uses"> {
+// Top-level damage and gain apply to a non-weapon item used as an action (e.g. Alchemist's Fire, a
+// Potion of Healing). A weapon's damage lives in weaponStats instead.
+export interface Equipment extends Omit<UseableEntry, "uses">, DamageFields, GainFields {
   // Charges spent on a rechargeable magic item, bounded by maxUses, reset by rechargeOn.
   // Kept distinct from consumedUses below since an item can need both independently (e.g. a
   // magic consumable that both recharges on a rest and is also consumed via an action).
@@ -101,6 +125,7 @@ export interface Equipment extends Omit<UseableEntry, "uses"> {
   weaponStats?: {
     damage: string
     damageType: string
+    damageRecurring?: boolean
     weaponRange: string
     attackAbility: "str" | "dex" | "finesse"
     proficient: boolean
@@ -117,18 +142,16 @@ export interface Equipment extends Omit<UseableEntry, "uses"> {
   actionKind?: ActionKind
 }
 
-export interface Spell extends CharacterEntry {
+export interface Spell extends CharacterEntry, DamageFields, GainFields {
   level: number;
   school: string;
   castingTime: string;
   range: string;
   components: string;
   duration: string;
-  damage?: string;
   attackSave?: string;
   prepared: boolean;
   known: boolean;
-  gain?: string;
   atHigherLevel?: string;
   concentration?: boolean;
   ritual?: boolean;
@@ -186,20 +209,22 @@ export interface FeatureLevelEffect {
   effects: FeatureEffects
 }
 
-// Values double as their own display labels — the shared Select component's trigger renders
-// the raw controlled value verbatim (it doesn't look up a SelectItem's rendered children), so
-// using human-readable strings here avoids showing raw codes like "skill-proficiency" in the UI.
+// Values double as their own display labels. They're persisted, so they stay human-readable
+// strings rather than short codes like "skill-proficiency".
 export type FeatureTypeValue =
   | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
   | 'Ability Scores' | 'Max HP Bonus'
 
-export interface Feature extends UseableEntry {
+export interface Feature extends UseableEntry, DamageFields, GainFields {
   source: FeatureKind
   actionKind?: ActionKind
   type?: ActionType
   range?: string
+  attackBonus?: number
+  /** e.g. "DEX save DC 13", for a feature that calls for a save rather than an attack roll. */
+  attackSave?: string
   level?: number
   // 'per-level' means maxUses is ignored and the effective cap is maxUsesPerLevel * character.level
   // — same "rate × current total level" math as FeatureEffects.hpBonusPerLevel, computed fresh at
@@ -218,11 +243,9 @@ export interface Feature extends UseableEntry {
   levelEffects?: FeatureLevelEffect[]
 }
 
-interface ActionBase extends UseableEntry {
+interface ActionBase extends UseableEntry, DamageFields, GainFields {
   type: ActionType
   attackBonus?: number
-  damage?: string
-  damageType?: string
   range?: string
   trigger?: string
 }

@@ -1,7 +1,7 @@
-import { createSignal, Show, For } from "solid-js"
-import Pencil from "lucide-solid/icons/pencil"
-import ArrowBigUp from "lucide-solid/icons/arrow-big-up"
-import CircleHelp from "lucide-solid/icons/circle-help"
+import { createSignal, Show, type JSX } from "solid-js"
+import RefreshCw from "lucide-solid/icons/refresh-cw"
+import WandSparkles from "lucide-solid/icons/wand-sparkles"
+import X from "lucide-solid/icons/x"
 
 import { useReadOnly } from "@/lib/read-only-context"
 import { Chip } from "@/components/ui/chip"
@@ -9,16 +9,41 @@ import { Button } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
 import { PipTracker, type PipIcon } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { Popover, PopoverTrigger, PopoverContent, PopoverArrow, PopoverTitle } from "@/components/ui/popover"
+import { Popover, PopoverTrigger, PopoverContent, PopoverTitle } from "@/components/ui/popover"
+import { Select, SelectContent, SelectTrigger, SelectValue, type SelectOption } from "@/components/ui/select"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import { formatModifier, remainingUses, spentFromRemaining } from "@/lib/character-utils"
-import { cn, TOUCH_TARGET, TOUCH_TARGET_BOX } from "@/lib/utils"
+import { formatModifier, remainingUses, spentFromRemaining, TEMP_HP_GAIN_TYPE } from "@/lib/character-utils"
+import { cn, TEMP_HP_COLOR, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 function getOrdinalSuffix(num: number): string {
   const suffixes = ["th", "st", "nd", "rd"]
   const v = num % 100
   return num + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0])
 }
+
+/**
+ * The list every set of action cards sits in: a grid, two cards to a row on phones and four from md
+ * up. Cards in a row stretch to the tallest one's height.
+ */
+export function ActionCardList(props: { children: JSX.Element }) {
+  return (
+    // A list, so screen readers announce how many cards a section holds. role="list" because Safari
+    // drops a <ul>'s list semantics once its bullets are styled away.
+    <ul role="list" class="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {props.children}
+    </ul>
+  )
+}
+
+/** A spell slot level a spell can be cast with, and how many of its slots are left. */
+export interface SlotLevel {
+  level: number
+  remaining: number
+}
+
+// What a click on the card itself ignores: anything the user can operate or focus. Not data-sem,
+// which production builds strip.
+const INTERACTIVE = 'button, a, input, select, textarea, label, [tabindex]:not([tabindex="-1"]), [role="button"], [role="option"], [role="listbox"]'
 
 export interface ActionCardProps {
   /** Page-unique, and the prefix of every hook inside the card: names can repeat. */
@@ -28,37 +53,37 @@ export interface ActionCardProps {
   // Omit for spells — badge falls back to the spell level (Cantrip, 1st, 2nd...)
   badgeLabel?: string
 
-  // Spell subtitle — formatted internally as "Cantrip • School" or "1st level • School"
+  // Spell details, shown in the expanded view
   spellLevel?: number
   spellSchool?: string
-
-  // Spell badge modifiers
   concentration?: boolean
   duration?: string
   ritual?: boolean
+  castingTime?: string
+  components?: string
+  atHigherLevel?: string
 
-  // Stats — all optional, shown when truthy / not undefined
-  castingTime?: string   // detail popover only
-  attackBonus?: number   // "Attack: +5 to hit"
+  // Stats
+  attackBonus?: number
   /** Breakdown of a calculated attackBonus, shown as its tooltip. */
   attackBonusTooltip?: string
   range?: string
   attackSave?: string
-  components?: string
-  atHigherLevel?: string
-
-  // Trigger (reactions) — shown in stats row
+  // Trigger (reactions)
   trigger?: string
 
-  // Effect pills — priority: gain > tempHp > damage
+  // Effect badges
   damage?: string
-  /** Breakdown of a calculated damage roll, shown as the damage pill's tooltip. */
+  /** Breakdown of a calculated damage roll, shown as the damage badge's tooltip. */
   damageTooltip?: string
   damageType?: string
+  damageRecurring?: boolean
   gain?: string
-  tempHp?: string
+  gainType?: string
+  gainRecurring?: boolean
 
-  // Description — line-clamp-2 on card; full text in popover
+  /** Markdown summary for the card face; without it the card shows the start of the description. */
+  highlights?: string
   description?: string
 
   // Uses tracker
@@ -69,28 +94,37 @@ export interface ActionCardProps {
   /** Marks the uses tracker's available pips. The tracker's own default unless given. */
   pipIcon?: PipIcon
 
-  // Spell cast buttons — mutually exclusive with uses tracker
-  spellId?: string
+  // Casting — mutually exclusive with the uses tracker
+  /** Whether the spell can be cast at its own level. */
   castable?: () => boolean
-  onCast?: () => void
-  upcastLevels?: () => number[]
-  onCastAtLevel?: (level: number) => void
-  hasHigherSlots?: () => boolean
-  upcastSpellId?: () => string | null
-  onUpcastSpellId?: (id: string | null) => void
+  /** Casts the spell with a slot of the given level. */
+  onCast?: (level: number) => void
+  /** The slot levels to choose from: the spell's own level and each higher one the character has. */
+  slotLevels?: () => SlotLevel[]
 
-  // Edit button — omit for spells and features
+  // Edit button — opens the entry's own add/edit form
   onEdit?: () => void
 }
 
 export function ActionCard(props: ActionCardProps) {
   const isReadOnly = useReadOnly()
   const [concentrationActive, setConcentrationActive] = createSignal(false)
+  const [expanded, setExpanded] = createSignal(false)
+  const [cardWidth, setCardWidth] = createSignal(0)
+  // undefined means the spell's own level, which every cast resets to: a higher slot is only ever
+  // spent when chosen for that cast
+  const [chosenLevel, setChosenLevel] = createSignal<number>()
+  let cardRef!: HTMLLIElement
+  let nameButtonRef: HTMLButtonElement | undefined
+  let expandedRef: HTMLDivElement | undefined
+
+  const hook = (part: string, inExpanded: boolean) => `${props["data-test"]}${inExpanded ? "-expanded" : ""}-${part}`
 
   const spellLevelLabel = () => {
     if (props.spellLevel == null) return null
     return props.spellLevel === 0 ? "Cantrip" : getOrdinalSuffix(props.spellLevel)
   }
+  const badgeText = () => spellLevelLabel() ?? props.badgeLabel
 
   const spellSubtitle = () => {
     const level = spellLevelLabel()
@@ -99,304 +133,366 @@ export function ActionCard(props: ActionCardProps) {
     return props.spellSchool ? `${levelText} • ${props.spellSchool}` : levelText
   }
 
-  const badgeText = () => spellLevelLabel() ?? props.badgeLabel
-
   const durationLabel = () => {
     if (!props.duration) return null
     const d = props.duration.replace(/^concentration,\s*/i, "")
     return d.toLowerCase() === "instantaneous" ? null : d
   }
 
-  const pill = () => {
-    if (props.gain) return { text: props.gain, color: "green" } as const
-    if (props.tempHp) return { text: props.tempHp, color: "blue" } as const
-    if (props.damage) return { text: props.damageType ? `${props.damage} ${props.damageType}` : props.damage, color: "red" } as const
-    return null
+  const damageText = () => (props.damageType ? `${props.damage} ${props.damageType}` : props.damage)
+  const isTempHp = () => props.gainType === TEMP_HP_GAIN_TYPE
+
+  const hasCastButton = () => !!props.onCast && !isReadOnly
+  const hasUsesTracker = () => (props.maxUses ?? 0) > 0 && !props.onCast
+
+  const selectedLevel = () => chosenLevel() ?? props.spellLevel ?? 0
+  const slotChoices = () => props.slotLevels?.() ?? []
+  const hasSlotSelect = () => hasCastButton() && slotChoices().length > 1
+  const canCast = () => hasSlotSelect()
+    ? (slotChoices().find((l) => l.level === selectedLevel())?.remaining ?? 0) > 0
+    : !!props.castable?.()
+  const cast = () => {
+    props.onCast?.(selectedLevel())
+    setChosenLevel(undefined)
+  }
+  const slotOptions = (): SelectOption[] => slotChoices().map((l) => ({
+    value: String(l.level),
+    label: getOrdinalSuffix(l.level),
+    ...(l.remaining > 0 ? { icon: WandSparkles } : { muted: true, srHint: "no slots" }),
+  }))
+
+  // A pointer shortcut only: the name is the real button, and the one keyboard and screen reader
+  // users reach (ACCESSIBILITY.md §3; the whole-card click was approved as a pointer convenience).
+  const handleCardClick = (e: MouseEvent) => {
+    if ((e.target as Element).closest(INTERACTIVE)) return
+    if (window.getSelection()?.toString()) return
+    nameButtonRef?.click()
   }
 
-  const hasAnyStats = () =>
-    props.trigger != null ||
-    props.attackBonus != null ||
-    props.range != null ||
-    props.attackSave != null ||
-    props.components != null ||
-    props.atHigherLevel != null ||
-    pill() != null ||
-    !!props.concentration ||
-    durationLabel() != null
+  // The edit form opens once the expanded view has finished closing and handed focus back to the
+  // card's name (see onCloseAutoFocus): opened sooner, that hand-back would pull focus out of the
+  // open form, disarming a two-click Delete in it. The form then returns focus to the name.
+  let editPending = false
+  const openEdit = () => {
+    editPending = true
+    setExpanded(false)
+  }
 
-  const hasCastButtons = () => !!props.onCast
-  const hasUsesTracker = () => (props.maxUses ?? 0) > 0 && !hasCastButtons()
+  // ── Pieces shared by the card face and the expanded view ─────────────────────────────────────
+
+  const recurring = (show: boolean | undefined) => (
+    <Show when={show}>
+      <RefreshCw class="ml-0.5 inline-block h-3 w-3 align-[-0.125em]" aria-hidden="true" />
+      <span class="sr-only">, recurs each turn</span>
+    </Show>
+  )
+
+  const statBadge = (badge: { class: string; testId: string; first: JSX.Element; second: JSX.Element; strongFirst: boolean }) => (
+    <div
+      class={cn("flex min-w-[3.5rem] flex-1 flex-col items-center justify-center rounded border-2 px-1.5 py-0.5 text-center leading-tight", badge.class)}
+      data-test={badge.testId}
+    >
+      <span class={badge.strongFirst ? "text-sm font-semibold" : "text-xs"}>{badge.first}</span>
+      <span class={badge.strongFirst ? "text-xs" : "text-sm font-semibold"}>{badge.second}</span>
+    </div>
+  )
+
+  const statBadges = (inExpanded: boolean) => (
+    <Show when={props.attackBonus != null || props.damage || props.gain}>
+      <div class="flex flex-wrap gap-1.5">
+        <Show when={props.attackBonus != null}>
+          {(() => {
+            const badge = () => statBadge({
+              class: "border-border", testId: hook("attack-badge", inExpanded), strongFirst: false,
+              first: "Attack", second: formatModifier(props.attackBonus!),
+            })
+            return (
+              <Show when={props.attackBonusTooltip} fallback={badge()}>
+                {(tooltip) => <Tooltip content={tooltip()} triggerFocusable triggerLabel={`Attack ${formatModifier(props.attackBonus!)}`} triggerClass="flex flex-1">{badge()}</Tooltip>}
+              </Show>
+            )
+          })()}
+        </Show>
+        <Show when={props.damage}>
+          {(() => {
+            const badge = () => statBadge({
+              class: "border-red-500 text-red-700 dark:text-red-400", testId: hook("damage-badge", inExpanded), strongFirst: true,
+              first: props.damage,
+              second: <>{props.damageType || "Damage"}{recurring(props.damageRecurring)}</>,
+            })
+            return (
+              <Show when={props.damageTooltip} fallback={badge()}>
+                {(tooltip) => <Tooltip content={tooltip()} triggerFocusable triggerLabel={`Damage ${damageText()}`} triggerClass="flex flex-1">{badge()}</Tooltip>}
+              </Show>
+            )
+          })()}
+        </Show>
+        <Show when={props.gain}>
+          {statBadge({
+            // Temp HP matches the health bar's temp HP segment
+            class: isTempHp() ? `${TEMP_HP_COLOR.border} text-blue-700 dark:text-blue-300` : "border-green-500 text-green-700 dark:text-green-400",
+            testId: hook("gain-badge", inExpanded), strongFirst: true,
+            first: props.gain,
+            second: <>{props.gainType || "Gain"}{recurring(props.gainRecurring)}</>,
+          })}
+        </Show>
+      </div>
+    </Show>
+  )
+
+  const statusChips = (inExpanded: boolean) => (
+    <>
+      <Show when={props.concentration}>
+        <Chip
+          variant={concentrationActive() ? "default" : "outline"}
+          class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground"}${!isReadOnly ? " cursor-pointer" : ""}`}
+          data-test={hook(`concentration-badge-${concentrationActive() ? "active" : "inactive"}`, inExpanded)}
+          onClick={isReadOnly ? undefined : () => setConcentrationActive(v => !v)}
+        >
+          Concentration
+        </Chip>
+      </Show>
+      <Show when={durationLabel()}>
+        <Chip variant="outline" class="text-xs text-muted-foreground">{durationLabel()}</Chip>
+      </Show>
+    </>
+  )
+
+  const statList = () => (
+    <Show when={props.trigger || props.range || props.attackSave}>
+      <ul class="min-w-24 flex-1 space-y-0.5 text-xs [overflow-wrap:anywhere]">
+        <Show when={props.trigger}><li><strong>Trigger:</strong> {props.trigger}</li></Show>
+        <Show when={props.range}><li><strong>Range:</strong> {props.range}</li></Show>
+        <Show when={props.attackSave}><li><strong>Attack/Save:</strong> {props.attackSave}</li></Show>
+      </ul>
+    </Show>
+  )
+
+  const controls = (inExpanded: boolean) => (
+    <>
+      <Show when={hasUsesTracker()}>
+        <Show
+          when={(props.maxUses ?? 0) <= 5}
+          fallback={
+            // value/onChange are inverted: display shows remaining uses, storage tracks used count
+            <StepperInput data-test={hook("uses-stepper", inExpanded)}
+              value={remainingUses(props.uses, props.maxUses)}
+              min={0}
+              max={props.maxUses}
+              onChange={(v) => props.onUsesChange!(spentFromRemaining(v, props.maxUses))}
+              readOnly={isReadOnly}
+              aria-label={`${props.name} uses remaining`}
+            />
+          }
+        >
+          <PipTracker
+            data-test={hook("uses", inExpanded)}
+            icon={props.pipIcon}
+            total={props.maxUses!}
+            used={props.uses ?? 0}
+            onToggle={props.onUsesChange!}
+            usedTitle="Charge spent (click to restore)"
+            availableTitle="Charge available (click to use)"
+            usedLabel="Charge spent"
+            availableLabel="Charge available"
+            readOnly={isReadOnly}
+          />
+        </Show>
+      </Show>
+      <Show when={hasCastButton()}>
+        <div class="flex flex-wrap items-center justify-end gap-1">
+          <Show when={hasSlotSelect()}>
+            <Select options={slotOptions()} value={String(selectedLevel())} onValueChange={(v) => setChosenLevel(Number(v))}>
+              {/* No visible label: the design gives the select only the levels (ACCESSIBILITY.md §11),
+                  so it is named for its spell, which tells it apart from the other cards' selects */}
+              <SelectTrigger class="w-auto shrink-0 gap-1 px-1.5" aria-label={`Cast ${props.name} at level`} data-test={hook("slot-select", inExpanded)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent />
+            </Select>
+          </Show>
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-11 px-3"
+            data-test={hook("cast-button", inExpanded)}
+            // Named for the spell: in a list of cards, "Cast" alone could be any of them
+            aria-label={`Cast ${props.name}`}
+            disabled={!canCast()}
+            onClick={cast}
+          >
+            Cast
+          </Button>
+        </div>
+      </Show>
+    </>
+  )
+
+  const hasControls = () => hasUsesTracker() || hasCastButton()
+
+  const detailRow = (label: string, value: JSX.Element) => <div><span class="font-medium">{label}:</span> {value}</div>
 
   return (
-    <div data-sem="action-card" data-test={props["data-test"]} class="p-3 border rounded-lg flex flex-col gap-2">
-
-      {/* Row 1 — Header */}
-      <div class="flex items-start gap-2">
-        <div class="flex-1 min-w-0">
-          <div class="font-medium flex items-center gap-1">
+    <Popover
+      open={expanded()}
+      onOpenChange={(open) => {
+        if (open) setCardWidth(cardRef.offsetWidth)
+        setExpanded(open)
+      }}
+      // The expanded view opens over the card from its top edge, centered on it: anchored to a
+      // zero-height line along the card's top rather than to the name button. When it would be cut
+      // short below that line (a card near the bottom of the screen) and there's more room above,
+      // it flips to open upward from the same line.
+      getAnchorRect={() => {
+        const r = cardRef.getBoundingClientRect()
+        return { x: r.left, y: r.top, width: r.width, height: 0 }
+      }}
+      placement="bottom"
+      gutter={0}
+      overflowPadding={16}
+      // Modal, so a click outside only closes it: the click never reaches what's underneath, such
+      // as another card, which would open that card's expanded view
+      modal
+    >
+      <li
+        ref={cardRef}
+        data-sem="action-card"
+        data-test={props["data-test"]}
+        class="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 transition-colors hover:border-primary"
+        onClick={handleCardClick}
+      >
+        {/* Header. The name keeps room for a full touch target (ACCESSIBILITY.md §13): in a narrow
+            card a long badge wraps below it instead of squeezing it */}
+        <div class="flex flex-wrap items-start gap-1">
+          <PopoverTrigger
+            ref={nameButtonRef}
+            class="flex min-h-11 min-w-24 flex-1 items-center rounded text-left font-medium leading-tight [overflow-wrap:anywhere] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-test={hook("name", false)}
+          >
             {props.name}
-            <Popover gutter={8}>
-              <PopoverTrigger
-                // A real 44×44 box: an invisible hit area could cover the edit button beside it, and
-                // pulling the box into a shorter row would let the row below cover its lower edge
-                class={cn(TOUCH_TARGET_BOX, "rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring")}
-                aria-label={`Details for ${props.name}`}
-                data-test={`${props["data-test"]}-details-trigger`}
-              >
-                <CircleHelp class="w-4 h-4" aria-hidden="true" />
-              </PopoverTrigger>
-              <PopoverContent>
-                  <PopoverArrow />
-                  <div class="space-y-2">
-                    <PopoverTitle as="div" class="font-semibold text-sm">{props.name}</PopoverTitle>
-                    <Show when={spellSubtitle()}>
-                      <div class="text-xs text-muted-foreground">
-                        {spellSubtitle()}
-                        {props.ritual && " (ritual)"}
-                        {props.concentration && " · Concentration"}
-                      </div>
-                    </Show>
-                    <div class="text-xs space-y-1 border-t pt-2">
-                      <Show when={props.castingTime}>
-                        <div><span class="font-medium">Casting Time:</span> {props.castingTime}</div>
-                      </Show>
-                      <Show when={props.range}>
-                        <div><span class="font-medium">Range:</span> {props.range}</div>
-                      </Show>
-                      <Show when={props.components}>
-                        <div><span class="font-medium">Components:</span> {props.components}</div>
-                      </Show>
-                      <Show when={props.duration}>
-                        <div><span class="font-medium">Duration:</span> {props.duration}</div>
-                      </Show>
-                      <Show when={props.attackSave}>
-                        <div><span class="font-medium">Attack/Save:</span> {props.attackSave}</div>
-                      </Show>
-                      <Show when={props.attackBonus != null}>
-                        <div><span class="font-medium">Attack Bonus:</span> {formatModifier(props.attackBonus!)}</div>
-                      </Show>
-                      <Show when={props.damage}>
-                        <div><span class="font-medium">Damage:</span> {props.damage}{props.damageType ? ` ${props.damageType}` : ""}</div>
-                      </Show>
-                      <Show when={props.gain}>
-                        <div><span class="font-medium">Gain:</span> {props.gain}</div>
-                      </Show>
-                      <Show when={props.tempHp}>
-                        <div><span class="font-medium">Temp HP:</span> {props.tempHp}</div>
-                      </Show>
-                      <Show when={props.trigger}>
-                        <div><span class="font-medium">Trigger:</span> {props.trigger}</div>
-                      </Show>
-                      <Show when={(props.maxUses ?? 0) > 0}>
-                        <div><span class="font-medium">Max Uses:</span> {props.maxUses}</div>
-                      </Show>
-                      <Show when={props.rechargeOn}>
-                        <div><span class="font-medium">Recharge On:</span> {props.rechargeOn === "short-rest" ? "Short Rest" : "Long Rest"}</div>
-                      </Show>
-                    </div>
-                    <Show when={props.description}>
-                      <div class="border-t pt-2">
-                        <MarkdownContent text={props.description!} class="text-xs leading-relaxed" />
-                      </div>
-                    </Show>
-                    <Show when={props.atHigherLevel}>
-                      <div class="text-xs border-t pt-2">
-                        <span class="font-medium">At Higher Levels:</span> {props.atHigherLevel}
-                      </div>
-                    </Show>
-                  </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-          <Show when={spellSubtitle()}>
-            <div class="text-xs text-muted-foreground">{spellSubtitle()}</div>
+          </PopoverTrigger>
+          <Show when={badgeText()}>
+            <Chip variant="secondary" class="ml-auto shrink-0 text-xs">{badgeText()}</Chip>
           </Show>
         </div>
 
-        <div class="flex items-center gap-1 shrink-0">
-          <Chip variant="secondary" class="text-xs">{badgeText()}</Chip>
-          <Show when={props.onEdit && !isReadOnly}>
-            <Tooltip content={`Edit ${props.name}`}>
-              <button
-                type="button"
-                class={cn(TOUCH_TARGET, "text-muted-foreground hover:text-foreground transition-colors")}
-                aria-label={`Edit ${props.name}`}
-                data-test={`${props["data-test"]}-edit-button`}
-                onClick={() => props.onEdit?.()}
-              >
-                <Pencil class="h-4 w-4" aria-hidden="true" />
-              </button>
-            </Tooltip>
-          </Show>
+        {statBadges(false)}
 
-        </div>
-      </div>
-
-      {/* Row 2 — Stats + pill */}
-      <Show when={hasAnyStats()}>
-        <div class="flex flex-wrap items-start justify-between gap-2 text-sm">
-          <div class="space-y-1 flex-1">
-            <Show when={props.trigger}>
-              <div><strong>Trigger:</strong> {props.trigger}</div>
-            </Show>
-            <Show when={props.attackBonus != null}>
-              <div>
-                {/* The whole line is the trigger, so the focused stop reads "Attack: +6 to hit", not a bare "+6". */}
-                <Show when={props.attackBonusTooltip} fallback={<><strong>Attack:</strong> {formatModifier(props.attackBonus!)} to hit</>}>
-                  {(tooltip) => (
-                    <Tooltip content={tooltip()} triggerFocusable>
-                      <span data-test={`${props["data-test"]}-attack-bonus`}><strong>Attack:</strong> {formatModifier(props.attackBonus!)} to hit</span>
-                    </Tooltip>
-                  )}
-                </Show>
-              </div>
-            </Show>
-            <Show when={props.range}>
-              <div><strong>Range:</strong> {props.range}</div>
-            </Show>
-            <Show when={props.attackSave}>
-              <div><strong>Attack/Save:</strong> {props.attackSave}</div>
-            </Show>
-            <Show when={props.components}>
-              <div><strong>Components:</strong> {props.components}</div>
-            </Show>
-            <Show when={props.atHigherLevel}>
-              <div><strong>At Higher Level:</strong> {props.atHigherLevel}</div>
+        {/* The chips sit beside the list when there's room, and wrap below it when there isn't */}
+        <Show when={props.trigger || props.range || props.attackSave || props.concentration || durationLabel()}>
+          <div class="flex flex-wrap items-start gap-2">
+            {statList()}
+            <Show when={props.concentration || durationLabel()}>
+              <div class="ml-auto flex flex-wrap justify-end gap-1">{statusChips(false)}</div>
             </Show>
           </div>
-          <div class="flex flex-col items-end gap-1 shrink-0">
-            <Show when={props.concentration}>
-              <Chip
-                variant={concentrationActive() ? "default" : "outline"}
-                class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground"}${!isReadOnly ? " cursor-pointer" : ""}`}
-                data-test={`${props["data-test"]}-concentration-badge-${concentrationActive() ? "active" : "inactive"}`}
-                onClick={isReadOnly ? undefined : () => setConcentrationActive(v => !v)}
-              >
-                Concentration
-              </Chip>
-            </Show>
-            <Show when={durationLabel()}>
-              <Chip variant="outline" class="text-xs text-muted-foreground">
-                {durationLabel()}
-              </Chip>
-            </Show>
-            <Show when={pill()}>
-              {(p) => {
-                const colorClass = p().color === "green"
-                  ? "border-green-500 text-green-700 dark:text-green-400"
-                  : p().color === "blue"
-                  ? "border-blue-500 text-blue-700 dark:text-blue-400"
-                  : "border-red-500 text-red-700 dark:text-red-400"
-                const pillElement = () => (
-                  <div
-                    class={`px-2 py-1 border-2 rounded font-semibold whitespace-nowrap text-sm ${colorClass}`}
-                    data-test={`${props["data-test"]}-effect-pill-${p().color}`}
-                  >
-                    {p().text}
-                  </div>
-                )
-                // Only the damage pill can be calculated; gain and temp HP are entered text.
-                const damageTooltip = () => (p().color === "red" ? props.damageTooltip : undefined)
-                return (
-                  <Show when={damageTooltip()} fallback={pillElement()}>
-                    {(tooltip) => <Tooltip content={tooltip()} triggerFocusable triggerLabel={`Damage ${p().text}`}>{pillElement()}</Tooltip>}
-                  </Show>
-                )
-              }}
-            </Show>
-          </div>
-        </div>
-      </Show>
+        </Show>
 
-      {/* Row 3 — Description */}
-      <Show when={props.description}>
-        <div class="text-xs text-muted-foreground line-clamp-2">{props.description}</div>
-      </Show>
+        <Show
+          when={props.highlights}
+          fallback={<Show when={props.description}><div class="text-xs line-clamp-2">{props.description}</div></Show>}
+        >
+          {(highlights) => <MarkdownContent text={highlights()} class="text-xs" />}
+        </Show>
 
-      {/* Row 4 — Footer */}
-      <Show when={hasUsesTracker() || (hasCastButtons() && !isReadOnly)}>
-        <div class="flex items-center justify-between gap-2 mt-auto">
-          <Show when={hasUsesTracker()}>
-            <Show
-              when={(props.maxUses ?? 0) <= 5}
-              fallback={
-                // value/onChange are inverted: display shows remaining uses, storage tracks used count
-                <StepperInput data-test={`${props["data-test"]}-uses-stepper`}
-                  value={remainingUses(props.uses, props.maxUses)}
-                  min={0}
-                  max={props.maxUses}
-                  onChange={(v) => props.onUsesChange!(spentFromRemaining(v, props.maxUses))}
-                  readOnly={isReadOnly}
-                  aria-label={`${props.name} uses remaining`}
-                />
-              }
-            >
-              <PipTracker
-                data-test={`${props["data-test"]}-uses`}
-                icon={props.pipIcon}
-                total={props.maxUses!}
-                used={props.uses ?? 0}
-                onToggle={props.onUsesChange!}
-                usedTitle="Charge spent (click to restore)"
-                availableTitle="Charge available (click to use)"
-                usedLabel="Charge spent"
-                availableLabel="Charge available"
-                readOnly={isReadOnly}
-              />
-            </Show>
-          </Show>
-          <Show when={hasCastButtons() && !isReadOnly}>
-            <div class="flex items-center gap-1 ml-auto">
-              <Show when={props.upcastSpellId?.() === props.spellId && props.upcastLevels && props.upcastLevels().length > 0}>
-                <div class="flex gap-1">
-                  <For each={props.upcastLevels!()}>
-                    {(level) => (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        class="h-11 min-w-[44px] px-2 text-xs"
-                        data-test={`${props["data-test"]}-upcast-level-${level}`}
-                        onClick={() => props.onCastAtLevel?.(level)}
-                      >
-                        {getOrdinalSuffix(level)}
-                      </Button>
-                    )}
-                  </For>
+        <Show when={hasControls()}>
+          <div class="mt-auto flex flex-wrap items-center justify-end gap-2">{controls(false)}</div>
+        </Show>
+      </li>
+
+      <PopoverContent
+        motion="fade"
+        data-test={`${props["data-test"]}-expanded`}
+        // Styled as the card itself, with the border the card shows on hover
+        class="max-h-[var(--kb-popper-content-available-height)] w-[min(36rem,calc(100vw-2rem))] origin-[var(--kb-popper-content-transform-origin)] overflow-y-auto border-primary bg-card p-4 text-card-foreground"
+        style={{ "min-width": `${cardWidth()}px` }}
+        ref={expandedRef}
+        // Focus goes to the view itself, named by its title, rather than to its first control: the
+        // close button, which would light up with a focus ring on every pointer open
+        onOpenAutoFocus={(e: Event) => {
+          e.preventDefault()
+          // Without scrolling: the view is already placed over the card, where the user is looking
+          expandedRef?.focus({ preventScroll: true })
+        }}
+        onCloseAutoFocus={() => {
+          if (!editPending) return
+          editPending = false
+          const onEdit = props.onEdit
+          // After the popover's own focus hand-back, which follows this handler
+          if (onEdit) queueMicrotask(onEdit)
+        }}
+      >
+        <div class="space-y-3">
+          <div class="flex items-start gap-2">
+            <div class="min-w-0 flex-1">
+              <PopoverTitle as="h2" class="font-semibold leading-tight">{props.name}</PopoverTitle>
+              <Show when={spellSubtitle()}>
+                <div class="text-xs text-muted-foreground">
+                  {spellSubtitle()}
+                  {props.ritual && " (ritual)"}
+                  {props.concentration && " · Concentration"}
                 </div>
               </Show>
-              <Button
-                variant="outline"
-                size="sm"
-                class="h-11 px-4"
-                data-test={`${props["data-test"]}-cast-button`}
-                // Named for the spell: in a list of cards, "Cast" alone could be any of them
-                aria-label={`Cast ${props.name}`}
-                disabled={!props.castable?.()}
-                onClick={props.onCast}
-              >
-                Cast
-              </Button>
-              <Show when={!!props.atHigherLevel && props.hasHigherSlots?.()}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-11 w-11 p-0"
-                  aria-label={`Upcast ${props.name}`}
-                  data-test={`${props["data-test"]}-upcast-toggle`}
-                  disabled={!props.upcastLevels?.().length}
-                  onClick={() => props.onUpcastSpellId?.(
-                    props.upcastSpellId?.() === props.spellId ? null : (props.spellId ?? null)
-                  )}
-                >
-                  <ArrowBigUp class="h-4 w-4" aria-hidden="true" />
+            </div>
+            <Show when={badgeText()}>
+              <Chip variant="secondary" class="mt-1 shrink-0 text-xs">{badgeText()}</Chip>
+            </Show>
+            <button
+              type="button"
+              class={cn(TOUCH_TARGET_BOX, "-mr-2 -mt-2 rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring")}
+              aria-label={`Close ${props.name}`}
+              data-test={hook("close", true)}
+              onClick={() => setExpanded(false)}
+            >
+              <X class="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          {statBadges(true)}
+
+          <Show when={props.concentration || durationLabel()}>
+            <div class="flex flex-wrap gap-1">{statusChips(true)}</div>
+          </Show>
+
+          <div class="space-y-1 text-xs">
+            <Show when={props.castingTime}>{detailRow("Casting Time", props.castingTime)}</Show>
+            <Show when={props.range}>{detailRow("Range", props.range)}</Show>
+            <Show when={props.components}>{detailRow("Components", props.components)}</Show>
+            <Show when={props.duration}>{detailRow("Duration", props.duration)}</Show>
+            <Show when={props.attackSave}>{detailRow("Attack/Save", props.attackSave)}</Show>
+            <Show when={props.trigger}>{detailRow("Trigger", props.trigger)}</Show>
+            <Show when={props.damageRecurring}>{detailRow("Damage", `${damageText()}, recurs each turn`)}</Show>
+            <Show when={props.gainRecurring}>{detailRow("Gain", `${props.gain}${props.gainType ? ` ${props.gainType}` : ""}, recurs each turn`)}</Show>
+            <Show when={(props.maxUses ?? 0) > 0}>{detailRow("Max Uses", props.maxUses)}</Show>
+            <Show when={props.rechargeOn}>{detailRow("Recharge On", props.rechargeOn === "short-rest" ? "Short Rest" : "Long Rest")}</Show>
+          </div>
+
+          <Show when={props.highlights}>
+            {(highlights) => <MarkdownContent text={highlights()} class="text-sm" />}
+          </Show>
+          <Show when={props.description}>
+            <div class="border-t pt-2">
+              <MarkdownContent text={props.description!} class="text-xs leading-relaxed" />
+            </div>
+          </Show>
+          <Show when={props.atHigherLevel}>
+            <div class="border-t pt-2 text-xs">
+              <span class="font-medium">At Higher Levels:</span> {props.atHigherLevel}
+            </div>
+          </Show>
+
+          <Show when={hasControls() || (props.onEdit && !isReadOnly)}>
+            <div class="flex flex-wrap items-center gap-2 border-t pt-3">
+              <Show when={props.onEdit && !isReadOnly}>
+                <Button variant="outline" size="sm" class="h-11 px-4" data-test={hook("edit-button", true)} aria-label={`Edit ${props.name}`} onClick={openEdit}>
+                  Edit
                 </Button>
               </Show>
+              <div class="ml-auto flex flex-wrap items-center justify-end gap-2">{controls(true)}</div>
             </div>
           </Show>
         </div>
-      </Show>
-
-    </div>
+      </PopoverContent>
+    </Popover>
   )
 }

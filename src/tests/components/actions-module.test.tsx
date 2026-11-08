@@ -6,7 +6,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick } from "../test-utils"
+import { render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick, finishClosing } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -346,7 +346,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
   })
 
   describe("Delete attack", () => {
-    it("calls onUpdate without the deleted attack when delete is confirmed via edit modal", () => {
+    it("calls onUpdate without the deleted attack when delete is confirmed via edit modal", async () => {
       const onUpdate = vi.fn()
       render(() => (
         <ActionsModule
@@ -354,8 +354,11 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
           onUpdate={onUpdate}
         />
       ))
+      // Edit is in the card's expanded view
+      fireEvent.click(screen.getByRole("button", { name: "Longsword" }))
       fireEvent.click(screen.getByRole("button", { name: /edit longsword/i }))
-      const modal = screen.getByRole("dialog")
+      finishClosing(screen.getByRole("dialog", { name: "Longsword" }))
+      const modal = await screen.findByRole("dialog", { name: "Edit Action" })
       confirmClick(within(modal).getByRole("button", { name: /^delete$/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ attacks: [] })
@@ -531,7 +534,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     })
   })
 
-  describe("Upcast (At Higher Level) feature", () => {
+  describe("casting at a higher level", () => {
     function makeUpcastSpell(overrides: Partial<Spell> = {}): Spell {
       return makeSpell({
         id: "sp-upcast",
@@ -561,104 +564,58 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       })
     }
 
-    it("displays 'At Higher Level:' on a spell card when atHigherLevel is set", () => {
+    const slotSelect = () => screen.getByRole("combobox", { name: "Cast Magic Missile at level" })
+    const castButton = () => screen.getByRole("button", { name: "Cast Magic Missile" })
+
+    it("shows At Higher Levels in the spell's expanded view", () => {
       render(() => <ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
-      expect(screen.getByText("At Higher Level:")).toBeInTheDocument()
+      fireEvent.click(screen.getByRole("button", { name: "Magic Missile" }))
+      expect(within(screen.getByRole("dialog")).getByText("+1d4+1 per level")).toBeInTheDocument()
     })
 
-    it("does not display 'At Higher Level:' when atHigherLevel is not set", () => {
-      render(() => (
-        <ActionsModule
-          character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })}
-          onUpdate={vi.fn()}
-        />
-      ))
-      expect(screen.queryByText("At Higher Level:")).not.toBeInTheDocument()
+    it("offers no slot-level select when atHigherLevel is not set", () => {
+      render(() => <ActionsModule character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("combobox", { name: /at level/i })).not.toBeInTheDocument()
     })
 
-    it("does not show the upcast button when atHigherLevel is not set", () => {
-      render(() => (
-        <ActionsModule
-          character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })}
-          onUpdate={vi.fn()}
-        />
-      ))
-      expect(screen.queryByRole("button", { name: /upcast/i })).not.toBeInTheDocument()
+    it("offers no slot-level select when the character has no higher-level spell slots", () => {
+      render(() => <ActionsModule character={makeCharacterWithUpcast({ level2Total: 0 })} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("combobox", { name: /at level/i })).not.toBeInTheDocument()
     })
 
-    it("does not show the upcast button when the character has no higher-level spell slots", () => {
-      render(() => (
-        <ActionsModule
-          character={makeCharacterWithUpcast({ level2Total: 0 })}
-          onUpdate={vi.fn()}
-        />
-      ))
-      expect(screen.queryByRole("button", { name: /upcast/i })).not.toBeInTheDocument()
+    it("offers no slot-level select for a free cast", () => {
+      render(() => <ActionsModule character={makeCharacterWithUpcast({ spellOverrides: { grantedBy: "item-1", freeCast: true } })} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("combobox", { name: /at level/i })).not.toBeInTheDocument()
     })
 
-    it("shows an enabled upcast button when atHigherLevel is set and higher slots are available", () => {
-      render(() => <ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
-      expect(screen.getByRole("button", { name: /upcast/i })).not.toBeDisabled()
-    })
-
-    it("shows a disabled upcast button when all higher-level slots are exhausted", () => {
-      render(() => (
-        <ActionsModule
-          character={makeCharacterWithUpcast({ level2Total: 1, level2Used: 1 })}
-          onUpdate={vi.fn()}
-        />
-      ))
-      expect(screen.getByRole("button", { name: /upcast/i })).toBeDisabled()
-    })
-
-    it("clicking the upcast button reveals level picker buttons", () => {
-      render(() => <ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
-      expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
-      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
-      expect(screen.getByRole("button", { name: "2nd" })).toBeInTheDocument()
-    })
-
-    it("clicking a level picker button calls onUpdate consuming that slot level", () => {
+    it("defaults the select to the spell's own level and casts with that slot", () => {
       const onUpdate = vi.fn()
       render(() => <ActionsModule character={makeCharacterWithUpcast()} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
-      fireEvent.click(screen.getByRole("button", { name: "2nd" }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spellSlots: expect.objectContaining({ 2: expect.objectContaining({ used: 1 }) }),
-        })
-      )
+      expect(slotSelect()).toHaveTextContent("1st")
+      fireEvent.click(castButton())
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 1 }), 2: expect.objectContaining({ used: 0 }) }),
+      }))
     })
 
-    it("clicking a level picker button does not consume the base spell slot", () => {
+    it("casts with a chosen higher slot, leaving the base slot alone", () => {
       const onUpdate = vi.fn()
       render(() => <ActionsModule character={makeCharacterWithUpcast()} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
-      fireEvent.click(screen.getByRole("button", { name: "2nd" }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 0 }) }),
-        })
-      )
+      fireEvent.click(slotSelect())
+      fireEvent.click(screen.getByRole("option", { name: "2nd" }))
+      fireEvent.click(castButton())
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 0 }), 2: expect.objectContaining({ used: 1 }) }),
+      }))
     })
 
-    it("level picker closes after a level is selected", () => {
-      render(() => <ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
-      expect(screen.getByRole("button", { name: "2nd" })).toBeInTheDocument()
-      fireEvent.click(screen.getByRole("button", { name: "2nd" }))
-      expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
+    it("still lists a spent higher level, as unavailable", () => {
+      render(() => <ActionsModule character={makeCharacterWithUpcast({ level2Used: 1 })} onUpdate={vi.fn()} />)
+      fireEvent.click(slotSelect())
+      expect(screen.getByRole("option", { name: "2nd no slots" })).toHaveClass("text-muted-foreground")
     })
 
-    it("clicking the upcast button again closes the level picker", () => {
-      render(() => <ActionsModule character={makeCharacterWithUpcast()} onUpdate={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
-      expect(screen.getByRole("button", { name: "2nd" })).toBeInTheDocument()
-      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
-      expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
-    })
-
-    it("level picker shows only slots above the spell's base level", () => {
+    it("lists only the spell's own level and those above it", () => {
       const char = makeCharacter({
         spells: [makeUpcastSpell({ level: 2 })],
         spellSlots: {
@@ -669,14 +626,12 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
         },
       })
       render(() => <ActionsModule character={char} onUpdate={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: /upcast/i }))
-      expect(screen.queryByRole("button", { name: "1st" })).not.toBeInTheDocument()
-      expect(screen.queryByRole("button", { name: "2nd" })).not.toBeInTheDocument()
-      expect(screen.getByRole("button", { name: "3rd" })).toBeInTheDocument()
+      fireEvent.click(slotSelect())
+      expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["2nd", "3rd"])
     })
 
     // TESTING.md §6: a spell cast as a bonus action or a reaction is listed in both sections, so
-    // each copy needs its own hooks, and opening Upcast on one must not open the other
+    // each copy needs its own hooks, and choosing a level on one must not change the other
     it("keeps a spell listed in two sections apart by section", () => {
       const char = makeCharacter({
         spells: [makeUpcastSpell({ castingTime: "1 bonus action or 1 reaction" })],
@@ -687,24 +642,12 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
         },
       })
       render(() => <ActionsModule character={char} onUpdate={vi.fn()} />)
-      expect(screen.getByTestId("action-card-bonus-spell-sp-upcast")).toBeInTheDocument()
-      expect(screen.getByTestId("action-card-reaction-spell-sp-upcast")).toBeInTheDocument()
-      fireEvent.click(screen.getByTestId("action-card-bonus-spell-sp-upcast-upcast-toggle"))
-      expect(screen.getByTestId("action-card-bonus-spell-sp-upcast-upcast-level-2")).toBeInTheDocument()
-      expect(screen.queryByTestId("action-card-reaction-spell-sp-upcast-upcast-level-2")).not.toBeInTheDocument()
-    })
-
-    it("upcast button works for bonus action spells", () => {
-      const char = makeCharacter({
-        spells: [makeUpcastSpell({ castingTime: "1 bonus action" })],
-        spellSlots: {
-          ...createDefaultCharacter().spellSlots,
-          1: { total: 2, used: 0 },
-          2: { total: 1, used: 0 },
-        },
-      })
-      render(() => <ActionsModule character={char} onUpdate={vi.fn()} />)
-      expect(screen.getByRole("button", { name: /upcast/i })).toBeInTheDocument()
+      const bonusSelect = screen.getByTestId("action-card-bonus-spell-sp-upcast-slot-select")
+      const reactionSelect = screen.getByTestId("action-card-reaction-spell-sp-upcast-slot-select")
+      fireEvent.click(bonusSelect)
+      fireEvent.click(screen.getByRole("option", { name: "2nd" }))
+      expect(bonusSelect).toHaveTextContent("2nd")
+      expect(reactionSelect).toHaveTextContent("1st")
     })
   })
 
@@ -1144,8 +1087,8 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
           onUpdate={vi.fn()}
         />
       ))
-      fireEvent.click(screen.getByRole("button", { name: /details for action surge/i }))
-      expect(screen.getAllByText("Take an extra action on your turn.").length).toBeGreaterThanOrEqual(1)
+      fireEvent.click(screen.getByRole("button", { name: "Action Surge" }))
+      expect(within(screen.getByRole("dialog")).getByText("Take an extra action on your turn.")).toBeInTheDocument()
     })
   })
 
@@ -1255,12 +1198,12 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     })
   })
 
-  describe("detail popover in section context", () => {
-    it("spell detail popover opens and shows castingTime", () => {
+  describe("expanded view in section context", () => {
+    it("shows a spell's casting time", () => {
       const spell = makeSpell({ name: "Fire Bolt", level: 0, castingTime: "1 action", known: true })
       render(() => <ActionsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: /details for fire bolt/i }))
-      expect(screen.getByText(/1 action/)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole("button", { name: "Fire Bolt" }))
+      expect(within(screen.getByRole("dialog")).getByText(/1 action/)).toBeInTheDocument()
     })
   })
 
@@ -1316,7 +1259,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       const [character, setCharacter] = createStore(makeCharacter({ equipment: [makeWeaponEquipment()] }))
       setCharacter("abilityScores", "strength", 16)
       render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
-      const pillTrigger = () => screen.getByTestId("action-card-weapon-wpn-1-effect-pill-red").closest('[data-sem="tooltip-trigger"]')!
+      const pillTrigger = () => screen.getByTestId("action-card-weapon-wpn-1-damage-badge").closest('[data-sem="tooltip-trigger"]')!
       fireEvent.focus(pillTrigger())
       await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("1d8 + 3 (Str)"))
       // The derived attack is rebuilt, so its card (and the open tooltip) is replaced.
@@ -1329,7 +1272,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       const character = makeCharacter({ equipment: [makeWeaponEquipment()], proficiencyBonus: 2 })
       character.abilityScores = { ...character.abilityScores, strength: 16 }
       render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
-      fireEvent.focus(screen.getByTestId("action-card-weapon-wpn-1-attack-bonus").closest('[data-sem="tooltip-trigger"]')!)
+      fireEvent.focus(screen.getByTestId("action-card-weapon-wpn-1-attack-badge").closest('[data-sem="tooltip-trigger"]')!)
       await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 2 (Prof)"))
     })
   })
@@ -1430,7 +1373,7 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
       weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
     }
     const { container } = render(() => <ActionsModule character={makeCharacter({ equipment: [longsword] })} onUpdate={vi.fn()} />)
-    expect(screen.getByTestId("action-card-weapon-wpn-1-attack-bonus")).toBeInTheDocument()
+    expect(screen.getByTestId("action-card-weapon-wpn-1-attack-badge")).toBeInTheDocument()
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
@@ -1467,6 +1410,139 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     it("still renders existing action cards", () => {
       renderReadOnly({ attacks: [makeAttack({ name: "Longsword" })] })
       expect(screen.getByText("Longsword")).toBeInTheDocument()
+    })
+  })
+
+  describe("new card fields from each source", () => {
+    const weapon: Equipment = {
+      id: "wpn-1", name: "Sword of Wounding", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon", highlights: "Wounds **stack**",
+      weaponStats: { damage: "2d6", damageType: "slashing", damageRecurring: true, weaponRange: "5 ft", attackAbility: "str", proficient: true },
+    }
+    const potion: Equipment = {
+      id: "pot-1", name: "Potion of Healing", quantity: 1, weight: 0.5, description: "", equipped: false, type: "consumable",
+      actionKind: "bonus-action", gain: "2d4+2", gainType: "Healing", highlights: "Drink it",
+    }
+    const feature: Feature = {
+      id: "ft-1", name: "Breath Weapon", description: "", source: "species-trait", actionKind: "action",
+      attackSave: "DEX save DC 13", damage: "2d6", damageType: "Fire", highlights: "15 ft cone",
+    }
+
+    it("shows a spell's damage type, recurring damage and highlights", () => {
+      const spell = makeSpell({ name: "Acid Arrow", level: 2, prepared: true, damage: "4d4", damageType: "Acid", damageRecurring: true, highlights: "Then **2d4**" })
+      render(() => <ActionsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      const badge = screen.getByTestId("action-card-action-spell-sp-1-damage-badge")
+      expect(badge).toHaveTextContent("4d4")
+      expect(badge).toHaveTextContent("Acid")
+      expect(within(badge).getByText(", recurs each turn")).toBeInTheDocument()
+      expect(within(screen.getByTestId("action-card-action-spell-sp-1")).getByText("2d4").tagName).toBe("STRONG")
+    })
+
+    it("shows a weapon's recurring damage and its item's highlights", () => {
+      render(() => <ActionsModule character={makeCharacter({ equipment: [weapon] })} onUpdate={vi.fn()} />)
+      expect(within(screen.getByTestId("action-card-weapon-wpn-1-damage-badge")).getByText(", recurs each turn")).toBeInTheDocument()
+      expect(within(screen.getByTestId("action-card-weapon-wpn-1")).getByText("stack")).toBeInTheDocument()
+    })
+
+    it("shows a potion's healing", () => {
+      render(() => <ActionsModule character={makeCharacter({ equipment: [potion] })} onUpdate={vi.fn()} />)
+      const badge = screen.getByTestId("action-card-item-pot-1-gain-badge")
+      expect(badge).toHaveTextContent("2d4+2")
+      expect(badge).toHaveTextContent("Healing")
+    })
+
+    it("shows a feature's attack/save, damage and highlights", () => {
+      render(() => <ActionsModule character={makeCharacter({ speciesTraits: [feature] })} onUpdate={vi.fn()} />)
+      const card = screen.getByTestId("action-card-feature-ft-1")
+      expect(within(card).getByText(/DEX save DC 13/)).toBeInTheDocument()
+      expect(within(card).getByTestId("action-card-feature-ft-1-damage-badge")).toHaveTextContent("Fire")
+      expect(within(card).getByText("15 ft cone")).toBeInTheDocument()
+    })
+
+    it("shows a custom action's gain", () => {
+      render(() => <ActionsModule character={makeCharacter({ bonusActions: [{ id: "ba-1", name: "Second Wind", type: "ability", description: "", gain: "1d10+5", gainType: "Healing" }] })} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("action-card-bonus-ba-1-gain-badge")).toHaveTextContent("1d10+5")
+    })
+
+    it("saves highlights and gain from the custom action form", () => {
+      const onUpdate = vi.fn()
+      render(() => <ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add bonus action/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/bonus action name/i), { target: { value: "Second Wind" } })
+      fireEvent.input(within(modal).getByLabelText("Highlights"), { target: { value: "Heal *yourself*" } })
+      fireEvent.input(within(modal).getByLabelText("Gain"), { target: { value: "1d10" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /add bonus action/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        bonusActions: [expect.objectContaining({ name: "Second Wind", highlights: "Heal *yourself*", gain: "1d10", gainRecurring: undefined })],
+      }))
+    })
+  })
+
+  describe("Edit from every card", () => {
+    // The form opens once the expanded view has finished closing
+    const openEditFor = async (name: string, form: string) => {
+      fireEvent.click(screen.getByRole("button", { name }))
+      fireEvent.click(screen.getByRole("button", { name: `Edit ${name}` }))
+      finishClosing(screen.getByRole("dialog", { name }))
+      return screen.findByRole("dialog", { name: form })
+    }
+
+    it("edits a spell in the spell form and saves it to the spell list", async () => {
+      const onUpdate = vi.fn()
+      const spell = makeSpell({ name: "Fire Bolt", highlights: "Old" })
+      render(() => <ActionsModule character={makeCharacter({ spells: [spell] })} onUpdate={onUpdate} />)
+      const modal = await openEditFor("Fire Bolt", "Edit Spell")
+      expect(within(modal).getByLabelText("Highlights")).toHaveValue("Old")
+      fireEvent.input(within(modal).getByLabelText("Highlights"), { target: { value: "New" } })
+      fireEvent.click(within(modal).getByTestId("spell-form-submit"))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spells: [expect.objectContaining({ id: "sp-1", highlights: "New" })] }))
+    })
+
+    it("edits a feature in the feature form and saves it to its source's list", async () => {
+      const onUpdate = vi.fn()
+      const feature: Feature = { id: "ft-1", name: "Second Wind", description: "", source: "class-feature", featureType: "Action", actionKind: "bonus-action" }
+      render(() => <ActionsModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+      const modal = await openEditFor("Second Wind", "Edit Class Feature")
+      fireEvent.input(within(modal).getByLabelText("Gain"), { target: { value: "1d10" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        classFeatures: [expect.objectContaining({ id: "ft-1", gain: "1d10", source: "class-feature" })],
+      }))
+    })
+
+    it("edits an equipped weapon in the item form", async () => {
+      const onUpdate = vi.fn()
+      const sword: Equipment = {
+        id: "wpn-1", name: "Longsword", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon",
+        weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+      }
+      render(() => <ActionsModule character={makeCharacter({ equipment: [sword] })} onUpdate={onUpdate} />)
+      const modal = await openEditFor("Longsword", "Edit Item")
+      fireEvent.click(within(modal).getByRole("checkbox", { name: "Damage recurs each turn" }))
+      fireEvent.click(within(modal).getByRole("button", { name: /update item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        equipment: [expect.objectContaining({ id: "wpn-1", weaponStats: expect.objectContaining({ damageRecurring: true }) })],
+      }))
+    })
+
+    it("edits an item used as an action in the item form", async () => {
+      const onUpdate = vi.fn()
+      const potion: Equipment = { id: "pot-1", name: "Potion of Healing", quantity: 2, weight: 0.5, description: "", equipped: false, type: "consumable", actionKind: "action" }
+      render(() => <ActionsModule character={makeCharacter({ equipment: [potion] })} onUpdate={onUpdate} />)
+      const modal = await openEditFor("Potion of Healing", "Edit Item")
+      fireEvent.input(within(modal).getByLabelText("Gain"), { target: { value: "2d4+2" } })
+      fireEvent.click(within(modal).getByRole("button", { name: /update item/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ equipment: [expect.objectContaining({ id: "pot-1", gain: "2d4+2", quantity: 2 })] }))
+    })
+
+    it("offers no Edit on any card when read-only", () => {
+      render(() => (
+        <ReadOnlyProvider value={true}>
+          <ActionsModule character={makeCharacter({ spells: [makeSpell()] })} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      ))
+      fireEvent.click(screen.getByRole("button", { name: "Fire Bolt" }))
+      expect(screen.queryByRole("button", { name: /^edit/i })).not.toBeInTheDocument()
     })
   })
 })

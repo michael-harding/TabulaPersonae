@@ -349,9 +349,8 @@ describe("EquipmentItemModal", () => {
       expect(screen.queryByText("Magic Item Details")).not.toBeInTheDocument()
       fireEvent.click(screen.getByText("This is a Magic Item"))
       expect(screen.getByText("Magic Item Details")).toBeInTheDocument()
-      // The shared <Select> trigger renders the raw option value, not its label — rarity's
-      // SelectItem value is the lowercase "common" (see RARITY_OPTIONS).
-      expect(screen.getByTestId("item-rarity")).toHaveTextContent("common")
+      // The trigger shows the option's label, not its stored value "common" (see RARITY_OPTIONS)
+      expect(screen.getByTestId("item-rarity")).toHaveTextContent("Common")
       expect(screen.getByRole("checkbox", { name: /requires attunement/i })).toBeChecked()
       expect(screen.getByRole("checkbox", { name: /^attuned$/i })).not.toBeChecked()
     })
@@ -522,6 +521,54 @@ describe("EquipmentItemModal", () => {
       const { container } = render(() => <EquipmentItemModal open={true} editingItem={item} onSave={vi.fn()} onCancel={vi.fn()} />)
       const results = await axe(container)
       expect(results.violations).toHaveLength(0)
+    })
+  })
+
+  describe("highlights and action effects", () => {
+    const save = () => fireEvent.click(screen.getByRole("button", { name: /update item|add item/i }))
+
+    it("saves and pre-fills Highlights", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ highlights: "Old" })} onSave={onSave} onCancel={vi.fn()} />)
+      expect(screen.getByLabelText("Highlights")).toHaveValue("Old")
+      fireEvent.input(screen.getByLabelText("Highlights"), { target: { value: "  Glows *faintly*  " } })
+      save()
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ highlights: "Glows *faintly*" }))
+    })
+
+    it("saves a weapon's recurring damage flag in its weapon stats", () => {
+      const onSave = vi.fn()
+      const weapon = makeItem({ type: "weapon", weaponStats: { damage: "1d8", damageType: "Slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true } })
+      render(() => <EquipmentItemModal open={true} editingItem={weapon} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByRole("checkbox", { name: "Damage recurs each turn" }))
+      save()
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ weaponStats: expect.objectContaining({ damageRecurring: true }) }))
+    })
+
+    it("offers damage and gain only for a non-weapon item used as an action", () => {
+      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ type: "consumable" })} onSave={vi.fn()} onCancel={vi.fn()} />)
+      expect(screen.queryByLabelText("Gain")).not.toBeInTheDocument()
+      fireEvent.click(screen.getByTestId("item-action-kind"))
+      fireEvent.click(screen.getByRole("option", { name: "Action" }))
+      expect(screen.getByLabelText("Gain")).toBeInTheDocument()
+      expect(screen.getByLabelText("Damage")).toBeInTheDocument()
+    })
+
+    it("saves a potion's gain", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ type: "consumable", actionKind: "action" })} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.input(screen.getByLabelText("Gain"), { target: { value: "2d4+2" } })
+      save()
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ gain: "2d4+2", damage: undefined, damageRecurring: undefined }))
+    })
+
+    it("clears a non-weapon item's damage and gain once it's no longer used as an action", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ type: "consumable", actionKind: "action", damage: "1d4", gain: "2d4" })} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("item-action-kind"))
+      fireEvent.click(screen.getByRole("option", { name: "None" }))
+      save()
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ damage: undefined, gain: undefined }))
     })
   })
 })

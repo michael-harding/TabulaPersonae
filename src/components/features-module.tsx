@@ -12,8 +12,8 @@ import Dices from "lucide-solid/icons/dices"
 import Layers from "lucide-solid/icons/layers"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, formatModifier } from "@/lib/character-utils"
+import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
+import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, RECHARGE_ON_OPTIONS, formatModifier } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,13 +28,14 @@ import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Tooltip } from "@/components/ui/tooltip"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ModifierGroup } from "@/components/ui/modifier-group"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
+import { DamageFields, GainFields } from "@/components/effect-fields"
 import { useReadOnly } from "@/lib/read-only-context"
 import { cn, HOVER_ACCENT, TOUCH_TARGET_BOX } from "@/lib/utils"
 
@@ -66,6 +67,8 @@ const ACTION_KIND_LABELS: Record<ActionKind, string> = {
   'reaction': 'Reaction',
   'other': 'Other',
 }
+
+const ACTION_KIND_OPTIONS = (Object.entries(ACTION_KIND_LABELS) as [ActionKind, string][]).map(([value, label]) => ({ value, label }))
 
 const ACTION_TYPE_LABELS = ['Attack', 'Ability', 'Other']
 
@@ -228,18 +231,24 @@ const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Ability Scores',
 ]
 const FEATURE_TYPES: FeatureTypeValue[] = ['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES]
+const FEATURE_TYPE_OPTIONS = [{ value: '', label: 'None' }, ...FEATURE_TYPES.map((t) => ({ value: t, label: t }))]
+const HIT_DIE_OPTIONS = [{ value: '', label: 'None' }, ...DIE_SIZES.map((s) => ({ value: String(s), label: `d${s}` }))]
+const SIZE_OPTIONS = [{ value: '', label: 'None' }, ...SIZES.map((s) => ({ value: s, label: s }))]
 
 function isTieredEffectType(t: FeatureTypeValue | ''): boolean {
   return (TIERED_EFFECT_TYPES as string[]).includes(t)
 }
 
-interface FeatureFormData {
+export interface FeatureFormData extends DamageValues, GainValues {
   name: string
+  highlights: string
   description: string
   featureType: FeatureTypeValue | ''
   actionKind: ActionKind | ''
   type: string
   range: string
+  attackBonus: number
+  attackSave: string
   uses: number
   maxUses: number
   maxUsesMode: 'flat' | 'per-level'
@@ -247,6 +256,80 @@ interface FeatureFormData {
   rechargeOn: '' | 'short-rest' | 'long-rest'
   level: number
   levelEffects: FeatureLevelEffect[]
+}
+
+// An Action feature's own fields, cleared whenever the feature type changes
+const ACTION_FIELD_DEFAULTS = {
+  type: '', range: '', attackBonus: 0, attackSave: '',
+  damage: '', damageType: '', damageRecurring: false, gain: '', gainType: '', gainRecurring: false,
+  uses: 0, maxUses: 0, maxUsesMode: 'flat', maxUsesPerLevel: 0, rechargeOn: '',
+} satisfies Partial<FeatureFormData>
+
+export const defaultFeatureForm: FeatureFormData = {
+  name: '', highlights: '', description: '', featureType: '', actionKind: '', ...ACTION_FIELD_DEFAULTS, level: 1, levelEffects: [],
+}
+
+/** The form's fields for an existing feature. */
+export function featureToForm(feature: Feature): FeatureFormData {
+  return {
+    name: feature.name,
+    highlights: feature.highlights ?? '',
+    description: feature.description,
+    featureType: feature.featureType ?? '',
+    actionKind: feature.actionKind ?? '',
+    type: feature.type ?? '',
+    range: feature.range ?? '',
+    attackBonus: feature.attackBonus ?? 0,
+    attackSave: feature.attackSave ?? '',
+    damage: feature.damage ?? '',
+    damageType: feature.damageType ?? '',
+    damageRecurring: feature.damageRecurring ?? false,
+    gain: feature.gain ?? '',
+    gainType: feature.gainType ?? '',
+    gainRecurring: feature.gainRecurring ?? false,
+    uses: feature.uses ?? 0,
+    maxUses: feature.maxUses ?? 0,
+    maxUsesMode: feature.maxUsesMode ?? 'flat',
+    maxUsesPerLevel: feature.maxUsesPerLevel ?? 0,
+    rechargeOn: feature.rechargeOn ?? '',
+    level: feature.level ?? 1,
+    levelEffects: feature.levelEffects ?? [],
+  }
+}
+
+/**
+ * The feature a submitted form describes: `base` updated in place (keeping its id, source and any
+ * field the form doesn't show), or a new feature of base's source when base has no id. An Action
+ * feature's own fields are kept only while it has an action kind; blank ones are omitted.
+ */
+export function featureFromForm(form: FeatureFormData, base: Partial<Feature> & Pick<Feature, 'source'>): Feature {
+  const action = !!form.actionKind
+  return {
+    ...base,
+    id: base.id ?? crypto.randomUUID(),
+    name: form.name.trim(),
+    highlights: form.highlights.trim() || undefined,
+    description: form.description,
+    featureType: form.featureType,
+    actionKind: form.actionKind || undefined,
+    type: (action && form.type) ? form.type as ActionType : undefined,
+    range: (action && form.range) ? form.range : undefined,
+    attackBonus: (action && form.attackBonus) ? form.attackBonus : undefined,
+    attackSave: (action && form.attackSave) ? form.attackSave : undefined,
+    damage: (action && form.damage) ? form.damage : undefined,
+    damageType: (action && form.damageType) ? form.damageType : undefined,
+    damageRecurring: (action && form.damageRecurring) ? true : undefined,
+    gain: (action && form.gain) ? form.gain : undefined,
+    gainType: (action && form.gainType) ? form.gainType : undefined,
+    gainRecurring: (action && form.gainRecurring) ? true : undefined,
+    level: action ? (form.level || undefined) : undefined,
+    uses: (action && form.uses) ? form.uses : undefined,
+    maxUses: (action && form.maxUsesMode === 'flat' && form.maxUses) ? form.maxUses : undefined,
+    maxUsesMode: (action && form.maxUsesMode === 'per-level') ? 'per-level' : undefined,
+    maxUsesPerLevel: (action && form.maxUsesMode === 'per-level' && form.maxUsesPerLevel) ? form.maxUsesPerLevel : undefined,
+    rechargeOn: (action && form.rechargeOn) ? form.rechargeOn : undefined,
+    levelEffects: form.levelEffects.length > 0 ? form.levelEffects : undefined,
+  }
 }
 
 interface FeatureFormProps {
@@ -612,9 +695,7 @@ function LevelEffectRow(props: {
 }
 
 function FeatureForm(props: FeatureFormProps) {
-  const [formData, setFormData] = createSignal<FeatureFormData>(
-    props.initialData ?? { name: '', description: '', featureType: '', actionKind: '', type: '', range: '', uses: 0, maxUses: 0, maxUsesMode: 'flat', maxUsesPerLevel: 0, rechargeOn: '', level: 1, levelEffects: [] }
-  )
+  const [formData, setFormData] = createSignal<FeatureFormData>(props.initialData ?? defaultFeatureForm)
 
   // Spellcasting Ability / Hit Points / Size / Max HP Bonus aren't level-dependent — they're always
   // in force as soon as the feature exists, modeled as a single tier fixed at level 1 rather than a
@@ -709,7 +790,7 @@ function FeatureForm(props: FeatureFormProps) {
         // type that the user can overwrite. Never overwrites a name the user already typed.
         name: d.name.trim() === '' && next !== '' ? next : d.name,
         actionKind: next === 'Action' ? 'action' : '',
-        type: '', range: '', uses: 0, maxUses: 0, maxUsesMode: 'flat', maxUsesPerLevel: 0, rechargeOn: '',
+        ...ACTION_FIELD_DEFAULTS,
         level: 1,
         levelEffects: (SINGLE_EFFECT_TYPES as string[]).includes(next) || isTieredEffectType(next) ? [{ level: 1, effects: {} }] : [],
       }
@@ -727,16 +808,11 @@ function FeatureForm(props: FeatureFormProps) {
     <form onSubmit={handleSubmit} class="space-y-4 p-4">
       <div class="space-y-1">
         <Label for="feature-type-select">Feature Type</Label>
-        <Select value={formData().featureType} onValueChange={changeFeatureType}>
+        <Select options={FEATURE_TYPE_OPTIONS} value={formData().featureType} onValueChange={changeFeatureType}>
           <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type">
             <SelectValue placeholder="None" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">None</SelectItem>
-            <For each={FEATURE_TYPES}>
-              {(t) => <SelectItem value={t}>{t}</SelectItem>}
-            </For>
-          </SelectContent>
+          <SelectContent />
         </Select>
       </div>
 
@@ -758,6 +834,17 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
         </Show>
         <div class="space-y-1">
+          <Label for="feature-highlights">Highlights</Label>
+          <Textarea
+            id="feature-highlights"
+            data-test="feature-highlights-input"
+            value={formData().highlights}
+            onInput={(e) => setFormData((d) => ({ ...d, highlights: e.currentTarget.value }))}
+            placeholder="Shown on the action card (Markdown)"
+            rows={2}
+          />
+        </div>
+        <div class="space-y-1">
           <Label for="feature-description">Description</Label>
           <Textarea
             id="feature-description"
@@ -778,16 +865,9 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
           <div class="space-y-1">
             <Label for="feature-action-kind">Action Kind</Label>
-            <Select value={formData().actionKind || 'action'} onValueChange={(v) => setFormData((d) => ({ ...d, actionKind: v as ActionKind | '' }))}>
-              <SelectTrigger id="feature-action-kind" data-test="feature-action-kind-select" aria-label="Action Kind">
-                <span class="flex-1 text-left">{ACTION_KIND_LABELS[(formData().actionKind || 'action') as ActionKind]}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="action">Action</SelectItem>
-                <SelectItem value="bonus-action">Bonus Action</SelectItem>
-                <SelectItem value="reaction">Reaction</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
+            <Select options={ACTION_KIND_OPTIONS} value={formData().actionKind || 'action'} onValueChange={(v) => setFormData((d) => ({ ...d, actionKind: v as ActionKind | '' }))}>
+              <SelectTrigger id="feature-action-kind" data-test="feature-action-kind-select" aria-label="Action Kind"><SelectValue /></SelectTrigger>
+              <SelectContent />
             </Select>
           </div>
           <div class="space-y-1">
@@ -812,6 +892,20 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div class="space-y-1">
+              <Label for="feature-attack-bonus">Attack Bonus</Label>
+              <NumericInput id="feature-attack-bonus" data-test="feature-attack-bonus-input" value={formData().attackBonus}
+                onChange={(v) => setFormData((d) => ({ ...d, attackBonus: v }))} placeholder="+5" />
+            </div>
+            <div class="space-y-1">
+              <Label for="feature-attack-save">Attack/Save</Label>
+              <Input id="feature-attack-save" data-test="feature-attack-save-input" value={formData().attackSave}
+                onInput={(e) => setFormData((d) => ({ ...d, attackSave: e.currentTarget.value }))} placeholder="e.g. DEX save DC 13" />
+            </div>
+          </div>
+          <DamageFields idPrefix="feature" value={formData()} onChange={(patch) => setFormData((d) => ({ ...d, ...patch }))} placeholder="e.g. 2d6" />
+          <GainFields idPrefix="feature" value={formData()} onChange={(patch) => setFormData((d) => ({ ...d, ...patch }))} placeholder="e.g. 1d10" />
+          <div class="grid grid-cols-2 gap-2">
+            <div class="space-y-1">
               <Label for="feature-uses">Uses Spent</Label>
               <NumericInput id="feature-uses" data-test="feature-uses-input" min={0} value={formData().uses}
                 onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
@@ -819,15 +913,12 @@ function FeatureForm(props: FeatureFormProps) {
             <div class="space-y-1">
               <Label for="feature-uses-scaling">Uses Scaling</Label>
               <Select
+                options={MAX_USES_MODE_OPTIONS}
                 value={formData().maxUsesMode}
                 onValueChange={(v) => setFormData((d) => ({ ...d, maxUsesMode: v as 'flat' | 'per-level' }))}
               >
-                <SelectTrigger id="feature-uses-scaling" data-test="feature-uses-scaling-select" aria-label="Uses Scaling">
-                  <span class="flex-1 text-left">{MAX_USES_MODE_OPTIONS.find((o) => o.value === formData().maxUsesMode)?.label}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  <For each={MAX_USES_MODE_OPTIONS}>{(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}</For>
-                </SelectContent>
+                <SelectTrigger id="feature-uses-scaling" data-test="feature-uses-scaling-select" aria-label="Uses Scaling"><SelectValue /></SelectTrigger>
+                <SelectContent />
               </Select>
             </div>
           </div>
@@ -852,15 +943,9 @@ function FeatureForm(props: FeatureFormProps) {
           </Show>
           <div class="space-y-1">
             <Label for="feature-recharge">Recharge On</Label>
-            <Select value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
-              <SelectTrigger id="feature-recharge" data-test="feature-recharge-select">
-                <span class="flex-1 text-left">{RECHARGE_ON_LABELS[formData().rechargeOn]}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                <SelectItem value="short-rest">Short Rest</SelectItem>
-                <SelectItem value="long-rest">Long Rest</SelectItem>
-              </SelectContent>
+            <Select options={RECHARGE_ON_OPTIONS} value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
+              <SelectTrigger id="feature-recharge" data-test="feature-recharge-select"><SelectValue /></SelectTrigger>
+              <SelectContent />
             </Select>
           </div>
         </div>
@@ -870,17 +955,12 @@ function FeatureForm(props: FeatureFormProps) {
         <div class="space-y-1">
           <Label for="feature-spellcasting-ability">Spellcasting Ability</Label>
           <Select
+            options={SPELLCASTING_ABILITY_OPTIONS}
             value={singleTierEffects().spellcastingAbility ?? ''}
             onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), spellcastingAbility: (v || undefined) as keyof AbilityScores | undefined })}
           >
-            <SelectTrigger id="feature-spellcasting-ability" data-test="feature-spellcasting-ability-select" aria-label="Spellcasting Ability">
-              <span class="flex-1 text-left">{SPELLCASTING_ABILITY_OPTIONS.find((o) => o.value === (singleTierEffects().spellcastingAbility ?? ''))?.label}</span>
-            </SelectTrigger>
-            <SelectContent>
-              <For each={SPELLCASTING_ABILITY_OPTIONS}>
-                {(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}
-              </For>
-            </SelectContent>
+            <SelectTrigger id="feature-spellcasting-ability" data-test="feature-spellcasting-ability-select" aria-label="Spellcasting Ability"><SelectValue /></SelectTrigger>
+            <SelectContent />
           </Select>
         </div>
       </Show>
@@ -890,35 +970,24 @@ function FeatureForm(props: FeatureFormProps) {
           <div class="space-y-1">
             <Label for="feature-hit-die">Hit Die</Label>
             <Select
+              options={HIT_DIE_OPTIONS}
               value={singleTierEffects().hitDiceSize ? String(singleTierEffects().hitDiceSize) : ''}
               onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitDiceSize: v ? Number(v) : undefined })}
             >
-              <SelectTrigger id="feature-hit-die" data-test="feature-hit-die-select" aria-label="Hit Die">
-                <span class="flex-1 text-left">{singleTierEffects().hitDiceSize ? `d${singleTierEffects().hitDiceSize}` : 'None'}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                <For each={DIE_SIZES}>{(s) => <SelectItem value={String(s)}>d{s}</SelectItem>}</For>
-              </SelectContent>
+              <SelectTrigger id="feature-hit-die" data-test="feature-hit-die-select" aria-label="Hit Die"><SelectValue /></SelectTrigger>
+              <SelectContent />
             </Select>
           </div>
 
           <div class="space-y-1">
             <Label for="feature-hp-mode">Max HP Calculation</Label>
             <Select
+              options={HIT_POINTS_MODE_OPTIONS}
               value={singleTierEffects().hitPointsMode ?? 'per-level'}
               onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsMode: v as HitPointsMode })}
             >
-              <SelectTrigger id="feature-hp-mode" data-test="feature-hp-mode-select" aria-label="Max HP Calculation">
-                {/* SelectValue renders the raw controlled value verbatim (see select.tsx), which would
-                    show the storage code ("per-level") rather than a readable label — unlike
-                    FeatureTypeValue, hitPointsMode's value is persisted data, so it stays a short code
-                    and this looks up its label locally instead of making the code itself the label. */}
-                <span class="flex-1 text-left">{HIT_POINTS_MODE_OPTIONS.find((o) => o.value === (singleTierEffects().hitPointsMode ?? 'per-level'))?.label}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <For each={HIT_POINTS_MODE_OPTIONS}>{(o) => <SelectItem value={o.value}>{o.label}</SelectItem>}</For>
-              </SelectContent>
+              <SelectTrigger id="feature-hp-mode" data-test="feature-hp-mode-select" aria-label="Max HP Calculation"><SelectValue /></SelectTrigger>
+              <SelectContent />
             </Select>
           </div>
 
@@ -982,14 +1051,12 @@ function FeatureForm(props: FeatureFormProps) {
         <div class="space-y-1">
           <Label for="feature-size">Size</Label>
           <Select
+            options={SIZE_OPTIONS}
             value={singleTierEffects().size ?? ''}
             onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), size: v || undefined })}
           >
             <SelectTrigger id="feature-size" aria-label="Size"><SelectValue placeholder="None" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">None</SelectItem>
-              <For each={SIZES}>{(s) => <SelectItem value={s}>{s}</SelectItem>}</For>
-            </SelectContent>
+            <SelectContent />
           </Select>
         </div>
       </Show>
@@ -1058,57 +1125,14 @@ export function FeaturesModule(props: FeaturesModuleProps) {
     })
   }
 
-  const handleAdd = (kind: FeatureKind, field: FeatureField, data: FeatureFormData) => {
-    const newFeature: Feature = {
-      id: crypto.randomUUID(),
-      name: data.name.trim(),
-      description: data.description,
-      source: kind,
-      featureType: data.featureType,
-      actionKind: data.actionKind || undefined,
-      type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
-      range: (data.actionKind && data.range) ? data.range : undefined,
-      level: data.actionKind ? (data.level || undefined) : undefined,
-      uses: (data.actionKind && data.uses) ? data.uses : undefined,
-      maxUses: (data.actionKind && data.maxUsesMode === 'flat' && data.maxUses) ? data.maxUses : undefined,
-      maxUsesMode: (data.actionKind && data.maxUsesMode === 'per-level') ? 'per-level' : undefined,
-      maxUsesPerLevel: (data.actionKind && data.maxUsesMode === 'per-level' && data.maxUsesPerLevel) ? data.maxUsesPerLevel : undefined,
-      rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
-      levelEffects: data.levelEffects.length > 0 ? data.levelEffects : undefined,
-    }
+  const handleSave = (saved: Feature) => {
+    const field = FEATURE_FIELD_CONFIG.find((c) => c.kind === saved.source)!.field
+    const list = safeFeatures(props.character[field])
     props.onUpdate({
       ...props.character,
-      [field]: [...safeFeatures(props.character[field]), newFeature],
+      [field]: list.some((f) => f.id === saved.id) ? list.map((f) => (f.id === saved.id ? saved : f)) : [...list, saved],
     })
     setIsAddOpen(null)
-  }
-
-  const handleUpdate = (field: FeatureField, data: FeatureFormData) => {
-    const editing = editingFeature()
-    if (!editing) return
-    props.onUpdate({
-      ...props.character,
-      [field]: safeFeatures(props.character[field]).map((f) =>
-        f.id === editing.id
-          ? {
-              ...f,
-              name: data.name.trim(),
-              description: data.description,
-              featureType: data.featureType,
-              actionKind: data.actionKind || undefined,
-              type: (data.actionKind && data.type) ? data.type as ActionType : undefined,
-              range: (data.actionKind && data.range) ? data.range : undefined,
-              level: data.actionKind ? (data.level || undefined) : undefined,
-              uses: (data.actionKind && data.uses) ? data.uses : undefined,
-              maxUses: (data.actionKind && data.maxUsesMode === 'flat' && data.maxUses) ? data.maxUses : undefined,
-              maxUsesMode: (data.actionKind && data.maxUsesMode === 'per-level') ? 'per-level' : undefined,
-              maxUsesPerLevel: (data.actionKind && data.maxUsesMode === 'per-level' && data.maxUsesPerLevel) ? data.maxUsesPerLevel : undefined,
-              rechargeOn: (data.actionKind && data.rechargeOn) ? data.rechargeOn : undefined,
-              levelEffects: data.levelEffects.length > 0 ? data.levelEffects : undefined,
-            }
-          : f
-      ),
-    })
     setEditingFeature(null)
   }
 
@@ -1336,72 +1360,55 @@ export function FeaturesModule(props: FeaturesModuleProps) {
         </For>
       </CardContent>
 
-      {/* Add modals — always in DOM, open prop controls visibility */}
-      <For each={FEATURE_FIELD_CONFIG}>
-        {(section) => (
-          <Modal
-            open={isAddOpen() === section.kind}
-            onOpenChange={(open) => { if (!open) setIsAddOpen(null) }}
-          >
-            {/* Feature Type's dropdown opens in place and is clipped by the modal's own scroll
-                container, so the modal must be tall enough to show it while only that field is
-                rendered. content-start keeps the header and form together at the top. */}
-            <ModalContent class="max-w-md min-h-[540px] content-start">
-              <Show when={isAddOpen() === section.kind}>
-                <ModalHeader>
-                  <ModalTitle>Add {section.singular}</ModalTitle>
-                </ModalHeader>
-                <FeatureForm
-                  characterLevel={props.character.level ?? 1}
-                  onSubmit={(data) => handleAdd(section.kind, section.field, data)}
-                  onCancel={() => setIsAddOpen(null)}
-                />
-              </Show>
-            </ModalContent>
-          </Modal>
-        )}
-      </For>
-
-      {/* Edit modal — always in DOM, open prop controls visibility */}
-      <Modal
-        open={editingFeature() != null}
-        onOpenChange={(open) => { if (!open) setEditingFeature(null) }}
-      >
-        <ModalContent class="max-w-md">
-          <Show when={editingFeature()}>
-            {(feature) => {
-              const section = FEATURE_FIELD_CONFIG.find((s) => s.kind === feature().source)!
-              return (
-                <>
-                  <ModalHeader>
-                    <ModalTitle>Edit {section.singular}</ModalTitle>
-                  </ModalHeader>
-                  <FeatureForm
-                    initialData={{
-                      name: feature().name,
-                      description: feature().description,
-                      featureType: feature().featureType ?? '',
-                      actionKind: feature().actionKind ?? '',
-                      type: feature().type ?? '',
-                      range: feature().range ?? '',
-                      uses: feature().uses ?? 0,
-                      maxUses: feature().maxUses ?? 0,
-                      maxUsesMode: feature().maxUsesMode ?? 'flat',
-                      maxUsesPerLevel: feature().maxUsesPerLevel ?? 0,
-                      rechargeOn: feature().rechargeOn ?? '',
-                      level: feature().level ?? 1,
-                      levelEffects: feature().levelEffects ?? [],
-                    }}
-                    characterLevel={props.character.level ?? 1}
-                    onSubmit={(data) => handleUpdate(section.field, data)}
-                    onCancel={() => setEditingFeature(null)}
-                  />
-                </>
-              )
-            }}
-          </Show>
-        </ModalContent>
-      </Modal>
+      <FeatureEditModal
+        open={isAddOpen() != null || editingFeature() != null}
+        kind={editingFeature()?.source ?? isAddOpen() ?? 'class-feature'}
+        feature={editingFeature()}
+        characterLevel={props.character.level ?? 1}
+        onSave={handleSave}
+        onCancel={() => { setIsAddOpen(null); setEditingFeature(null) }}
+      />
     </Card>
+  )
+}
+
+interface FeatureEditModalProps {
+  open: boolean
+  /** The section a new feature is added to; an edited feature keeps its own source. */
+  kind: FeatureKind
+  /** The feature to edit, or null to add a new one. */
+  feature: Feature | null
+  characterLevel: number
+  onSave: (feature: Feature) => void
+  onCancel: () => void
+}
+
+/** The feature add/edit modal, shared by the Features module and the feature action cards. */
+export function FeatureEditModal(props: FeatureEditModalProps) {
+  const singular = () => FEATURE_FIELD_CONFIG.find((s) => s.kind === (props.feature?.source ?? props.kind))!.singular
+  return (
+    <Modal open={props.open} onOpenChange={(open) => { if (!open) props.onCancel() }}>
+      {/* Adding starts with only Feature Type, whose dropdown opens in place and is clipped by the
+          modal's own scroll container, so the modal must be tall enough to show it. content-start
+          keeps the header and form together at the top. */}
+      <ModalContent class={cn("max-w-md", !props.feature && "min-h-[540px] content-start")}>
+        {/* Keyed so the form starts over from the right feature each time the modal opens */}
+        <Show when={props.open && { feature: props.feature }} keyed>
+          {({ feature }) => (
+            <>
+              <ModalHeader>
+                <ModalTitle>{feature ? "Edit" : "Add"} {singular()}</ModalTitle>
+              </ModalHeader>
+              <FeatureForm
+                initialData={feature ? featureToForm(feature) : undefined}
+                characterLevel={props.characterLevel}
+                onSubmit={(data) => props.onSave(featureFromForm(data, feature ?? { source: props.kind }))}
+                onCancel={props.onCancel}
+              />
+            </>
+          )}
+        </Show>
+      </ModalContent>
+    </Modal>
   )
 }

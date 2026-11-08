@@ -3,7 +3,6 @@ import Sparkles from "lucide-solid/icons/sparkles"
 import Plus from "lucide-solid/icons/plus"
 import Edit from "lucide-solid/icons/edit"
 import Trash2 from "lucide-solid/icons/trash-2"
-import Save from "lucide-solid/icons/save"
 import Search from "lucide-solid/icons/search"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
@@ -12,255 +11,29 @@ import Circle from "lucide-solid/icons/circle"
 import Settings from "lucide-solid/icons/settings"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, Spell, Equipment } from "@/lib/character-types"
+import type { Character, Spell } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, formatModifier, isItemModifierActive } from "@/lib/character-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { StepperInput } from "@/components/ui/stepper-input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip } from "@/components/ui/tooltip"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Combobox } from "@/components/ui/combobox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
+import { SpellEditModal, SPELL_LEVELS } from "@/components/spell-edit-modal"
 import { useReadOnly } from "@/lib/read-only-context"
 import { cn, HOVER_ACCENT } from "@/lib/utils"
 
 const EMPTY_SPELLS: Spell[] = []
 
-interface SpellFormData {
-  name: string
-  level: number
-  school: string
-  castingTime: string
-  range: string
-  components: string
-  duration: string
-  damage?: string
-  attackSave?: string
-  gain?: string
-  atHigherLevel?: string
-  description: string
-  prepared: boolean
-  known: boolean
-  concentration?: boolean
-  ritual?: boolean
-  grantedBy: string
-  freeCast: boolean
-}
-
 interface SpellsModuleProps {
   character: Character
   onUpdate: (character: Character) => void
-}
-
-const SPELL_SCHOOLS = ["Abjuration","Conjuration","Divination","Enchantment","Evocation","Illusion","Necromancy","Transmutation"]
-
-const SPELL_LEVELS = [
-  { value: 0, label: "Cantrip" },
-  { value: 1, label: "1st Level" },
-  { value: 2, label: "2nd Level" },
-  { value: 3, label: "3rd Level" },
-  { value: 4, label: "4th Level" },
-  { value: 5, label: "5th Level" },
-  { value: 6, label: "6th Level" },
-  { value: 7, label: "7th Level" },
-  { value: 8, label: "8th Level" },
-  { value: 9, label: "9th Level" },
-]
-
-const CASTING_TIMES = ["1 action","1 bonus action","1 reaction","1 minute","10 minutes","1 hour","8 hours","24 hours"]
-
-const defaultSpellForm: SpellFormData = {
-  name: "",
-  level: 0,
-  school: "Evocation",
-  castingTime: "1 action",
-  range: "Touch",
-  components: "V, S",
-  duration: "Instantaneous",
-  damage: "",
-  attackSave: "",
-  gain: "",
-  atHigherLevel: "",
-  description: "",
-  prepared: false,
-  known: true,
-  concentration: false,
-  ritual: false,
-  grantedBy: "",
-  freeCast: false,
-}
-
-interface SpellFormProps {
-  initialData: SpellFormData
-  onSubmit: (data: SpellFormData) => void
-  onCancel: () => void
-  editing: boolean
-  magicItems: Equipment[]
-}
-
-function SpellForm(props: SpellFormProps) {
-  const [formData, setFormData] = createSignal<SpellFormData>(props.initialData)
-  const grantedByName = () => props.magicItems.find((item) => item.id === formData().grantedBy)?.name
-
-  return (
-    <div class="space-y-4">
-      <div>
-        <Label for="spell-name">Spell Name</Label>
-        <Input id="spell-name" data-test="spell-name" value={formData().name} onInput={(e) => setFormData((p) => ({ ...p, name: e.currentTarget.value }))} placeholder="e.g. Fireball" />
-      </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div>
-          <Label for="gain">Gain</Label>
-          <Input id="gain" data-test="spell-gain" value={formData().gain || ""} onInput={(e) => setFormData((p) => ({ ...p, gain: e.currentTarget.value }))} placeholder="e.g. 2d4+3 healing" />
-        </div>
-        <div>
-          <Label for="spell-damage">Damage</Label>
-          <Input id="spell-damage" data-test="spell-damage" value={formData().damage || ""} onInput={(e) => setFormData((p) => ({ ...p, damage: e.currentTarget.value }))} placeholder="e.g. 1d8+3 fire" />
-        </div>
-        <div>
-          <Label for="attack-save">Attack/Save</Label>
-          <Input id="attack-save" data-test="spell-attack-save" value={formData().attackSave || ""} onInput={(e) => setFormData((p) => ({ ...p, attackSave: e.currentTarget.value }))} placeholder="e.g. Dex Save" />
-        </div>
-        <div>
-          <Label for="at-higher-level">At Higher Level</Label>
-          <Input id="at-higher-level" data-test="spell-at-higher-level" value={formData().atHigherLevel || ""} onInput={(e) => setFormData((p) => ({ ...p, atHigherLevel: e.currentTarget.value }))} placeholder="e.g. +1d6 per level" />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <Label for="spell-level">Level</Label>
-          <Select value={formData().level.toString()} onValueChange={(v: string) => setFormData((p) => ({ ...p, level: parseInt(v) }))}>
-            <SelectTrigger id="spell-level" data-test="spell-level-select"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <For each={SPELL_LEVELS}>{(level) => <SelectItem value={level.value.toString()}>{level.label}</SelectItem>}</For>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label for="spell-school">School</Label>
-          <Combobox id="spell-school" data-test="spell-school-combobox" value={formData().school} onValueChange={(v) => setFormData((p) => ({ ...p, school: v }))} options={SPELL_SCHOOLS} />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <Label for="casting-time">Casting Time</Label>
-          <Combobox id="casting-time" data-test="spell-casting-time-combobox" value={formData().castingTime} onValueChange={(v) => setFormData((p) => ({ ...p, castingTime: v }))} options={CASTING_TIMES} />
-        </div>
-        <div>
-          <Label for="range">Range</Label>
-          <Input id="range" data-test="spell-range" value={formData().range} onInput={(e) => setFormData((p) => ({ ...p, range: e.currentTarget.value }))} placeholder="Touch" />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <Label for="components">Components</Label>
-          <Input id="components" data-test="spell-components" value={formData().components} onInput={(e) => setFormData((p) => ({ ...p, components: e.currentTarget.value }))} placeholder="V, S, M" />
-        </div>
-        <div>
-          <Label for="duration">Duration</Label>
-          <Input id="duration" data-test="spell-duration" value={formData().duration} onInput={(e) => setFormData((p) => ({ ...p, duration: e.currentTarget.value }))} placeholder="Instantaneous" />
-        </div>
-      </div>
-
-      <div>
-        <Label for="description">Description</Label>
-        <Textarea id="description" data-test="spell-description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Spell description and effects" rows={4} />
-      </div>
-
-      <Checkbox
-        data-test="spell-known-checkbox"
-        checked={formData().known}
-        onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
-        label="Known"
-        labelClass="text-sm font-medium leading-none cursor-pointer"
-        containerClass="gap-3 min-h-[44px]"
-      />
-
-      <Show when={formData().level > 0}>
-        <Checkbox
-          data-test="spell-prepared-checkbox"
-          checked={formData().prepared}
-          disabled={!formData().known}
-          onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
-          label="Prepared"
-          labelClass={`text-sm font-medium leading-none ${formData().known ? "cursor-pointer" : "cursor-not-allowed"}`}
-          containerClass={`gap-3 min-h-[44px] ${formData().known ? "" : "opacity-50 cursor-not-allowed"}`}
-        />
-      </Show>
-
-      <div class="flex flex-wrap gap-x-6 gap-y-2">
-        <Checkbox
-          data-test="spell-concentration-checkbox"
-          checked={!!formData().concentration}
-          onChange={(checked: boolean) => setFormData((p) => ({ ...p, concentration: checked }))}
-          label="Concentration"
-          labelClass="text-sm font-medium leading-none cursor-pointer"
-          containerClass="gap-3 min-h-[44px]"
-        />
-        <Checkbox
-          data-test="spell-ritual-checkbox"
-          checked={!!formData().ritual}
-          onChange={(checked: boolean) => setFormData((p) => ({ ...p, ritual: checked }))}
-          label="Ritual"
-          labelClass="text-sm font-medium leading-none cursor-pointer"
-          containerClass="gap-3 min-h-[44px]"
-        />
-      </div>
-
-      <Show when={props.magicItems.length > 0}>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <Label for="spell-granted-by">Granted By (optional)</Label>
-            <Select
-              value={formData().grantedBy}
-              onValueChange={(id) => setFormData((p) => ({ ...p, grantedBy: id }))}
-            >
-              <SelectTrigger id="spell-granted-by" data-test="spell-granted-by-select">
-                <span class="flex-1 text-left">{grantedByName() ?? "Not item-granted"}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Not item-granted</SelectItem>
-                <For each={props.magicItems}>
-                  {(item) => <SelectItem value={item.id}>{item.name}</SelectItem>}
-                </For>
-              </SelectContent>
-            </Select>
-          </div>
-          <Show when={formData().grantedBy}>
-            <Checkbox
-              data-test="spell-free-cast-checkbox"
-              checked={formData().freeCast}
-              onChange={(checked: boolean) => setFormData((p) => ({ ...p, freeCast: checked }))}
-              label="Free Cast (no slot)"
-              labelClass="text-sm font-medium leading-none cursor-pointer"
-              containerClass="gap-3 min-h-[44px] mt-auto"
-            />
-          </Show>
-        </div>
-      </Show>
-
-      <div class="flex gap-2 justify-end pt-4">
-        <Button data-test="spell-form-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button data-test="spell-form-submit" onClick={() => props.onSubmit(formData())} class="gap-2">
-          <Save class="h-4 w-4" aria-hidden="true" />
-          {props.editing ? "Update Spell" : "Add Spell"}
-        </Button>
-      </div>
-    </div>
-  )
 }
 
 export function SpellsModule(props: SpellsModuleProps) {
@@ -330,62 +103,14 @@ export function SpellsModule(props: SpellsModuleProps) {
 
   const updateSpellSlotUsed = (level: number, used: number) => updateSpellSlots(level, "used", used)
 
-  const handleAddSpell = (formData: SpellFormData) => {
+  const handleSaveSpell = (saved: Spell) => {
     if (isReadOnly) return
-    if (!formData.name.trim()) return
-    const newSpell: Spell = {
-      id: crypto.randomUUID(),
-      name: formData.name.trim(),
-      level: formData.level,
-      school: formData.school,
-      castingTime: formData.castingTime,
-      range: formData.range,
-      components: formData.components,
-      duration: formData.duration,
-      description: formData.description.trim(),
-      prepared: formData.prepared,
-      known: formData.known,
-      damage: formData.damage,
-      attackSave: formData.attackSave,
-      gain: formData.gain,
-      atHigherLevel: formData.atHigherLevel,
-      concentration: formData.concentration,
-      ritual: formData.ritual,
-      grantedBy: formData.grantedBy || undefined,
-      freeCast: formData.grantedBy && formData.freeCast ? true : undefined,
-    }
-    const updated = { ...props.character, spells: [...safeSpells(), newSpell] }
-    props.onUpdate(updated)
+    const exists = safeSpells().some((s) => s.id === saved.id)
+    props.onUpdate({
+      ...props.character,
+      spells: exists ? safeSpells().map((s) => (s.id === saved.id ? saved : s)) : [...safeSpells(), saved],
+    })
     setIsAddModalOpen(false)
-  }
-
-  const handleUpdateSpell = (formData: SpellFormData) => {
-    if (isReadOnly) return
-    const spell = editingSpell()
-    if (!spell || !formData.name.trim()) return
-    const updatedSpell: Spell = {
-      ...spell,
-      name: formData.name.trim(),
-      level: formData.level,
-      school: formData.school,
-      castingTime: formData.castingTime,
-      range: formData.range,
-      components: formData.components,
-      duration: formData.duration,
-      description: formData.description.trim(),
-      prepared: formData.prepared,
-      known: formData.known,
-      damage: formData.damage,
-      attackSave: formData.attackSave,
-      gain: formData.gain,
-      atHigherLevel: formData.atHigherLevel,
-      concentration: formData.concentration,
-      ritual: formData.ritual,
-      grantedBy: formData.grantedBy || undefined,
-      freeCast: formData.grantedBy && formData.freeCast ? true : undefined,
-    }
-    const updated = { ...props.character, spells: safeSpells().map((s) => (s.id === spell.id ? updatedSpell : s)) }
-    props.onUpdate(updated)
     setEditingSpell(null)
   }
 
@@ -415,31 +140,6 @@ export function SpellsModule(props: SpellsModuleProps) {
       ),
     }
     props.onUpdate(updated)
-  }
-
-  const editSpellData = (): SpellFormData => {
-    const spell = editingSpell()
-    if (!spell) return defaultSpellForm
-    return {
-      name: spell.name,
-      level: spell.level,
-      school: spell.school,
-      castingTime: spell.castingTime,
-      range: spell.range,
-      components: spell.components,
-      duration: spell.duration,
-      damage: spell.damage || "",
-      attackSave: spell.attackSave || "",
-      description: spell.description,
-      prepared: spell.prepared || false,
-      known: spell.known ?? true,
-      gain: spell.gain || "",
-      atHigherLevel: spell.atHigherLevel || "",
-      concentration: spell.concentration ?? false,
-      ritual: spell.ritual ?? false,
-      grantedBy: spell.grantedBy || "",
-      freeCast: spell.freeCast ?? false,
-    }
   }
 
   const allSlotsEmpty = createMemo(() => [1,2,3,4,5,6,7,8,9].every(
@@ -692,33 +392,13 @@ export function SpellsModule(props: SpellsModuleProps) {
         </div>
       </CardContent>
 
-      {/* Add Spell Modal */}
-      <Modal open={isAddModalOpen()} onOpenChange={setIsAddModalOpen}>
-        <ModalContent class="max-w-2xl">
-          <ModalHeader><ModalTitle>Add New Spell</ModalTitle></ModalHeader>
-          <SpellForm
-            initialData={defaultSpellForm}
-            onSubmit={handleAddSpell}
-            onCancel={() => setIsAddModalOpen(false)}
-            editing={false}
-            magicItems={magicItems()}
-          />
-        </ModalContent>
-      </Modal>
-
-      {/* Edit Spell Modal */}
-      <Modal open={!!editingSpell()} onOpenChange={(open: boolean) => { if (!open) setEditingSpell(null) }}>
-        <ModalContent class="max-w-2xl">
-          <ModalHeader><ModalTitle>Edit Spell</ModalTitle></ModalHeader>
-          <SpellForm
-            initialData={editSpellData()}
-            onSubmit={handleUpdateSpell}
-            onCancel={() => setEditingSpell(null)}
-            editing={true}
-            magicItems={magicItems()}
-          />
-        </ModalContent>
-      </Modal>
+      <SpellEditModal
+        open={isAddModalOpen() || !!editingSpell()}
+        spell={editingSpell()}
+        magicItems={magicItems()}
+        onSave={handleSaveSpell}
+        onCancel={() => { setIsAddModalOpen(false); setEditingSpell(null) }}
+      />
 
       {/* Spell Slots Modal */}
       <Modal open={isSpellSlotsModalOpen()} onOpenChange={setIsSpellSlotsModalOpen}>

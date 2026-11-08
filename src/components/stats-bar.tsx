@@ -8,6 +8,7 @@ import type { Character } from "@/lib/character-types"
 import { getSpellSaveDC, getSpellAttackBonus, getSpellAttackBreakdown, getSpellSaveDCBreakdown, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveSpellcastingAbility, displayedConditions } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
+import { TEMP_HP_COLOR } from "@/lib/utils"
 
 interface StatsBarProps {
   character: Character
@@ -48,7 +49,7 @@ export function StatsBar(props: StatsBarProps) {
         />
         <Show when={tempHp() > 0}>
           <div
-            class="absolute top-0 h-full bg-blue-500 transition-all duration-300"
+            class={`absolute top-0 h-full ${TEMP_HP_COLOR.bar} transition-all duration-300`}
             style={{ left: `${tempHpLeft()}%`, width: `${tempHpWidth()}%` }}
           />
         </Show>

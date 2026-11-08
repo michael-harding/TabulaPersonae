@@ -144,14 +144,17 @@ test.describe("Combat tab", () => {
     const card = actionCard(page, `attack-${shove!.id}`)
     await expect(card).toContainText("Shove")
 
-    await card.getByRole("button", { name: "Edit Shove" }).click()
+    // Edit is in the card's expanded view, which opens over the card
+    await card.getByRole("button", { name: "Shove" }).click()
+    await page.getByRole("button", { name: "Edit Shove" }).click()
     await dialog.getByLabel("Action Name").fill("Grapple")
     await dialog.getByRole("button", { name: /^(add|save)/i }).click()
     await reload(page)
     await expect(card).toContainText("Grapple")
     await expect(card).not.toContainText("Shove")
 
-    await card.getByRole("button", { name: "Edit Grapple" }).click()
+    await card.getByRole("button", { name: "Grapple" }).click()
+    await page.getByRole("button", { name: "Edit Grapple" }).click()
     await confirmClick(dialog.locator('[data-test="action-form-delete"]'))
     await reload(page)
     await expect(card).toHaveCount(0)
@@ -166,6 +169,22 @@ test.describe("Combat tab", () => {
     await reload(page)
     await expect(actionCard(page, "other-oa1").getByRole("button", { name: "Charge available (click to use)" })).toHaveCount(1)
     expect((await storedCharacter(page, id)).otherActions.find((a) => a.name === "Speak with Animals")?.uses).toBe(2)
+  })
+
+  test("@mobile casting a spell with a chosen higher slot", async ({ page }) => {
+    await open(page)
+    // Ensnaring Strike is 1st level; testCharacter has 2nd-level slots, none spent
+    const card = actionCard(page, "bonus-spell-sp2")
+    await card.getByRole("combobox", { name: "Cast Ensnaring Strike at level" }).click()
+    await page.getByRole("option", { name: "2nd" }).click()
+    await card.getByRole("button", { name: "Cast Ensnaring Strike" }).click()
+    // The choice is for that cast only
+    await expect(card.getByRole("combobox", { name: "Cast Ensnaring Strike at level" })).toHaveText("1st")
+
+    await reload(page)
+    const slots = (await storedCharacter(page, id)).spellSlots
+    expect(slots[2].used).toBe(1)
+    expect(slots[1].used).toBe(testCharacter.spellSlots[1].used)
   })
 })
 

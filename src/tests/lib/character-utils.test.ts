@@ -1160,6 +1160,15 @@ describe("getEquippedWeaponAttacks", () => {
     expect(atk.range).toBe("5 ft")
   })
 
+  it("carries the item's id, highlights and recurring damage flag for its action card", () => {
+    const item = makeWeaponItem({
+      id: "sword-1", highlights: "Bleeds",
+      weaponStats: { damage: "1d8", damageType: "slashing", damageRecurring: true, weaponRange: "5 ft", attackAbility: "str", proficient: true },
+    })
+    const [atk] = getEquippedWeaponAttacks({ ...createDefaultCharacter(), equipment: [item] })
+    expect(atk).toMatchObject({ id: "weapon-sword-1", itemId: "sword-1", highlights: "Bleeds", damageRecurring: true })
+  })
+
   it("derives DEX attack for a ranged weapon", () => {
     const char = { ...createDefaultCharacter(), abilityScores: baseScores, proficiencyBonus: 2,
       equipment: [makeWeaponItem({ weaponStats: { damage: "1d6", damageType: "piercing", weaponRange: "80/320 ft", attackAbility: "dex", proficient: true } })] }
