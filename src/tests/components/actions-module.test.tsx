@@ -1067,6 +1067,39 @@ describe("ActionsModule", () => {
       }
     }
 
+    describe("a weapon used as an action", () => {
+      const flameTongue = (overrides: Partial<Equipment> = {}): Equipment => ({
+        id: "mw-1", name: "Flame Tongue", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon",
+        magic: true, maxUses: 3, charges: 1, rechargeOn: "long-rest", actionKind: "action",
+        weaponStats: { damage: "1d8", damageType: "Slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+        ...overrides,
+      })
+      const cards = () => [...document.querySelectorAll<HTMLElement>('li[data-test^="action-card-"]')].map((li) => li.dataset.test)
+
+      it("is one card when equipped, its weapon card, which tracks the item's charges", () => {
+        const onUpdate = vi.fn()
+        render(() => <ActionsModule character={makeCharacter({ equipment: [flameTongue()] })} onUpdate={onUpdate} />)
+        expect(cards()).toEqual(["action-card-weapon-mw-1"])
+        expect(screen.getByTestId("action-card-weapon-mw-1-uses")).toBeInTheDocument()
+
+        // One of three charges spent: using another spends two
+        fireEvent.click(within(screen.getByTestId("action-card-weapon-mw-1-uses")).getAllByRole("button")[1])
+
+        expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ equipment: [expect.objectContaining({ id: "mw-1", charges: 2 })] }))
+      })
+
+      it("is its item card when not equipped, as it has no weapon card", () => {
+        render(() => <ActionsModule character={makeCharacter({ equipment: [flameTongue({ equipped: false })] })} onUpdate={vi.fn()} />)
+        expect(cards()).toEqual(["action-card-item-mw-1"])
+      })
+
+      it("used as another kind of action, keeps its card in that section beside its weapon card", () => {
+        render(() => <ActionsModule character={makeCharacter({ equipment: [flameTongue({ actionKind: "bonus-action" })] })} onUpdate={vi.fn()} />)
+        expect(cards()).toEqual(["action-card-weapon-mw-1", "action-card-item-mw-1"])
+        expect(screen.queryByTestId("action-card-weapon-mw-1-uses")).not.toBeInTheDocument()
+      })
+    })
+
     it("item with actionKind='action' appears in the Actions subsection", () => {
       render(() => (
         <ActionsModule

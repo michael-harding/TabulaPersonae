@@ -1,7 +1,7 @@
 import { type Locator, type Page } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
-import type { Attack, Character } from "../../src/lib/character-types"
+import type { Attack, Character, Equipment } from "../../src/lib/character-types"
 import { openSheet, reload, seedGuest, storedCharacter } from "./helpers"
 import { test, expect } from "./test"
 
@@ -146,6 +146,46 @@ test.describe("Actions card layout", () => {
     await expect.poll(() => parts(page, "actions-action-more-heading")).toEqual({ main: ["a3", "a1", "a2"], more: [] })
     await page.locator('[data-test="actions-module-save"]').click()
     await expect.poll(async () => (await storedCharacter(page, character.id)).actionLayout).toEqual({ action: { main: ["custom:a3", "custom:a1", "custom:a2"], more: [] } })
+  })
+
+  // Crossing into the other list moves the card's element, and for a moment solid-dnd reports the card
+  // a pointer step out. Going by the card, that put it straight back across, over and over: the page
+  // froze for seconds. Moved slowly across, with the page scrolled, each step must stay small.
+  test("carrying a card slowly across the More heading doesn't make it flip back and forth", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 700 })
+    // Two rows of shown cards (the test character's, and two more weapons), one card set aside
+    const weapon = (id: string, name: string): Equipment => ({
+      id, name, quantity: 1, weight: 1, description: "", equipped: true, type: "weapon",
+      weaponStats: { damage: "1d8", damageType: "Slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+    })
+    const equipment = [...testCharacter.equipment, weapon("w1", "Flame Tongue"), weapon("w2", "Dagger")]
+    await seedGuest(page, { ...testCharacter, equipment, actionLayout: { action: { more: ["custom:atk1"] } } }, { expandSections: true })
+    await openSheet(page, testCharacter.id)
+    await page.locator('[data-test="actions-module-edit"]').click()
+    const heading = page.locator('[data-test="actions-action-more-heading"]')
+    await heading.evaluate((el) => el.scrollIntoView({ block: "center" }))
+    await page.evaluate(() => {
+      const w = window as unknown as { mutations: number }
+      w.mutations = 0
+      new MutationObserver((records) => { w.mutations += records.length }).observe(document.body, { childList: true, subtree: true })
+    })
+    const mutations = () => page.evaluate(() => (window as unknown as { mutations: number }).mutations)
+    // The last shown card, just above the heading
+    const carried = page.locator('[data-test="action-card-feature-cf3"]')
+    const from = (await carried.boundingBox())!
+    const divider = (await heading.boundingBox())!
+
+    await page.mouse.move(from.x + from.width / 2, from.y + 20)
+    await page.mouse.down()
+    for (let y = from.y + 20; y < divider.y + 120; y += 8) {
+      const before = await mutations()
+      await page.mouse.move(from.x + from.width / 2, y)
+      // Crossing moves one card: a handful of changes, not thousands
+      expect(await mutations() - before).toBeLessThan(50)
+    }
+    const moreHas = () => page.locator('[data-test="actions-action-more-list"] [data-test="action-card-feature-cf3"]').count()
+    await expect.poll(moreHas).toBe(1)
+    await page.mouse.up()
   })
 
   test("Cancel puts the cards back as they were", async ({ page }) => {

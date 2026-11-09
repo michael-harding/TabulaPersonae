@@ -72,7 +72,7 @@ export interface SortableGroupProps extends ParentProps {
   onMove: (id: string, to: SortablePosition) => void
   /** Where an item is now, announced after each move: "Longsword moved to position 2 of 5". */
   describe: (id: string) => string
-  /** With more than one list: the list a dragged item is over, by its center (viewport coordinates). */
+  /** With more than one list: the list a dragged item is over, by where the pointer is (viewport coordinates). */
   listAt?: (point: { x: number; y: number }) => string
   /** Told the item being dragged, and null once it's let go. */
   onDragging?: (id: string | null) => void
@@ -142,9 +142,23 @@ export function SortableGroup(props: SortableGroupProps) {
     return null
   })
 
+  // Where the pointer is during a drag. Which list an item is over goes by the pointer, not by the
+  // item's position: moving the item into another list moves its element, and for a moment solid-dnd
+  // reports it a pointer step out, which near the boundary put it straight back, and so on, freezing
+  // the page. The pointer doesn't move when the item does.
+  let pointer: { x: number; y: number } | null = null
+  const trackPointer = (e: PointerEvent) => {
+    pointer = { x: e.clientX, y: e.clientY }
+  }
+  const stopTracking = () => {
+    document.removeEventListener("pointermove", trackPointer, true)
+    pointer = null
+  }
+  onCleanup(stopTracking)
+
   // Each list's items, or its own droppable when it has none, of the list the dragged item is over
   const collisionDetector: CollisionDetector = (draggable, droppables, context) => {
-    const list = lists.size > 1 && props.listAt ? props.listAt(draggable.transformed.center) : undefined
+    const list = lists.size > 1 && props.listAt ? props.listAt(pointer ?? draggable.transformed.center) : undefined
     const inList = list == null ? droppables : droppables.filter((d) => {
       const position = positionOf(String(d.id))
       return position?.list === list
@@ -155,6 +169,8 @@ export function SortableGroup(props: SortableGroupProps) {
 
   let start: SortablePosition | null = null
   const onDragStart = ({ draggable }: DragEvent) => {
+    // Captured on the document, so it's up to date before solid-dnd's own handler checks for a new list
+    document.addEventListener("pointermove", trackPointer, true)
     start = positionOf(String(draggable.id))
     props.onDragging?.(String(draggable.id))
   }
@@ -172,6 +188,7 @@ export function SortableGroup(props: SortableGroupProps) {
     const id = String(draggable.id)
     const began = start
     start = null
+    stopTracking()
     props.onDragging?.(null)
     if (droppable) {
       const from = positionOf(id)

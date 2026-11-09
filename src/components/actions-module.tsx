@@ -294,7 +294,7 @@ function ActionSectionBody(props: ActionSectionBodyProps) {
     return `${nameOf(key)} moved to ${list === "more" ? `${props.moreTitle}, ` : ""}position ${index + 1} of ${keys()[list].length}`
   }
 
-  // A dragged card is over More once its center is below the "More" heading
+  // A dragged card is over More once the pointer is below the "More" heading
   const listAt = (point: { y: number }) => (divider && point.y > divider.getBoundingClientRect().top ? "more" : "main")
   const onMove = (key: string, to: SortablePosition) => move(key, { list: to.list === "more" ? "more" : "main", index: to.index })
   const [dragging, setDragging] = createSignal<string | null>(null)
@@ -779,25 +779,35 @@ export function ActionsModule(props: ActionsModuleProps) {
     setEditingItem(null)
   }
 
-  const renderWeapon = (w: ReturnType<typeof getEquippedWeaponAttacks>[number], reorder?: ActionCardReorder) => (
-    <ActionCard
-      data-test={`action-card-${w.id}`}
-      name={w.name}
-      badgeLabel="Weapon"
-      {...itemDetails(equipmentById(w.itemId))}
-      attackBonus={w.attackBonus}
-      attackBonusTooltip={w.attackBonusTooltip}
-      range={w.range}
-      damage={w.damage}
-      damageTooltip={w.damageTooltip}
-      damageType={w.damageType}
-      damageRecurring={w.damageRecurring}
-      highlights={w.highlights}
-      description={w.description}
-      onEdit={() => setEditingItem(equipmentById(w.itemId))}
-      reorder={reorder}
-    />
-  )
+  const renderWeapon = (w: ReturnType<typeof getEquippedWeaponAttacks>[number], reorder?: ActionCardReorder) => {
+    const item = equipmentById(w.itemId)
+    // A weapon also used as an action is this one card (see actionEntries), which tracks its uses too
+    const asAction = item?.actionKind === 'action' ? item : null
+    return (
+      <ActionCard
+        data-test={`action-card-${w.id}`}
+        name={w.name}
+        badgeLabel="Weapon"
+        {...itemDetails(item)}
+        attackBonus={w.attackBonus}
+        attackBonusTooltip={w.attackBonusTooltip}
+        range={w.range}
+        damage={w.damage}
+        damageTooltip={w.damageTooltip}
+        damageType={w.damageType}
+        damageRecurring={w.damageRecurring}
+        highlights={w.highlights}
+        description={w.description}
+        pipIcon={asAction ? Backpack : undefined}
+        uses={asAction ? effectiveEquipmentUses(asAction) : undefined}
+        maxUses={asAction ? effectiveEquipmentMaxUses(asAction) : undefined}
+        rechargeOn={asAction?.rechargeOn}
+        onUsesChange={asAction ? (v) => handleEquipmentUsesChange(asAction.id, v) : undefined}
+        onEdit={() => setEditingItem(equipmentById(w.itemId))}
+        reorder={reorder}
+      />
+    )
+  }
 
   // Each section's cards in their default order: weapons, spells, features, items, then custom ones
   const spellEntries = (spells: Spell[], section: 'action' | 'bonus' | 'reaction'): SectionEntry[] =>
@@ -818,7 +828,8 @@ export function ActionsModule(props: ActionsModuleProps) {
     ...equippedWeaponAttacks().map((w): SectionEntry => ({ key: actionCardKey('weapon', w.itemId), name: w.name, value: w, render: (r) => renderWeapon(w, r) })),
     ...spellEntries(attackSpells(), 'action'),
     ...featureEntries(featuresByKind().actions),
-    ...itemEntries(equipmentByKind().actions),
+    // An equipped weapon used as an action already has its weapon card
+    ...itemEntries(equipmentByKind().actions.filter((item) => !equippedWeaponAttacks().some((w) => w.itemId === item.id))),
     ...customEntries(props.character.attacks || [], "attack", handleAttackUsesChange, openEditAction),
   ])
   const bonusActionEntries = createMemo((): SectionEntry[] => [
