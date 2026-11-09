@@ -56,8 +56,16 @@ import {
   effectiveEquipmentMaxUses,
   effectiveEquipmentUses,
   reconcileEquipmentRest,
+  spellDurationLabel,
+  isSustainedSpell,
+  activeSpells,
+  withSpellActivated,
+  withSpellEnded,
+  spellEndsOnRest,
+  spellsEndedByRest,
+  activeSpellIdsAfterRest,
 } from "@/lib/character-utils"
-import { createDefaultCharacter, type Character, type Equipment, type Feature } from "@/lib/character-types"
+import { createDefaultCharacter, type Character, type Equipment, type Feature, type Spell } from "@/lib/character-types"
 
 describe("Character Utils", () => {
   describe("getAbilityModifier", () => {
@@ -2219,5 +2227,129 @@ describe("normalizeDamageTypes", () => {
   it("returns the same array when nothing needs to change, so callers can tell", () => {
     const values = ["Fire", "Nonmagical Bludgeoning"]
     expect(normalizeDamageTypes(values)).toBe(values)
+  })
+})
+
+// ── Spells in effect ──────────────────────────────────────────────────────────────────────────
+
+function makeEffectSpell(overrides: Partial<Spell> = {}): Spell {
+  return {
+    id: "spell", name: "Spell", description: "", level: 1, school: "Enchantment", castingTime: "1 action",
+    range: "30 ft", components: "V", duration: "Instantaneous", prepared: true, known: true,
+    ...overrides,
+  }
+}
+
+const bless = makeEffectSpell({ id: "bless", name: "Bless", concentration: true, duration: "Concentration, up to 1 minute" })
+const hex = makeEffectSpell({ id: "hex", name: "Hex", concentration: true, duration: "Concentration, up to 1 hour" })
+const mageArmor = makeEffectSpell({ id: "mage-armor", name: "Mage Armor", duration: "8 hours" })
+const longstrider = makeEffectSpell({ id: "longstrider", name: "Longstrider", duration: "1 hour" })
+const alarm = makeEffectSpell({ id: "alarm", name: "Alarm", duration: "Until dispelled" })
+const magicMissile = makeEffectSpell({ id: "magic-missile", name: "Magic Missile" })
+const allSpells = [bless, hex, mageArmor, longstrider, alarm, magicMissile]
+
+describe("spellDurationLabel", () => {
+  it("drops the Concentration lead-in", () => {
+    expect(spellDurationLabel("Concentration, up to 1 minute")).toBe("up to 1 minute")
+    expect(spellDurationLabel("concentration,up to 10 minutes")).toBe("up to 10 minutes")
+  })
+
+  it("is null for an instantaneous spell or none at all", () => {
+    expect(spellDurationLabel("Instantaneous")).toBeNull()
+    expect(spellDurationLabel("instantaneous")).toBeNull()
+    expect(spellDurationLabel("")).toBeNull()
+    expect(spellDurationLabel(undefined)).toBeNull()
+  })
+
+  it("keeps any other duration as written", () => {
+    expect(spellDurationLabel("Until dispelled")).toBe("Until dispelled")
+  })
+})
+
+describe("isSustainedSpell", () => {
+  it("is true for a concentration spell or one that lasts", () => {
+    expect(isSustainedSpell(bless)).toBe(true)
+    expect(isSustainedSpell(mageArmor)).toBe(true)
+    expect(isSustainedSpell({ concentration: true, duration: "" })).toBe(true)
+  })
+
+  it("is false for an instantaneous spell", () => {
+    expect(isSustainedSpell(magicMissile)).toBe(false)
+  })
+})
+
+describe("activeSpells", () => {
+  it("lists concentration first, then the others in cast order", () => {
+    expect(activeSpells({ spells: allSpells, activeSpellIds: ["mage-armor", "alarm", "bless"] }).map((s) => s.id))
+      .toEqual(["bless", "mage-armor", "alarm"])
+  })
+
+  it("leaves out ids of deleted spells and of spells that no longer last", () => {
+    expect(activeSpells({ spells: allSpells, activeSpellIds: ["gone", "magic-missile", "alarm"] }).map((s) => s.id)).toEqual(["alarm"])
+  })
+
+  it("is empty without activeSpellIds", () => {
+    expect(activeSpells({ spells: allSpells })).toEqual([])
+  })
+})
+
+describe("withSpellActivated", () => {
+  it("adds a lasting spell", () => {
+    expect(withSpellActivated({ spells: allSpells }, mageArmor)).toEqual(["mage-armor"])
+  })
+
+  it("ends the previous concentration spell, keeping the others", () => {
+    expect(withSpellActivated({ spells: allSpells, activeSpellIds: ["bless", "mage-armor"] }, hex)).toEqual(["mage-armor", "hex"])
+  })
+
+  it("keeps a concentration spell when a spell without concentration is cast", () => {
+    expect(withSpellActivated({ spells: allSpells, activeSpellIds: ["bless"] }, alarm)).toEqual(["bless", "alarm"])
+  })
+
+  it("doesn't list a spell twice when it's cast again", () => {
+    expect(withSpellActivated({ spells: allSpells, activeSpellIds: ["mage-armor", "alarm"] }, mageArmor)).toEqual(["alarm", "mage-armor"])
+  })
+
+  it("leaves the list as it is for an instantaneous spell", () => {
+    const activeSpellIds = ["bless"]
+    expect(withSpellActivated({ spells: allSpells, activeSpellIds }, magicMissile)).toBe(activeSpellIds)
+  })
+})
+
+describe("withSpellEnded", () => {
+  it("removes the spell", () => {
+    expect(withSpellEnded({ activeSpellIds: ["bless", "alarm"] }, "bless")).toEqual(["alarm"])
+    expect(withSpellEnded({}, "bless")).toEqual([])
+  })
+})
+
+describe("spellEndsOnRest", () => {
+  it.each(["1 round", "10 rounds", "10 minutes", "1 minute", "up to 1 minute", "Concentration, up to 10 minutes", "1 hour", "Up To 1 Hour", "60 MINUTES"])(
+    "ends %s on any rest",
+    (duration) => expect(spellEndsOnRest(duration)).toBe("any-rest"),
+  )
+
+  it.each(["2 hours", "up to 2 hours", "Concentration, up to 8 hours", "8 hours", "8 hour"])(
+    "ends %s on a long rest",
+    (duration) => expect(spellEndsOnRest(duration)).toBe("long-rest"),
+  )
+
+  it.each(["9 hours", "24 hours", "10 days", "Until dispelled", "Special", "Instantaneous", "1 min", "1 hour or until dispelled", "", undefined])(
+    "never ends %s",
+    (duration) => expect(spellEndsOnRest(duration)).toBeNull(),
+  )
+})
+
+describe("spells ended by a rest", () => {
+  const character = { spells: allSpells, activeSpellIds: ["bless", "mage-armor", "longstrider", "alarm"] }
+
+  it("ends minute and one-hour spells on a short rest", () => {
+    expect(spellsEndedByRest(character, "short").map((s) => s.id)).toEqual(["bless", "longstrider"])
+    expect(activeSpellIdsAfterRest(character, "short")).toEqual(["mage-armor", "alarm"])
+  })
+
+  it("also ends spells of up to 8 hours on a long rest", () => {
+    expect(spellsEndedByRest(character, "long").map((s) => s.id)).toEqual(["bless", "mage-armor", "longstrider"])
+    expect(activeSpellIdsAfterRest(character, "long")).toEqual(["alarm"])
   })
 })

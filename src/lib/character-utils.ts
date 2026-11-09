@@ -1,4 +1,4 @@
-import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills } from "./character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -1127,6 +1127,82 @@ export function getExhaustionEffects(edition: "2014" | "2024", level: number): s
 export function displayedConditions(character: Pick<Character, "conditions" | "exhaustionLevel">): string[] {
   const level = character.exhaustionLevel ?? 0
   return [...(character.conditions ?? []), ...(level > 0 ? [`${EXHAUSTION} ${level}`] : [])]
+}
+
+// ── Spells in effect ──────────────────────────────────────────────────────────────────────────
+
+/** A spell's duration without its "Concentration, " lead-in, trimmed. */
+const bareDuration = (duration: string | undefined) => (duration ?? "").replace(/^\s*concentration,\s*/i, "").trim()
+
+/** A spell's duration as shown on its card: without "Concentration, ", and null when it has none or is instantaneous. */
+export function spellDurationLabel(duration: string | undefined): string | null {
+  const d = bareDuration(duration)
+  return !d || d.toLowerCase() === "instantaneous" ? null : d
+}
+
+/** Whether a spell stays in effect once cast: it needs concentration or lasts longer than an instant. */
+export function isSustainedSpell(spell: Pick<Spell, "concentration" | "duration">): boolean {
+  return !!spell.concentration || spellDurationLabel(spell.duration) != null
+}
+
+/**
+ * The spells in effect, concentration first, then the others in the order they were cast. Ids of
+ * deleted spells, and of spells edited so they no longer last, are left out.
+ */
+export function activeSpells(character: Pick<Character, "activeSpellIds" | "spells">): Spell[] {
+  const byId = new Map((character.spells ?? []).map((spell) => [spell.id, spell]))
+  const active = (character.activeSpellIds ?? [])
+    .map((id) => byId.get(id))
+    .filter((spell): spell is Spell => !!spell && isSustainedSpell(spell))
+  return [...active.filter((s) => s.concentration), ...active.filter((s) => !s.concentration)]
+}
+
+/**
+ * activeSpellIds once the spell is cast. A concentration spell ends any other one, since only one can
+ * be held at a time. A spell that doesn't last leaves the list as it is.
+ */
+export function withSpellActivated(character: Pick<Character, "activeSpellIds" | "spells">, spell: Spell): string[] {
+  const ids = character.activeSpellIds ?? []
+  if (!isSustainedSpell(spell)) return ids
+  const concentrationIds = new Set(spell.concentration
+    ? (character.spells ?? []).filter((s) => s.concentration).map((s) => s.id)
+    : [])
+  return [...ids.filter((id) => id !== spell.id && !concentrationIds.has(id)), spell.id]
+}
+
+/** activeSpellIds once the spell has ended. */
+export function withSpellEnded(character: Pick<Character, "activeSpellIds">, spellId: string): string[] {
+  return (character.activeSpellIds ?? []).filter((id) => id !== spellId)
+}
+
+const PARSED_DURATION = /^(?:up to\s+)?(\d+)\s+(round|minute|hour)s?$/i
+
+/**
+ * Which rest outlasts a spell's duration. Only "N rounds/minutes/hours" and "up to N ..." are read:
+ * rounds, minutes, and a single hour end on any rest, and up to 8 hours on a long rest. Anything
+ * longer or written any other way ("Until dispelled", "10 days") ends only when the user ends it.
+ */
+export function spellEndsOnRest(duration: string | undefined): "any-rest" | "long-rest" | null {
+  const match = PARSED_DURATION.exec(bareDuration(duration))
+  if (!match) return null
+  const amount = Number(match[1])
+  const unit = match[2].toLowerCase()
+  if (unit !== "hour" || amount < 2) return "any-rest"
+  return amount <= 8 ? "long-rest" : null
+}
+
+/** The spells a rest ends: those whose duration it outlasts. */
+export function spellsEndedByRest(character: Pick<Character, "activeSpellIds" | "spells">, rest: "short" | "long"): Spell[] {
+  return activeSpells(character).filter((spell) => {
+    const endsOn = spellEndsOnRest(spell.duration)
+    return endsOn === "any-rest" || (endsOn === "long-rest" && rest === "long")
+  })
+}
+
+/** activeSpellIds after a rest, without the spells it ends. */
+export function activeSpellIdsAfterRest(character: Pick<Character, "activeSpellIds" | "spells">, rest: "short" | "long"): string[] {
+  const ended = new Set(spellsEndedByRest(character, rest).map((spell) => spell.id))
+  return (character.activeSpellIds ?? []).filter((id) => !ended.has(id))
 }
 
 export const SENSE_TYPES: SenseType[] = ["darkvision", "blindsight", "tremorsense", "truesight"]

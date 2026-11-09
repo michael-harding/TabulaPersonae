@@ -5,10 +5,13 @@ import Sword from "lucide-solid/icons/sword"
 import Heart from "lucide-solid/icons/heart"
 
 import type { Character } from "@/lib/character-types"
-import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellAttackTooltip, getEffectiveSpellSaveDCTooltip, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveSpellcastingAbility, displayedConditions } from "@/lib/character-utils"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellAttackTooltip, getEffectiveSpellSaveDCTooltip, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveSpellcastingAbility, displayedConditions, activeSpells } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
-import { TEMP_HP_COLOR } from "@/lib/utils"
+import { cn, SPELL_EFFECT_COLOR, TEMP_HP_COLOR } from "@/lib/utils"
+
+// The status pills: spells in effect and conditions
+const PILL = "inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full"
 
 interface StatsBarProps {
   character: Character
@@ -30,6 +33,7 @@ export function StatsBar(props: StatsBarProps) {
     `Spell Hit: ${getEffectiveSpellAttackTooltip(props.character)} · DC: ${getEffectiveSpellSaveDCTooltip(props.character)}`
   )
   const conditions = createMemo(() => displayedConditions(props.character))
+  const spellEffects = createMemo(() => activeSpells(props.character))
 
   return (
     <div data-sem="stats-bar" class="sticky top-0 z-50 backdrop-blur contrast-more:bg-background border-b">
@@ -81,13 +85,25 @@ export function StatsBar(props: StatsBarProps) {
             </Tooltip>
           </Show>
 
-          {/* Conditions */}
-          <Show when={conditions().length > 0}>
+          {/* Spells in effect, then conditions */}
+          <Show when={spellEffects().length > 0 || conditions().length > 0}>
             <div class="w-px h-4 bg-border shrink-0" />
             <div class="flex items-center gap-1.5 flex-wrap">
+              <For each={spellEffects()}>
+                {(spell) => (
+                  // Solid while concentrating, outlined otherwise; the hidden lead-in says which to a screen reader
+                  <span
+                    data-test={`status-${spell.concentration ? "concentration" : "duration"}-${spell.id}`}
+                    class={cn(PILL, spell.concentration ? SPELL_EFFECT_COLOR.concentration : SPELL_EFFECT_COLOR.duration)}
+                  >
+                    <span class="sr-only">{spell.concentration ? "Concentrating on " : "Active: "}</span>
+                    {spell.name}
+                  </span>
+                )}
+              </For>
               <For each={conditions()}>
                 {(condition) => (
-                  <span class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-destructive text-destructive-foreground">
+                  <span class={cn(PILL, "bg-destructive text-destructive-foreground")}>
                     {condition}
                   </span>
                 )}

@@ -284,6 +284,27 @@ test.describe("ActionCard spell badges", () => {
   })
 })
 
+// Concentrating on Ensnaring Strike, with Pass without Trace as a spell lasting without concentration
+const spellsInEffect = {
+  ...testCharacter,
+  spells: testCharacter.spells.map((spell) => (spell.id === "sp3" ? { ...spell, concentration: false } : spell)),
+  activeSpellIds: ["sp2", "sp3"],
+}
+
+test.describe("Spells in effect", () => {
+  for (const theme of ["light", "dark"] as const) {
+    test(`stats bar pills — ${theme}`, async ({ page }) => {
+      await openSheet(page, spellsInEffect, { theme })
+      await expect(page.locator('[data-sem="stats-bar"]')).toHaveScreenshot(`stats-bar-spells-in-effect-${theme}.png`)
+    })
+  }
+
+  test("action card with its end button", async ({ page }) => {
+    await openSheet(page, spellsInEffect, { tab: "Combat" })
+    await expect(page.locator('[data-test="action-card-bonus-spell-sp2"]')).toHaveScreenshot("action-card-spell-in-effect.png")
+  })
+})
+
 // Tall enough that the whole module fits without scrolling, which would slide its title under the
 // sticky stats bar
 const WHOLE_MODULE = { width: 1280, height: 2000 }

@@ -10,7 +10,7 @@ import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, ActionSectionKey, ActionSectionLayout, Attack, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, RECHARGE_ON_OPTIONS } from "@/lib/character-utils"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, RECHARGE_ON_OPTIONS, activeSpells, isSustainedSpell, withSpellActivated, withSpellEnded } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { Button } from "@/components/ui/button"
@@ -222,7 +222,8 @@ function featureField(feature: Feature): 'classFeatures' | 'speciesTraits' | 'fe
 function createSpellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
   const slotKey = spell.level as keyof Character['spellSlots']
   const slots = () => getSpellSlots()[slotKey]
-  const canCast = () => spell.level > 0 && (!!spell.freeCast || (!!slots() && slots().used < slots().total))
+  // A cantrip or a free cast spends no slot
+  const canCast = () => spell.level === 0 || !!spell.freeCast || (!!slots() && slots().used < slots().total)
   const higherLevels = () => ([2,3,4,5,6,7,8,9] as const)
     .filter(l => l > spell.level)
     .filter(l => (getSpellSlots()[l]?.total ?? 0) > 0)
@@ -531,11 +532,25 @@ export function ActionsModule(props: ActionsModuleProps) {
     })
   }
 
-  const castSpell = (level: number) => {
+  // Casting spends a slot of the chosen level (a cantrip or a free cast spends none) and puts a spell
+  // that lasts in effect. One update: two would each start from the same character, and the second
+  // would undo the first.
+  const castSpell = (spell: Spell, level: number) => {
+    const spendsSlot = spell.level > 0 && !spell.freeCast
+    const sustained = isSustainedSpell(spell)
     const slots = props.character.spellSlots[level as keyof typeof props.character.spellSlots]
-    if (!slots || slots.used >= slots.total) return
-    updateSpellSlotUsed(level, slots.used + 1)
+    if (spendsSlot && (!slots || slots.used >= slots.total)) return
+    if (!spendsSlot && !sustained) return
+    props.onUpdate({
+      ...props.character,
+      ...(spendsSlot ? { spellSlots: { ...props.character.spellSlots, [level]: { ...slots, used: slots.used + 1 } } } : {}),
+      ...(sustained ? { activeSpellIds: withSpellActivated(props.character, spell) } : {}),
+    })
   }
+  const endSpell = (spellId: string) => {
+    props.onUpdate({ ...props.character, activeSpellIds: withSpellEnded(props.character, spellId) })
+  }
+  const activeSpellIds = createMemo(() => new Set(activeSpells(props.character).map((spell) => spell.id)))
 
   // Blank optional fields are omitted rather than stored as "" or false
   const normalizeActionForm = (data: ActionFormData) => ({
@@ -674,7 +689,10 @@ export function ActionsModule(props: ActionsModuleProps) {
         highlights={spell.highlights}
         description={spell.description}
         castable={canCast}
-        onCast={spell.level > 0 ? (spell.freeCast ? () => {} : castSpell) : undefined}
+        // A cantrip is only cast here when it lasts, to put it in effect
+        onCast={spell.level > 0 || isSustainedSpell(spell) ? (level) => castSpell(spell, level) : undefined}
+        active={activeSpellIds().has(spell.id)}
+        onEnd={() => endSpell(spell.id)}
         // A free cast spends no slot, so there's no level to choose
         slotLevels={spell.level > 0 && !spell.freeCast && (spell.atHigherLevel || spell.damagePerLevel || spell.gainPerLevel) && hasHigherSlots() ? slotLevels : undefined}
         onEdit={() => setEditingSpell(spell)}

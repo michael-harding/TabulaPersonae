@@ -13,7 +13,7 @@ import BookOpen from "lucide-solid/icons/book-open"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpellEnded } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -163,7 +163,12 @@ export function SpellsModule(props: SpellsModuleProps) {
 
   const handleDeleteSpell = (spellId: string) => {
     if (isReadOnly) return
-    const updated = { ...props.character, spells: safeSpells().filter((spell) => spell.id !== spellId) }
+    const updated = {
+      ...props.character,
+      spells: safeSpells().filter((spell) => spell.id !== spellId),
+      // A deleted spell is no longer in effect
+      ...(props.character.activeSpellIds ? { activeSpellIds: withSpellEnded(props.character, spellId) } : {}),
+    }
     props.onUpdate(updated)
   }
 

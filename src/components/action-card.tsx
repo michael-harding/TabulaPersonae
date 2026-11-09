@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, Show, type JSX } from "solid-js"
+import { createEffect, createSignal, on, onCleanup, Show, type JSX } from "solid-js"
 import RefreshCw from "lucide-solid/icons/refresh-cw"
 import WandSparkles from "lucide-solid/icons/wand-sparkles"
 import X from "lucide-solid/icons/x"
@@ -12,7 +12,7 @@ import { StepperInput } from "@/components/ui/stepper-input"
 import { Popover, PopoverTrigger, PopoverContent, PopoverTitle } from "@/components/ui/popover"
 import { Select, SelectContent, SelectTrigger, SelectValue, type SelectOption } from "@/components/ui/select"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import { formatModifier, remainingUses, spentFromRemaining, TEMP_HP_GAIN_TYPE } from "@/lib/character-utils"
+import { formatModifier, remainingUses, spellDurationLabel, spentFromRemaining, TEMP_HP_GAIN_TYPE } from "@/lib/character-utils"
 import { scaleDiceExpression } from "@/lib/dice"
 import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
@@ -38,6 +38,11 @@ export function ActionCardList(props: { children: JSX.Element }) {
 
 /** How long a Cast button shows that it was pressed, ignoring further presses. */
 export const CAST_FEEDBACK_MS = 1000
+
+/** Where a card's controls are: on the card itself, or in its expanded view. */
+type At = "card" | "expanded"
+const AT: readonly At[] = ["card", "expanded"]
+const at = (inExpanded: boolean): At => (inExpanded ? "expanded" : "card")
 
 /** A spell slot level a spell can be cast with, and how many of its slots are left. */
 export interface SlotLevel {
@@ -131,6 +136,10 @@ export interface ActionCardProps {
   onCast?: (level: number) => void
   /** The slot levels to choose from: the spell's own level and each higher one the character has. */
   slotLevels?: () => SlotLevel[]
+  /** Whether the spell is in effect: cast, lasting, and not yet ended. Its Cast button becomes an end button. */
+  active?: boolean
+  /** Ends the spell while it's in effect. */
+  onEnd?: () => void
 
   // Edit button — opens the entry's own add/edit form
   onEdit?: () => void
@@ -154,7 +163,6 @@ export interface ActionCardReorder {
 
 export function ActionCard(props: ActionCardProps) {
   const isReadOnly = useReadOnly()
-  const [concentrationActive, setConcentrationActive] = createSignal(false)
   const [expanded, setExpanded] = createSignal(false)
   const [cardWidth, setCardWidth] = createSignal(0)
   // undefined means the spell's own level, which every cast resets to: a higher slot is only ever
@@ -176,15 +184,13 @@ export function ActionCard(props: ActionCardProps) {
   }
   const badgeText = () => spellLevelLabel() ?? props.badgeLabel
 
-  const durationLabel = () => {
-    if (!props.duration) return null
-    const d = props.duration.replace(/^concentration,\s*/i, "")
-    return d.toLowerCase() === "instantaneous" ? null : d
-  }
+  const durationLabel = () => spellDurationLabel(props.duration)
 
   const isTempHp = () => props.gainType === TEMP_HP_GAIN_TYPE
 
   const hasCastButton = () => !!props.onCast && !isReadOnly
+  // While the spell is in effect its Cast button becomes an end button, once a cast's feedback is over
+  const hasEndButton = () => hasCastButton() && !!props.active && !!props.onEnd && !justCast()
   const hasUsesTracker = () => (props.maxUses ?? 0) > 0 && !props.onCast
 
   const selectedLevel = () => chosenLevel() ?? props.spellLevel ?? 0
@@ -196,11 +202,37 @@ export function ActionCard(props: ActionCardProps) {
   const cast = () => {
     // A second press while the first one's feedback shows is ignored, so a double tap spends one slot
     if (justCast()) return
-    props.onCast?.(selectedLevel())
-    setChosenLevel(undefined)
+    const level = selectedLevel()
+    // The feedback starts first: a cast that puts the spell in effect would otherwise swap in the end
+    // button for an instant, taking focus with the Cast button it removes
     setJustCast(true)
-    castTimer = setTimeout(() => setJustCast(false), CAST_FEEDBACK_MS)
+    props.onCast?.(level)
+    setChosenLevel(undefined)
+    castTimer = setTimeout(() => {
+      const focused = AT.find((at) => swapButtons[at].cast && document.activeElement === swapButtons[at].cast)
+      setJustCast(false)
+      if (focused) focusSwapButton(focused)
+    }, CAST_FEEDBACK_MS)
   }
+  // The Cast button and the end button take each other's place, in the card and in the expanded view.
+  // Focus follows to the one that replaces a focused one, which would otherwise drop to the page.
+  // A Cast button left disabled (no slots) can't take it, so the card's name or the view does.
+  const swapButtons: Record<At, { cast?: HTMLButtonElement; end?: HTMLButtonElement }> = { card: {}, expanded: {} }
+  const focusSwapButton = (at: At) => queueMicrotask(() => {
+    const { cast, end } = swapButtons[at]
+    const target = cast?.isConnected && !cast.disabled ? cast : end?.isConnected ? end : at === "expanded" ? expandedRef : nameButtonRef
+    target?.focus()
+  })
+  // Set once the end button is pressed, until the spell is in effect again, to announce the end
+  const [justEnded, setJustEnded] = createSignal(false)
+  createEffect(on(() => props.active, (active) => { if (active) setJustEnded(false) }, { defer: true }))
+  const end = (at: At) => {
+    setJustEnded(true)
+    props.onEnd?.()
+    focusSwapButton(at)
+  }
+  const castStatus = () => (justCast() ? `${props.name} cast` : justEnded() ? `${props.name} ended` : "")
+
   const slotOptions = (): SelectOption[] => slotChoices().map((l) => ({
     value: String(l.level),
     label: getOrdinalSuffix(l.level),
@@ -306,12 +338,7 @@ export function ActionCard(props: ActionCardProps) {
   const statusChips = (inExpanded: boolean) => (
     <>
       <Show when={props.concentration}>
-        <Chip
-          variant={concentrationActive() ? "default" : "outline"}
-          class={`text-xs select-none${concentrationActive() ? "" : " text-muted-foreground"}${!isReadOnly ? " cursor-pointer" : ""}`}
-          data-test={hook(`concentration-badge-${concentrationActive() ? "active" : "inactive"}`, inExpanded)}
-          onClick={isReadOnly ? undefined : () => setConcentrationActive(v => !v)}
-        >
+        <Chip variant="outline" class="text-xs text-muted-foreground" data-test={hook("concentration-badge", inExpanded)}>
           Concentration
         </Chip>
       </Show>
@@ -364,6 +391,23 @@ export function ActionCard(props: ActionCardProps) {
       </Show>
       <Show when={hasCastButton()}>
         <div class="flex flex-wrap items-center justify-end gap-1">
+          <Show
+            when={!hasEndButton()}
+            fallback={
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-11 w-11 p-0"
+                ref={(el) => (swapButtons[at(inExpanded)].end = el)}
+                data-test={hook("end-button", inExpanded)}
+                // Named for the spell, like the Cast button it replaces
+                aria-label={`End ${props.name}`}
+                onClick={() => end(at(inExpanded))}
+              >
+                <X class="h-4 w-4" aria-hidden="true" />
+              </Button>
+            }
+          >
           <Show when={hasSlotSelect()}>
             <Select options={slotOptions()} value={String(selectedLevel())} onValueChange={(v) => setChosenLevel(Number(v))}>
               {/* No visible label: the design gives the select only the levels (ACCESSIBILITY.md §11),
@@ -375,6 +419,7 @@ export function ActionCard(props: ActionCardProps) {
             </Select>
           </Show>
           <Button
+            ref={(el) => (swapButtons[at(inExpanded)].cast = el)}
             // For a moment after a cast it fills with the sheet colour and shows the wand over its
             // hidden label, which keeps its width. Not disabled meanwhile, even when that cast spent the last slot: the
             // feedback would show faded. cast() ignores presses until it ends.
@@ -392,10 +437,11 @@ export function ActionCard(props: ActionCardProps) {
               <WandSparkles class="absolute inset-0 m-auto" aria-hidden="true" data-test={hook("cast-icon", inExpanded)} />
             </Show>
           </Button>
-          {/* Always present, so its text is announced when a cast fills it (ACCESSIBILITY.md §12).
+          </Show>
+          {/* Always present, so its text is announced when a cast fills it or the spell ends (ACCESSIBILITY.md §12).
               One in the card and one in the expanded view: the open view hides the card from
               assistive technology, so only one is ever heard */}
-          <span class="sr-only" aria-live="polite" data-test={hook("cast-status", inExpanded)}>{justCast() ? `${props.name} cast` : ""}</span>
+          <span class="sr-only" aria-live="polite" data-test={hook("cast-status", inExpanded)}>{castStatus()}</span>
         </div>
       </Show>
     </>

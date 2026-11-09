@@ -398,6 +398,11 @@ export interface Character {
   conditions?: string[]
   /** Levels of Exhaustion, 0–6 (absent means 0). Not one of `conditions`, which have no levels. */
   exhaustionLevel?: number
+  /**
+   * Ids of the spells in effect: concentration or duration spells that were cast and haven't ended.
+   * At most one is a concentration spell. Ids of deleted spells are ignored (see activeSpells).
+   */
+  activeSpellIds?: string[]
 
   // 2024-only
   subclass?: string

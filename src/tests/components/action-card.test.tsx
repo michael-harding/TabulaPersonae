@@ -258,7 +258,7 @@ describe("ActionCard", () => {
     // Beside the Range/Trigger list the chips stack, Concentration on top; alone they share a row
     it("stacks Concentration above the duration beside the stats list", () => {
       render(() => <ActionCard {...makeProps({ concentration: true, duration: "Concentration, up to 1 minute", range: "60 ft" })} />)
-      const chips = screen.getByTestId("action-card-test-concentration-badge-inactive").parentElement!
+      const chips = screen.getByTestId("action-card-test-concentration-badge").parentElement!
       expect(chips).toHaveClass("flex-col")
       expect(chips.children[0]).toHaveTextContent("Concentration")
       expect(chips.children[1]).toHaveTextContent("up to 1 minute")
@@ -266,15 +266,19 @@ describe("ActionCard", () => {
 
     it("keeps Concentration and the duration in a row without a stats list", () => {
       render(() => <ActionCard {...makeProps({ concentration: true, duration: "Concentration, up to 1 minute" })} />)
-      expect(screen.getByTestId("action-card-test-concentration-badge-inactive").parentElement).not.toHaveClass("flex-col")
+      expect(screen.getByTestId("action-card-test-concentration-badge").parentElement).not.toHaveClass("flex-col")
     })
 
-    it("toggles styling on click, shared with the expanded view", () => {
+    // Casting the spell puts it in effect, so the chip only says the spell needs concentration
+    it("is a static chip, unchanged by a click", () => {
       render(() => <ActionCard {...makeProps({ concentration: true })} />)
-      fireEvent.click(screen.getByTestId("action-card-test-concentration-badge-inactive"))
-      expect(screen.getByTestId("action-card-test-concentration-badge-active")).toBeInTheDocument()
+      const chip = screen.getByTestId("action-card-test-concentration-badge")
+      expect(chip.tagName).toBe("SPAN")
+      expect(chip).toHaveClass("text-muted-foreground")
+      fireEvent.click(chip)
+      expect(screen.getByTestId("action-card-test-concentration-badge")).toHaveClass("text-muted-foreground")
       expand()
-      expect(screen.getByTestId("action-card-test-expanded-concentration-badge-active")).toBeInTheDocument()
+      expect(screen.getByTestId("action-card-test-expanded-concentration-badge")).toBeInTheDocument()
     })
   })
 
@@ -634,6 +638,101 @@ describe("ActionCard", () => {
       fireEvent.click(expandedCast)
       expect(expandedCast).toHaveClass("bg-primary")
       expect(screen.getByTestId("action-card-test-expanded-cast-status")).toHaveTextContent("Fireball cast")
+    })
+  })
+
+  describe("spell in effect", () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }))
+    afterEach(() => vi.useRealTimers())
+
+    const levels = () => [{ level: 1, remaining: 1 }, { level: 2, remaining: 1 }]
+    const spellProps = (overrides: Partial<ActionCardProps> = {}) => makeProps({
+      name: "Bless", spellLevel: 1, concentration: true, onCast: vi.fn(), castable: () => true, onEnd: vi.fn(), ...overrides,
+    })
+    const endButton = () => screen.getByRole("button", { name: "End Bless" })
+    const flush = () => new Promise<void>((resolve) => queueMicrotask(resolve))
+
+    it("replaces Cast and the slot select with an end button, on the card and in the expanded view", () => {
+      render(() => <ActionCard {...spellProps({ active: true, slotLevels: levels })} />)
+      expect(endButton()).toHaveAttribute("data-test", "action-card-test-end-button")
+      expect(endButton()).toHaveClass("h-11", "w-11")
+      expect(endButton().querySelector(".lucide-x")).not.toBeNull()
+      expect(screen.queryByRole("button", { name: "Cast Bless" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("combobox", { name: "Cast Bless at level" })).not.toBeInTheDocument()
+      expand("Bless")
+      expect(within(expandedView()).getByRole("button", { name: "End Bless" })).toHaveAttribute("data-test", "action-card-test-expanded-end-button")
+      expect(within(expandedView()).queryByRole("button", { name: "Cast Bless" })).not.toBeInTheDocument()
+    })
+
+    it("shows Cast while the spell isn't in effect", () => {
+      render(() => <ActionCard {...spellProps({ active: false })} />)
+      expect(screen.getByRole("button", { name: "Cast Bless" })).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "End Bless" })).not.toBeInTheDocument()
+    })
+
+    it("ends the spell on a single click and announces it", () => {
+      const [active, setActive] = createSignal(true)
+      const onEnd = vi.fn(() => setActive(false))
+      render(() => <ActionCard {...spellProps({ active: active(), onEnd })} />)
+      fireEvent.click(endButton())
+      expect(onEnd).toHaveBeenCalledOnce()
+      expect(screen.getByRole("button", { name: "Cast Bless" })).toBeInTheDocument()
+      expect(screen.getByTestId("action-card-test-cast-status")).toHaveTextContent("Bless ended")
+    })
+
+    it("moves focus to the Cast button that replaces the end button", async () => {
+      const [active, setActive] = createSignal(true)
+      render(() => <ActionCard {...spellProps({ active: active(), onEnd: () => setActive(false) })} />)
+      endButton().focus()
+      fireEvent.click(endButton())
+      await flush()
+      expect(screen.getByRole("button", { name: "Cast Bless" })).toHaveFocus()
+    })
+
+    it("moves focus to the card's name when the Cast button that replaces it is disabled", async () => {
+      const [active, setActive] = createSignal(true)
+      render(() => <ActionCard {...spellProps({ active: active(), castable: () => false, onEnd: () => setActive(false) })} />)
+      fireEvent.click(endButton())
+      await flush()
+      expect(screen.getByRole("button", { name: "Cast Bless" })).toBeDisabled()
+      expect(nameButton("Bless")).toHaveFocus()
+    })
+
+    // A double tap spends one slot and doesn't end the spell it just cast
+    it("keeps the cast feedback showing before the end button appears, then moves focus to it", async () => {
+      const [active, setActive] = createSignal(false)
+      const onCast = vi.fn(() => setActive(true))
+      render(() => <ActionCard {...spellProps({ active: active(), onCast })} />)
+      const cast = screen.getByRole("button", { name: "Cast Bless" })
+      cast.focus()
+      fireEvent.click(cast)
+      fireEvent.click(screen.getByRole("button", { name: "Cast Bless" }))
+      expect(onCast).toHaveBeenCalledOnce()
+      expect(screen.getByRole("button", { name: "Cast Bless" }).querySelector(".lucide-wand-sparkles")).not.toBeNull()
+      expect(screen.queryByRole("button", { name: "End Bless" })).not.toBeInTheDocument()
+      vi.advanceTimersByTime(CAST_FEEDBACK_MS)
+      await flush()
+      expect(endButton()).toHaveFocus()
+    })
+
+    it("clears the announcement once the spell is cast again", () => {
+      const [active, setActive] = createSignal(true)
+      render(() => <ActionCard {...spellProps({ active: active(), onEnd: () => setActive(false), onCast: () => setActive(true) })} />)
+      fireEvent.click(endButton())
+      fireEvent.click(screen.getByRole("button", { name: "Cast Bless" }))
+      vi.advanceTimersByTime(CAST_FEEDBACK_MS)
+      expect(screen.getByTestId("action-card-test-cast-status")).toHaveTextContent("")
+    })
+
+    it("has no end button on a read-only sheet", () => {
+      render(() => <ReadOnlyProvider value={true}><ActionCard {...spellProps({ active: true })} /></ReadOnlyProvider>)
+      expect(screen.queryByRole("button", { name: "End Bless" })).not.toBeInTheDocument()
+    })
+
+    it("has no accessibility violations while in effect", async () => {
+      vi.useRealTimers()
+      const { container } = render(() => <ActionCard {...spellProps({ active: true })} />)
+      expect((await axe(container)).violations).toHaveLength(0)
     })
   })
 

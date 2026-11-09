@@ -4,6 +4,7 @@ import { createStore, reconcile } from "solid-js/store"
 import userEvent from "@testing-library/user-event"
 
 import { ActionsModule } from "@/components/actions-module"
+import { CAST_FEEDBACK_MS } from "@/components/action-card"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -492,6 +493,99 @@ describe("ActionsModule", () => {
       render(() => <ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /cast/i }))
       expect(onUpdate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("spells in effect", () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }))
+    afterEach(() => vi.useRealTimers())
+
+    const bless = makeSpell({ id: "bless", name: "Bless", level: 1, prepared: true, concentration: true, duration: "Concentration, up to 1 minute" })
+    const hex = makeSpell({ id: "hex", name: "Hex", level: 1, prepared: true, concentration: true, duration: "Concentration, up to 1 hour" })
+    const mageArmor = makeSpell({ id: "mage-armor", name: "Mage Armor", level: 1, prepared: true, duration: "8 hours" })
+    const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 4, used: 0 } }
+
+    // The module re-rendered with each update, as the sheet does
+    function renderLive(overrides: Partial<Character> = {}) {
+      const onUpdate = vi.fn()
+      const [character, setCharacter] = createSignal(makeCharacter({ spells: [bless, hex, mageArmor], spellSlots, ...overrides }))
+      render(() => <ActionsModule character={character()} onUpdate={(c) => { onUpdate(c); setCharacter(c) }} />)
+      return { onUpdate, character }
+    }
+    const cast = (name: string) => {
+      fireEvent.click(screen.getByRole("button", { name: `Cast ${name}` }))
+      vi.advanceTimersByTime(CAST_FEEDBACK_MS)
+    }
+
+    it("spends the slot and puts a concentration spell in effect in one update", () => {
+      const { onUpdate, character } = renderLive()
+      cast("Bless")
+      expect(onUpdate).toHaveBeenCalledOnce()
+      expect(character().spellSlots[1].used).toBe(1)
+      expect(character().activeSpellIds).toEqual(["bless"])
+      expect(screen.getByRole("button", { name: "End Bless" })).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "Cast Bless" })).not.toBeInTheDocument()
+    })
+
+    it("ends the previous concentration spell when another is cast", () => {
+      const { character } = renderLive({ activeSpellIds: ["bless"] })
+      cast("Hex")
+      expect(character().activeSpellIds).toEqual(["hex"])
+      expect(screen.getByRole("button", { name: "Cast Bless" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "End Hex" })).toBeInTheDocument()
+    })
+
+    it("keeps a duration spell in effect beside a concentration spell", () => {
+      const { character } = renderLive({ activeSpellIds: ["bless"] })
+      cast("Mage Armor")
+      expect(character().activeSpellIds).toEqual(["bless", "mage-armor"])
+      expect(screen.getByRole("button", { name: "End Bless" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "End Mage Armor" })).toBeInTheDocument()
+    })
+
+    it("ends a spell with its end button, spending nothing", () => {
+      const { onUpdate, character } = renderLive({ activeSpellIds: ["bless", "mage-armor"] })
+      fireEvent.click(screen.getByRole("button", { name: "End Bless" }))
+      expect(onUpdate).toHaveBeenCalledOnce()
+      expect(character().activeSpellIds).toEqual(["mage-armor"])
+      expect(character().spellSlots[1].used).toBe(0)
+      expect(screen.getByRole("button", { name: "Cast Bless" })).toBeInTheDocument()
+    })
+
+    it("only spends the slot of a spell that doesn't last", () => {
+      const { character } = renderLive({ spells: [makeSpell({ id: "mm", name: "Magic Missile", level: 1, prepared: true })] })
+      cast("Magic Missile")
+      expect(character().spellSlots[1].used).toBe(1)
+      expect(character().activeSpellIds).toBeUndefined()
+      expect(screen.getByRole("button", { name: "Cast Magic Missile" })).toBeInTheDocument()
+    })
+
+    it("puts a free cast spell in effect without spending a slot", () => {
+      const { character } = renderLive({ spells: [{ ...mageArmor, freeCast: true }], spellSlots: { ...spellSlots, 1: { total: 1, used: 1 } } })
+      cast("Mage Armor")
+      expect(character().spellSlots[1].used).toBe(1)
+      expect(character().activeSpellIds).toEqual(["mage-armor"])
+    })
+
+    it("gives a lasting cantrip a Cast button that spends no slot", () => {
+      const guidance = makeSpell({ id: "guidance", name: "Guidance", level: 0, concentration: true, duration: "Concentration, up to 1 minute" })
+      const { character } = renderLive({ spells: [guidance], spellSlots: createDefaultCharacter().spellSlots })
+      expect(screen.getByRole("button", { name: "Cast Guidance" })).toBeEnabled()
+      cast("Guidance")
+      expect(character().spellSlots).toEqual(createDefaultCharacter().spellSlots)
+      expect(character().activeSpellIds).toEqual(["guidance"])
+      expect(screen.getByRole("button", { name: "End Guidance" })).toBeInTheDocument()
+    })
+
+    it("gives an instantaneous cantrip no Cast button", () => {
+      renderLive({ spells: [makeSpell({ name: "Fire Bolt", level: 0 })] })
+      expect(screen.queryByRole("button", { name: "Cast Fire Bolt" })).not.toBeInTheDocument()
+    })
+
+    it("shows the end button on both copies of a spell listed in two sections", () => {
+      const shield = makeSpell({ id: "sh", name: "Shield of Faith", level: 1, prepared: true, castingTime: "1 bonus action or 1 reaction", concentration: true, duration: "Concentration, up to 10 minutes" })
+      renderLive({ spells: [shield], activeSpellIds: ["sh"] })
+      expect(screen.getAllByRole("button", { name: "End Shield of Faith" })).toHaveLength(2)
     })
   })
 

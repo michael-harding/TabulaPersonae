@@ -3,7 +3,7 @@ import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Dices from "lucide-solid/icons/dices"
 
 import type { Character, Equipment } from "@/lib/character-types"
-import { getAbilityModifier, formatModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest, activeSpellIdsAfterRest, spellsEndedByRest } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -57,6 +57,11 @@ export function RestModal(props: RestModalProps) {
     })
   }
 
+  // The spells in effect whose duration this rest outlasts
+  const endingSpells = () => spellsEndedByRest(props.character, restType())
+  const activeSpellsAfter = (char: Character, rest: "short" | "long") =>
+    char.activeSpellIds ? { activeSpellIds: activeSpellIdsAfterRest(char, rest) } : {}
+
   const handleClose = () => {
     setDicesToSpend(0)
     setRollResult(null)
@@ -93,6 +98,7 @@ export function RestModal(props: RestModalProps) {
         feats: resetMatching(safeFeatures(char.feats), "short-rest"),
         backgroundFeatures: resetMatching(safeFeatures(char.backgroundFeatures), "short-rest"),
         equipment: (char.equipment ?? []).map((item) => reconcileEquipmentRest(item, ["short-rest"])),
+        ...activeSpellsAfter(char, "short"),
       })
       if (spent === 0) handleClose()
     } else {
@@ -116,6 +122,7 @@ export function RestModal(props: RestModalProps) {
         feats: resetMatching(safeFeatures(char.feats), "short-rest", "long-rest"),
         backgroundFeatures: resetMatching(safeFeatures(char.backgroundFeatures), "short-rest", "long-rest"),
         equipment: (char.equipment ?? []).map((item) => reconcileEquipmentRest(item, ["short-rest", "long-rest"])),
+        ...activeSpellsAfter(char, "long"),
       })
       handleClose()
     }
@@ -264,6 +271,23 @@ export function RestModal(props: RestModalProps) {
               </ul>
             </Show>
           </div>
+
+          {/* Spells this rest ends: those whose duration it outlasts */}
+          <Show when={endingSpells().length > 0}>
+            <div class="space-y-2">
+              <div class="text-sm font-medium" id="rest-ending-spells-heading">Ending Spells</div>
+              <ul class="space-y-1" aria-labelledby="rest-ending-spells-heading" data-test="rest-ending-spells">
+                <For each={endingSpells()}>
+                  {(spell) => (
+                    <li class="text-sm flex items-center justify-between">
+                      <span>{spell.name}</span>
+                      <span class="text-xs text-muted-foreground">{spell.duration}</span>
+                    </li>
+                  )}
+                </For>
+              </ul>
+            </div>
+          </Show>
         </div>
 
         <ModalFooter class="mt-4">

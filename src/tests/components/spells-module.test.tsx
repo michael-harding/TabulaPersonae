@@ -523,6 +523,20 @@ describe("SpellsModule", () => {
     })
   })
 
+  describe("deleting a spell in effect", () => {
+    beforeEach(() => cleanupPortals())
+
+    it("ends the spell along with deleting it", () => {
+      const onUpdate = vi.fn()
+      const bless = makeSpell({ id: "bless", name: "Bless", level: 1, concentration: true, duration: "Concentration, up to 1 minute" })
+      const armor = makeSpell({ id: "armor", name: "Mage Armor", level: 1, duration: "8 hours" })
+      render(() => <SpellsModule character={makeCharacter({ spells: [bless, armor], activeSpellIds: ["bless", "armor"] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      confirmClick(screen.getByTestId("delete-spell-bless"))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ activeSpellIds: ["armor"] }))
+    })
+  })
+
   describe("concentration and ritual badges", () => {
     it("shows 'R' badge for a ritual spell, tooltipped 'Ritual'", async () => {
       const spell = makeSpell({ name: "Detect Magic", level: 1, ritual: true })
