@@ -28,7 +28,7 @@ import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { ActionCard, ActionCardList, type SlotLevel } from "@/components/action-card"
 import { SpellEditModal } from "@/components/spell-edit-modal"
 import { FeatureEditModal } from "@/components/features-module"
-import { EquipmentItemModal } from "@/components/equipment-item-modal"
+import { EquipmentItemModal, RARITY_OPTIONS } from "@/components/equipment-item-modal"
 import { DamageFields, GainFields } from "@/components/effect-fields"
 import { useReadOnly } from "@/lib/read-only-context"
 import { cn, HOVER_ACCENT } from "@/lib/utils"
@@ -484,6 +484,8 @@ export function ActionsModule(props: ActionsModuleProps) {
         range={spell.range}
         components={spell.components}
         atHigherLevel={spell.atHigherLevel}
+        grantedBy={spell.grantedBy ? equipmentById(spell.grantedBy)?.name : undefined}
+        freeCast={spell.freeCast}
         damage={spell.damage}
         damageType={spell.damageType}
         damageRecurring={spell.damageRecurring}
@@ -506,6 +508,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       data-test={`action-card-feature-${feature.id}`}
       name={feature.name}
       badgeLabel={FEATURE_KIND_LABELS[feature.source] ?? feature.source}
+      atLevel={feature.level}
       range={feature.range}
       attackBonus={feature.attackBonus}
       attackSave={feature.attackSave}
@@ -531,6 +534,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       pipIcon={Backpack}
       name={item.name}
       badgeLabel={item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+      {...itemDetails(item)}
       damage={item.damage}
       damageType={item.damageType}
       damageRecurring={item.damageRecurring}
@@ -546,6 +550,15 @@ export function ActionsModule(props: ActionsModuleProps) {
       onEdit={() => setEditingItem(item)}
     />
   )
+
+  // The item details an item's card shows in its expanded view
+  const itemDetails = (item: Equipment | null) => ({
+    rarity: RARITY_OPTIONS.find((o) => o.value === item?.rarity)?.label,
+    requiresAttunement: item?.requiresAttunement,
+    attuned: item?.attuned,
+    // A consumable without charges counts its quantity as its uses, already shown as Max Uses
+    quantity: item && (item.type !== "consumable" || hasChargesTracking(item)) ? item.quantity : undefined,
+  })
 
   // A custom action, bonus action, reaction or other ability, edited in this module's own form
   const renderCustomAction = (action: Attack, hookKind: string, onUsesChange: (v: number) => void, onEdit: () => void) => (
@@ -631,6 +644,7 @@ export function ActionsModule(props: ActionsModuleProps) {
                       data-test={`action-card-${w.id}`}
                       name={w.name}
                       badgeLabel="Weapon"
+                      {...itemDetails(equipmentById(w.itemId))}
                       attackBonus={w.attackBonus}
                       attackBonusTooltip={w.attackBonusTooltip}
                       range={w.range}

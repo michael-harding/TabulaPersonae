@@ -361,10 +361,65 @@ describe("ActionCard", () => {
       expand()
       const view = expandedView()
       for (const text of [
-        "3rd level • Evocation (ritual) · Concentration", "1 action", "60 ft", "V, S", "Concentration, up to 1 minute", "DEX save",
+        "Evocation", "Ritual", "1 action", "60 ft", "V, S", "Concentration, up to 1 minute", "DEX save",
         "When hit", "Short Rest", "+1d6 per level", description, "8d6 Fire, recurs each turn", "1d4 Temp HP, recurs each turn",
       ]) expect(within(view).getByText(text, { exact: false })).toBeInTheDocument()
       expect(within(view).getByText("boom").tagName).toBe("STRONG")
+    })
+
+    it("has no subtitle under its name", () => {
+      render(() => <ActionCard {...makeProps({ spellLevel: 3, spellSchool: "Evocation", ritual: true, concentration: true })} />)
+      expand()
+      const heading = within(expandedView()).getByRole("heading", { name: "Test Action" })
+      expect(heading.parentElement!.textContent).not.toMatch(/level|Evocation|ritual/i)
+      expect(within(expandedView()).queryByText(/3rd level/)).not.toBeInTheDocument()
+    })
+
+    it("shows a spell's school, the item granting it, and a free cast", () => {
+      render(() => <ActionCard {...makeProps({ spellLevel: 1, spellSchool: "Abjuration", grantedBy: "Ring of Shielding", freeCast: true })} />)
+      expand()
+      const view = expandedView()
+      expect(within(view).getByText("School:").parentElement).toHaveTextContent("School: Abjuration")
+      expect(within(view).getByText("Granted By:").parentElement).toHaveTextContent("Granted By: Ring of Shielding")
+      expect(within(view).getByText("Free Cast")).toBeInTheDocument()
+    })
+
+    it("shows the level a feature is gained at", () => {
+      render(() => <ActionCard {...makeProps({ atLevel: 3 })} />)
+      expand()
+      expect(within(expandedView()).getByText("At Level:").parentElement).toHaveTextContent("At Level: 3")
+    })
+
+    it("shows an item's rarity, attunement, and quantity", () => {
+      render(() => <ActionCard {...makeProps({ rarity: "Very Rare", requiresAttunement: true, attuned: true, quantity: 2 })} />)
+      expand()
+      const view = expandedView()
+      expect(within(view).getByText("Rarity:").parentElement).toHaveTextContent("Rarity: Very Rare")
+      expect(within(view).getByText("Attunement:").parentElement).toHaveTextContent("Attunement: Attuned")
+      expect(within(view).getByText("Quantity:").parentElement).toHaveTextContent("Quantity: 2")
+    })
+
+    it("says when an item requiring attunement isn't attuned, and omits a quantity of one", () => {
+      render(() => <ActionCard {...makeProps({ requiresAttunement: true, attuned: false, quantity: 1 })} />)
+      expand()
+      const view = expandedView()
+      expect(within(view).getByText("Attunement:").parentElement).toHaveTextContent("Attunement: Required, not attuned")
+      expect(within(view).queryByText("Quantity:")).not.toBeInTheDocument()
+    })
+
+    it("omits attunement for an item that doesn't require it", () => {
+      render(() => <ActionCard {...makeProps({ attuned: false })} />)
+      expand()
+      expect(within(expandedView()).queryByText("Attunement:")).not.toBeInTheDocument()
+    })
+
+    // The same size as the detail rows and description around them
+    it("shows the highlights at the size of the text around them", () => {
+      render(() => <ActionCard {...makeProps({ highlights: "Big **boom**", description: "Details", castingTime: "1 action" })} />)
+      expand()
+      const highlights = within(expandedView()).getByText("boom").closest("[data-sem='markdown-content']")!
+      expect(highlights).toHaveClass("text-xs")
+      expect(highlights).not.toHaveClass("text-sm")
     })
 
     it("offers Edit in its footer, which closes it and opens the form", async () => {

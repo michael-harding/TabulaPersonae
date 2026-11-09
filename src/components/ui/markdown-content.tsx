@@ -2,6 +2,8 @@ import { type Component } from "solid-js"
 import DOMPurify from "dompurify"
 import { marked } from "marked"
 
+import { cn } from "@/lib/utils"
+
 marked.setOptions({ breaks: true, gfm: true })
 
 interface MarkdownContentProps {
@@ -20,7 +22,8 @@ export const MarkdownContent: Component<MarkdownContentProps> = (props) => {
     <div
       data-sem="markdown-content"
       data-test={props["data-test"]}
-      class={`markdown-content text-sm${props.class ? ` ${props.class}` : ""}`}
+      // cn, so a text size in props.class replaces the default rather than competing with it
+      class={cn("markdown-content text-sm", props.class)}
       // eslint-disable-next-line solid/no-innerhtml -- sanitized via DOMPurify.sanitize() above; approved exception per CONSTITUTION.md §10.3
       innerHTML={html()}
     />

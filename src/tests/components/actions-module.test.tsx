@@ -1164,6 +1164,66 @@ describe("ActionsModule", () => {
       fireEvent.click(screen.getByRole("button", { name: "Fire Bolt" }))
       expect(within(screen.getByRole("dialog")).getByText(/1 action/)).toBeInTheDocument()
     })
+
+    it("shows a spell's school", () => {
+      const spell = makeSpell({ name: "Fire Bolt", level: 0, school: "Evocation", known: true })
+      render(() => <ActionsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: "Fire Bolt" }))
+      expect(within(screen.getByRole("dialog")).getByText("School:").parentElement).toHaveTextContent("School: Evocation")
+    })
+
+    it("names the item that grants a spell, and its free cast", () => {
+      const ring: Equipment = { id: "ring-1", name: "Ring of Shielding", quantity: 1, weight: 0, description: "", equipped: true, type: "other", magic: true }
+      const spell = makeSpell({ name: "Shield", level: 1, castingTime: "1 reaction", prepared: true, grantedBy: "ring-1", freeCast: true })
+      render(() => <ActionsModule character={makeCharacter({ spells: [spell], equipment: [ring] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: "Shield" }))
+      const view = screen.getByRole("dialog")
+      expect(within(view).getByText("Granted By:").parentElement).toHaveTextContent("Granted By: Ring of Shielding")
+      expect(within(view).getByText("Free Cast")).toBeInTheDocument()
+    })
+
+    it("shows the level a feature is gained at", () => {
+      const feature: Feature = { id: "f-1", name: "Action Surge", description: "", source: "class-feature", actionKind: "action", level: 2 }
+      render(() => <ActionsModule character={makeCharacter({ level: 5, classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: "Action Surge" }))
+      expect(within(screen.getByRole("dialog")).getByText("At Level:").parentElement).toHaveTextContent("At Level: 2")
+    })
+
+    it("shows an item's rarity, attunement, and quantity", () => {
+      const wand: Equipment = {
+        id: "wand-1", name: "Wand of Web", quantity: 2, weight: 1, description: "", equipped: true, type: "other",
+        magic: true, rarity: "very-rare", requiresAttunement: true, attuned: false, actionKind: "action",
+      }
+      render(() => <ActionsModule character={makeCharacter({ equipment: [wand] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: "Wand of Web" }))
+      const view = screen.getByRole("dialog")
+      expect(within(view).getByText("Rarity:").parentElement).toHaveTextContent("Rarity: Very Rare")
+      expect(within(view).getByText("Attunement:").parentElement).toHaveTextContent("Attunement: Required, not attuned")
+      expect(within(view).getByText("Quantity:").parentElement).toHaveTextContent("Quantity: 2")
+    })
+
+    // Its uses are its quantity, already shown as Max Uses
+    it("shows no quantity for a consumable without charges", () => {
+      const potion: Equipment = { id: "p-1", name: "Potion of Healing", quantity: 3, weight: 0.5, description: "", equipped: false, type: "consumable", actionKind: "action" }
+      render(() => <ActionsModule character={makeCharacter({ equipment: [potion] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: "Potion of Healing" }))
+      const view = screen.getByRole("dialog")
+      expect(within(view).queryByText("Quantity:")).not.toBeInTheDocument()
+      expect(within(view).getByText("Max Uses:").parentElement).toHaveTextContent("Max Uses: 3")
+    })
+
+    it("shows an equipped weapon's rarity and attunement", () => {
+      const sword: Equipment = {
+        id: "wpn-9", name: "Flame Tongue", quantity: 1, weight: 3, description: "", equipped: true, type: "weapon",
+        magic: true, rarity: "rare", requiresAttunement: true, attuned: true,
+        weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
+      }
+      render(() => <ActionsModule character={makeCharacter({ equipment: [sword] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: "Flame Tongue" }))
+      const view = screen.getByRole("dialog")
+      expect(within(view).getByText("Rarity:").parentElement).toHaveTextContent("Rarity: Rare")
+      expect(within(view).getByText("Attunement:").parentElement).toHaveTextContent("Attunement: Attuned")
+    })
   })
 
   describe("effect pills", () => {

@@ -62,6 +62,23 @@ export interface ActionCardProps {
   castingTime?: string
   components?: string
   atHigherLevel?: string
+  /** The name of the magic item that grants the spell. */
+  grantedBy?: string
+  /** Whether casting the spell spends no slot. */
+  freeCast?: boolean
+
+  // Feature details, shown in the expanded view
+  /** The character level the feature is gained at. */
+  atLevel?: number
+
+  // Item details, shown in the expanded view
+  /** The item's rarity, as shown ("Very Rare"). */
+  rarity?: string
+  requiresAttunement?: boolean
+  /** Whether the character is attuned to an item that requires attunement. */
+  attuned?: boolean
+  /** How many of the item the character has. Shown when more than one. */
+  quantity?: number
 
   // Stats
   attackBonus?: number
@@ -130,13 +147,6 @@ export function ActionCard(props: ActionCardProps) {
     return props.spellLevel === 0 ? "Cantrip" : getOrdinalSuffix(props.spellLevel)
   }
   const badgeText = () => spellLevelLabel() ?? props.badgeLabel
-
-  const spellSubtitle = () => {
-    const level = spellLevelLabel()
-    if (level == null) return null
-    const levelText = props.spellLevel === 0 ? level : `${level} level`
-    return props.spellSchool ? `${levelText} • ${props.spellSchool}` : levelText
-  }
 
   const durationLabel = () => {
     if (!props.duration) return null
@@ -427,16 +437,7 @@ export function ActionCard(props: ActionCardProps) {
       >
         <div class="space-y-3">
           <div class="flex items-start gap-2">
-            <div class="min-w-0 flex-1">
-              <PopoverTitle as="h2" class="font-semibold leading-tight">{props.name}</PopoverTitle>
-              <Show when={spellSubtitle()}>
-                <div class="text-xs text-muted-foreground">
-                  {spellSubtitle()}
-                  {props.ritual && " (ritual)"}
-                  {props.concentration && " · Concentration"}
-                </div>
-              </Show>
-            </div>
+            <PopoverTitle as="h2" class="min-w-0 flex-1 font-semibold leading-tight">{props.name}</PopoverTitle>
             <Show when={badgeText()}>
               <Chip variant="secondary" class="mt-1 shrink-0 text-xs">{badgeText()}</Chip>
             </Show>
@@ -453,11 +454,21 @@ export function ActionCard(props: ActionCardProps) {
 
           {statBadges(true)}
 
-          <Show when={props.concentration || durationLabel()}>
-            <div class="flex flex-wrap gap-1">{statusChips(true)}</div>
+          <Show when={props.concentration || durationLabel() || props.ritual || props.freeCast}>
+            <div class="flex flex-wrap gap-1">
+              {statusChips(true)}
+              <Show when={props.ritual}><Chip variant="outline" class="text-xs text-muted-foreground">Ritual</Chip></Show>
+              <Show when={props.freeCast}><Chip variant="outline" class="text-xs text-muted-foreground">Free Cast</Chip></Show>
+            </div>
           </Show>
 
           <div class="space-y-1 text-xs">
+            <Show when={props.spellSchool}>{detailRow("School", props.spellSchool)}</Show>
+            <Show when={props.grantedBy}>{detailRow("Granted By", props.grantedBy)}</Show>
+            <Show when={props.atLevel}>{detailRow("At Level", props.atLevel)}</Show>
+            <Show when={props.rarity}>{detailRow("Rarity", props.rarity)}</Show>
+            <Show when={props.requiresAttunement}>{detailRow("Attunement", props.attuned ? "Attuned" : "Required, not attuned")}</Show>
+            <Show when={(props.quantity ?? 0) > 1}>{detailRow("Quantity", props.quantity)}</Show>
             <Show when={props.castingTime}>{detailRow("Casting Time", props.castingTime)}</Show>
             <Show when={props.range}>{detailRow("Range", props.range)}</Show>
             <Show when={props.components}>{detailRow("Components", props.components)}</Show>
@@ -470,7 +481,7 @@ export function ActionCard(props: ActionCardProps) {
           </div>
 
           <Show when={props.highlights}>
-            {(highlights) => <MarkdownContent text={highlights()} class="text-sm" />}
+            {(highlights) => <MarkdownContent text={highlights()} class="text-xs" />}
           </Show>
           <Show when={props.description}>
             <div class="border-t pt-2">
