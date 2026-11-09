@@ -1088,9 +1088,10 @@ describe("ActionsModule", () => {
         expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ equipment: [expect.objectContaining({ id: "mw-1", charges: 2 })] }))
       })
 
-      it("is its item card when not equipped, as it has no weapon card", () => {
-        render(() => <ActionsModule character={makeCharacter({ equipment: [flameTongue({ equipped: false })] })} onUpdate={vi.fn()} />)
-        expect(cards()).toEqual(["action-card-item-mw-1"])
+      // You can't stab someone with a dagger that's still in your pack: it's only in the inventory
+      it.each(["action", "bonus-action", "reaction", "other"] as const)("has no card at all when not equipped (used as %s)", (actionKind) => {
+        render(() => <ActionsModule character={makeCharacter({ equipment: [flameTongue({ equipped: false, actionKind })] })} onUpdate={vi.fn()} />)
+        expect(cards()).toEqual([])
       })
 
       it("used as another kind of action, keeps its card in that section beside its weapon card", () => {

@@ -498,6 +498,8 @@ export function ActionsModule(props: ActionsModuleProps) {
   const equipmentByKind = createMemo(() => {
     const actions: Equipment[] = [], bonuses: Equipment[] = [], reactions: Equipment[] = [], others: Equipment[] = []
     for (const item of props.character.equipment || []) {
+      // A weapon is only used once it's in hand: one still in the pack has no actions
+      if (item.type === 'weapon' && !item.equipped) continue
       if (item.actionKind === 'action')            actions.push(item)
       else if (item.actionKind === 'bonus-action') bonuses.push(item)
       else if (item.actionKind === 'reaction')     reactions.push(item)
