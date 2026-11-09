@@ -156,6 +156,10 @@ export interface Spell extends CharacterEntry, DamageFields, GainFields {
   prepared: boolean;
   known: boolean;
   atHigherLevel?: string;
+  /** Damage added per slot level above the spell's own, e.g. "1d6". */
+  damagePerLevel?: string;
+  /** Gain added per slot level above the spell's own, e.g. "1d8". */
+  gainPerLevel?: string;
   concentration?: boolean;
   ritual?: boolean;
   grantedBy?: string;

@@ -24,6 +24,8 @@ export interface SpellFormData extends DamageValues, GainValues {
   attackRoll: boolean
   attackSave?: string
   atHigherLevel?: string
+  damagePerLevel: string
+  gainPerLevel: string
   highlights: string
   description: string
   prepared: boolean
@@ -72,6 +74,8 @@ export const defaultSpellForm: SpellFormData = {
   gainType: "",
   gainRecurring: false,
   atHigherLevel: "",
+  damagePerLevel: "",
+  gainPerLevel: "",
   highlights: "",
   description: "",
   prepared: false,
@@ -106,8 +110,8 @@ export function SpellForm(props: SpellFormProps) {
       </div>
 
       <div class="grid grid-cols-2 gap-4">
-        <DamageFields idPrefix="spell" value={formData()} onChange={(patch) => setFormData((p) => ({ ...p, ...patch }))} placeholder="e.g. 8d6" />
-        <GainFields idPrefix="spell" value={formData()} onChange={(patch) => setFormData((p) => ({ ...p, ...patch }))} placeholder="e.g. 2d8" />
+        <DamageFields idPrefix="spell" value={formData()} onChange={(patch) => setFormData((p) => ({ ...p, ...patch }))} placeholder="e.g. 8d6" perLevelPlaceholder="e.g. 1d6" />
+        <GainFields idPrefix="spell" value={formData()} onChange={(patch) => setFormData((p) => ({ ...p, ...patch }))} placeholder="e.g. 2d8" perLevelPlaceholder="e.g. 1d8" />
       </div>
 
       <div class="grid grid-cols-2 gap-4">
@@ -279,6 +283,8 @@ export function spellToForm(spell: Spell): SpellFormData {
     gainType: spell.gainType || "",
     gainRecurring: spell.gainRecurring ?? false,
     atHigherLevel: spell.atHigherLevel || "",
+    damagePerLevel: spell.damagePerLevel || "",
+    gainPerLevel: spell.gainPerLevel || "",
     concentration: spell.concentration ?? false,
     ritual: spell.ritual ?? false,
     grantedBy: spell.grantedBy || "",
@@ -315,6 +321,8 @@ export function spellFromForm(form: SpellFormData, base?: Spell): Spell {
     gainType: form.gainType || undefined,
     gainRecurring: form.gainRecurring || undefined,
     atHigherLevel: form.atHigherLevel,
+    damagePerLevel: form.damagePerLevel.trim() || undefined,
+    gainPerLevel: form.gainPerLevel.trim() || undefined,
     concentration: form.concentration,
     ritual: form.ritual,
     grantedBy: form.grantedBy || undefined,

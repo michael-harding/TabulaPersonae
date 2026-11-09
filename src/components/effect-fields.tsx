@@ -1,3 +1,5 @@
+import { Show } from "solid-js"
+
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Combobox } from "@/components/ui/combobox"
@@ -6,7 +8,7 @@ import { DAMAGE_TYPE_OPTIONS, GAIN_TYPE_OPTIONS } from "@/lib/character-utils"
 import type { DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
 
 // Shared by every form that authors damage or gain (spells, features, custom actions, items), so
-// the three fields always appear together and in the same layout.
+// the fields always appear together and in the same layout.
 
 interface EffectFieldsProps<T> {
   /** Prefix for each control's id and data-test, e.g. "spell" gives "spell-damage". Page-unique. */
@@ -15,9 +17,14 @@ interface EffectFieldsProps<T> {
   onChange: (patch: Partial<T>) => void
   /** What this kind of entry usually holds, e.g. "e.g. 8d6" for a spell. */
   placeholder: string
+  /**
+   * Adds the amount added per slot level above the entry's own, for entries cast with a higher slot
+   * (spells). Its placeholder, e.g. "e.g. 1d6".
+   */
+  perLevelPlaceholder?: string
 }
 
-export function DamageFields(props: EffectFieldsProps<DamageValues>) {
+export function DamageFields(props: EffectFieldsProps<DamageValues & { damagePerLevel?: string }>) {
   const id = (suffix: string) => `${props.idPrefix}-${suffix}`
   return (
     <div class="space-y-1">
@@ -33,6 +40,13 @@ export function DamageFields(props: EffectFieldsProps<DamageValues>) {
             onValueChange={(v) => props.onChange({ damageType: v })} options={DAMAGE_TYPE_OPTIONS} />
         </div>
       </div>
+      <Show when={props.perLevelPlaceholder}>
+        <div>
+          <Label for={id("damage-per-level")}>Damage per Higher Level</Label>
+          <Input id={id("damage-per-level")} data-test={id("damage-per-level")} value={props.value.damagePerLevel ?? ""}
+            onInput={(e) => props.onChange({ damagePerLevel: e.currentTarget.value })} placeholder={props.perLevelPlaceholder} />
+        </div>
+      </Show>
       <Checkbox
         data-test={id("damage-recurring")}
         checked={!!props.value.damageRecurring}
@@ -45,7 +59,7 @@ export function DamageFields(props: EffectFieldsProps<DamageValues>) {
   )
 }
 
-export function GainFields(props: EffectFieldsProps<GainValues>) {
+export function GainFields(props: EffectFieldsProps<GainValues & { gainPerLevel?: string }>) {
   const id = (suffix: string) => `${props.idPrefix}-${suffix}`
   return (
     <div class="space-y-1">
@@ -61,6 +75,13 @@ export function GainFields(props: EffectFieldsProps<GainValues>) {
             onValueChange={(v) => props.onChange({ gainType: v })} options={GAIN_TYPE_OPTIONS} />
         </div>
       </div>
+      <Show when={props.perLevelPlaceholder}>
+        <div>
+          <Label for={id("gain-per-level")}>Gain per Higher Level</Label>
+          <Input id={id("gain-per-level")} data-test={id("gain-per-level")} value={props.value.gainPerLevel ?? ""}
+            onInput={(e) => props.onChange({ gainPerLevel: e.currentTarget.value })} placeholder={props.perLevelPlaceholder} />
+        </div>
+      </Show>
       <Checkbox
         data-test={id("gain-recurring")}
         checked={!!props.value.gainRecurring}

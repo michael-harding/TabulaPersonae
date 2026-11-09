@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 
-import { roll, rollMany, parseDiceString, DIE_SIZES, type DieSize } from "@/lib/dice"
+import { roll, rollMany, parseDiceString, scaleDiceExpression, DIE_SIZES, type DieSize } from "@/lib/dice"
 
 describe("dice utilities", () => {
   describe("roll", () => {
@@ -80,6 +80,32 @@ describe("dice utilities", () => {
 
     it("is case-insensitive", () => {
       expect(parseDiceString("1D8")).toEqual({ count: 1, sides: 8 })
+    })
+  })
+
+  describe("scaleDiceExpression", () => {
+    it.each([
+      ["8d6", "1d6", 2, "10d6", "2d6"],
+      ["3d4+3", "1d4+1", 1, "4d4+4", "1d4+1"],
+      ["3d4+3", "1d4+1", 3, "6d4+6", "3d4+3"],
+      ["2d8+WIS", "2d8", 1, "4d8+WIS", "2d8"],
+      ["1d10", "1d6", 1, "1d10+1d6", "1d6"],
+      ["2d8 + 3", "1d8", 1, "3d8+3", "1d8"],
+      ["4d6-1", "1d6", 1, "5d6-1", "1d6"],
+      ["2d6", "5", 2, "2d6+10", "10"],
+    ])("%s plus %s × %i is %s, adding %s", (base, perLevel, steps, value, added) => {
+      expect(scaleDiceExpression(base, perLevel, steps)).toEqual({ value, added })
+    })
+
+    it("returns the base unchanged without steps or a per-level amount", () => {
+      expect(scaleDiceExpression("8d6", "1d6", 0)).toEqual({ value: "8d6", added: "" })
+      expect(scaleDiceExpression("8d6", "  ", 2)).toEqual({ value: "8d6", added: "" })
+    })
+
+    // Never folded into a wrong total
+    it("shows a per-level amount it can't combine alongside the base", () => {
+      expect(scaleDiceExpression("1d8+WIS", "1d8+WIS", 1)).toEqual({ value: "1d8+WIS + 1d8+WIS", added: "1d8+WIS" })
+      expect(scaleDiceExpression("1d8", "one die", 2)).toEqual({ value: "1d8 + 2×(one die)", added: "2×(one die)" })
     })
   })
 })

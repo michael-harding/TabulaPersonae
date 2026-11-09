@@ -669,12 +669,14 @@ export function ActionsModule(props: ActionsModuleProps) {
         gain={spell.gain}
         gainType={spell.gainType}
         gainRecurring={spell.gainRecurring}
+        damagePerLevel={spell.damagePerLevel}
+        gainPerLevel={spell.gainPerLevel}
         highlights={spell.highlights}
         description={spell.description}
         castable={canCast}
         onCast={spell.level > 0 ? (spell.freeCast ? () => {} : castSpell) : undefined}
         // A free cast spends no slot, so there's no level to choose
-        slotLevels={spell.level > 0 && !spell.freeCast && spell.atHigherLevel && hasHigherSlots() ? slotLevels : undefined}
+        slotLevels={spell.level > 0 && !spell.freeCast && (spell.atHigherLevel || spell.damagePerLevel || spell.gainPerLevel) && hasHigherSlots() ? slotLevels : undefined}
         onEdit={() => setEditingSpell(spell)}
         reorder={reorder}
       />

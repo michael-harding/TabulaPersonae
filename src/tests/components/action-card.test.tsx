@@ -1,7 +1,7 @@
-import type { JSX } from "solid-js"
+import { createSignal, type JSX } from "solid-js"
 import { axe } from "vitest-axe"
 
-import { ActionCard, ActionCardList } from "@/components/action-card"
+import { ActionCard, ActionCardList, CAST_FEEDBACK_MS } from "@/components/action-card"
 import type { ActionCardProps } from "@/components/action-card"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
@@ -573,6 +573,127 @@ describe("ActionCard", () => {
     it("has no accessibility violations while open", async () => {
       const { container } = renderFireball({ onCast: vi.fn() })
       fireEvent.click(select())
+      expect((await axe(container)).violations).toHaveLength(0)
+    })
+  })
+
+  describe("cast feedback", () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }))
+    afterEach(() => vi.useRealTimers())
+
+    const castButton = () => screen.getByRole("button", { name: "Cast Fireball" })
+    const status = () => screen.getByTestId("action-card-test-cast-status")
+
+    it("fills with the sheet colour and shows the wand for a moment after a cast, then reverts", () => {
+      render(() => <ActionCard {...makeProps({ name: "Fireball", spellLevel: 3, onCast: vi.fn(), castable: () => true })} />)
+      expect(status()).toHaveAttribute("aria-live", "polite")
+      expect(status()).toHaveTextContent("")
+      fireEvent.click(castButton())
+      expect(castButton()).toHaveClass("bg-primary", "text-primary-foreground")
+      expect(castButton()).not.toHaveClass("border-input")
+      // The label stays, hidden, holding the button's width
+      expect(within(castButton()).getByText("Cast")).toHaveClass("invisible")
+      expect(castButton().querySelector(".lucide-wand-sparkles")).not.toBeNull()
+      expect(status()).toHaveTextContent("Fireball cast")
+      vi.advanceTimersByTime(CAST_FEEDBACK_MS)
+      expect(within(castButton()).getByText("Cast")).not.toHaveClass("invisible")
+      expect(castButton()).toHaveClass("border-input")
+      expect(castButton()).not.toHaveClass("bg-primary")
+      expect(castButton().querySelector(".lucide-wand-sparkles")).toBeNull()
+      expect(status()).toHaveTextContent("")
+    })
+
+    // A double tap spends one slot
+    it("ignores presses while the feedback shows", () => {
+      const onCast = vi.fn()
+      render(() => <ActionCard {...makeProps({ name: "Fireball", spellLevel: 3, onCast, castable: () => true })} />)
+      fireEvent.click(castButton())
+      fireEvent.click(castButton())
+      expect(onCast).toHaveBeenCalledOnce()
+      vi.advanceTimersByTime(CAST_FEEDBACK_MS)
+      fireEvent.click(castButton())
+      expect(onCast).toHaveBeenCalledTimes(2)
+    })
+
+    it("shows the feedback unfaded when the cast spent the last slot, then disables Cast", () => {
+      const [slots, setSlots] = createSignal(1)
+      render(() => (
+        <ActionCard {...makeProps({ name: "Fireball", spellLevel: 3, onCast: () => setSlots((n) => n - 1), castable: () => slots() > 0 })} />
+      ))
+      fireEvent.click(castButton())
+      expect(castButton()).toBeEnabled()
+      expect(castButton().querySelector(".lucide-wand-sparkles")).not.toBeNull()
+      vi.advanceTimersByTime(CAST_FEEDBACK_MS)
+      expect(castButton()).toBeDisabled()
+    })
+
+    it("shows the same feedback on the expanded view's Cast button", () => {
+      render(() => <ActionCard {...makeProps({ name: "Fireball", spellLevel: 3, onCast: vi.fn(), castable: () => true })} />)
+      expand("Fireball")
+      const expandedCast = within(expandedView()).getByRole("button", { name: "Cast Fireball" })
+      fireEvent.click(expandedCast)
+      expect(expandedCast).toHaveClass("bg-primary")
+      expect(screen.getByTestId("action-card-test-expanded-cast-status")).toHaveTextContent("Fireball cast")
+    })
+  })
+
+  describe("upcast scaling", () => {
+    const levels = () => [{ level: 3, remaining: 1 }, { level: 4, remaining: 1 }, { level: 5, remaining: 2 }]
+    const renderSpell = (overrides: Partial<ActionCardProps> = {}) => render(() => (
+      <ActionCard {...makeProps({
+        name: "Fireball", spellLevel: 3, onCast: vi.fn(), castable: () => true, slotLevels: levels,
+        damage: "8d6", damageType: "Fire", damagePerLevel: "1d6", gain: "2d8+3", gainType: "Healing", gainPerLevel: "1d8",
+        ...overrides,
+      })} />
+    ))
+    const choose = (level: string) => {
+      fireEvent.click(screen.getByRole("combobox", { name: "Cast Fireball at level" }))
+      fireEvent.click(screen.getByRole("option", { name: level }))
+    }
+
+    it("shows the base damage and gain, without a breakdown, at the spell's own level", () => {
+      renderSpell()
+      expect(screen.getByTestId("action-card-test-damage-badge")).toHaveTextContent("8d6")
+      expect(screen.getByTestId("action-card-test-gain-badge")).toHaveTextContent("2d8+3")
+      expect(screen.queryByRole("group")).not.toBeInTheDocument()
+    })
+
+    it("scales damage and gain to the chosen slot, with the breakdown as their tooltips", () => {
+      renderSpell()
+      choose("5th")
+      expect(screen.getByTestId("action-card-test-damage-badge")).toHaveTextContent("10d6")
+      expect(screen.getByTestId("action-card-test-gain-badge")).toHaveTextContent("4d8+3")
+      const damage = screen.getByRole("group", { name: "Damage 10d6 Fire" })
+      fireEvent.click(damage)
+      expect(screen.getByText("8d6 (3rd Level) + 2d6 (Upcast to 5th)")).toBeInTheDocument()
+      expect(screen.getByRole("group", { name: "Gain 4d8+3 Healing" })).toBeInTheDocument()
+    })
+
+    it("scales the expanded view's badges too", () => {
+      renderSpell()
+      choose("4th")
+      expand("Fireball")
+      expect(screen.getByTestId("action-card-test-expanded-damage-badge")).toHaveTextContent("9d6")
+      expect(screen.getByTestId("action-card-test-expanded-gain-badge")).toHaveTextContent("3d8+3")
+    })
+
+    it("returns to the base values after a cast", () => {
+      renderSpell()
+      choose("5th")
+      fireEvent.click(screen.getByRole("button", { name: "Cast Fireball" }))
+      expect(screen.getByTestId("action-card-test-damage-badge")).toHaveTextContent("8d6")
+    })
+
+    it("leaves a value without a per-level amount as entered", () => {
+      renderSpell({ gainPerLevel: undefined })
+      choose("5th")
+      expect(screen.getByTestId("action-card-test-gain-badge")).toHaveTextContent("2d8+3")
+      expect(screen.queryByRole("group", { name: /^Gain/ })).not.toBeInTheDocument()
+    })
+
+    it("has no accessibility violations while upcast", async () => {
+      const { container } = renderSpell()
+      choose("5th")
       expect((await axe(container)).violations).toHaveLength(0)
     })
   })

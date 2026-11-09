@@ -1,4 +1,4 @@
-import { createSignal, Show, type JSX } from "solid-js"
+import { createSignal, onCleanup, Show, type JSX } from "solid-js"
 import RefreshCw from "lucide-solid/icons/refresh-cw"
 import WandSparkles from "lucide-solid/icons/wand-sparkles"
 import X from "lucide-solid/icons/x"
@@ -13,6 +13,7 @@ import { Popover, PopoverTrigger, PopoverContent, PopoverTitle } from "@/compone
 import { Select, SelectContent, SelectTrigger, SelectValue, type SelectOption } from "@/components/ui/select"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { formatModifier, remainingUses, spentFromRemaining, TEMP_HP_GAIN_TYPE } from "@/lib/character-utils"
+import { scaleDiceExpression } from "@/lib/dice"
 import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 function getOrdinalSuffix(num: number): string {
@@ -34,6 +35,9 @@ export function ActionCardList(props: { children: JSX.Element }) {
     </ul>
   )
 }
+
+/** How long a Cast button shows that it was pressed, ignoring further presses. */
+export const CAST_FEEDBACK_MS = 1000
 
 /** A spell slot level a spell can be cast with, and how many of its slots are left. */
 export interface SlotLevel {
@@ -103,6 +107,10 @@ export interface ActionCardProps {
   gain?: string
   gainType?: string
   gainRecurring?: boolean
+  /** Damage added per slot level above spellLevel, when cast with a higher slot. */
+  damagePerLevel?: string
+  /** Gain added per slot level above spellLevel, when cast with a higher slot. */
+  gainPerLevel?: string
 
   /** Markdown summary for the card face; without it the card shows the start of the description. */
   highlights?: string
@@ -152,6 +160,10 @@ export function ActionCard(props: ActionCardProps) {
   // undefined means the spell's own level, which every cast resets to: a higher slot is only ever
   // spent when chosen for that cast
   const [chosenLevel, setChosenLevel] = createSignal<number>()
+  // Set for a moment after a cast, while the Cast button shows it was pressed
+  const [justCast, setJustCast] = createSignal(false)
+  let castTimer: ReturnType<typeof setTimeout> | undefined
+  onCleanup(() => clearTimeout(castTimer))
   let cardRef!: HTMLLIElement
   let nameButtonRef: HTMLButtonElement | undefined
   let expandedRef: HTMLDivElement | undefined
@@ -170,7 +182,6 @@ export function ActionCard(props: ActionCardProps) {
     return d.toLowerCase() === "instantaneous" ? null : d
   }
 
-  const damageText = () => (props.damageType ? `${props.damage} ${props.damageType}` : props.damage)
   const isTempHp = () => props.gainType === TEMP_HP_GAIN_TYPE
 
   const hasCastButton = () => !!props.onCast && !isReadOnly
@@ -183,14 +194,33 @@ export function ActionCard(props: ActionCardProps) {
     ? (slotChoices().find((l) => l.level === selectedLevel())?.remaining ?? 0) > 0
     : !!props.castable?.()
   const cast = () => {
+    // A second press while the first one's feedback shows is ignored, so a double tap spends one slot
+    if (justCast()) return
     props.onCast?.(selectedLevel())
     setChosenLevel(undefined)
+    setJustCast(true)
+    castTimer = setTimeout(() => setJustCast(false), CAST_FEEDBACK_MS)
   }
   const slotOptions = (): SelectOption[] => slotChoices().map((l) => ({
     value: String(l.level),
     label: getOrdinalSuffix(l.level),
     ...(l.remaining > 0 ? { icon: WandSparkles } : { muted: true, srHint: "no slots" }),
   }))
+
+  // Damage and gain at the chosen slot level: each level above the spell's own adds its per-level
+  // amount. The breakdown, shown as the badge's tooltip, exists only while a higher slot is chosen.
+  const upcastSteps = () => selectedLevel() - (props.spellLevel ?? 0)
+  const scaled = (base: string | undefined, perLevel: string | undefined) => {
+    if (!base || !perLevel || upcastSteps() <= 0) return { value: base, tooltip: undefined }
+    const { value, added } = scaleDiceExpression(base, perLevel, upcastSteps())
+    if (!added) return { value: base, tooltip: undefined }
+    const tooltip = `${base} (${getOrdinalSuffix(props.spellLevel ?? 0)} Level) + ${added} (Upcast to ${getOrdinalSuffix(selectedLevel())})`
+    return { value, tooltip }
+  }
+  const shownDamage = () => scaled(props.damage, props.damagePerLevel)
+  const shownGain = () => scaled(props.gain, props.gainPerLevel)
+  const damageText = () => (props.damageType ? `${shownDamage().value} ${props.damageType}` : shownDamage().value)
+  const gainText = () => (props.gainType ? `${shownGain().value} ${props.gainType}` : shownGain().value)
 
   // A pointer shortcut only: the name is the real button, and the one keyboard and screen reader
   // users reach (ACCESSIBILITY.md §3; the whole-card click was approved as a pointer convenience).
@@ -251,9 +281,10 @@ export function ActionCard(props: ActionCardProps) {
             data-test={hook("damage-badge", inExpanded)}
             tone="damage"
             valueFirst
-            value={props.damage}
+            value={shownDamage().value}
             label={<>{props.damageType || "Damage"}{recurring(props.damageRecurring)}</>}
-            tooltip={props.damageTooltip}
+            // A weapon's breakdown, or a spell's while cast with a higher slot
+            tooltip={shownDamage().tooltip ?? props.damageTooltip}
             tooltipLabel={`Damage ${damageText()}`}
           />
         </Show>
@@ -262,8 +293,10 @@ export function ActionCard(props: ActionCardProps) {
             data-test={hook("gain-badge", inExpanded)}
             tone={isTempHp() ? "tempHp" : "gain"}
             valueFirst
-            value={props.gain}
+            value={shownGain().value}
             label={<>{props.gainType || "Gain"}{recurring(props.gainRecurring)}</>}
+            tooltip={shownGain().tooltip}
+            tooltipLabel={`Gain ${gainText()}`}
           />
         </Show>
       </StatBadgeGroup>
@@ -342,17 +375,27 @@ export function ActionCard(props: ActionCardProps) {
             </Select>
           </Show>
           <Button
-            variant="outline"
+            // For a moment after a cast it fills with the sheet colour and shows the wand over its
+            // hidden label, which keeps its width. Not disabled meanwhile, even when that cast spent the last slot: the
+            // feedback would show faded. cast() ignores presses until it ends.
+            variant={justCast() ? "default" : "outline"}
             size="sm"
             class="h-11 px-3"
             data-test={hook("cast-button", inExpanded)}
             // Named for the spell: in a list of cards, "Cast" alone could be any of them
             aria-label={`Cast ${props.name}`}
-            disabled={!canCast()}
+            disabled={!justCast() && !canCast()}
             onClick={cast}
           >
-            Cast
+            <span class={justCast() ? "invisible" : undefined}>Cast</span>
+            <Show when={justCast()}>
+              <WandSparkles class="absolute inset-0 m-auto" aria-hidden="true" data-test={hook("cast-icon", inExpanded)} />
+            </Show>
           </Button>
+          {/* Always present, so its text is announced when a cast fills it (ACCESSIBILITY.md §12).
+              One in the card and one in the expanded view: the open view hides the card from
+              assistive technology, so only one is ever heard */}
+          <span class="sr-only" aria-live="polite" data-test={hook("cast-status", inExpanded)}>{justCast() ? `${props.name} cast` : ""}</span>
         </div>
       </Show>
     </>
@@ -521,7 +564,7 @@ export function ActionCard(props: ActionCardProps) {
             <Show when={props.duration}>{detailRow("Duration", props.duration)}</Show>
             <Show when={props.trigger}>{detailRow("Trigger", props.trigger)}</Show>
             <Show when={props.damageRecurring}>{detailRow("Damage", `${damageText()}, recurs each turn`)}</Show>
-            <Show when={props.gainRecurring}>{detailRow("Gain", `${props.gain}${props.gainType ? ` ${props.gainType}` : ""}, recurs each turn`)}</Show>
+            <Show when={props.gainRecurring}>{detailRow("Gain", `${gainText()}, recurs each turn`)}</Show>
             <Show when={(props.maxUses ?? 0) > 0}>{detailRow("Max Uses", props.maxUses)}</Show>
             <Show when={props.rechargeOn}>{detailRow("Recharge On", props.rechargeOn === "short-rest" ? "Short Rest" : "Long Rest")}</Show>
           </div>

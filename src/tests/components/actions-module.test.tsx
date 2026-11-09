@@ -539,6 +539,20 @@ describe("ActionsModule", () => {
       expect(screen.queryByRole("combobox", { name: /at level/i })).not.toBeInTheDocument()
     })
 
+    it("offers the slot-level select for a spell that scales per level, without atHigherLevel", () => {
+      render(() => <ActionsModule character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined, damage: "3d4+3", damagePerLevel: "1d4+1" } })} onUpdate={vi.fn()} />)
+      expect(slotSelect()).toBeInTheDocument()
+    })
+
+    it("scales the spell's damage to the chosen slot", () => {
+      render(() => <ActionsModule character={makeCharacterWithUpcast({ spellOverrides: { damage: "3d4+3", damageType: "Force", damagePerLevel: "1d4+1" } })} onUpdate={vi.fn()} />)
+      const badge = () => screen.getByTestId("action-card-action-spell-sp-upcast-damage-badge")
+      expect(badge()).toHaveTextContent("3d4+3")
+      fireEvent.click(slotSelect())
+      fireEvent.click(screen.getByRole("option", { name: "2nd" }))
+      expect(badge()).toHaveTextContent("4d4+4")
+    })
+
     it("offers no slot-level select when the character has no higher-level spell slots", () => {
       render(() => <ActionsModule character={makeCharacterWithUpcast({ level2Total: 0 })} onUpdate={vi.fn()} />)
       expect(screen.queryByRole("combobox", { name: /at level/i })).not.toBeInTheDocument()

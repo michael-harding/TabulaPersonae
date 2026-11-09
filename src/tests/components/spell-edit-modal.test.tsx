@@ -66,6 +66,13 @@ describe("spellFromForm", () => {
     expect(spell.highlights).toBeUndefined()
   })
 
+  it("stores the per-level damage and gain, omitting blank ones", () => {
+    expect(spellFromForm(makeForm({ damagePerLevel: " 1d6 ", gainPerLevel: "1d8" }))).toMatchObject({ damagePerLevel: "1d6", gainPerLevel: "1d8" })
+    const blank = spellFromForm(makeForm({ damagePerLevel: "  ", gainPerLevel: "" }))
+    expect(blank.damagePerLevel).toBeUndefined()
+    expect(blank.gainPerLevel).toBeUndefined()
+  })
+
   it("stores attackRoll only when set", () => {
     expect(spellFromForm(makeForm({ attackRoll: false })).attackRoll).toBeUndefined()
     expect(spellFromForm(makeForm({ attackRoll: true })).attackRoll).toBe(true)
@@ -83,17 +90,18 @@ describe("spellToForm", () => {
       level: 3, damage: "8d6", damageType: "Fire", damageRecurring: true,
       gain: "2d4", gainType: "Temp HP", gainRecurring: true, highlights: "Big *boom*",
       concentration: true, ritual: false, attackRoll: true, attackSave: "DEX save", atHigherLevel: "+1d6",
+      damagePerLevel: "1d6", gainPerLevel: "1d4",
     })
     expect(spellFromForm(spellToForm(spell), spell)).toEqual(expect.objectContaining({
       id: spell.id, level: 3, damage: "8d6", damageType: "Fire", damageRecurring: true,
       gain: "2d4", gainType: "Temp HP", gainRecurring: true, highlights: "Big *boom*",
-      attackRoll: true, attackSave: "DEX save",
+      attackRoll: true, attackSave: "DEX save", damagePerLevel: "1d6", gainPerLevel: "1d4",
     }))
   })
 
   it("fills blanks for a spell saved before the new fields existed", () => {
     const form = spellToForm(makeSpell())
-    expect(form).toMatchObject({ damageType: "", damageRecurring: false, gainType: "", gainRecurring: false, highlights: "", attackRoll: false })
+    expect(form).toMatchObject({ damageType: "", damageRecurring: false, gainType: "", gainRecurring: false, highlights: "", attackRoll: false, damagePerLevel: "", gainPerLevel: "" })
   })
 })
 
@@ -114,6 +122,16 @@ describe("SpellEditModal", () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       id: "s1", highlights: "Ranged spell attack", damage: "1d10", damageRecurring: true,
     }))
+  })
+
+  it("edits the damage and gain added per higher slot level", () => {
+    const onSave = vi.fn()
+    render(() => <SpellEditModal open spell={makeSpell({ level: 3, damagePerLevel: "1d6" })} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
+    expect(screen.getByLabelText("Damage per Higher Level")).toHaveValue("1d6")
+    fireEvent.input(screen.getByLabelText("Damage per Higher Level"), { target: { value: "2d6" } })
+    fireEvent.input(screen.getByLabelText("Gain per Higher Level"), { target: { value: "1d8" } })
+    fireEvent.click(screen.getByTestId("spell-form-submit"))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ damagePerLevel: "2d6", gainPerLevel: "1d8" }))
   })
 
   it("adds a spell when given none", () => {
