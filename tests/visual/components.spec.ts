@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test"
 
 import { testCharacter, secondCharacter, publicCharacter } from "./fixtures"
-import { openSheet } from "./helpers"
+import { openSheet, parkPointer } from "./helpers"
 
 // All component screenshots are taken by navigating to the full character sheet
 // and scoping the screenshot to a specific card element.
@@ -284,16 +284,25 @@ test.describe("ActionCard spell badges", () => {
   })
 })
 
+// Tall enough that the whole module fits without scrolling, which would slide its title under the
+// sticky stats bar
+const WHOLE_MODULE = { width: 1280, height: 2000 }
+
 test.describe("ActionsModule component", () => {
+  test.use({ viewport: WHOLE_MODULE })
+
   test("edit mode", async ({ page }) => {
     await openSheet(page, testCharacter, { tab: "Combat" })
     const card = page.locator('[data-test="actions-module"]')
     await card.locator('[data-test="actions-module-edit"]').click()
+    await parkPointer(page)
     await expect(card).toHaveScreenshot("actions-module-edit.png")
   })
 })
 
 test.describe("SpellsModule component", () => {
+  test.use({ viewport: WHOLE_MODULE })
+
   test("view mode", async ({ page }) => {
     await openSheet(page, testCharacter, { tab: "Spells" })
     await expect(page.locator('[data-test="spells-module"]')).toHaveScreenshot("spells-module-view.png")
@@ -303,6 +312,7 @@ test.describe("SpellsModule component", () => {
     await openSheet(page, testCharacter, { tab: "Spells" })
     const card = page.locator('[data-test="spells-module"]')
     await card.locator('[data-test="spells-module-edit"]').click()
+    await parkPointer(page)
     await expect(card).toHaveScreenshot("spells-module-edit.png")
   })
 })
