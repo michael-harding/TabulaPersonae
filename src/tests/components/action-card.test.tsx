@@ -627,4 +627,36 @@ describe("ActionCard", () => {
       expect(screen.getByRole("spinbutton")).toBeInTheDocument()
     })
   })
+
+  describe("reorderable", () => {
+    const reorder = (controls: () => JSX.Element) => ({
+      ref: vi.fn(),
+      style: () => undefined,
+      isDragging: () => false,
+      onPointerDown: vi.fn(),
+      controls,
+    })
+
+    it("shows its reorder controls in place of its own, and hands its element to the sortable list", () => {
+      const r = reorder(() => <button type="button">Reorder Test Action</button>)
+      render(() => <ActionCard {...makeProps({ maxUses: 3, uses: 0, onUsesChange: vi.fn(), reorder: r })} />)
+      expect(screen.getByTestId("action-card-test-reorder")).toContainElement(screen.getByRole("button", { name: "Reorder Test Action" }))
+      expect(screen.queryByTestId("action-card-test-uses")).not.toBeInTheDocument()
+      expect(r.ref).toHaveBeenCalledWith(screen.getByTestId("action-card-test"))
+    })
+
+    it("is dragged by any part of it, and never opens its expanded view", () => {
+      const r = reorder(() => null)
+      render(() => <ActionCard {...makeProps({ reorder: r })} />)
+      const card = screen.getByTestId("action-card-test")
+
+      fireEvent.pointerDown(screen.getByText("Test Action"))
+      expect(r.onPointerDown).toHaveBeenCalledOnce()
+
+      // Its name is just its name, not the button that opens it
+      expect(screen.queryByRole("button", { name: "Test Action" })).not.toBeInTheDocument()
+      fireEvent.click(card)
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+  })
 })

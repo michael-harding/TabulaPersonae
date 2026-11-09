@@ -29,6 +29,7 @@ vi.mock("@thisbeyond/solid-dnd", async () => {
     isActiveDraggable: false,
     isActiveDroppable: false,
   }),
+  createDroppable: () => ({ ref: () => {} }),
   closestCenter: () => null,
   maybeTransformStyle: () => ({}),
   }
@@ -68,11 +69,12 @@ vi.mock("@/lib/tab-config-context", () => ({
 }))
 
 import { axe } from "vitest-axe"
+import userEvent from "@testing-library/user-event"
 import type { ParentProps } from "solid-js"
 
 import TabSettings from "@/routes/TabSettings"
 
-import { cleanup, render, screen, fireEvent, waitFor, confirmClick } from "../test-utils"
+import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor, confirmClick } from "../test-utils"
 import { mockNavigate } from "../mocks/router"
 
 beforeEach(() => {
@@ -89,6 +91,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  cleanupPortals()
 })
 
 describe("TabSettings page", () => {
@@ -333,10 +336,14 @@ describe("TabSettings page — reordering", () => {
       expect(toggle()).toHaveAccessibleName("Collapse Combat")
     })
 
-    // In a list of tabs and modules, "Rename tab" or "Drag to reorder" alone could be any of them
+    // In a list of tabs and modules, "Rename tab" or "Reorder" alone could be any of them
     it("names the tab or module each control belongs to", () => {
       renderWithCombatExpanded()
-      for (const name of ["Drag Combat to reorder", "Rename Combat", "Collapse Combat", "Drag Spells to reorder", "Rename Spells", "Expand Spells", "Drag Actions & Attacks to reorder"]) {
+      for (const name of [
+        "Reorder Combat", "Move Combat earlier", "Move Combat later", "Rename Combat", "Collapse Combat",
+        "Reorder Spells", "Rename Spells", "Expand Spells",
+        "Reorder Actions & Attacks", "Move Actions & Attacks earlier", "Move Actions & Attacks later",
+      ]) {
         expect(screen.getByRole("button", { name }), name).toBeInTheDocument()
       }
     })
@@ -347,6 +354,78 @@ describe("TabSettings page — reordering", () => {
       expect(screen.getByTestId("module-drag-handle-tab-combat-actions")).toBeInTheDocument()
       expect(screen.queryByTestId("remove-module-actions")).not.toBeInTheDocument()
     })
+
+    it("moves a module down and up with its arrow buttons, which are disabled at the ends", () => {
+      renderWithCombatExpanded()
+      expect(screen.getByRole("button", { name: "Move Actions & Attacks earlier" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Move Skills & Proficiencies later" })).toBeDisabled()
+
+      fireEvent.click(screen.getByRole("button", { name: "Move Actions & Attacks later" }))
+      expect(mockSaveTabConfig).toHaveBeenLastCalledWith({ tabs: [{ ...combat, modules: ["skills", "actions"] }, spells] })
+
+      fireEvent.click(screen.getByRole("button", { name: "Move Skills & Proficiencies earlier" }))
+      expect(mockSaveTabConfig).toHaveBeenLastCalledWith({ tabs: [{ ...combat, modules: ["skills", "actions"] }, spells] })
+    })
+
+    it("moves a module to the end from its handle's menu, which disables the move it can't make", async () => {
+      const user = userEvent.setup()
+      renderWithCombatExpanded()
+
+      await user.click(screen.getByRole("button", { name: "Reorder Actions & Attacks" }))
+      await waitFor(() => expect(screen.getByRole("menu")).toBeInTheDocument())
+      expect(screen.getByRole("menuitem", { name: "Move to start" })).toHaveAttribute("aria-disabled", "true")
+      await user.click(screen.getByRole("menuitem", { name: "Move to end" }))
+
+      expect(mockSaveTabConfig).toHaveBeenCalledExactlyOnceWith({ tabs: [{ ...combat, modules: ["skills", "actions"] }, spells] })
+    })
+  })
+})
+
+describe("TabSettings page — reordering without dragging", () => {
+  const combat = { id: "tab-combat", label: "Combat", modules: ["actions", "skills"] }
+  const spells = { id: "tab-spells", label: "Spells", modules: ["spells"] }
+
+  it("moves a tab with its arrow buttons, disabled at the ends of the list", () => {
+    render(() => <TabSettings />)
+    expect(screen.getByRole("button", { name: "Move Combat earlier" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Move Spells later" })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole("button", { name: "Move Combat later" }))
+
+    expect(mockSaveTabConfig).toHaveBeenCalledExactlyOnceWith({ tabs: [spells, combat] })
+  })
+
+  it("opens a tab's handle menu from the keyboard and moves the tab to the start", async () => {
+    const user = userEvent.setup()
+    render(() => <TabSettings />)
+
+    screen.getByRole("button", { name: "Reorder Spells" }).focus()
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(screen.getByRole("menu")).toBeInTheDocument())
+    expect(screen.getByRole("menuitem", { name: "Move to end" })).toHaveAttribute("aria-disabled", "true")
+    await user.click(screen.getByRole("menuitem", { name: "Move to start" }))
+
+    expect(mockSaveTabConfig).toHaveBeenCalledExactlyOnceWith({ tabs: [spells, combat] })
+  })
+
+  it("moves a tab one place from its handle's menu, which phones use in place of the arrow buttons", async () => {
+    const user = userEvent.setup()
+    render(() => <TabSettings />)
+
+    await user.click(screen.getByRole("button", { name: "Reorder Combat" }))
+    await waitFor(() => expect(screen.getByRole("menuitem", { name: "Move up" })).toHaveAttribute("aria-disabled", "true"))
+    await user.click(screen.getByRole("menuitem", { name: "Move down" }))
+
+    expect(mockSaveTabConfig).toHaveBeenCalledExactlyOnceWith({ tabs: [spells, combat] })
+  })
+
+  it("announces where a moved tab now is", async () => {
+    render(() => <TabSettings />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Move Combat later" }))
+
+    // The page's config is fixed in these tests, so the tab is still first when the move is described
+    await waitFor(() => expect(screen.getByTestId("tabs-announcement")).toHaveTextContent("Combat moved to position 1 of 2"))
   })
 })
 

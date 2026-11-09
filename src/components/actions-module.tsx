@@ -1,4 +1,4 @@
-import { createSignal, createMemo, For, Show } from "solid-js"
+import { createSignal, createMemo, For, Show, untrack, type JSX } from "solid-js"
 import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
 import Clock from "lucide-solid/icons/clock"
@@ -9,7 +9,7 @@ import ChevronDown from "lucide-solid/icons/chevron-down"
 import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, ActionType, Attack, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
+import type { Character, ActionType, ActionSectionKey, ActionSectionLayout, Attack, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
 import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, RECHARGE_ON_OPTIONS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
@@ -25,7 +25,9 @@ import { Combobox } from "@/components/ui/combobox"
 import { Chip } from "@/components/ui/chip"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
-import { ActionCard, ActionCardList, type SlotLevel } from "@/components/action-card"
+import { ActionCard, ActionCardList, type ActionCardReorder, type SlotLevel } from "@/components/action-card"
+import { SortableGroup, SortableHandle, SortableList, SortableMoveButton, createSortableItem, type SortablePosition } from "@/components/ui/sortable"
+import { actionCardKey, earlierPosition, laterPosition, moveCard, resolveLayout, type ActionCardPosition, type ActionKeyLayout } from "@/lib/action-layout"
 import { SpellEditModal } from "@/components/spell-edit-modal"
 import { FeatureEditModal } from "@/components/features-module"
 import { EquipmentItemModal, RARITY_OPTIONS } from "@/components/equipment-item-modal"
@@ -238,11 +240,168 @@ type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
 
 type StoredAction = ActionFormData & { id: string }
 
-// The fields this module's edit form shows (see useModuleEdit for how Save writes them). None yet:
-// edit mode is where card ordering will be changed, and that ordering joins the draft with it.
-type ActionsDraft = Record<never, never>
+// The fields this module's edit form shows (see useModuleEdit for how Save writes them): edit mode
+// is where the cards of each section are reordered and set aside under "More".
+type ActionsDraft = Pick<Character, 'actionLayout'>
 
-const toDraft = (): ActionsDraft => ({})
+const toDraft = (character: Character): ActionsDraft => ({ actionLayout: character.actionLayout })
+
+/** A card of an Actions section: its layout key, its name, what it shows, and how it's drawn. */
+interface SectionEntry {
+  key: string
+  name: string
+  /** What the card shows: the card is redrawn when this changes. */
+  value: object
+  render: (reorder?: ActionCardReorder) => JSX.Element
+}
+
+interface ActionSectionBodyProps {
+  section: ActionSectionKey
+  /** The section's cards, in their default order. */
+  entries: SectionEntry[]
+  layout: ActionSectionLayout | undefined
+  editing: boolean
+  /** The name of the section's "More" list: "More actions". */
+  moreTitle: string
+  moreOpen: boolean
+  onMoreOpenChange: (open: boolean) => void
+  onLayoutChange: (layout: ActionKeyLayout) => void
+}
+
+/**
+ * A section's cards: those shown, then those set aside under its "More" list, collapsed. In edit
+ * mode both are shown, and cards are moved in and between them by dragging, the move buttons, or
+ * the menu of a card's drag handle.
+ */
+function ActionSectionBody(props: ActionSectionBodyProps) {
+  const byKey = createMemo(() => new Map(props.entries.map((entry) => [entry.key, entry])))
+  const keys = createMemo((): ActionKeyLayout => {
+    const { main, more } = resolveLayout(props.entries, (entry) => entry.key, props.layout)
+    return { main: main.map((entry) => entry.key), more: more.map((entry) => entry.key) }
+  })
+  const hook = (part: string) => `actions-${props.section}-${part}`
+  let divider: HTMLDivElement | undefined
+
+  const position = (key: string): ActionCardPosition => {
+    const index = keys().main.indexOf(key)
+    return index >= 0 ? { list: "main", index } : { list: "more", index: keys().more.indexOf(key) }
+  }
+  const move = (key: string, to: ActionCardPosition) => props.onLayoutChange(moveCard(keys(), position(key), to))
+  const nameOf = (key: string) => byKey().get(key)?.name ?? key
+
+  const describe = (key: string) => {
+    const { list, index } = position(key)
+    return `${nameOf(key)} moved to ${list === "more" ? `${props.moreTitle}, ` : ""}position ${index + 1} of ${keys()[list].length}`
+  }
+
+  // A dragged card is over More once its center is below the "More" heading
+  const listAt = (point: { y: number }) => (divider && point.y > divider.getBoundingClientRect().top ? "more" : "main")
+  const onMove = (key: string, to: SortablePosition) => move(key, { list: to.list === "more" ? "more" : "main", index: to.index })
+  const [dragging, setDragging] = createSignal<string | null>(null)
+  const draggingInMore = () => {
+    const key = dragging()
+    return key != null && keys().more.includes(key)
+  }
+
+  // The card for `key`, redrawn when what it shows changes
+  const card = (key: string, reorder?: ActionCardReorder) => (
+    <Show when={byKey().get(key)?.value} keyed>
+      {(value) => untrack(() => {
+        const entry = byKey().get(key)
+        return entry?.value === value ? entry.render(reorder) : null
+      })}
+    </Show>
+  )
+
+  const SortableCard = (cardProps: { cardKey: string }) => {
+    const key = untrack(() => cardProps.cardKey)
+    const item = createSortableItem(key)
+    const name = () => nameOf(key)
+    const earlier = () => earlierPosition(keys(), position(key))
+    const later = () => laterPosition(keys(), position(key))
+    // Start and end are of the part the card is in; the other part takes it at the end nearest the divider
+    const lastIndex = () => keys()[position(key).list].length - 1
+    const toStart = () => move(key, { list: position(key).list, index: 0 })
+    const toEnd = () => move(key, { list: position(key).list, index: lastIndex() })
+    const menuItems = () => [
+      { label: "Move to start", disabled: position(key).index === 0, onSelect: toStart, "data-test": hook(`card-${key}-move-start`) },
+      { label: "Move to end", disabled: position(key).index === lastIndex(), onSelect: toEnd, "data-test": hook(`card-${key}-move-end`) },
+      position(key).list === "main"
+        ? { label: "Move to More", onSelect: () => move(key, { list: "more", index: 0 }), "data-test": hook(`card-${key}-move-to-more`) }
+        : { label: "Move to main", onSelect: () => move(key, { list: "main", index: keys().main.length }), "data-test": hook(`card-${key}-move-to-main`) },
+    ]
+    return card(key, {
+      ref: item.ref,
+      style: item.style,
+      isDragging: item.isDragging,
+      onPointerDown: item.onItemPointerDown,
+      controls: () => (
+        <>
+          <SortableMoveButton item={item} name={name()} direction="earlier" orientation="horizontal"
+            onMove={earlier() ? () => move(key, earlier()!) : undefined} data-test={hook(`card-${key}-earlier`)} />
+          <SortableHandle item={item} name={name()} dragsWithItem menuItems={menuItems()} data-test={hook(`card-${key}-handle`)} />
+          <SortableMoveButton item={item} name={name()} direction="later" orientation="horizontal"
+            onMove={later() ? () => move(key, later()!) : undefined} data-test={hook(`card-${key}-later`)} />
+        </>
+      ),
+    })
+  }
+
+  const dropHint = (text: string, part: string, bordered: boolean) => (
+    <div data-test={hook(part)} class={cn("p-4 text-center text-sm text-muted-foreground", bordered && "rounded-md border border-dashed")}>{text}</div>
+  )
+
+  return (
+    <Show
+      when={props.editing}
+      fallback={
+        <>
+          <Show when={keys().main.length > 0}>
+            <ActionCardList><For each={keys().main}>{(key) => card(key)}</For></ActionCardList>
+          </Show>
+          <Show when={keys().more.length > 0}>
+            <Collapsible open={props.moreOpen} onOpenChange={props.onMoreOpenChange} class={keys().main.length > 0 ? "mt-3" : undefined}>
+              <CollapsibleTrigger data-test={hook("more-toggle")} class={cn("flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-muted-foreground transition-colors", HOVER_ACCENT)}>
+                <span>{props.moreTitle}</span>
+                <Chip variant="secondary">{keys().more.length}</Chip>
+                <ChevronDown class="ml-auto h-4 w-4 transition-transform ui-expanded:rotate-180" aria-hidden="true" />
+              </CollapsibleTrigger>
+              <CollapsibleContent class="mt-2">
+                <ActionCardList><For each={keys().more}>{(key) => card(key)}</For></ActionCardList>
+              </CollapsibleContent>
+            </Collapsible>
+          </Show>
+        </>
+      }
+    >
+      <SortableGroup onMove={onMove} describe={describe} listAt={listAt} onDragging={setDragging} data-test={hook("sortable")}>
+        <SortableList id="main" ids={keys().main}>
+          <Show when={keys().main.length > 0} fallback={dropHint("Move cards here to show them in this section.", "main-empty", true)}>
+            <ActionCardList><For each={keys().main}>{(key) => <SortableCard cardKey={key} />}</For></ActionCardList>
+          </Show>
+        </SortableList>
+        <div ref={divider} data-test={hook("more-heading")} class="mb-2 mt-4 flex min-h-11 items-center gap-2 border-t px-3 pt-2 text-sm font-medium text-muted-foreground">
+          <span>{props.moreTitle}</span>
+          <Chip variant="secondary">{keys().more.length}</Chip>
+        </div>
+        {/* Marked as where set-aside cards go, and lit up while a card is dragged over it */}
+        <SortableList
+          id="more"
+          ids={keys().more}
+          data-test={hook("more-list")}
+          class={cn(
+            "rounded-lg border border-dashed p-2 transition-colors",
+            draggingInMore() && "border-primary bg-accent",
+          )}
+        >
+          <Show when={keys().more.length > 0} fallback={dropHint("Move cards here to keep them out of the way.", "more-empty", false)}>
+            <ActionCardList><For each={keys().more}>{(key) => <SortableCard cardKey={key} />}</For></ActionCardList>
+          </Show>
+        </SortableList>
+      </SortableGroup>
+    </Show>
+  )
+}
 
 export function ActionsModule(props: ActionsModuleProps) {
   const isReadOnly = useReadOnly()
@@ -284,6 +443,22 @@ export function ActionsModule(props: ActionsModuleProps) {
     () => `dnd-collapsible-actions-${props.character.id}`,
     ['actions', 'bonus-actions', 'reactions', 'other']
   )
+  // Which sections have their "More" list open; all closed at first, so set-aside cards stay out of the way
+  const [openMore, setOpenMore] = createPersistedSetSignal<ActionSectionKey>(
+    () => `dnd-collapsible-actions-more-${props.character.id}`,
+    []
+  )
+  const toggleMore = (section: ActionSectionKey, open: boolean) => {
+    setOpenMore(prev => {
+      const next = new Set(prev)
+      if (open) next.add(section)
+      else next.delete(section)
+      return next
+    })
+  }
+  const setSectionLayout = (section: ActionSectionKey, layout: ActionKeyLayout) => {
+    edit.setDraft(draft => ({ ...draft, actionLayout: { ...draft.actionLayout, [section]: layout } }))
+  }
   const toggleSection = (section: ActionSection, open: boolean) => {
     setExpandedSections(prev => {
       const next = new Set(prev)
@@ -463,7 +638,7 @@ export function ActionsModule(props: ActionsModuleProps) {
 
   // A spell cast as "1 bonus action or 1 reaction" is listed in both sections, so the section keeps
   // its test hooks apart from the other copy
-  const renderSpell = (spell: Spell, section: 'action' | 'bonus' | 'reaction') => {
+  const renderSpell = (spell: Spell, section: 'action' | 'bonus' | 'reaction', reorder?: ActionCardReorder) => {
     const { canCast, slotLevels, hasHigherSlots } = createSpellAccessors(spell, () => props.character.spellSlots)
     return (
       <ActionCard
@@ -499,11 +674,12 @@ export function ActionsModule(props: ActionsModuleProps) {
         // A free cast spends no slot, so there's no level to choose
         slotLevels={spell.level > 0 && !spell.freeCast && spell.atHigherLevel && hasHigherSlots() ? slotLevels : undefined}
         onEdit={() => setEditingSpell(spell)}
+        reorder={reorder}
       />
     )
   }
 
-  const renderFeature = (feature: Feature) => (
+  const renderFeature = (feature: Feature, reorder?: ActionCardReorder) => (
     <ActionCard
       data-test={`action-card-feature-${feature.id}`}
       name={feature.name}
@@ -525,10 +701,11 @@ export function ActionsModule(props: ActionsModuleProps) {
       rechargeOn={feature.rechargeOn}
       onUsesChange={(v) => handleFeatureUsesChange(feature, v)}
       onEdit={() => setEditingFeature(feature)}
+      reorder={reorder}
     />
   )
 
-  const renderEquipmentAction = (item: Equipment) => (
+  const renderEquipmentAction = (item: Equipment, reorder?: ActionCardReorder) => (
     <ActionCard
       data-test={`action-card-item-${item.id}`}
       pipIcon={Backpack}
@@ -548,6 +725,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       rechargeOn={item.rechargeOn}
       onUsesChange={(v) => handleEquipmentUsesChange(item.id, v)}
       onEdit={() => setEditingItem(item)}
+      reorder={reorder}
     />
   )
 
@@ -561,7 +739,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   })
 
   // A custom action, bonus action, reaction or other ability, edited in this module's own form
-  const renderCustomAction = (action: Attack, hookKind: string, onUsesChange: (v: number) => void, onEdit: () => void) => (
+  const renderCustomAction = (action: Attack, hookKind: string, onUsesChange: (v: number) => void, onEdit: () => void, reorder?: ActionCardReorder) => (
     <ActionCard
       data-test={`action-card-${hookKind}-${action.id}`}
       name={action.name}
@@ -582,6 +760,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       rechargeOn={action.rechargeOn}
       onUsesChange={onUsesChange}
       onEdit={onEdit}
+      reorder={reorder}
     />
   )
 
@@ -599,6 +778,81 @@ export function ActionsModule(props: ActionsModuleProps) {
     props.onUpdate({ ...props.character, equipment: (props.character.equipment ?? []).map((item) => (item.id === saved.id ? saved : item)) })
     setEditingItem(null)
   }
+
+  const renderWeapon = (w: ReturnType<typeof getEquippedWeaponAttacks>[number], reorder?: ActionCardReorder) => (
+    <ActionCard
+      data-test={`action-card-${w.id}`}
+      name={w.name}
+      badgeLabel="Weapon"
+      {...itemDetails(equipmentById(w.itemId))}
+      attackBonus={w.attackBonus}
+      attackBonusTooltip={w.attackBonusTooltip}
+      range={w.range}
+      damage={w.damage}
+      damageTooltip={w.damageTooltip}
+      damageType={w.damageType}
+      damageRecurring={w.damageRecurring}
+      highlights={w.highlights}
+      description={w.description}
+      onEdit={() => setEditingItem(equipmentById(w.itemId))}
+      reorder={reorder}
+    />
+  )
+
+  // Each section's cards in their default order: weapons, spells, features, items, then custom ones
+  const spellEntries = (spells: Spell[], section: 'action' | 'bonus' | 'reaction'): SectionEntry[] =>
+    spells.map((spell) => ({ key: actionCardKey('spell', spell.id), name: spell.name, value: spell, render: (r) => renderSpell(spell, section, r) }))
+  const featureEntries = (features: Feature[]): SectionEntry[] =>
+    features.map((feature) => ({ key: actionCardKey('feature', feature.id), name: feature.name, value: feature, render: (r) => renderFeature(feature, r) }))
+  const itemEntries = (items: Equipment[]): SectionEntry[] =>
+    items.map((item) => ({ key: actionCardKey('item', item.id), name: item.name, value: item, render: (r) => renderEquipmentAction(item, r) }))
+  const customEntries = (actions: Attack[], hookKind: string, onUsesChange: (id: string, v: number) => void, onEdit: (action: StoredAction) => void): SectionEntry[] =>
+    actions.map((action) => ({
+      key: actionCardKey('custom', action.id),
+      name: action.name,
+      value: action,
+      render: (r) => renderCustomAction(action, hookKind, (v) => onUsesChange(action.id, v), () => onEdit(action as StoredAction), r),
+    }))
+
+  const actionEntries = createMemo((): SectionEntry[] => [
+    ...equippedWeaponAttacks().map((w): SectionEntry => ({ key: actionCardKey('weapon', w.itemId), name: w.name, value: w, render: (r) => renderWeapon(w, r) })),
+    ...spellEntries(attackSpells(), 'action'),
+    ...featureEntries(featuresByKind().actions),
+    ...itemEntries(equipmentByKind().actions),
+    ...customEntries(props.character.attacks || [], "attack", handleAttackUsesChange, openEditAction),
+  ])
+  const bonusActionEntries = createMemo((): SectionEntry[] => [
+    ...spellEntries(bonusActionSpells(), 'bonus'),
+    ...featureEntries(featuresByKind().bonuses),
+    ...itemEntries(equipmentByKind().bonuses),
+    ...customEntries(props.character.bonusActions || [], "bonus", handleBonusActionUsesChange, openEditBonusAction),
+  ])
+  const reactionEntries = createMemo((): SectionEntry[] => [
+    ...spellEntries(reactionSpells(), 'reaction'),
+    ...featureEntries(featuresByKind().reactions),
+    ...itemEntries(equipmentByKind().reactions),
+    ...customEntries(props.character.reactions || [], "reaction", handleReactionUsesChange, openEditReaction),
+  ])
+  const otherEntries = createMemo((): SectionEntry[] => [
+    ...featureEntries(featuresByKind().others),
+    ...itemEntries(equipmentByKind().others),
+    ...customEntries(props.character.otherActions || [], "other", handleOtherUsesChange, openEditOther),
+  ])
+
+  const sectionBody = (section: ActionSectionKey, entries: () => SectionEntry[], moreTitle: string, emptyText: string) => (
+    <Show when={entries().length > 0} fallback={<div class="text-center py-4 text-muted-foreground text-sm">{emptyText}</div>}>
+      <ActionSectionBody
+        section={section}
+        entries={entries()}
+        layout={edit.merged().actionLayout?.[section]}
+        editing={edit.isEditing()}
+        moreTitle={moreTitle}
+        moreOpen={openMore().has(section)}
+        onMoreOpenChange={(open) => toggleMore(section, open)}
+        onLayoutChange={(layout) => setSectionLayout(section, layout)}
+      />
+    </Show>
+  )
 
   return (
     <EditableModule data-test="actions-module"
@@ -622,7 +876,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
               <Target class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Actions</span>
-              <Chip variant="secondary">{equippedWeaponAttacks().length + attackSpells().length + (props.character.attacks?.length ?? 0) + featuresByKind().actions.length + equipmentByKind().actions.length}</Chip>
+              <Chip variant="secondary">{actionEntries().length}</Chip>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
@@ -633,41 +887,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             </Show>
           </div>
           <CollapsibleContent class="mt-2">
-            <Show
-              when={equippedWeaponAttacks().length > 0 || attackSpells().length > 0 || (props.character.attacks?.length ?? 0) > 0 || featuresByKind().actions.length > 0 || equipmentByKind().actions.length > 0}
-              fallback={<div class="text-center py-4 text-muted-foreground text-sm">No actions added yet.</div>}
-            >
-              <ActionCardList>
-                <For each={equippedWeaponAttacks()}>
-                  {(w) => (
-                    <ActionCard
-                      data-test={`action-card-${w.id}`}
-                      name={w.name}
-                      badgeLabel="Weapon"
-                      {...itemDetails(equipmentById(w.itemId))}
-                      attackBonus={w.attackBonus}
-                      attackBonusTooltip={w.attackBonusTooltip}
-                      range={w.range}
-                      damage={w.damage}
-                      damageTooltip={w.damageTooltip}
-                      damageType={w.damageType}
-                      damageRecurring={w.damageRecurring}
-                      highlights={w.highlights}
-                      description={w.description}
-                      onEdit={() => setEditingItem(equipmentById(w.itemId))}
-                    />
-                  )}
-                </For>
-                <For each={attackSpells()}>{(spell) => renderSpell(spell, 'action')}</For>
-                <For each={featuresByKind().actions}>{(feature) => renderFeature(feature)}</For>
-                <For each={equipmentByKind().actions}>{(item) => renderEquipmentAction(item)}</For>
-                <For each={props.character.attacks || []}>
-                  {(attack) => (
-                    renderCustomAction(attack, "attack", (v) => handleAttackUsesChange(attack.id, v), () => openEditAction(attack as StoredAction))
-                  )}
-                </For>
-              </ActionCardList>
-            </Show>
+            {sectionBody('action', actionEntries, "More actions", "No actions added yet.")}
           </CollapsibleContent>
         </Collapsible>
 
@@ -677,7 +897,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
               <Clock class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Bonus Actions</span>
-              <Chip variant="secondary">{bonusActionSpells().length + (props.character.bonusActions?.length ?? 0) + featuresByKind().bonuses.length + equipmentByKind().bonuses.length}</Chip>
+              <Chip variant="secondary">{bonusActionEntries().length}</Chip>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
@@ -688,21 +908,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             </Show>
           </div>
           <CollapsibleContent class="mt-2">
-            <Show
-              when={bonusActionSpells().length > 0 || (props.character.bonusActions?.length ?? 0) > 0 || featuresByKind().bonuses.length > 0 || equipmentByKind().bonuses.length > 0}
-              fallback={<div class="text-center py-4 text-muted-foreground text-sm">No bonus actions added yet.</div>}
-            >
-              <ActionCardList>
-                <For each={bonusActionSpells()}>{(spell) => renderSpell(spell, 'bonus')}</For>
-                <For each={featuresByKind().bonuses}>{(feature) => renderFeature(feature)}</For>
-                <For each={equipmentByKind().bonuses}>{(item) => renderEquipmentAction(item)}</For>
-                <For each={props.character.bonusActions || []}>
-                  {(bonus) => (
-                    renderCustomAction(bonus, "bonus", (v) => handleBonusActionUsesChange(bonus.id, v), () => openEditBonusAction(bonus as StoredAction))
-                  )}
-                </For>
-              </ActionCardList>
-            </Show>
+            {sectionBody('bonus-action', bonusActionEntries, "More bonus actions", "No bonus actions added yet.")}
           </CollapsibleContent>
         </Collapsible>
 
@@ -712,7 +918,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
               <Shield class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Reactions</span>
-              <Chip variant="secondary">{reactionSpells().length + (props.character.reactions?.length ?? 0) + featuresByKind().reactions.length + equipmentByKind().reactions.length}</Chip>
+              <Chip variant="secondary">{reactionEntries().length}</Chip>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
@@ -723,21 +929,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             </Show>
           </div>
           <CollapsibleContent class="mt-2">
-            <Show
-              when={reactionSpells().length > 0 || (props.character.reactions?.length ?? 0) > 0 || featuresByKind().reactions.length > 0 || equipmentByKind().reactions.length > 0}
-              fallback={<div class="text-center py-4 text-muted-foreground text-sm">No reactions added yet.</div>}
-            >
-              <ActionCardList>
-                <For each={reactionSpells()}>{(spell) => renderSpell(spell, 'reaction')}</For>
-                <For each={featuresByKind().reactions}>{(feature) => renderFeature(feature)}</For>
-                <For each={equipmentByKind().reactions}>{(item) => renderEquipmentAction(item)}</For>
-                <For each={props.character.reactions || []}>
-                  {(reaction) => (
-                    renderCustomAction(reaction, "reaction", (v) => handleReactionUsesChange(reaction.id, v), () => openEditReaction(reaction as StoredAction))
-                  )}
-                </For>
-              </ActionCardList>
-            </Show>
+            {sectionBody('reaction', reactionEntries, "More reactions", "No reactions added yet.")}
           </CollapsibleContent>
         </Collapsible>
 
@@ -747,7 +939,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             <CollapsibleTrigger class={cn("flex flex-1 items-center gap-2 p-3 rounded-md transition-colors text-left", HOVER_ACCENT)}>
               <Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Other</span>
-              <Chip variant="secondary">{featuresByKind().others.length + (props.character.otherActions?.length ?? 0) + equipmentByKind().others.length}</Chip>
+              <Chip variant="secondary">{otherEntries().length}</Chip>
               <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
@@ -758,20 +950,7 @@ export function ActionsModule(props: ActionsModuleProps) {
             </Show>
           </div>
           <CollapsibleContent class="mt-2">
-            <Show
-              when={featuresByKind().others.length > 0 || (props.character.otherActions?.length ?? 0) > 0 || equipmentByKind().others.length > 0}
-              fallback={<div class="text-center py-4 text-muted-foreground text-sm">No other abilities added yet.</div>}
-            >
-              <ActionCardList>
-                <For each={featuresByKind().others}>{(feature) => renderFeature(feature)}</For>
-                <For each={equipmentByKind().others}>{(item) => renderEquipmentAction(item)}</For>
-                <For each={props.character.otherActions || []}>
-                  {(other) => (
-                    renderCustomAction(other, "other", (v) => handleOtherUsesChange(other.id, v), () => openEditOther(other as StoredAction))
-                  )}
-                </For>
-              </ActionCardList>
-            </Show>
+            {sectionBody('other', otherEntries, "More other abilities", "No other abilities added yet.")}
           </CollapsibleContent>
         </Collapsible>
 

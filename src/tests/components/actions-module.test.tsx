@@ -1,12 +1,14 @@
 import { axe } from "vitest-axe"
+import { createSignal } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
+import userEvent from "@testing-library/user-event"
 
 import { ActionsModule } from "@/components/actions-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick, finishClosing } from "../test-utils"
+import { cleanup, render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick, finishClosing } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -1562,6 +1564,232 @@ describe("ActionsModule", () => {
       ))
       fireEvent.click(screen.getByRole("button", { name: "Fire Bolt" }))
       expect(screen.queryByRole("button", { name: /^edit/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe("card layout: order and More", () => {
+    const a1 = makeAttack({ id: "a1", name: "Longsword" })
+    const a2 = makeAttack({ id: "a2", name: "Dagger" })
+    const a3 = makeAttack({ id: "a3", name: "Shove" })
+
+    /** Renders the module with a character that each update replaces, as the sheet does. */
+    function renderLive(initial: Character) {
+      const [character, setCharacter] = createSignal(initial)
+      const onUpdate = vi.fn((next: Character) => setCharacter(next))
+      render(() => <ActionsModule character={character()} onUpdate={onUpdate} />)
+      return { onUpdate, character }
+    }
+    const cards = () => [...document.querySelectorAll<HTMLElement>('li[data-test^="action-card-"]')].map((li) => li.dataset.test)
+    /** The Actions section's cards either side of its "More" heading (edit mode) or toggle (view mode). */
+    const parts = (divider: HTMLElement) => {
+      const main: (string | undefined)[] = [], more: (string | undefined)[] = []
+      for (const li of document.querySelectorAll<HTMLElement>('li[data-test^="action-card-"]')) {
+        (divider.compareDocumentPosition(li) & Node.DOCUMENT_POSITION_FOLLOWING ? more : main).push(li.dataset.test)
+      }
+      return { main, more }
+    }
+    const startEditing = () => fireEvent.click(screen.getByRole("button", { name: /^edit$/i }))
+    const save = () => fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+
+    afterEach(() => {
+      localStorage.clear()
+    })
+
+    describe("view mode", () => {
+      it("shows each source's cards in the default order when there's no stored layout", () => {
+        const feature: Feature = { id: "f1", name: "Action Surge", source: "class-feature", description: "", actionKind: "action" }
+        render(() => <ActionsModule character={makeCharacter({ attacks: [a1], spells: [makeSpell()], classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(cards()).toEqual(["action-card-action-spell-sp-1", "action-card-feature-f1", "action-card-attack-a1"])
+        expect(screen.queryByTestId("actions-action-more-toggle")).not.toBeInTheDocument()
+      })
+
+      it("follows the stored order, read-only too", () => {
+        render(() => (
+          <ReadOnlyProvider value={true}>
+            <ActionsModule character={makeCharacter({ attacks: [a1, a2], spells: [makeSpell()], actionLayout: { action: { main: ["custom:a2", "spell:sp-1", "custom:a1"] } } })} onUpdate={vi.fn()} />
+          </ReadOnlyProvider>
+        ))
+        expect(cards()).toEqual(["action-card-attack-a2", "action-card-action-spell-sp-1", "action-card-attack-a1"])
+      })
+
+      it("puts cards added since the layout was saved at the end of the shown cards, never under More", () => {
+        render(() => <ActionsModule character={makeCharacter({ attacks: [a1, a2, a3], actionLayout: { action: { main: ["custom:a2"], more: ["custom:a1"] } } })} onUpdate={vi.fn()} />)
+        const toggle = screen.getByTestId("actions-action-more-toggle")
+        fireEvent.click(toggle)
+        expect(parts(toggle)).toEqual({ main: ["action-card-attack-a2", "action-card-attack-a3"], more: ["action-card-attack-a1"] })
+      })
+
+      it("keeps set-aside cards under a collapsed More list, named for the section and counting its cards", () => {
+        render(() => <ActionsModule character={makeCharacter({ attacks: [a1, a2], actionLayout: { action: { main: ["custom:a1"], more: ["custom:a2"] } } })} onUpdate={vi.fn()} />)
+        const toggle = screen.getByTestId("actions-action-more-toggle")
+        expect(toggle).toHaveAttribute("aria-expanded", "false")
+        expect(toggle).toHaveTextContent("More actions1")
+
+        fireEvent.click(toggle)
+        expect(toggle).toHaveAttribute("aria-expanded", "true")
+        expect(screen.getByTestId("action-card-attack-a2")).toBeVisible()
+      })
+
+      it("remembers an opened More list for the character", () => {
+        const character = makeCharacter({ id: "char-more", attacks: [a1, a2], actionLayout: { action: { more: ["custom:a2"] } } })
+        render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByTestId("actions-action-more-toggle"))
+        cleanup()
+
+        render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
+        expect(screen.getByTestId("actions-action-more-toggle")).toHaveAttribute("aria-expanded", "true")
+      })
+
+      it("counts set-aside cards in the section's total", () => {
+        render(() => <ActionsModule character={makeCharacter({ attacks: [a1, a2], actionLayout: { action: { more: ["custom:a2"] } } })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("Actions").closest("button")).toHaveTextContent("Actions2")
+      })
+    })
+
+    describe("edit mode", () => {
+      it("shows both parts, with reorder controls in place of each card's own", () => {
+        const limited = makeAttack({ id: "a1", name: "Longsword", maxUses: 3 })
+        renderLive(makeCharacter({ attacks: [limited] }))
+        expect(screen.getByTestId("action-card-attack-a1-uses")).toBeInTheDocument()
+
+        startEditing()
+
+        expect(screen.queryByTestId("action-card-attack-a1-uses")).not.toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Reorder Longsword" })).toBeInTheDocument()
+        expect(screen.getByTestId("actions-action-more-heading")).toHaveTextContent("More actions0")
+        expect(screen.getByTestId("actions-action-more-empty")).toHaveTextContent("Move cards here to keep them out of the way.")
+      })
+
+      it("doesn't open a card's expanded view: the card is dragged instead", () => {
+        renderLive(makeCharacter({ attacks: [a1] }))
+        startEditing()
+
+        fireEvent.click(screen.getByTestId("action-card-attack-a1"))
+
+        expect(screen.queryByRole("button", { name: "Longsword" })).not.toBeInTheDocument()
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      })
+
+      it("marks the More list as where set-aside cards go", () => {
+        renderLive(makeCharacter({ attacks: [a1] }))
+        startEditing()
+        expect(screen.getByTestId("actions-action-more-list")).toContainElement(screen.getByTestId("actions-action-more-empty"))
+      })
+
+      it("moves a card with its arrow buttons, disabled at the ends of the section", () => {
+        renderLive(makeCharacter({ attacks: [a1, a2] }))
+        startEditing()
+        expect(screen.getByRole("button", { name: "Move Longsword earlier" })).toBeDisabled()
+
+        fireEvent.click(screen.getByRole("button", { name: "Move Longsword later" }))
+
+        expect(cards()).toEqual(["action-card-attack-a2", "action-card-attack-a1"])
+      })
+
+      it("moves the last shown card into More with Move later, and back with Move earlier", () => {
+        renderLive(makeCharacter({ attacks: [a1, a2] }))
+        startEditing()
+        const heading = screen.getByTestId("actions-action-more-heading")
+
+        fireEvent.click(screen.getByRole("button", { name: "Move Dagger later" }))
+        expect(parts(heading)).toEqual({ main: ["action-card-attack-a1"], more: ["action-card-attack-a2"] })
+        expect(screen.getByRole("button", { name: "Move Dagger later" })).toBeDisabled()
+
+        fireEvent.click(screen.getByRole("button", { name: "Move Dagger earlier" }))
+        expect(parts(heading)).toEqual({ main: ["action-card-attack-a1", "action-card-attack-a2"], more: [] })
+      })
+
+      it("announces where a moved card went", async () => {
+        renderLive(makeCharacter({ attacks: [a1, a2] }))
+        startEditing()
+
+        fireEvent.click(screen.getByRole("button", { name: "Move Dagger later" }))
+
+        await waitFor(() => expect(screen.getByTestId("actions-action-sortable-announcement")).toHaveTextContent("Dagger moved to More actions, position 1 of 1"))
+      })
+
+      it("moves a card from its handle's menu: to the start or end of its part, or across to the other part", async () => {
+        const user = userEvent.setup()
+        renderLive(makeCharacter({ attacks: [a1, a2, a3] }))
+        startEditing()
+        const heading = screen.getByTestId("actions-action-more-heading")
+
+        await user.click(screen.getByRole("button", { name: "Reorder Longsword" }))
+        // By hook: jsdom keeps each closed menu in the page (see dropdown-menu.test.tsx)
+        await user.click(await screen.findByTestId("actions-action-card-custom:a1-move-to-more"))
+        expect(parts(heading)).toEqual({ main: ["action-card-attack-a2", "action-card-attack-a3"], more: ["action-card-attack-a1"] })
+
+        await user.click(screen.getByRole("button", { name: "Reorder Shove" }))
+        await user.click(await screen.findByTestId("actions-action-card-custom:a3-move-start"))
+        expect(parts(heading)).toEqual({ main: ["action-card-attack-a3", "action-card-attack-a2"], more: ["action-card-attack-a1"] })
+
+        await user.click(screen.getByRole("button", { name: "Reorder Longsword" }))
+        // Start and end are of the card's own part: alone in More, it's at both
+        expect(await screen.findByTestId("actions-action-card-custom:a1-move-end")).toHaveAttribute("aria-disabled", "true")
+        await user.click(screen.getByTestId("actions-action-card-custom:a1-move-to-main"))
+        expect(parts(heading)).toEqual({ main: ["action-card-attack-a3", "action-card-attack-a2", "action-card-attack-a1"], more: [] })
+      })
+
+      it("saves the layout of each section moved in", () => {
+        const { onUpdate } = renderLive(makeCharacter({ attacks: [a1, a2] }))
+        startEditing()
+        fireEvent.click(screen.getByRole("button", { name: "Move Dagger later" }))
+        expect(onUpdate).not.toHaveBeenCalled()
+
+        save()
+
+        expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ actionLayout: { action: { main: ["custom:a1"], more: ["custom:a2"] } } }))
+        expect(screen.getByTestId("actions-action-more-toggle")).toHaveAttribute("aria-expanded", "false")
+      })
+
+      it("saves with Ctrl+Enter from a card's handle, rather than opening its menu", () => {
+        const { onUpdate } = renderLive(makeCharacter({ attacks: [a1, a2] }))
+        startEditing()
+        fireEvent.click(screen.getByRole("button", { name: "Move Dagger later" }))
+
+        fireEvent.keyDown(screen.getByRole("button", { name: "Reorder Longsword" }), { key: "Enter", ctrlKey: true })
+
+        expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ actionLayout: { action: { main: ["custom:a1"], more: ["custom:a2"] } } }))
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument()
+      })
+
+      it("discards the moves on Cancel", () => {
+        const { onUpdate } = renderLive(makeCharacter({ attacks: [a1, a2] }))
+        startEditing()
+        fireEvent.click(screen.getByRole("button", { name: "Move Longsword later" }))
+
+        fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }))
+
+        expect(onUpdate).not.toHaveBeenCalled()
+        expect(cards()).toEqual(["action-card-attack-a1", "action-card-attack-a2"])
+      })
+
+      it("lays out a spell listed in two sections separately in each", () => {
+        const shield = makeSpell({ id: "sh", name: "Shield", level: 1, prepared: true, castingTime: "1 bonus action or 1 reaction" })
+        const { onUpdate } = renderLive(makeCharacter({ spells: [shield], spellSlots: { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 0 } } }))
+        startEditing()
+
+        const bonusCard = screen.getByTestId("action-card-bonus-spell-sh")
+        fireEvent.click(within(bonusCard).getByRole("button", { name: "Move Shield later" }))
+        save()
+
+        expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ actionLayout: { "bonus-action": { main: [], more: ["spell:sh"] } } }))
+        expect(screen.getByTestId("actions-bonus-action-more-toggle")).toBeInTheDocument()
+        expect(screen.queryByTestId("actions-reaction-more-toggle")).not.toBeInTheDocument()
+      })
+
+      it("shows a drop hint for an empty shown part", () => {
+        renderLive(makeCharacter({ attacks: [a1], actionLayout: { action: { more: ["custom:a1"] } } }))
+        startEditing()
+        expect(screen.getByTestId("actions-action-main-empty")).toHaveTextContent("Move cards here to show them in this section.")
+      })
+
+      it("has no accessibility violations", async () => {
+        const { container } = render(() => <ActionsModule character={makeCharacter({ attacks: [a1, a2], actionLayout: { action: { more: ["custom:a2"] } } })} onUpdate={vi.fn()} />)
+        startEditing()
+        const results = await axe(container)
+        expect(results.violations).toHaveLength(0)
+      })
     })
   })
 })

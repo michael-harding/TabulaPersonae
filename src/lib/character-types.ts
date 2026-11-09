@@ -263,6 +263,19 @@ export interface Reaction extends ActionBase {
 
 export type OtherAction = ActionBase
 
+/** A section of the Actions module. */
+export type ActionSectionKey = 'action' | 'bonus-action' | 'reaction' | 'other'
+
+/**
+ * The order of an Actions section's cards: those shown in the section (`main`), then those set
+ * aside under its collapsed "More" list (`more`). Each card is named by its key, `<source>:<id>`
+ * (see action-layout.ts). A card in neither list goes at the end of main.
+ */
+export interface ActionSectionLayout {
+  main?: string[]
+  more?: string[]
+}
+
 export interface Character {
   id: string
   name: string
@@ -350,6 +363,8 @@ export interface Character {
   bonusActions: BonusAction[]
   reactions: Reaction[]
   otherActions: OtherAction[]
+  /** How the Actions module lays out each of its sections (see ActionSectionLayout). Missing: every card in main, in the default order. */
+  actionLayout?: Partial<Record<ActionSectionKey, ActionSectionLayout>>
 
   personalityTraits: string
   ideals: string

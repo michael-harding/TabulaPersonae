@@ -9,6 +9,13 @@ describe("migrateCharacter", () => {
     expect(migrateCharacter(character)).toEqual(character)
   })
 
+  it("keeps the Actions module's card layout, and adds none to a character without one", () => {
+    const actionLayout = { action: { main: ["custom:a1"], more: ["spell:s1"] }, reaction: { more: ["feature:f1"] } }
+    const stored = JSON.parse(JSON.stringify({ ...createDefaultCharacter(), actionLayout })) as unknown
+    expect(migrateCharacter(stored).actionLayout).toEqual(actionLayout)
+    expect(migrateCharacter(createDefaultCharacter())).not.toHaveProperty("actionLayout")
+  })
+
   it("backfills useCalculatedArmorClass to true when the stored AC already matches the calculated AC", () => {
     // Default character: no equipment, ability scores all 10 -> calculated AC is 10, same as the
     // stored default. Nothing changes on screen by switching to calculated, so it's safe to do so.

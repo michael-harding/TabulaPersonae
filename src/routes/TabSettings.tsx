@@ -1,17 +1,7 @@
 import { createSignal, createEffect, untrack, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router"
-import {
-  DragDropProvider,
-  DragDropSensors,
-  SortableProvider,
-  createSortable,
-  closestCenter,
-  maybeTransformStyle,
-} from "@thisbeyond/solid-dnd"
-import type { DragEvent } from "@thisbeyond/solid-dnd"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import ChevronLeft from "lucide-solid/icons/chevron-left"
-import GripVertical from "lucide-solid/icons/grip-vertical"
 import Pencil from "lucide-solid/icons/pencil"
 import Plus from "lucide-solid/icons/plus"
 import Trash2 from "lucide-solid/icons/trash-2"
@@ -26,15 +16,56 @@ import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { ChipButton } from "@/components/ui/chip-button"
 import { Input } from "@/components/ui/input"
+import { SortableGroup, SortableHandle, SortableList, SortableMoveButton, createSortableItem, moveItem, type SortableItem } from "@/components/ui/sortable"
 
-// Tell TypeScript about the `use:sortable` directive
-declare module "solid-js" {
-  namespace JSX {
-    interface Directives {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sortable: any
-    }
-  }
+/**
+ * The controls that move a row of a vertical list: the drag handle, whose menu makes every move, and
+ * up/down buttons. On phones there's no room for the buttons beside a tab's own controls, so they
+ * show from sm up only, and the menu is how a row moves there.
+ */
+function RowMoveControls(props: {
+  item: SortableItem
+  name: string
+  index: number
+  count: number
+  onMove: (to: number) => void
+  /** Prefixes the hooks of the controls; the handle's is `${hookPrefix}drag-handle-${hookSuffix}`. */
+  hookPrefix: string
+  hookSuffix: string
+}) {
+  return (
+    <>
+      <SortableHandle
+        item={props.item}
+        name={props.name}
+        data-test={`${props.hookPrefix}drag-handle-${props.hookSuffix}`}
+        menuItems={[
+          { label: "Move up", disabled: props.index === 0, onSelect: () => props.onMove(props.index - 1), "data-test": `${props.hookPrefix}move-up-${props.hookSuffix}` },
+          { label: "Move down", disabled: props.index === props.count - 1, onSelect: () => props.onMove(props.index + 1), "data-test": `${props.hookPrefix}move-down-${props.hookSuffix}` },
+          { label: "Move to start", disabled: props.index === 0, onSelect: () => props.onMove(0), "data-test": `${props.hookPrefix}move-start-${props.hookSuffix}` },
+          { label: "Move to end", disabled: props.index === props.count - 1, onSelect: () => props.onMove(props.count - 1), "data-test": `${props.hookPrefix}move-end-${props.hookSuffix}` },
+        ]}
+      />
+      <SortableMoveButton
+        item={props.item}
+        name={props.name}
+        direction="earlier"
+        orientation="vertical"
+        onMove={props.index > 0 ? () => props.onMove(props.index - 1) : undefined}
+        data-test={`${props.hookPrefix}move-earlier-${props.hookSuffix}`}
+        class="hidden sm:inline-flex"
+      />
+      <SortableMoveButton
+        item={props.item}
+        name={props.name}
+        direction="later"
+        orientation="vertical"
+        onMove={props.index < props.count - 1 ? () => props.onMove(props.index + 1) : undefined}
+        data-test={`${props.hookPrefix}move-later-${props.hookSuffix}`}
+        class="hidden sm:inline-flex"
+      />
+    </>
+  )
 }
 
 // --- Sortable module row ---
@@ -43,32 +74,27 @@ interface SortableModuleRowProps {
   /** The tab the row is in: a module can be in more than one, and its hooks must stay unique. */
   tabId: string
   moduleId: ModuleId
+  index: number
+  count: number
+  onMove: (to: number) => void
   onRemove: () => void
 }
 
 function SortableModuleRow(props: SortableModuleRowProps) {
-  const sortable = createSortable(untrack(() => props.moduleId))
+  const item = createSortableItem(untrack(() => props.moduleId))
+  const label = () => MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId
   return (
     <div
-      ref={sortable.ref}
-      style={maybeTransformStyle(sortable.transform)}
+      ref={item.ref}
+      style={item.style()}
       class={cn(
         "flex items-center gap-2 rounded transition-colors",
-        sortable.isActiveDraggable ? "opacity-25" : HOVER_ACCENT,
+        item.isDragging() ? "opacity-25" : HOVER_ACCENT,
       )}
       data-sem="draggable-module"
     >
-      <button
-        type="button"
-        class={cn(TOUCH_TARGET_BOX, "cursor-grab touch-none text-muted-foreground")}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        {...(sortable.dragActivators as any)}
-        aria-label={`Drag ${MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId} to reorder`}
-        data-test={`module-drag-handle-${props.tabId}-${props.moduleId}`}
-      >
-        <GripVertical class="h-4 w-4" aria-hidden="true" />
-      </button>
-      <span class="flex-1 text-sm">{MODULE_REGISTRY[props.moduleId]?.label ?? props.moduleId}</span>
+      <RowMoveControls item={item} name={label()} index={props.index} count={props.count} onMove={props.onMove} hookPrefix="module-" hookSuffix={`${props.tabId}-${props.moduleId}`} />
+      <span class="flex-1 text-sm">{label()}</span>
       <ConfirmButton
         data-test={`remove-module-${props.tabId}-${props.moduleId}`}
         verb="Remove"
@@ -87,6 +113,9 @@ function SortableModuleRow(props: SortableModuleRowProps) {
 
 interface SortableTabRowProps {
   tab: TabConfig
+  index: number
+  count: number
+  onMove: (to: number) => void
   expanded: boolean
   onToggle: (open: boolean) => void
   onRename: (label: string) => void
@@ -98,7 +127,7 @@ interface SortableTabRowProps {
 }
 
 function SortableTabRow(props: SortableTabRowProps) {
-  const sortable = createSortable(untrack(() => props.tab.id))
+  const item = createSortableItem(untrack(() => props.tab.id))
   const [renaming, setRenaming] = createSignal(false)
   const [renameValue, setRenameValue] = createSignal("")
   createEffect(() => {
@@ -107,13 +136,12 @@ function SortableTabRow(props: SortableTabRowProps) {
 
   const moduleIds = () => props.tab.modules
 
-  const onModuleDragEnd = ({ draggable, droppable }: DragEvent) => {
-    if (!droppable) return
-    const from = moduleIds().indexOf(draggable.id as ModuleId)
-    const to = moduleIds().indexOf(droppable.id as ModuleId)
-    if (from < 0 || to < 0 || from === to) return
-    props.onReorderModules(from, to)
+  const onModuleMove = (moduleId: string, to: { index: number }) => {
+    const from = moduleIds().indexOf(moduleId as ModuleId)
+    if (from >= 0 && from !== to.index) props.onReorderModules(from, to.index)
   }
+  const describeModule = (moduleId: string) =>
+    `${MODULE_REGISTRY[moduleId as ModuleId]?.label ?? moduleId} moved to position ${moduleIds().indexOf(moduleId as ModuleId) + 1} of ${moduleIds().length}`
 
   const availableModules = () => ALL_MODULE_IDS.filter((m) => !props.tab.modules.includes(m))
 
@@ -125,24 +153,14 @@ function SortableTabRow(props: SortableTabRowProps) {
 
   return (
     <div
-      ref={sortable.ref}
+      ref={item.ref}
       data-test={`tab-row-${props.tab.id}`}
-      style={maybeTransformStyle(sortable.transform)}
-      class={cn("border rounded-md bg-card transition-opacity", sortable.isActiveDraggable && "opacity-25")}
+      style={item.style()}
+      class={cn("border rounded-md bg-card transition-opacity", item.isDragging() && "opacity-25")}
     >
       <Collapsible open={props.expanded} onOpenChange={props.onToggle}>
         <div class="flex items-center gap-2 px-3 py-1">
-          {/* Drag handle for tab reordering */}
-          <button
-            type="button"
-            class={cn(TOUCH_TARGET_BOX, "cursor-grab touch-none text-muted-foreground")}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            {...(sortable.dragActivators as any)}
-            aria-label={`Drag ${props.tab.label} to reorder`}
-            data-test={`tab-drag-handle-${props.tab.id}`}
-          >
-            <GripVertical class="h-4 w-4" aria-hidden="true" />
-          </button>
+          <RowMoveControls item={item} name={props.tab.label} index={props.index} count={props.count} onMove={props.onMove} hookPrefix="tab-" hookSuffix={props.tab.id} />
 
           {/* Tab label or rename form */}
           <Show
@@ -226,20 +244,22 @@ function SortableTabRow(props: SortableTabRowProps) {
                   <p class="mt-1 text-sm text-muted-foreground py-2">No modules added yet.</p>
                 }
               >
-                <DragDropProvider onDragEnd={onModuleDragEnd} collisionDetector={closestCenter}>
-                  <DragDropSensors />
-                  <SortableProvider ids={moduleIds()}>
+                <SortableGroup onMove={onModuleMove} describe={describeModule} data-test={`tab-modules-${props.tab.id}`}>
+                  <SortableList id="modules" ids={moduleIds()}>
                     <For each={props.tab.modules}>
-                      {(moduleId) => (
+                      {(moduleId, index) => (
                         <SortableModuleRow
                           tabId={props.tab.id}
                           moduleId={moduleId}
+                          index={index()}
+                          count={props.tab.modules.length}
+                          onMove={(to) => props.onReorderModules(index(), to)}
                           onRemove={() => props.onRemoveModule(moduleId)}
                         />
                       )}
                     </For>
-                  </SortableProvider>
-                </DragDropProvider>
+                  </SortableList>
+                </SortableGroup>
               </Show>
             </div>
 
@@ -323,24 +343,17 @@ export default function TabSettings() {
   }
 
   const reorderModules = (tabId: string, fromIndex: number, toIndex: number) => {
-    updateTabs(
-      tabs().map((t) => {
-        if (t.id !== tabId) return t
-        const mods = [...t.modules]
-        mods.splice(toIndex, 0, mods.splice(fromIndex, 1)[0])
-        return { ...t, modules: mods }
-      }),
-    )
+    updateTabs(tabs().map((t) => (t.id === tabId ? { ...t, modules: moveItem(t.modules, fromIndex, toIndex) } : t)))
   }
 
-  const onTabDragEnd = ({ draggable, droppable }: DragEvent) => {
-    if (!droppable) return
-    const fromIndex = tabIds().indexOf(draggable.id as string)
-    const toIndex = tabIds().indexOf(droppable.id as string)
-    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return
-    const reordered = [...tabs()]
-    reordered.splice(toIndex, 0, reordered.splice(fromIndex, 1)[0])
-    updateTabs(reordered)
+  const moveTab = (fromIndex: number, toIndex: number) => updateTabs(moveItem(tabs(), fromIndex, toIndex))
+  const onTabMove = (tabId: string, to: { index: number }) => {
+    const from = tabIds().indexOf(tabId)
+    if (from >= 0 && from !== to.index) moveTab(from, to.index)
+  }
+  const describeTab = (tabId: string) => {
+    const index = tabIds().indexOf(tabId)
+    return `${tabs()[index]?.label ?? tabId} moved to position ${index + 1} of ${tabs().length}`
   }
 
   const toggleExpanded = (tabId: string, open: boolean) => {
@@ -370,33 +383,33 @@ export default function TabSettings() {
       <div>
         <h1 class="text-2xl font-bold">Tab Settings</h1>
         <p class="text-sm text-muted-foreground mt-1">
-          Configure the tabs on your character sheet. Drag to reorder tabs or modules within a tab.
+          Configure the tabs on your character sheet. Reorder tabs, or modules within a tab, by dragging their handle or choosing a move from its menu.
         </p>
       </div>
 
       {/* Tab list — outer sortable */}
-      <DragDropProvider onDragEnd={onTabDragEnd} collisionDetector={closestCenter}>
-        <DragDropSensors />
-        <SortableProvider ids={tabIds()}>
-          <div class="space-y-2">
-            <For each={tabs()}>
-              {(tab) => (
-                <SortableTabRow
-                  tab={tab}
-                  expanded={expandedTabs().has(tab.id)}
-                  onToggle={(open) => toggleExpanded(tab.id, open)}
-                  onRename={(label) => renameTab(tab.id, label)}
-                  onDelete={() => deleteTab(tab.id)}
-                  onAddModule={(moduleId) => addModule(tab.id, moduleId)}
-                  onRemoveModule={(moduleId) => removeModule(tab.id, moduleId)}
-                  onReorderModules={(from, to) => reorderModules(tab.id, from, to)}
-                  disableDelete={tabs().length <= 1}
-                />
-              )}
-            </For>
-          </div>
-        </SortableProvider>
-      </DragDropProvider>
+      <SortableGroup onMove={onTabMove} describe={describeTab} data-test="tabs">
+        <SortableList id="tabs" ids={tabIds()} class="space-y-2">
+          <For each={tabs()}>
+            {(tab, index) => (
+              <SortableTabRow
+                tab={tab}
+                index={index()}
+                count={tabs().length}
+                onMove={(to) => moveTab(index(), to)}
+                expanded={expandedTabs().has(tab.id)}
+                onToggle={(open) => toggleExpanded(tab.id, open)}
+                onRename={(label) => renameTab(tab.id, label)}
+                onDelete={() => deleteTab(tab.id)}
+                onAddModule={(moduleId) => addModule(tab.id, moduleId)}
+                onRemoveModule={(moduleId) => removeModule(tab.id, moduleId)}
+                onReorderModules={(from, to) => reorderModules(tab.id, from, to)}
+                disableDelete={tabs().length <= 1}
+              />
+            )}
+          </For>
+        </SortableList>
+      </SortableGroup>
 
       {/* Add tab */}
       <Show

@@ -126,6 +126,22 @@ export interface ActionCardProps {
 
   // Edit button — opens the entry's own add/edit form
   onEdit?: () => void
+
+  /**
+   * Makes the card reorderable (the Actions module in edit mode): the whole card is dragged, its
+   * controls are replaced by the reorder controls, and it doesn't open its expanded view.
+   */
+  reorder?: ActionCardReorder
+}
+
+/** A reorderable card's place in its sortable list (see SortableItem), and its reorder controls. */
+export interface ActionCardReorder {
+  ref: (el: HTMLElement) => void
+  style: () => JSX.CSSProperties | undefined
+  isDragging: () => boolean
+  /** Starts a drag of the card (see SortableItem.onItemPointerDown). */
+  onPointerDown: (e: PointerEvent) => void
+  controls: () => JSX.Element
 }
 
 export function ActionCard(props: ActionCardProps) {
@@ -179,6 +195,8 @@ export function ActionCard(props: ActionCardProps) {
   // A pointer shortcut only: the name is the real button, and the one keyboard and screen reader
   // users reach (ACCESSIBILITY.md §3; the whole-card click was approved as a pointer convenience).
   const handleCardClick = (e: MouseEvent) => {
+    // A reorderable card is dragged, not opened
+    if (props.reorder) return
     if ((e.target as Element).closest(INTERACTIVE)) return
     if (window.getSelection()?.toString()) return
     nameButtonRef?.click()
@@ -367,22 +385,38 @@ export function ActionCard(props: ActionCardProps) {
       modal
     >
       <li
-        ref={cardRef}
+        ref={(el) => {
+          cardRef = el
+          props.reorder?.ref(el)
+        }}
         data-sem="action-card"
         data-test={props["data-test"]}
-        class="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 transition-colors hover:border-primary"
+        style={props.reorder?.style()}
+        class={cn(
+          "flex flex-col gap-2 rounded-lg border p-3 transition-colors hover:border-primary",
+          // Opaque while it can be dragged, so a card carried over the others hides what's under it
+          props.reorder ? "cursor-grab select-none bg-card" : "cursor-pointer",
+          props.reorder?.isDragging() && "relative z-10 cursor-grabbing border-primary opacity-80 shadow-lg",
+        )}
         onClick={handleCardClick}
+        onPointerDown={(e) => props.reorder?.onPointerDown(e)}
       >
         {/* Header. The name keeps room for a full touch target (ACCESSIBILITY.md §13): in a narrow
             card a long badge wraps below it instead of squeezing it */}
         <div class="flex flex-wrap items-start gap-1">
-          <PopoverTrigger
-            ref={nameButtonRef}
-            class="flex min-h-11 min-w-24 flex-1 items-center rounded text-left font-medium leading-tight [overflow-wrap:anywhere] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            data-test={hook("name", false)}
+          {/* While reorderable the card doesn't open, so its name is only its name */}
+          <Show
+            when={!props.reorder}
+            fallback={<span class="flex min-h-11 min-w-24 flex-1 items-center font-medium leading-tight [overflow-wrap:anywhere]" data-test={hook("name", false)}>{props.name}</span>}
           >
-            {props.name}
-          </PopoverTrigger>
+            <PopoverTrigger
+              ref={nameButtonRef}
+              class="flex min-h-11 min-w-24 flex-1 items-center rounded text-left font-medium leading-tight [overflow-wrap:anywhere] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-test={hook("name", false)}
+            >
+              {props.name}
+            </PopoverTrigger>
+          </Show>
           <Show when={badgeText()}>
             <Chip variant="secondary" class="ml-auto shrink-0 text-xs">{badgeText()}</Chip>
           </Show>
@@ -408,8 +442,20 @@ export function ActionCard(props: ActionCardProps) {
           {(highlights) => <MarkdownContent text={highlights()} class="text-xs" />}
         </Show>
 
-        <Show when={hasControls()}>
-          <div class="mt-auto flex flex-wrap items-center justify-end gap-2">{controls(false)}</div>
+        <Show
+          when={props.reorder}
+          fallback={
+            <Show when={hasControls()}>
+              <div class="mt-auto flex flex-wrap items-center justify-end gap-2">{controls(false)}</div>
+            </Show>
+          }
+        >
+          {(reorder) => (
+            // Into the card's padding, so the three 44px controls fit a phone-width card on one row
+            <div class="-mx-2 -mb-2 mt-auto flex items-center justify-between" data-test={hook("reorder", false)}>
+              {reorder().controls()}
+            </div>
+          )}
         </Show>
       </li>
 
