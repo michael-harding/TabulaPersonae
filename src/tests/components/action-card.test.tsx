@@ -91,12 +91,13 @@ describe("ActionCard", () => {
       expect(card.parentElement).toHaveAttribute("role", "list")
     })
 
-    it("shows Trigger, Range and Attack/Save as a list", () => {
+    it("shows Trigger and Range as a list, and Attack/Save as a badge instead", () => {
       render(() => <ActionCard {...makeProps({ trigger: "When targeted", range: "30 ft", attackSave: "DEX save" })} />)
       const list = within(screen.getByTestId("action-card-test")).getByRole("list")
       expect(within(list).getByText(/When targeted/)).toBeInTheDocument()
       expect(within(list).getByText(/30 ft/)).toBeInTheDocument()
-      expect(within(list).getByText(/DEX save/)).toBeInTheDocument()
+      expect(within(list).queryByText(/DEX save/)).not.toBeInTheDocument()
+      expect(screen.getByTestId("action-card-test-attack-save-badge")).toHaveTextContent("DEX save")
     })
 
     it("shows no stats list when there are no stats", () => {
@@ -206,6 +207,39 @@ describe("ActionCard", () => {
       expect(screen.getByTestId("action-card-test-gain-badge").querySelector(".lucide-refresh-cw")).not.toBeNull()
     })
 
+    it("shows a save's label with its DC, explained in a tooltip", async () => {
+      render(() => <ActionCard {...makeProps({ attackSave: "DEX Save", attackSaveDC: 15, attackSaveTooltip: "8 + 2 (Prof) + 5 (Int)" })} />)
+      const badge = screen.getByTestId("action-card-test-attack-save-badge")
+      expect(badge).toHaveTextContent("DEX Save")
+      expect(badge).toHaveTextContent("DC 15")
+      const trigger = screen.getByRole("group", { name: "DEX Save DC 15" })
+      expect(trigger).toContainElement(badge)
+      fireEvent.focus(trigger)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("8 + 2 (Prof) + 5 (Int)"))
+    })
+
+    it("shows Attack/Save text without a DC as written, with no tooltip trigger", () => {
+      render(() => <ActionCard {...makeProps({ attackSave: "DEX save DC 13" })} />)
+      const badge = screen.getByTestId("action-card-test-attack-save-badge")
+      expect(badge).toHaveTextContent("Attack/Save")
+      expect(badge).toHaveTextContent("DEX save DC 13")
+      expect(screen.queryByRole("group")).not.toBeInTheDocument()
+    })
+
+    it("orders the badges Attack, Attack/Save, Damage, Gain", () => {
+      render(() => <ActionCard {...makeProps({ gain: "1d4", damage: "2d6", attackSave: "CON Save", attackSaveDC: 13, attackBonus: 5 })} />)
+      const card = screen.getByTestId("action-card-test")
+      const order = ["attack-badge", "attack-save-badge", "damage-badge", "gain-badge"].map((part) => screen.getByTestId(`action-card-test-${part}`))
+      expect([...card.querySelectorAll('[data-sem="stat-badge"]')]).toEqual(order)
+    })
+
+    it("shows the Attack/Save badge in the expanded view rather than as a detail row", () => {
+      render(() => <ActionCard {...makeProps({ attackSave: "WIS Save", attackSaveDC: 14 })} />)
+      expand()
+      expect(screen.getByTestId("action-card-test-expanded-attack-save-badge")).toHaveTextContent("WIS SaveDC 14")
+      expect(within(expandedView()).queryByText("Attack/Save:")).not.toBeInTheDocument()
+    })
+
     // Regression: the card showed one pill, and a gain hid the damage (e.g. Vampiric Touch)
     it("shows damage and gain together", () => {
       render(() => <ActionCard {...makeProps({ attackBonus: 5, damage: "3d6", damageType: "Necrotic", gain: "half", gainType: "Healing" })} />)
@@ -219,6 +253,20 @@ describe("ActionCard", () => {
     it("not rendered when concentration is falsy", () => {
       render(() => <ActionCard {...makeProps()} />)
       expect(screen.queryByText("Concentration")).not.toBeInTheDocument()
+    })
+
+    // Beside the Range/Trigger list the chips stack, Concentration on top; alone they share a row
+    it("stacks Concentration above the duration beside the stats list", () => {
+      render(() => <ActionCard {...makeProps({ concentration: true, duration: "Concentration, up to 1 minute", range: "60 ft" })} />)
+      const chips = screen.getByTestId("action-card-test-concentration-badge-inactive").parentElement!
+      expect(chips).toHaveClass("flex-col")
+      expect(chips.children[0]).toHaveTextContent("Concentration")
+      expect(chips.children[1]).toHaveTextContent("up to 1 minute")
+    })
+
+    it("keeps Concentration and the duration in a row without a stats list", () => {
+      render(() => <ActionCard {...makeProps({ concentration: true, duration: "Concentration, up to 1 minute" })} />)
+      expect(screen.getByTestId("action-card-test-concentration-badge-inactive").parentElement).not.toHaveClass("flex-col")
     })
 
     it("toggles styling on click, shared with the expanded view", () => {

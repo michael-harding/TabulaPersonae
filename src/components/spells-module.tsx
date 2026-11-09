@@ -9,11 +9,15 @@ import Zap from "lucide-solid/icons/zap"
 import Target from "lucide-solid/icons/target"
 import Circle from "lucide-solid/icons/circle"
 import Settings from "lucide-solid/icons/settings"
+import BookOpen from "lucide-solid/icons/book-open"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, formatModifier, isItemModifierActive } from "@/lib/character-utils"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive } from "@/lib/character-utils"
+import { EditableModule } from "@/components/editable-module"
+import { useModuleEdit } from "@/hooks/use-module-edit"
+import { CalculatedValue } from "@/components/ui/calculated-value"
+import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
@@ -36,8 +40,37 @@ interface SpellsModuleProps {
   onUpdate: (character: Character) => void
 }
 
+// The fields this module's edit form shows (see useModuleEdit for how Save writes them)
+interface SpellsDraft {
+  useCalculatedSpellAttackBonus: boolean
+  spellAttackBonus: number
+  useCalculatedSpellSaveDC: boolean
+  spellSaveDC: number
+}
+
+const toDraft = (c: Character): SpellsDraft => {
+  const useCalculatedSpellAttackBonus = c.useCalculatedSpellAttackBonus ?? true
+  const useCalculatedSpellSaveDC = c.useCalculatedSpellSaveDC ?? true
+  return {
+    useCalculatedSpellAttackBonus,
+    spellAttackBonus: useCalculatedSpellAttackBonus ? getSpellAttackBonus(c) : (c.spellAttackBonus ?? getSpellAttackBonus(c)),
+    useCalculatedSpellSaveDC,
+    spellSaveDC: useCalculatedSpellSaveDC ? getSpellSaveDC(c) : (c.spellSaveDC ?? getSpellSaveDC(c)),
+  }
+}
+
 export function SpellsModule(props: SpellsModuleProps) {
   const isReadOnly = useReadOnly()
+  const edit = useModuleEdit({
+    character: () => props.character,
+    toDraft,
+    resolve: (draft): Partial<Character> => ({
+      ...draft,
+      spellAttackBonus: spellAttackField.resolvedValue(),
+      spellSaveDC: spellSaveDCField.resolvedValue(),
+    }),
+    onUpdate: (c) => props.onUpdate(c),
+  })
   const [searchTerm, setSearchTerm] = createSignal("")
   const [isAddModalOpen, setIsAddModalOpen] = createSignal(false)
   const [editingSpell, setEditingSpell] = createSignal<Spell | null>(null)
@@ -72,12 +105,26 @@ export function SpellsModule(props: SpellsModuleProps) {
   // Must be called inside a reactive context (JSX, effect, memo) — reads spellsByLevelMap()
   const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? EMPTY_SPELLS
   const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0))
-  const spellSaveDC = createMemo(() =>
-    (props.character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(props.character) : props.character.spellSaveDC
-  )
-  const spellAttackBonus = createMemo(() =>
-    (props.character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBonus(props.character) : props.character.spellAttackBonus
-  )
+  const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
+  const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
+
+  const spellAttackField = useCalculatedValue({
+    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellAttackBonus : (props.character.useCalculatedSpellAttackBonus ?? true)),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellAttackBonus: v })),
+    manualValue: () => (edit.isEditing() ? edit.draft().spellAttackBonus : (props.character.spellAttackBonus ?? spellAttackBonus())),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellAttackBonus: v })),
+    calculatedValue: spellAttackBonus,
+    calculatedTooltip: () => getSpellAttackBreakdown(props.character),
+  })
+
+  const spellSaveDCField = useCalculatedValue({
+    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellSaveDC : (props.character.useCalculatedSpellSaveDC ?? true)),
+    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellSaveDC: v })),
+    manualValue: () => (edit.isEditing() ? edit.draft().spellSaveDC : (props.character.spellSaveDC ?? spellSaveDC())),
+    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellSaveDC: v })),
+    calculatedValue: spellSaveDC,
+    calculatedTooltip: () => getSpellSaveDCBreakdown(props.character),
+  })
 
   const toggleLevelExpanded = (level: number, isOpen: boolean) => {
     setExpandedLevels((prev) => {
@@ -147,23 +194,19 @@ export function SpellsModule(props: SpellsModuleProps) {
   ))
 
   return (
-    <Card data-sem="spells-module">
-      <CardHeader>
-        <CardTitle class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />
-            Spells
-          </div>
-          <Show when={!isReadOnly}>
-            <Button data-test="add-spell-button" size="sm" class="gap-2" onClick={() => setIsAddModalOpen(true)}>
-              <Plus class="h-4 w-4" aria-hidden="true" />
-              Add Spell
-            </Button>
-          </Show>
-        </CardTitle>
-      </CardHeader>
-      <CardContent class="space-y-4">
-        <Show when={safeSpells().length > 0}>
+    <EditableModule data-test="spells-module"
+      data-sem="spells-module"
+      icon={<Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />}
+      title="Spells"
+      isEditing={edit.isEditing()}
+      onEdit={edit.start}
+      onSave={edit.save}
+      onSaveKeepEditing={edit.commit}
+      onCancel={edit.cancel}
+      contentClass="space-y-4"
+    >
+        {/* Shown while editing even without spells, so the custom values can be set */}
+        <Show when={safeSpells().length > 0 || edit.isEditing()}>
           <div class="space-y-2">
             <Show when={(props.character.edition ?? "2024") === "2014"}>
               <div class="flex items-center gap-2">
@@ -187,18 +230,23 @@ export function SpellsModule(props: SpellsModuleProps) {
             </Show>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg">
               <div class="text-center">
-                <div class="flex items-center justify-center gap-1 mb-1">
-                  <Target class="h-4 w-4 text-primary" aria-hidden="true" />
-                  <span class="text-sm font-medium">Spell Save DC</span>
-                </div>
-                <div class="text-2xl font-bold text-primary">{spellSaveDC()}</div>
+                <CalculatedValue data-test="spell-save-dc"
+                  label="Spell Save DC"
+                  labelClass="text-sm font-medium"
+                  icon={<Target class="h-4 w-4 text-primary" aria-hidden="true" />}
+                  editable={edit.isEditing()}
+                  {...spellSaveDCField.binding()}
+                />
               </div>
               <div class="text-center">
-                <div class="flex items-center justify-center gap-1 mb-1">
-                  <Zap class="h-4 w-4 text-primary" aria-hidden="true" />
-                  <span class="text-sm font-medium">Spell Attack</span>
-                </div>
-                <div class="text-2xl font-bold text-primary">{formatModifier(spellAttackBonus())}</div>
+                <CalculatedValue data-test="spell-attack"
+                  label="Spell Attack"
+                  labelClass="text-sm font-medium"
+                  icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
+                  editable={edit.isEditing()}
+                  {...spellAttackField.binding()}
+                  format={formatModifier}
+                />
               </div>
               <div class="text-center">
                 <div class="text-sm font-medium mb-1">Prepared Spells</div>
@@ -232,6 +280,20 @@ export function SpellsModule(props: SpellsModuleProps) {
                 <p class="text-sm">Click "Edit Slots" to add spell slots for your character.</p>
               </Show>
             </div>
+          </Show>
+        </div>
+
+        {/* Spell List */}
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold flex items-center gap-2">
+            <BookOpen class="h-5 w-5 text-primary" aria-hidden="true" />
+            Spell List
+          </h2>
+          <Show when={!isReadOnly}>
+            <Button data-test="add-spell-button" variant="outline" size="sm" class="gap-1" onClick={() => setIsAddModalOpen(true)}>
+              <Plus class="h-3 w-3" aria-hidden="true" />
+              Add Spell
+            </Button>
           </Show>
         </div>
 
@@ -390,7 +452,6 @@ export function SpellsModule(props: SpellsModuleProps) {
             </For>
           </Show>
         </div>
-      </CardContent>
 
       <SpellEditModal
         open={isAddModalOpen() || !!editingSpell()}
@@ -430,6 +491,6 @@ export function SpellsModule(props: SpellsModuleProps) {
           </div>
         </ModalContent>
       </Modal>
-    </Card>
+    </EditableModule>
   )
 }

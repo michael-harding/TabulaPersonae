@@ -5,7 +5,7 @@ import Sword from "lucide-solid/icons/sword"
 import Heart from "lucide-solid/icons/heart"
 
 import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getSpellAttackBreakdown, getSpellSaveDCBreakdown, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveSpellcastingAbility, displayedConditions } from "@/lib/character-utils"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellAttackTooltip, getEffectiveSpellSaveDCTooltip, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveSpellcastingAbility, displayedConditions } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { TEMP_HP_COLOR } from "@/lib/utils"
@@ -24,19 +24,11 @@ export function StatsBar(props: StatsBarProps) {
     (props.character.useCalculatedInitiative ?? false) ? calculateInitiative(props.character).initiative : (props.character.initiative ?? 0)
   )
   const hasSpellcasting = createMemo(() => !!getEffectiveSpellcastingAbility(props.character))
-  const useCalculatedSpellSaveDC = () => props.character.useCalculatedSpellSaveDC ?? true
-  const useCalculatedHitBonus = () => props.character.useCalculatedSpellAttackBonus ?? true
-  const spellSaveDC = createMemo(() =>
-    useCalculatedSpellSaveDC() ? getSpellSaveDC(props.character) : props.character.spellSaveDC
+  const spellSaveDC = createMemo(() => getEffectiveSpellSaveDC(props.character))
+  const hitBonus = createMemo(() => getEffectiveSpellAttackBonus(props.character))
+  const spellTooltip = createMemo(() =>
+    `Spell Hit: ${getEffectiveSpellAttackTooltip(props.character)} · DC: ${getEffectiveSpellSaveDCTooltip(props.character)}`
   )
-  const hitBonus = createMemo(() =>
-    useCalculatedHitBonus() ? getSpellAttackBonus(props.character) : props.character.spellAttackBonus
-  )
-  const spellTooltip = createMemo(() => {
-    const hit = useCalculatedHitBonus() ? getSpellAttackBreakdown(props.character) : "Custom"
-    const dc = useCalculatedSpellSaveDC() ? getSpellSaveDCBreakdown(props.character) : "Custom"
-    return `Spell Hit: ${hit} · DC: ${dc}`
-  })
   const conditions = createMemo(() => displayedConditions(props.character))
 
   return (

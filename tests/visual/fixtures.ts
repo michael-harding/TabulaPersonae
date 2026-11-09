@@ -100,6 +100,8 @@ export const testCharacter: Character = {
       duration: "1 minute",
       description: "The next time you hit a creature with a weapon attack before this spell ends, a writhing mass of thorny vines appears at the point of impact.",
       highlights: "Restrained on a failed **STR** save",
+      // A save written out from its ability, which the card shows with the character's DC
+      attackSave: "STR/Athletics",
       damage: "1d6",
       damageType: "Piercing",
       damageRecurring: true,
@@ -121,6 +123,23 @@ export const testCharacter: Character = {
       prepared: true,
       known: true,
       concentration: true,
+    },
+    {
+      // A spell attack roll, which the card shows with the character's spell attack bonus
+      id: "sp4",
+      name: "Primal Savagery",
+      level: 0,
+      school: "Transmutation",
+      castingTime: "1 Action",
+      range: "Self",
+      components: "S",
+      duration: "Instantaneous",
+      description: "Your teeth or fingernails sharpen, ready to deliver a corrosive attack.",
+      attackRoll: true,
+      damage: "1d10",
+      damageType: "Acid",
+      prepared: false,
+      known: true,
     },
   ],
 

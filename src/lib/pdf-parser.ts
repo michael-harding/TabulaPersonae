@@ -248,6 +248,19 @@ export function parseSpellcastingAbility(value: string | undefined): keyof Abili
   return ABILITY_ABBREVIATIONS[lower] ?? ""
 }
 
+/**
+ * A spell's SAVE/HIT column: "DEX 15" is a save, kept as its ability (the DC is the character's,
+ * calculated live); "+7" is a spell attack roll. Anything else is kept as written.
+ */
+export function parseSpellSaveHit(raw: string | undefined): Pick<Spell, "attackRoll" | "attackSave"> {
+  const value = raw?.trim() ?? ""
+  if (!value || value === "--") return {}
+  const save = value.match(/^(str|dex|con|int|wis|cha)\b/i)
+  if (save) return { attackSave: save[1].toUpperCase() }
+  if (/^[+-]\d+$/.test(value)) return { attackRoll: true }
+  return { attackSave: value }
+}
+
 export function normalizeCastingTime(raw: string): string {
   const t = raw.trim().toLowerCase()
   if (!t) return raw
@@ -602,7 +615,6 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
     if (!spellName) continue
     const preparedRaw = f(`spellPrepared${i}`)
     const prepared = preparedRaw.trim().toUpperCase() === "P"
-    const saveHit = f(`spellSaveHit${i}`)
     spells.push({
       id: crypto.randomUUID(),
       name: spellName,
@@ -612,7 +624,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
       range: f(`spellRange${i}`),
       components: f(`spellComponents${i}`),
       duration: f(`spellDuration${i}`),
-      attackSave: saveHit !== "--" ? saveHit : undefined,
+      ...parseSpellSaveHit(f(`spellSaveHit${i}`)),
       description: f(`spellNotes${i}`),
       prepared,
       known: true,

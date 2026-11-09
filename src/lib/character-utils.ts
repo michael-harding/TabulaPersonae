@@ -960,6 +960,43 @@ export function getSpellSaveDCBreakdown(character: Character): string {
   return `8${formatTerm(character.proficiencyBonus || 2, "Prof")}${formatTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}`
 }
 
+/** The spell save DC the sheet shows: the custom value when one is set, the calculated one otherwise. */
+export function getEffectiveSpellSaveDC(character: Character): number {
+  return (character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(character) : character.spellSaveDC
+}
+
+/** The spell attack bonus the sheet shows: the custom value when one is set, the calculated one otherwise. */
+export function getEffectiveSpellAttackBonus(character: Character): number {
+  return (character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBonus(character) : character.spellAttackBonus
+}
+
+/** The tooltip of getEffectiveSpellSaveDC: its breakdown, or "Custom" for a custom value. */
+export function getEffectiveSpellSaveDCTooltip(character: Character): string {
+  return (character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDCBreakdown(character) : "Custom"
+}
+
+/** The tooltip of getEffectiveSpellAttackBonus: its breakdown, or "Custom" for a custom value. */
+export function getEffectiveSpellAttackTooltip(character: Character): string {
+  return (character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBreakdown(character) : "Custom"
+}
+
+const SAVE_ABILITY_START = /^(str|dex|con|int|wis|cha|strength|dexterity|constitution|intelligence|wisdom|charisma)\b/i
+// A DC typed into the text ("DEX save DC 13"), with what joins it on: the character's own DC replaces it
+const TYPED_DC = /[\s,;:-]*\bDC\s*\d+\b/gi
+
+/**
+ * The label of a spell's save badge, for an Attack/Save that starts with an ability ("DEX",
+ * "STR/Athletics", "Wisdom save"); null for any other text, which is shown as written without a DC.
+ * A lone abbreviation reads "DEX Save"; other text is kept as written, less any DC typed into it.
+ */
+export function spellSaveLabel(attackSave: string | undefined): string | null {
+  const value = attackSave?.trim() ?? ""
+  if (!SAVE_ABILITY_START.test(value)) return null
+  const abbreviation = value.toUpperCase()
+  if ((Object.values(ABILITY_ABBREVIATIONS) as string[]).includes(abbreviation)) return `${abbreviation} Save`
+  return value.replace(TYPED_DC, "").trim()
+}
+
 export const SKILL_ABILITY_MAP = {
   acrobatics: "dexterity",
   animalHandling: "wisdom",

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/
 import { Combobox } from "@/components/ui/combobox"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { DamageFields, GainFields } from "@/components/effect-fields"
+import { ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 
 export interface SpellFormData extends DamageValues, GainValues {
   name: string
@@ -20,6 +21,7 @@ export interface SpellFormData extends DamageValues, GainValues {
   range: string
   components: string
   duration: string
+  attackRoll: boolean
   attackSave?: string
   atHigherLevel?: string
   highlights: string
@@ -48,6 +50,9 @@ export const SPELL_LEVELS = [
 ]
 const SPELL_LEVEL_OPTIONS = SPELL_LEVELS.map((l) => ({ value: String(l.value), label: l.label }))
 
+// A spell's save is named by its ability; the DC comes from the character
+const SAVE_ABILITIES = Object.values(ABILITY_ABBREVIATIONS)
+
 const CASTING_TIMES = ["1 action","1 bonus action","1 reaction","1 minute","10 minutes","1 hour","8 hours","24 hours"]
 
 export const defaultSpellForm: SpellFormData = {
@@ -61,6 +66,7 @@ export const defaultSpellForm: SpellFormData = {
   damage: "",
   damageType: "",
   damageRecurring: false,
+  attackRoll: false,
   attackSave: "",
   gain: "",
   gainType: "",
@@ -107,13 +113,23 @@ export function SpellForm(props: SpellFormProps) {
       <div class="grid grid-cols-2 gap-4">
         <div>
           <Label for="attack-save">Attack/Save</Label>
-          <Input id="attack-save" data-test="spell-attack-save" value={formData().attackSave || ""} onInput={(e) => setFormData((p) => ({ ...p, attackSave: e.currentTarget.value }))} placeholder="e.g. Dex Save" />
+          <Combobox id="attack-save" data-test="spell-attack-save" value={formData().attackSave || ""} onValueChange={(v) => setFormData((p) => ({ ...p, attackSave: v }))} options={SAVE_ABILITIES} placeholder="e.g. DEX" />
         </div>
         <div>
           <Label for="at-higher-level">At Higher Level</Label>
           <Input id="at-higher-level" data-test="spell-at-higher-level" value={formData().atHigherLevel || ""} onInput={(e) => setFormData((p) => ({ ...p, atHigherLevel: e.currentTarget.value }))} placeholder="e.g. +1d6 per level" />
         </div>
       </div>
+
+      {/* Apart from Attack/Save: a spell can call for both an attack roll and a save */}
+      <Checkbox
+        data-test="spell-attack-roll-checkbox"
+        checked={formData().attackRoll}
+        onChange={(checked: boolean) => setFormData((p) => ({ ...p, attackRoll: checked }))}
+        label="Has attack roll"
+        labelClass="text-sm font-medium leading-none cursor-pointer"
+        containerClass="gap-3 min-h-[44px]"
+      />
 
       <div class="grid grid-cols-2 gap-4">
         <div>
@@ -253,6 +269,7 @@ export function spellToForm(spell: Spell): SpellFormData {
     damage: spell.damage || "",
     damageType: spell.damageType || "",
     damageRecurring: spell.damageRecurring ?? false,
+    attackRoll: spell.attackRoll ?? false,
     attackSave: spell.attackSave || "",
     highlights: spell.highlights || "",
     description: spell.description,
@@ -292,6 +309,7 @@ export function spellFromForm(form: SpellFormData, base?: Spell): Spell {
     damage: form.damage,
     damageType: form.damageType || undefined,
     damageRecurring: form.damageRecurring || undefined,
+    attackRoll: form.attackRoll || undefined,
     attackSave: form.attackSave,
     gain: form.gain,
     gainType: form.gainType || undefined,

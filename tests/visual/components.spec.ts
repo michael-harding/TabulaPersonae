@@ -269,3 +269,40 @@ test.describe("ActionCard uses tracker — interactive vs read-only", () => {
     await expect(card).toHaveScreenshot("action-card-stepper-readonly.png")
   })
 })
+
+test.describe("ActionCard spell badges", () => {
+  test("save badge with the character's DC, concentration stacked above the duration", async ({ page }) => {
+    // Ensnaring Strike: "STR/Athletics" save, Range beside Concentration and 1 minute
+    await openSheet(page, testCharacter, { tab: "Combat" })
+    await expect(page.locator('[data-test="action-card-bonus-spell-sp2"]')).toHaveScreenshot("action-card-spell-save-badge.png")
+  })
+
+  test("attack badge with the character's spell attack bonus", async ({ page }) => {
+    // Primal Savagery: a spell attack roll
+    await openSheet(page, testCharacter, { tab: "Combat" })
+    await expect(page.locator('[data-test="action-card-action-spell-sp4"]')).toHaveScreenshot("action-card-spell-attack-badge.png")
+  })
+})
+
+test.describe("ActionsModule component", () => {
+  test("edit mode", async ({ page }) => {
+    await openSheet(page, testCharacter, { tab: "Combat" })
+    const card = page.locator('[data-test="actions-module"]')
+    await card.locator('[data-test="actions-module-edit"]').click()
+    await expect(card).toHaveScreenshot("actions-module-edit.png")
+  })
+})
+
+test.describe("SpellsModule component", () => {
+  test("view mode", async ({ page }) => {
+    await openSheet(page, testCharacter, { tab: "Spells" })
+    await expect(page.locator('[data-test="spells-module"]')).toHaveScreenshot("spells-module-view.png")
+  })
+
+  test("edit mode", async ({ page }) => {
+    await openSheet(page, testCharacter, { tab: "Spells" })
+    const card = page.locator('[data-test="spells-module"]')
+    await card.locator('[data-test="spells-module-edit"]').click()
+    await expect(card).toHaveScreenshot("spells-module-edit.png")
+  })
+})

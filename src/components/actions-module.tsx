@@ -3,7 +3,6 @@ import Sword from "lucide-solid/icons/sword"
 import Plus from "lucide-solid/icons/plus"
 import Clock from "lucide-solid/icons/clock"
 import Target from "lucide-solid/icons/target"
-import Zap from "lucide-solid/icons/zap"
 import Shield from "lucide-solid/icons/shield"
 import Sparkles from "lucide-solid/icons/sparkles"
 import ChevronDown from "lucide-solid/icons/chevron-down"
@@ -11,11 +10,9 @@ import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionType, Attack, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, computeSpellModifier, formatModifier, formatLeadingTerm, getSpellAttackBreakdown, getSpellSaveDCBreakdown, safeFeatures, getEquippedWeaponAttacks, getEffectiveSpellcastingAbility, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, ABILITY_TITLE_CASE, FEATURE_KIND_LABELS, RECHARGE_ON_OPTIONS } from "@/lib/character-utils"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, RECHARGE_ON_OPTIONS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
-import { CalculatedValue } from "@/components/ui/calculated-value"
-import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
@@ -241,41 +238,17 @@ type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
 
 type StoredAction = ActionFormData & { id: string }
 
-// The fields this module's edit form shows (see useModuleEdit for how Save writes them)
-interface ActionsDraft {
-  useCalculatedSpellAttackBonus: boolean
-  spellAttackBonus: number
-  useCalculatedSpellSaveDC: boolean
-  spellSaveDC: number
-  useCalculatedSpellModifier: boolean
-  spellModifier: number
-}
+// The fields this module's edit form shows (see useModuleEdit for how Save writes them). None yet:
+// edit mode is where card ordering will be changed, and that ordering joins the draft with it.
+type ActionsDraft = Record<never, never>
 
-const toDraft = (c: Character): ActionsDraft => {
-  const useCalculatedSpellAttackBonus = c.useCalculatedSpellAttackBonus ?? true
-  const useCalculatedSpellSaveDC = c.useCalculatedSpellSaveDC ?? true
-  const useCalculatedSpellModifier = c.useCalculatedSpellModifier ?? true
-  return {
-    useCalculatedSpellAttackBonus,
-    spellAttackBonus: useCalculatedSpellAttackBonus ? getSpellAttackBonus(c) : (c.spellAttackBonus ?? getSpellAttackBonus(c)),
-    useCalculatedSpellSaveDC,
-    spellSaveDC: useCalculatedSpellSaveDC ? getSpellSaveDC(c) : (c.spellSaveDC ?? getSpellSaveDC(c)),
-    useCalculatedSpellModifier,
-    spellModifier: useCalculatedSpellModifier ? computeSpellModifier(c) : (c.spellModifier ?? computeSpellModifier(c)),
-  }
-}
+const toDraft = (): ActionsDraft => ({})
 
 export function ActionsModule(props: ActionsModuleProps) {
   const isReadOnly = useReadOnly()
   const edit = useModuleEdit({
     character: () => props.character,
     toDraft,
-    resolve: (draft): Partial<Character> => ({
-      ...draft,
-      spellAttackBonus: spellAttackField.resolvedValue(),
-      spellSaveDC: spellSaveDCField.resolvedValue(),
-      spellModifier: spellModifierField.resolvedValue(),
-    }),
     onUpdate: (c) => props.onUpdate(c),
   })
   const [isActionModalOpen, setIsActionModalOpen] = createSignal(false)
@@ -321,48 +294,10 @@ export function ActionsModule(props: ActionsModuleProps) {
   }
 
   const safeSpells = createMemo(() => props.character.spells || [])
-  const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
-  const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
-  const spellModifier = createMemo(() => computeSpellModifier(props.character))
-
-  const effectiveSpellcastingAbility = createMemo(() => getEffectiveSpellcastingAbility(props.character))
-  const spellAbilityLabel = createMemo(() => {
-    const ability = effectiveSpellcastingAbility()
-    return ability ? ABILITY_TITLE_CASE[ability] : ""
-  })
-  const spellModifierTooltip = createMemo(() =>
-    effectiveSpellcastingAbility() ? formatLeadingTerm(spellModifier(), spellAbilityLabel()) : "No spellcasting ability set"
-  )
-  const spellAttackTooltip = createMemo(() => getSpellAttackBreakdown(props.character))
-  const spellSaveDCTooltip = createMemo(() => getSpellSaveDCBreakdown(props.character))
-
-  const spellAttackField = useCalculatedValue({
-    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellAttackBonus : (props.character.useCalculatedSpellAttackBonus ?? true)),
-    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellAttackBonus: v })),
-    manualValue: () => (edit.isEditing() ? edit.draft().spellAttackBonus : (props.character.spellAttackBonus ?? spellAttackBonus())),
-    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellAttackBonus: v })),
-    calculatedValue: spellAttackBonus,
-    calculatedTooltip: spellAttackTooltip,
-  })
-
-  const spellModifierField = useCalculatedValue({
-    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellModifier : (props.character.useCalculatedSpellModifier ?? true)),
-    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellModifier: v })),
-    manualValue: () => (edit.isEditing() ? edit.draft().spellModifier : (props.character.spellModifier ?? spellModifier())),
-    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellModifier: v })),
-    calculatedValue: spellModifier,
-    calculatedTooltip: spellModifierTooltip,
-  })
-
-  const spellSaveDCField = useCalculatedValue({
-    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellSaveDC : (props.character.useCalculatedSpellSaveDC ?? true)),
-    setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellSaveDC: v })),
-    manualValue: () => (edit.isEditing() ? edit.draft().spellSaveDC : (props.character.spellSaveDC ?? spellSaveDC())),
-    setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellSaveDC: v })),
-    calculatedValue: spellSaveDC,
-    calculatedTooltip: spellSaveDCTooltip,
-  })
-
+  const spellSaveDC = createMemo(() => getEffectiveSpellSaveDC(props.character))
+  const spellSaveDCTooltip = createMemo(() => getEffectiveSpellSaveDCTooltip(props.character))
+  const spellAttackBonus = createMemo(() => getEffectiveSpellAttackBonus(props.character))
+  const spellAttackTooltip = createMemo(() => getEffectiveSpellAttackTooltip(props.character))
 
   const equippedWeaponAttacks = createMemo(() => getEquippedWeaponAttacks(props.character))
 
@@ -540,7 +475,12 @@ export function ActionsModule(props: ActionsModuleProps) {
         duration={spell.duration}
         ritual={spell.ritual}
         castingTime={spell.castingTime}
-        attackSave={spell.attackSave}
+        attackBonus={spell.attackRoll ? spellAttackBonus() : undefined}
+        attackBonusTooltip={spell.attackRoll ? spellAttackTooltip() : undefined}
+        // A save that starts with an ability gets the character's DC; any other text is shown as written
+        attackSave={spellSaveLabel(spell.attackSave) ?? spell.attackSave}
+        attackSaveDC={spellSaveLabel(spell.attackSave) ? spellSaveDC() : undefined}
+        attackSaveTooltip={spellSaveLabel(spell.attackSave) ? spellSaveDCTooltip() : undefined}
         range={spell.range}
         components={spell.components}
         atHigherLevel={spell.atHigherLevel}
@@ -659,38 +599,6 @@ export function ActionsModule(props: ActionsModuleProps) {
       onCancel={edit.cancel}
       contentClass="space-y-6"
     >
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg">
-          <div class="text-center">
-            <CalculatedValue data-test="spell-attack"
-              label="Spell Attack"
-              labelClass="text-sm font-medium"
-              icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
-              editable={edit.isEditing()}
-              {...spellAttackField.binding()}
-              format={formatModifier}
-            />
-          </div>
-          <div class="text-center">
-            <CalculatedValue data-test="spell-modifier"
-              label="Spell Modifier"
-              labelClass="text-sm font-medium"
-              icon={<Zap class="h-4 w-4 text-primary" aria-hidden="true" />}
-              editable={edit.isEditing()}
-              {...spellModifierField.binding()}
-              format={formatModifier}
-            />
-          </div>
-          <div class="text-center">
-            <CalculatedValue data-test="spell-save-dc"
-              label="Spell Save DC"
-              labelClass="text-sm font-medium"
-              icon={<Shield class="h-4 w-4 text-primary" aria-hidden="true" />}
-              editable={edit.isEditing()}
-              {...spellSaveDCField.binding()}
-            />
-          </div>
-        </div>
-
         <div class="my-4">
           <SpellSlotTracker spellSlots={props.character.spellSlots} onToggle={updateSpellSlotUsed} />
         </div>

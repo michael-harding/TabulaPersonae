@@ -16,6 +16,7 @@ import {
   mapFieldsToCharacter,
   mergeWithDefault,
   normalizeCastingTime,
+  parseSpellSaveHit,
 } from "@/lib/pdf-parser"
 
 vi.mock("pdf-lib", () => ({
@@ -138,6 +139,15 @@ describe("pdf-parser", () => {
     it("normalizes abbreviation CHA", () => expect(parseSpellcastingAbility("CHA")).toBe("charisma"))
     it("returns empty string for unrecognized", () => expect(parseSpellcastingAbility("FOO")).toBe(""))
     it("returns empty string for undefined", () => expect(parseSpellcastingAbility(undefined)).toBe(""))
+  })
+
+  describe("parseSpellSaveHit", () => {
+    it("keeps a save's ability and drops its DC, which the sheet calculates", () => expect(parseSpellSaveHit("DEX 15")).toEqual({ attackSave: "DEX" }))
+    it("upper-cases a save ability", () => expect(parseSpellSaveHit("wis 13")).toEqual({ attackSave: "WIS" }))
+    it("reads a hit bonus as a spell attack roll", () => expect(parseSpellSaveHit("+7")).toEqual({ attackRoll: true }))
+    it("returns nothing for '--'", () => expect(parseSpellSaveHit("--")).toEqual({}))
+    it("returns nothing for a blank value", () => expect(parseSpellSaveHit("  ")).toEqual({}))
+    it("keeps any other text as written", () => expect(parseSpellSaveHit("Special")).toEqual({ attackSave: "Special" }))
   })
 
   describe("normalizeCastingTime", () => {

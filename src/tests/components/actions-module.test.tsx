@@ -62,11 +62,11 @@ describe("ActionsModule", () => {
       expect(screen.getByText("Reactions")).toBeInTheDocument()
     })
 
-it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
+    it("does not render the Spell Attack, Spell Modifier, and Spell Save DC stats: each spell card shows its own", () => {
       render(() => <ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      expect(screen.getByText("Spell Attack")).toBeInTheDocument()
-      expect(screen.getByText("Spell Modifier")).toBeInTheDocument()
-      expect(screen.getByText("Spell Save DC")).toBeInTheDocument()
+      expect(screen.queryByText("Spell Attack")).not.toBeInTheDocument()
+      expect(screen.queryByText("Spell Modifier")).not.toBeInTheDocument()
+      expect(screen.queryByText("Spell Save DC")).not.toBeInTheDocument()
     })
 
     it("does not render an Attack Bonus stat", () => {
@@ -117,7 +117,8 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     })
   })
 
-  describe("calculated spell stats", () => {
+  describe("spell attack and save badges", () => {
+    // INT 16 -> mod +3, prof +3 => spell attack +6, DC 8+3+3=14
     function makeSpellcaster(overrides: Partial<Character> = {}): Character {
       return makeCharacter({
         classFeatures: [{
@@ -129,7 +130,71 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
         ...overrides,
       })
     }
+    const badge = (part: string) => screen.getByTestId(`action-card-action-spell-sp-1-${part}`)
+    const tooltipTrigger = (part: string) => badge(part).closest('[data-sem="tooltip-trigger"]')!
 
+    it("shows the character's spell attack bonus on a spell with an attack roll, explained in a tooltip", async () => {
+      render(() => <ActionsModule character={makeSpellcaster({ spells: [makeSpell({ attackRoll: true })] })} onUpdate={vi.fn()} />)
+      expect(badge("attack-badge")).toHaveTextContent("Attack+6")
+      fireEvent.focus(tooltipTrigger("attack-badge"))
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Int) + 3 (Prof)"))
+    })
+
+    it("shows no attack badge on a spell without an attack roll", () => {
+      render(() => <ActionsModule character={makeSpellcaster({ spells: [makeSpell()] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByTestId("action-card-action-spell-sp-1-attack-badge")).not.toBeInTheDocument()
+    })
+
+    it("shows a save ability with the character's spell save DC, explained in a tooltip", async () => {
+      render(() => <ActionsModule character={makeSpellcaster({ spells: [makeSpell({ attackSave: "dex" })] })} onUpdate={vi.fn()} />)
+      expect(badge("attack-save-badge")).toHaveTextContent("DEX SaveDC 14")
+      fireEvent.focus(tooltipTrigger("attack-save-badge"))
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("8 + 3 (Prof) + 3 (Int)"))
+    })
+
+    it("shows both badges on a spell with an attack roll and a save, attack first", () => {
+      render(() => <ActionsModule character={makeSpellcaster({ spells: [makeSpell({ attackRoll: true, attackSave: "CON" })] })} onUpdate={vi.fn()} />)
+      const attack = badge("attack-badge")
+      const save = badge("attack-save-badge")
+      expect(attack.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it("shows custom spell attack and save DC values, with a Custom tooltip", async () => {
+      const character = makeSpellcaster({
+        spells: [makeSpell({ attackRoll: true, attackSave: "WIS" })],
+        useCalculatedSpellAttackBonus: false, spellAttackBonus: 9,
+        useCalculatedSpellSaveDC: false, spellSaveDC: 17,
+      })
+      render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
+      expect(badge("attack-badge")).toHaveTextContent("Attack+9")
+      expect(badge("attack-save-badge")).toHaveTextContent("WIS SaveDC 17")
+      fireEvent.focus(tooltipTrigger("attack-save-badge"))
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("Custom"))
+    })
+
+    // Regression: "STR/Athletics" was shown as plain text, without the DC
+    it("gives a save written out from its ability the character's DC, keeping the text", async () => {
+      render(() => <ActionsModule character={makeSpellcaster({ spells: [makeSpell({ attackSave: "STR/Athletics" })] })} onUpdate={vi.fn()} />)
+      expect(badge("attack-save-badge")).toHaveTextContent("STR/AthleticsDC 14")
+      expect(screen.getByRole("group", { name: "STR/Athletics DC 14" })).toContainElement(badge("attack-save-badge"))
+      fireEvent.focus(tooltipTrigger("attack-save-badge"))
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("8 + 3 (Prof) + 3 (Int)"))
+    })
+
+    it("replaces a DC typed into the save with the character's", () => {
+      render(() => <ActionsModule character={makeSpellcaster({ spells: [makeSpell({ attackSave: "DEX save DC 13" })] })} onUpdate={vi.fn()} />)
+      expect(badge("attack-save-badge")).toHaveTextContent("DEX saveDC 14")
+      expect(badge("attack-save-badge")).not.toHaveTextContent("13")
+    })
+
+    it("shows Attack/Save text that names no ability as written, without a DC or tooltip", () => {
+      render(() => <ActionsModule character={makeSpellcaster({ spells: [makeSpell({ attackSave: "Special" })] })} onUpdate={vi.fn()} />)
+      expect(badge("attack-save-badge")).toHaveTextContent("Attack/SaveSpecial")
+      expect(badge("attack-save-badge").closest('[data-sem="tooltip-trigger"]')).toBeNull()
+    })
+  })
+
+  describe("edit mode", () => {
     function clickEditButton() {
       fireEvent.click(screen.getByRole("button", { name: /^edit$/i }))
     }
@@ -137,137 +202,31 @@ it("renders Spell Attack, Spell Modifier, and Spell Save DC stats", () => {
     it("does not show an Edit button in view mode when read-only", () => {
       render(() => (
         <ReadOnlyProvider value={true}>
-          <ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />
+          <ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />
         </ReadOnlyProvider>
       ))
       expect(screen.queryByRole("button", { name: /^edit$/i })).not.toBeInTheDocument()
     })
 
-    it("shows a custom-value toggle for spell attack, spell modifier, and spell save DC in edit mode", () => {
-      render(() => <ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
-      clickEditButton()
-      for (const id of ["spell-attack", "spell-modifier", "spell-save-dc"]) {
-        expect(screen.getByTestId(`${id}-toggle`)).toBeInTheDocument()
-      }
-    })
-
-    it("drops the previous character's in-progress edits when the character is switched mid-edit", () => {
-      // The sheet swaps characters in place (same mounted module, new id), so edits started on
-      // one character must not be saved onto the next.
+    it("leaves the character unchanged when saved", () => {
       const onUpdate = vi.fn()
-      const [character, setCharacter] = createStore(
-        makeSpellcaster({ id: "char-a", useCalculatedSpellSaveDC: false, spellSaveDC: 20 })
-      )
+      const character = makeCharacter({ useCalculatedSpellSaveDC: false, spellSaveDC: 18 })
       render(() => <ActionsModule character={character} onUpdate={onUpdate} />)
       clickEditButton()
-      setCharacter(reconcile(makeSpellcaster({ id: "char-b", useCalculatedSpellSaveDC: false, spellSaveDC: 11 })))
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ id: "char-b", spellSaveDC: 11 }))
+      expect(onUpdate).toHaveBeenCalledWith(character)
+      expect(screen.getByRole("button", { name: /^edit$/i })).toBeInTheDocument()
     })
 
-    it("shows the ability-derived spell attack and save DC in view mode", () => {
-      // INT 16 -> mod +3, prof +3 => spell attack +6, DC 8+3+3=14
-      render(() => <ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
-      expect(screen.getByText("+6")).toBeInTheDocument()
-      expect(screen.getByText("14")).toBeInTheDocument()
-    })
-
-    it("cascades an equipped ability-score-boosting item into spell modifier, attack, and save DC", () => {
-      const magicItem: Equipment = {
-        id: "item-1",
-        name: "Headband of Intellect",
-        quantity: 1,
-        weight: 0,
-        description: "",
-        equipped: true,
-        type: "other",
-        magic: true,
-        requiresAttunement: true,
-        attuned: true,
-        rarity: "rare",
-        modifiers: { abilityScores: { intelligence: 2 } },
-      }
-      // INT 16 + item +2 = 18 -> mod +4, prof +3 => spell attack +7, DC 8+3+4=15
-      render(() => <ActionsModule character={makeSpellcaster({ equipment: [magicItem] })} onUpdate={vi.fn()} />)
-      expect(screen.getByText("+7")).toBeInTheDocument()
-      expect(screen.getByText("15")).toBeInTheDocument()
-      expect(screen.getByText("+4")).toBeInTheDocument()
-    })
-
-    it("shows a NumericInput for spell attack once switched to custom in edit mode", () => {
-      render(() => <ActionsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom spell attack/i }))
-      expect(screen.getByRole("spinbutton", { name: /spell attack/i })).toBeInTheDocument()
-    })
-
-    it("saves a custom spell save DC override on save", () => {
+    it("leaves edit mode when Cancel is clicked", () => {
       const onUpdate = vi.fn()
-      render(() => <ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      render(() => <ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom spell save dc/i }))
-      const input = screen.getByRole("spinbutton", { name: /spell save dc/i })
-      fireEvent.input(input, { target: { value: "18" } })
-      fireEvent.blur(input)
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ useCalculatedSpellSaveDC: false, spellSaveDC: 18 })
-      )
-    })
-
-    it("saves the calculated spell modifier value when the flag stays enabled", () => {
-      const onUpdate = vi.fn()
-      render(() => <ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ useCalculatedSpellModifier: true, spellModifier: 3 })
-      )
-    })
-
-    it("persists edits on Ctrl+S without leaving edit mode", () => {
-      const onUpdate = vi.fn()
-      render(() => <ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom spell save dc/i }))
-      const input = screen.getByRole("spinbutton", { name: /spell save dc/i })
-      fireEvent.input(input, { target: { value: "18" } })
-      fireEvent.blur(input)
-      fireEvent.keyDown(input, { key: "s", ctrlKey: true })
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ useCalculatedSpellSaveDC: false, spellSaveDC: 18 })
-      )
-      expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
-    })
-
-    it("discards an in-progress override when Cancel is clicked", () => {
-      const onUpdate = vi.fn()
-      render(() => <ActionsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
-      clickEditButton()
-      fireEvent.click(screen.getByRole("button", { name: /use custom spell attack/i }))
       fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }))
       expect(onUpdate).not.toHaveBeenCalled()
-      expect(screen.queryByRole("spinbutton", { name: /spell attack/i })).not.toBeInTheDocument()
-    })
-
-    it("falls back to the calculated value instead of rendering 'undefined' when legacy data has no stored spellAttackBonus/spellSaveDC", () => {
-      // Simulates legacy/partially-populated character data: the "use calculated" flags are off,
-      // but the manual value was never persisted, so it's undefined at runtime.
-      const char = makeSpellcaster({
-        useCalculatedSpellAttackBonus: false,
-        spellAttackBonus: undefined as unknown as number,
-        useCalculatedSpellSaveDC: false,
-        spellSaveDC: undefined as unknown as number,
-      })
-      render(() => <ActionsModule character={char} onUpdate={vi.fn()} />)
-      clickEditButton()
-      const attackInput = screen.getByRole("spinbutton", { name: /spell attack/i }) as HTMLInputElement
-      const dcInput = screen.getByRole("spinbutton", { name: /spell save dc/i }) as HTMLInputElement
-      expect(attackInput.value).toBe("6")
-      expect(dcInput.value).toBe("14")
+      expect(screen.getByRole("button", { name: /^edit$/i })).toBeInTheDocument()
     })
   })
-
 
   describe("SpellSlotTracker integration", () => {
     it("renders slot circles for levels with total > 0", () => {

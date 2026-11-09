@@ -39,6 +39,14 @@ export const MODALS: ModalCase[] = [
   { name: "feature-edit", tab: "Features", open: (page) => click(page, "feature-edit-cf3") },
   { name: "spell-add", tab: "Spells", open: (page) => click(page, "add-spell-button") },
   { name: "spell-edit", tab: "Spells", open: (page) => click(page, "edit-spell-sp3") },
+  {
+    // The Attack/Save list of save abilities, open inside the form
+    name: "spell-edit-attack-save-open", tab: "Spells", open: async (page) => {
+      await click(page, "edit-spell-sp2")
+      await dialog(page).getByRole("combobox", { name: "Attack/Save" }).click()
+      await expect(page.getByRole("listbox")).toBeVisible()
+    },
+  },
   { name: "spell-slots", tab: "Spells", open: (page) => click(page, "edit-spell-slots-button") },
   { name: "item-add", tab: "Inventory", open: (page) => click(page, "add-equipment-button") },
   {
@@ -151,6 +159,14 @@ export const OVERLAYS: OverlayCase[] = [
     // which migrates to a custom value whose tooltip is just "Custom"; this shows the breakdown.
     name: "calculated-value-tooltip", character: { ...testCharacter, useCalculatedArmorClass: true }, open: async (page) => {
       await byTest(page, "armor-class-display").click()
+      return page.getByRole("tooltip")
+    },
+  },
+  {
+    // A stat badge's breakdown: Ensnaring Strike's save, with the character's spell save DC.
+    // Pinned open by a click, as for calculated-value-tooltip above.
+    name: "stat-badge-tooltip", tab: "Combat", open: async (page) => {
+      await byTest(page, "action-card-bonus-spell-sp2-attack-save-badge").click()
       return page.getByRole("tooltip")
     },
   },

@@ -66,6 +66,11 @@ describe("spellFromForm", () => {
     expect(spell.highlights).toBeUndefined()
   })
 
+  it("stores attackRoll only when set", () => {
+    expect(spellFromForm(makeForm({ attackRoll: false })).attackRoll).toBeUndefined()
+    expect(spellFromForm(makeForm({ attackRoll: true })).attackRoll).toBe(true)
+  })
+
   it("stores freeCast only for an item-granted spell", () => {
     expect(spellFromForm(makeForm({ grantedBy: "", freeCast: true })).freeCast).toBeUndefined()
     expect(spellFromForm(makeForm({ grantedBy: "item-1", freeCast: true })).freeCast).toBe(true)
@@ -77,17 +82,18 @@ describe("spellToForm", () => {
     const spell = makeSpell({
       level: 3, damage: "8d6", damageType: "Fire", damageRecurring: true,
       gain: "2d4", gainType: "Temp HP", gainRecurring: true, highlights: "Big *boom*",
-      concentration: true, ritual: false, attackSave: "DEX save", atHigherLevel: "+1d6",
+      concentration: true, ritual: false, attackRoll: true, attackSave: "DEX save", atHigherLevel: "+1d6",
     })
     expect(spellFromForm(spellToForm(spell), spell)).toEqual(expect.objectContaining({
       id: spell.id, level: 3, damage: "8d6", damageType: "Fire", damageRecurring: true,
       gain: "2d4", gainType: "Temp HP", gainRecurring: true, highlights: "Big *boom*",
+      attackRoll: true, attackSave: "DEX save",
     }))
   })
 
   it("fills blanks for a spell saved before the new fields existed", () => {
     const form = spellToForm(makeSpell())
-    expect(form).toMatchObject({ damageType: "", damageRecurring: false, gainType: "", gainRecurring: false, highlights: "" })
+    expect(form).toMatchObject({ damageType: "", damageRecurring: false, gainType: "", gainRecurring: false, highlights: "", attackRoll: false })
   })
 })
 
@@ -117,6 +123,31 @@ describe("SpellEditModal", () => {
     fireEvent.input(screen.getByLabelText("Spell Name"), { target: { value: "Shield" } })
     fireEvent.click(screen.getByTestId("spell-form-submit"))
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "Shield" }))
+  })
+
+  it("offers the six save abilities for Attack/Save", () => {
+    render(() => <SpellEditModal open spell={makeSpell()} magicItems={[]} onSave={vi.fn()} onCancel={vi.fn()} />)
+    fireEvent.focus(screen.getByRole("combobox", { name: "Attack/Save" }))
+    const options = screen.getAllByRole("option").map((o) => o.textContent)
+    expect(options).toEqual(["STR", "DEX", "CON", "INT", "WIS", "CHA"])
+  })
+
+  it("saves a chosen save ability and the attack roll checkbox", () => {
+    const onSave = vi.fn()
+    render(() => <SpellEditModal open spell={makeSpell()} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
+    fireEvent.focus(screen.getByRole("combobox", { name: "Attack/Save" }))
+    fireEvent.click(screen.getByRole("option", { name: "WIS" }))
+    fireEvent.click(screen.getByRole("checkbox", { name: "Has attack roll" }))
+    fireEvent.click(screen.getByTestId("spell-form-submit"))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ attackSave: "WIS", attackRoll: true }))
+  })
+
+  it("keeps Attack/Save text saved before the abilities were offered", () => {
+    const onSave = vi.fn()
+    render(() => <SpellEditModal open spell={makeSpell({ attackSave: "Dex Save" })} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
+    expect(screen.getByRole("combobox", { name: "Attack/Save" })).toHaveValue("Dex Save")
+    fireEvent.click(screen.getByTestId("spell-form-submit"))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ attackSave: "Dex Save" }))
   })
 
   it("does not save a spell without a name", () => {

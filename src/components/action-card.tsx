@@ -6,14 +6,14 @@ import X from "lucide-solid/icons/x"
 import { useReadOnly } from "@/lib/read-only-context"
 import { Chip } from "@/components/ui/chip"
 import { Button } from "@/components/ui/button"
-import { Tooltip } from "@/components/ui/tooltip"
+import { StatBadge, StatBadgeGroup } from "@/components/ui/stat-badge"
 import { PipTracker, type PipIcon } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { Popover, PopoverTrigger, PopoverContent, PopoverTitle } from "@/components/ui/popover"
 import { Select, SelectContent, SelectTrigger, SelectValue, type SelectOption } from "@/components/ui/select"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { formatModifier, remainingUses, spentFromRemaining, TEMP_HP_GAIN_TYPE } from "@/lib/character-utils"
-import { cn, TEMP_HP_COLOR, TOUCH_TARGET_BOX } from "@/lib/utils"
+import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
 function getOrdinalSuffix(num: number): string {
   const suffixes = ["th", "st", "nd", "rd"]
@@ -68,7 +68,12 @@ export interface ActionCardProps {
   /** Breakdown of a calculated attackBonus, shown as its tooltip. */
   attackBonusTooltip?: string
   range?: string
+  /** The save's label ("DEX Save") when attackSaveDC is given; otherwise text shown as written. */
   attackSave?: string
+  /** The DC of an attackSave that names a save ability. */
+  attackSaveDC?: number
+  /** Breakdown of a calculated attackSaveDC, shown as its tooltip. */
+  attackSaveTooltip?: string
   // Trigger (reactions)
   trigger?: string
 
@@ -187,56 +192,53 @@ export function ActionCard(props: ActionCardProps) {
     </Show>
   )
 
-  const statBadge = (badge: { class: string; testId: string; first: JSX.Element; second: JSX.Element; strongFirst: boolean }) => (
-    <div
-      class={cn("flex min-w-[3.5rem] flex-1 flex-col items-center justify-center rounded border-2 px-1.5 py-0.5 text-center leading-tight", badge.class)}
-      data-test={badge.testId}
-    >
-      <span class={badge.strongFirst ? "text-sm font-semibold" : "text-xs"}>{badge.first}</span>
-      <span class={badge.strongFirst ? "text-xs" : "text-sm font-semibold"}>{badge.second}</span>
-    </div>
-  )
-
   const statBadges = (inExpanded: boolean) => (
-    <Show when={props.attackBonus != null || props.damage || props.gain}>
-      <div class="flex flex-wrap gap-1.5">
+    <Show when={props.attackBonus != null || props.attackSave || props.damage || props.gain}>
+      <StatBadgeGroup>
         <Show when={props.attackBonus != null}>
-          {(() => {
-            const badge = () => statBadge({
-              class: "border-border", testId: hook("attack-badge", inExpanded), strongFirst: false,
-              first: "Attack", second: formatModifier(props.attackBonus!),
-            })
-            return (
-              <Show when={props.attackBonusTooltip} fallback={badge()}>
-                {(tooltip) => <Tooltip content={tooltip()} triggerFocusable triggerLabel={`Attack ${formatModifier(props.attackBonus!)}`} triggerClass="flex flex-1">{badge()}</Tooltip>}
-              </Show>
-            )
-          })()}
+          <StatBadge
+            data-test={hook("attack-badge", inExpanded)}
+            label="Attack"
+            value={formatModifier(props.attackBonus!)}
+            tooltip={props.attackBonusTooltip}
+            tooltipLabel={`Attack ${formatModifier(props.attackBonus!)}`}
+          />
+        </Show>
+        <Show when={props.attackSave}>
+          <Show
+            when={props.attackSaveDC != null}
+            fallback={<StatBadge data-test={hook("attack-save-badge", inExpanded)} label="Attack/Save" value={props.attackSave} />}
+          >
+            <StatBadge
+              data-test={hook("attack-save-badge", inExpanded)}
+              label={props.attackSave}
+              value={`DC ${props.attackSaveDC}`}
+              tooltip={props.attackSaveTooltip}
+              tooltipLabel={`${props.attackSave} DC ${props.attackSaveDC}`}
+            />
+          </Show>
         </Show>
         <Show when={props.damage}>
-          {(() => {
-            const badge = () => statBadge({
-              class: "border-red-500 text-red-700 dark:text-red-400", testId: hook("damage-badge", inExpanded), strongFirst: true,
-              first: props.damage,
-              second: <>{props.damageType || "Damage"}{recurring(props.damageRecurring)}</>,
-            })
-            return (
-              <Show when={props.damageTooltip} fallback={badge()}>
-                {(tooltip) => <Tooltip content={tooltip()} triggerFocusable triggerLabel={`Damage ${damageText()}`} triggerClass="flex flex-1">{badge()}</Tooltip>}
-              </Show>
-            )
-          })()}
+          <StatBadge
+            data-test={hook("damage-badge", inExpanded)}
+            tone="damage"
+            valueFirst
+            value={props.damage}
+            label={<>{props.damageType || "Damage"}{recurring(props.damageRecurring)}</>}
+            tooltip={props.damageTooltip}
+            tooltipLabel={`Damage ${damageText()}`}
+          />
         </Show>
         <Show when={props.gain}>
-          {statBadge({
-            // Temp HP matches the health bar's temp HP segment
-            class: isTempHp() ? `${TEMP_HP_COLOR.border} text-blue-700 dark:text-blue-300` : "border-green-500 text-green-700 dark:text-green-400",
-            testId: hook("gain-badge", inExpanded), strongFirst: true,
-            first: props.gain,
-            second: <>{props.gainType || "Gain"}{recurring(props.gainRecurring)}</>,
-          })}
+          <StatBadge
+            data-test={hook("gain-badge", inExpanded)}
+            tone={isTempHp() ? "tempHp" : "gain"}
+            valueFirst
+            value={props.gain}
+            label={<>{props.gainType || "Gain"}{recurring(props.gainRecurring)}</>}
+          />
         </Show>
-      </div>
+      </StatBadgeGroup>
     </Show>
   )
 
@@ -258,12 +260,12 @@ export function ActionCard(props: ActionCardProps) {
     </>
   )
 
+  const hasStatList = () => !!(props.trigger || props.range)
   const statList = () => (
-    <Show when={props.trigger || props.range || props.attackSave}>
+    <Show when={hasStatList()}>
       <ul class="min-w-24 flex-1 space-y-0.5 text-xs [overflow-wrap:anywhere]">
         <Show when={props.trigger}><li><strong>Trigger:</strong> {props.trigger}</li></Show>
         <Show when={props.range}><li><strong>Range:</strong> {props.range}</li></Show>
-        <Show when={props.attackSave}><li><strong>Attack/Save:</strong> {props.attackSave}</li></Show>
       </ul>
     </Show>
   )
@@ -378,12 +380,13 @@ export function ActionCard(props: ActionCardProps) {
 
         {statBadges(false)}
 
-        {/* The chips sit beside the list when there's room, and wrap below it when there isn't */}
-        <Show when={props.trigger || props.range || props.attackSave || props.concentration || durationLabel()}>
+        {/* The chips sit beside the list when there's room, and wrap below it when there isn't.
+            Beside the list they stack, Concentration above the duration; on their own they share a row */}
+        <Show when={hasStatList() || props.concentration || durationLabel()}>
           <div class="flex flex-wrap items-start gap-2">
             {statList()}
             <Show when={props.concentration || durationLabel()}>
-              <div class="ml-auto flex flex-wrap justify-end gap-1">{statusChips(false)}</div>
+              <div class={cn("ml-auto flex gap-1", hasStatList() ? "flex-col items-end" : "flex-wrap justify-end")}>{statusChips(false)}</div>
             </Show>
           </div>
         </Show>
@@ -459,7 +462,6 @@ export function ActionCard(props: ActionCardProps) {
             <Show when={props.range}>{detailRow("Range", props.range)}</Show>
             <Show when={props.components}>{detailRow("Components", props.components)}</Show>
             <Show when={props.duration}>{detailRow("Duration", props.duration)}</Show>
-            <Show when={props.attackSave}>{detailRow("Attack/Save", props.attackSave)}</Show>
             <Show when={props.trigger}>{detailRow("Trigger", props.trigger)}</Show>
             <Show when={props.damageRecurring}>{detailRow("Damage", `${damageText()}, recurs each turn`)}</Show>
             <Show when={props.gainRecurring}>{detailRow("Gain", `${props.gain}${props.gainType ? ` ${props.gainType}` : ""}, recurs each turn`)}</Show>

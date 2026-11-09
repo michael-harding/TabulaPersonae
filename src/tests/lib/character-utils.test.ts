@@ -5,6 +5,11 @@ import {
   getSavingThrowModifier,
   getSpellSaveDC,
   getSpellAttackBonus,
+  getEffectiveSpellSaveDC,
+  getEffectiveSpellAttackBonus,
+  getEffectiveSpellSaveDCTooltip,
+  getEffectiveSpellAttackTooltip,
+  spellSaveLabel,
   computeSpellModifier,
   formatModifier,
   formatLeadingTerm,
@@ -199,6 +204,55 @@ describe("Character Utils", () => {
         const result = getSpellSaveDC(character)
         expect(result).toBe(15) // 8 + 3 proficiency + 4 ability modifier (18 INT)
       })
+    })
+  })
+
+  describe("effective spell save DC and attack bonus", () => {
+    function makeCaster(overrides: Partial<Character> = {}): Character {
+      const character = { ...createDefaultCharacter(), ...overrides }
+      character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
+      character.abilityScores = { ...character.abilityScores, intelligence: 16 }
+      character.proficiencyBonus = 3
+      return character
+    }
+
+    it("calculates both, with their breakdowns, when the toggles are absent", () => {
+      const character = makeCaster({ spellSaveDC: 99, spellAttackBonus: 99 })
+      delete character.useCalculatedSpellSaveDC
+      delete character.useCalculatedSpellAttackBonus
+      expect(getEffectiveSpellSaveDC(character)).toBe(14)
+      expect(getEffectiveSpellAttackBonus(character)).toBe(6)
+      expect(getEffectiveSpellSaveDCTooltip(character)).toBe("8 + 3 (Prof) + 3 (Int)")
+      expect(getEffectiveSpellAttackTooltip(character)).toBe("+3 (Int) + 3 (Prof)")
+    })
+
+    it("uses custom values as they are, with a Custom tooltip", () => {
+      const character = makeCaster({ useCalculatedSpellSaveDC: false, spellSaveDC: 17, useCalculatedSpellAttackBonus: false, spellAttackBonus: 9 })
+      expect(getEffectiveSpellSaveDC(character)).toBe(17)
+      expect(getEffectiveSpellAttackBonus(character)).toBe(9)
+      expect(getEffectiveSpellSaveDCTooltip(character)).toBe("Custom")
+      expect(getEffectiveSpellAttackTooltip(character)).toBe("Custom")
+    })
+  })
+
+  describe("spellSaveLabel", () => {
+    it.each([
+      ["DEX", "DEX Save"],
+      [" wis ", "WIS Save"],
+      ["STR/Athletics", "STR/Athletics"],
+      ["Dex Save", "Dex Save"],
+      ["Wisdom", "Wisdom"],
+      ["CON save (half on success)", "CON save (half on success)"],
+      // A typed DC gives way to the character's
+      ["DEX save DC 13", "DEX save"],
+      ["DEX save, DC 13", "DEX save"],
+      ["dc 15 WIS", null],
+    ])("labels %j as %j", (value, label) => {
+      expect(spellSaveLabel(value)).toBe(label)
+    })
+
+    it.each([undefined, "", "   ", "+7", "Special", "Strong", "Melee attack"])("reads %j as text without a save", (value) => {
+      expect(spellSaveLabel(value)).toBeNull()
     })
   })
 

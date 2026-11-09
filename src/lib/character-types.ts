@@ -149,6 +149,9 @@ export interface Spell extends CharacterEntry, DamageFields, GainFields {
   range: string;
   components: string;
   duration: string;
+  /** Whether casting it makes a spell attack roll. Independent of attackSave: a spell can call for both. */
+  attackRoll?: boolean;
+  /** A save ability abbreviation ("DEX"), whose DC is the character's; older or imported text is kept as written. */
   attackSave?: string;
   prepared: boolean;
   known: boolean;
@@ -324,8 +327,6 @@ export interface Character {
   useCalculatedSpellSaveDC?: boolean
   spellAttackBonus: number
   useCalculatedSpellAttackBonus?: boolean
-  spellModifier?: number
-  useCalculatedSpellModifier?: boolean
   spellSlots: {
     1: { total: number; used: number }
     2: { total: number; used: number }
