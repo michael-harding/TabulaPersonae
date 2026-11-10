@@ -57,6 +57,7 @@ import {
   effectiveEquipmentUses,
   reconcileEquipmentRest,
   spellDurationLabel,
+  splitConcentrationDuration,
   isSustainedSpell,
   activeSpells,
   withSpellActivated,
@@ -2248,10 +2249,27 @@ const alarm = makeEffectSpell({ id: "alarm", name: "Alarm", duration: "Until dis
 const magicMissile = makeEffectSpell({ id: "magic-missile", name: "Magic Missile" })
 const allSpells = [bless, hex, mageArmor, longstrider, alarm, magicMissile]
 
+describe("splitConcentrationDuration", () => {
+  it.each([
+    ["Concentration, up to 1 minute", "up to 1 minute"],
+    ["Concentration up to 10 minutes", "up to 10 minutes"],
+    ["concentration,up to 1 hour", "up to 1 hour"],
+    ["  Concentration: 1 minute ", "1 minute"],
+    ["Concentration", ""],
+  ])("reads %j as concentration lasting %j", (text, duration) => {
+    expect(splitConcentrationDuration(text)).toEqual({ concentration: true, duration })
+  })
+
+  it.each(["1 hour", "Until dispelled", "Concentrationless", ""])("reads %j as no concentration, kept as written", (text) => {
+    expect(splitConcentrationDuration(text)).toEqual({ concentration: false, duration: text })
+  })
+})
+
 describe("spellDurationLabel", () => {
-  it("drops the Concentration lead-in", () => {
-    expect(spellDurationLabel("Concentration, up to 1 minute")).toBe("up to 1 minute")
-    expect(spellDurationLabel("concentration,up to 10 minutes")).toBe("up to 10 minutes")
+  // Shown as stored: a lead-in that disagrees with the concentration setting stays visible
+  it("keeps a Concentration lead-in", () => {
+    expect(spellDurationLabel("Concentration, up to 1 minute")).toBe("Concentration, up to 1 minute")
+    expect(spellDurationLabel("  Concentration up to 10 minutes ")).toBe("Concentration up to 10 minutes")
   })
 
   it("is null for an instantaneous spell or none at all", () => {
@@ -2324,7 +2342,7 @@ describe("withSpellEnded", () => {
 })
 
 describe("spellEndsOnRest", () => {
-  it.each(["1 round", "10 rounds", "10 minutes", "1 minute", "up to 1 minute", "Concentration, up to 10 minutes", "1 hour", "Up To 1 Hour", "60 MINUTES"])(
+  it.each(["1 round", "10 rounds", "10 minutes", "1 minute", "up to 1 minute", "Concentration, up to 10 minutes", "Concentration up to 10 minutes", "1 hour", "Up To 1 Hour", "60 MINUTES"])(
     "ends %s on any rest",
     (duration) => expect(spellEndsOnRest(duration)).toBe("any-rest"),
   )

@@ -2,7 +2,7 @@ import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFString, type 
 
 import type { AbilityScores, ActionKind, Attack, Character, Equipment, Feature, FeatureKind, Skills, Spell } from "./character-types"
 import { createDefaultCharacter } from "./character-types"
-import { makeSizeTrait } from "./character-utils"
+import { makeSizeTrait, splitConcentrationDuration } from "./character-utils"
 
 type SpellSlots = Character["spellSlots"]
 type SpellSlotLevel = keyof SpellSlots
@@ -246,6 +246,15 @@ export function parseSpellcastingAbility(value: string | undefined): keyof Abili
   ]
   if (full.includes(lower as keyof AbilityScores)) return lower as keyof AbilityScores
   return ABILITY_ABBREVIATIONS[lower] ?? ""
+}
+
+/**
+ * A spell's DURATION column, where concentration is written into the text ("Concentration up to 10
+ * minutes"): read as the concentration setting and the duration without it ("up to 10 minutes").
+ */
+export function parseSpellDuration(text: string): Pick<Spell, "duration" | "concentration"> {
+  const { concentration, duration } = splitConcentrationDuration(text)
+  return concentration ? { duration, concentration } : { duration }
 }
 
 /**
@@ -623,7 +632,7 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
       castingTime: normalizeCastingTime(f(`spellCastingTime${i}`)),
       range: f(`spellRange${i}`),
       components: f(`spellComponents${i}`),
-      duration: f(`spellDuration${i}`),
+      ...parseSpellDuration(f(`spellDuration${i}`)),
       ...parseSpellSaveHit(f(`spellSaveHit${i}`)),
       description: f(`spellNotes${i}`),
       prepared,

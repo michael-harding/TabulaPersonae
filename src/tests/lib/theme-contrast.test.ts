@@ -1,9 +1,10 @@
 import { readdirSync, readFileSync } from "fs"
 import { resolve } from "path"
 
+import { amber } from "tailwindcss/colors"
+
 import { contrastRatio, oklchToHex } from "@/lib/sheet-color"
 import { SPELL_EFFECT_COLOR } from "@/lib/utils"
-import { amber } from "tailwindcss/colors"
 
 import tailwindConfig from "../../../tailwind.config"
 import { themeToken, type Theme } from "./theme-tokens"

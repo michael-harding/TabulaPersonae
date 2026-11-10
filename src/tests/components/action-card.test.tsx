@@ -282,6 +282,28 @@ describe("ActionCard", () => {
     })
   })
 
+  describe("duration chip", () => {
+    // A lead-in that disagrees with the concentration setting is shown, not hidden
+    it("shows the duration as stored, Concentration lead-in included", () => {
+      render(() => <ActionCard {...makeProps({ duration: "Concentration, up to 1 minute" })} />)
+      expect(screen.getByTestId("action-card-test-duration-badge")).toHaveTextContent(/^Concentration, up to 1 minute$/)
+      expect(screen.queryByTestId("action-card-test-concentration-badge")).not.toBeInTheDocument()
+    })
+
+    it("cuts long text short with an ellipsis rather than overflowing the card", () => {
+      render(() => <ActionCard {...makeProps({ duration: "Concentration, up to 1 hour or until you dismiss it", range: "60 ft" })} />)
+      const chip = screen.getByTestId("action-card-test-duration-badge")
+      expect(chip).toHaveClass("max-w-full")
+      expect(chip.firstElementChild).toHaveClass("truncate")
+      expect(chip.parentElement).toHaveClass("min-w-0", "max-w-full")
+    })
+
+    it("has no chip for an instantaneous spell", () => {
+      render(() => <ActionCard {...makeProps({ duration: "Instantaneous" })} />)
+      expect(screen.queryByTestId("action-card-test-duration-badge")).not.toBeInTheDocument()
+    })
+  })
+
   describe("expanded view", () => {
     it("opens from the name button, which reports that it's expanded", () => {
       render(() => <ActionCard {...makeProps()} />)
@@ -367,7 +389,7 @@ describe("ActionCard", () => {
       for (const text of [
         "Evocation", "Ritual", "1 action", "60 ft", "V, S", "Concentration, up to 1 minute", "DEX save",
         "When hit", "Short Rest", "+1d6 per level", description, "8d6 Fire, recurs each turn", "1d4 Temp HP, recurs each turn",
-      ]) expect(within(view).getByText(text, { exact: false })).toBeInTheDocument()
+      ]) expect(within(view).getAllByText(text, { exact: false }).length).toBeGreaterThan(0)
       expect(within(view).getByText("boom").tagName).toBe("STRONG")
     })
 

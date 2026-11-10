@@ -1131,13 +1131,30 @@ export function displayedConditions(character: Pick<Character, "conditions" | "e
 
 // ── Spells in effect ──────────────────────────────────────────────────────────────────────────
 
-/** A spell's duration without its "Concentration, " lead-in, trimmed. */
-const bareDuration = (duration: string | undefined) => (duration ?? "").replace(/^\s*concentration,\s*/i, "").trim()
+const CONCENTRATION_LEAD = /^\s*concentration\b[\s,:;-]*/i
 
-/** A spell's duration as shown on its card: without "Concentration, ", and null when it has none or is instantaneous. */
+/**
+ * Splits duration text that leads with "Concentration" ("Concentration, up to 1 minute", or with no
+ * comma, as some sheets write it) into that and the duration itself ("up to 1 minute").
+ */
+export function splitConcentrationDuration(text: string): { concentration: boolean; duration: string } {
+  const lead = CONCENTRATION_LEAD.exec(text)
+  return lead
+    ? { concentration: true, duration: text.slice(lead[0].length).trim() }
+    : { concentration: false, duration: text.trim() }
+}
+
+/** A spell's duration without any "Concentration" lead-in, for reading how long it lasts. */
+const bareDuration = (duration: string | undefined) => splitConcentrationDuration(duration ?? "").duration
+
+/**
+ * A spell's duration as shown on its card: the text as stored, so nothing in it is hidden, even a
+ * "Concentration" lead-in that disagrees with the spell's concentration setting. Null when it has
+ * none or is instantaneous.
+ */
 export function spellDurationLabel(duration: string | undefined): string | null {
-  const d = bareDuration(duration)
-  return !d || d.toLowerCase() === "instantaneous" ? null : d
+  const d = (duration ?? "").trim()
+  return !d || bareDuration(d).toLowerCase() === "instantaneous" ? null : d
 }
 
 /** Whether a spell stays in effect once cast: it needs concentration or lasts longer than an instant. */

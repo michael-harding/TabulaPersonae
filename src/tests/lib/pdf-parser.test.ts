@@ -17,6 +17,7 @@ import {
   mergeWithDefault,
   normalizeCastingTime,
   parseSpellSaveHit,
+  parseSpellDuration,
 } from "@/lib/pdf-parser"
 
 vi.mock("pdf-lib", () => ({
@@ -139,6 +140,15 @@ describe("pdf-parser", () => {
     it("normalizes abbreviation CHA", () => expect(parseSpellcastingAbility("CHA")).toBe("charisma"))
     it("returns empty string for unrecognized", () => expect(parseSpellcastingAbility("FOO")).toBe(""))
     it("returns empty string for undefined", () => expect(parseSpellcastingAbility(undefined)).toBe(""))
+  })
+
+  describe("parseSpellDuration", () => {
+    it("reads a Concentration lead-in as the concentration setting", () =>
+      expect(parseSpellDuration("Concentration up to 10 minutes")).toEqual({ concentration: true, duration: "up to 10 minutes" }))
+    it("reads it with a comma too", () =>
+      expect(parseSpellDuration("Concentration, up to 1 minute")).toEqual({ concentration: true, duration: "up to 1 minute" }))
+    it("keeps any other duration, without a concentration setting", () => expect(parseSpellDuration("8 hours")).toEqual({ duration: "8 hours" }))
+    it("keeps a blank duration blank", () => expect(parseSpellDuration("")).toEqual({ duration: "" }))
   })
 
   describe("parseSpellSaveHit", () => {
@@ -614,6 +624,13 @@ describe("pdf-parser", () => {
     })
 
     describe("spellcasting", () => {
+      it("imports a spell whose duration leads with Concentration as a concentration spell", () => {
+        const result = mapFieldsToCharacter({ spellName0: "Shield of Faith", spellDuration0: "Concentration up to 10 minutes", spellName1: "Mage Armor", spellDuration1: "8 hours" })
+        expect(result.spells?.[0]).toMatchObject({ name: "Shield of Faith", concentration: true, duration: "up to 10 minutes" })
+        expect(result.spells?.[1]).toMatchObject({ name: "Mage Armor", duration: "8 hours" })
+        expect(result.spells?.[1]).not.toHaveProperty("concentration")
+      })
+
       it("maps spellCastingClass0 and spellCastingAbility0", () => {
         const result = mapFieldsToCharacter({ spellCastingClass0: "Paladin", spellCastingAbility0: "CHA" })
         expect(result.spellcastingClass).toBe("Paladin")

@@ -343,7 +343,11 @@ export function ActionCard(props: ActionCardProps) {
         </Chip>
       </Show>
       <Show when={durationLabel()}>
-        <Chip variant="outline" class="text-xs text-muted-foreground">{durationLabel()}</Chip>
+        {/* The duration as stored, cut short with an ellipsis when it doesn't fit; the expanded
+            view's Duration line has it in full */}
+        <Chip variant="outline" class="max-w-full text-xs text-muted-foreground" data-test={hook("duration-badge", inExpanded)}>
+          <span class="truncate">{durationLabel()}</span>
+        </Chip>
       </Show>
     </>
   )
@@ -519,7 +523,7 @@ export function ActionCard(props: ActionCardProps) {
           <div class="flex flex-wrap items-start gap-2">
             {statList()}
             <Show when={props.concentration || durationLabel()}>
-              <div class={cn("ml-auto flex gap-1", hasStatList() ? "flex-col items-end" : "flex-wrap justify-end")}>{statusChips(false)}</div>
+              <div class={cn("ml-auto flex min-w-0 max-w-full gap-1", hasStatList() ? "flex-col items-end" : "flex-wrap justify-end")}>{statusChips(false)}</div>
             </Show>
           </div>
         </Show>
