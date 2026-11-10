@@ -3,7 +3,7 @@ import { axe } from "vitest-axe"
 
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Feature, Equipment, OtherAction } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Feature, Equipment, OtherAction, Spell } from "@/lib/character-types"
 
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
@@ -249,6 +249,52 @@ describe("RestModal", () => {
       const char = makeCharacter() // default fixture carries a hit-die-granting feature
       openModal(char)
       expect(within(getDialog()).getByText(/hit dice to spend/i)).toBeInTheDocument()
+    })
+  })
+
+  describe("spells in effect", () => {
+    const spell = (id: string, name: string, duration: string, concentration = false): Spell => ({
+      id, name, duration, concentration, description: "", level: 1, school: "Abjuration", castingTime: "1 action",
+      range: "Self", components: "V", prepared: true, known: true,
+    })
+    const spells = [
+      spell("bless", "Bless", "Concentration, up to 1 minute", true),
+      spell("longstrider", "Longstrider", "1 hour"),
+      spell("mage-armor", "Mage Armor", "8 hours"),
+      spell("alarm", "Alarm", "Until dispelled"),
+    ]
+    const char = () => makeCharacter({ spells, activeSpellIds: ["bless", "longstrider", "mage-armor", "alarm"] })
+    const confirm = () => fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+    const switchToLong = () => fireEvent.click(within(getDialog()).getByRole("button", { name: /long rest/i }))
+    const endingList = () => within(getDialog()).getByRole("list", { name: "Ending Spells" })
+
+    it("ends minute and one-hour spells on a short rest, keeping longer and unread ones", () => {
+      const onRest = vi.fn()
+      openModal(char(), onRest)
+      expect(within(endingList()).getAllByRole("listitem").map((li) => li.firstChild?.textContent)).toEqual(["Bless", "Longstrider"])
+      confirm()
+      expect(onRest.mock.calls[0][0].activeSpellIds).toEqual(["mage-armor", "alarm"])
+    })
+
+    it("also ends spells of up to 8 hours on a long rest", () => {
+      const onRest = vi.fn()
+      openModal(char(), onRest)
+      switchToLong()
+      expect(within(endingList()).getAllByRole("listitem").map((li) => li.firstChild?.textContent)).toEqual(["Bless", "Longstrider", "Mage Armor"])
+      confirm()
+      expect(onRest.mock.calls[0][0].activeSpellIds).toEqual(["alarm"])
+    })
+
+    it("shows no Ending Spells list when the rest ends none", () => {
+      openModal(makeCharacter({ spells, activeSpellIds: ["alarm"] }))
+      expect(within(getDialog()).queryByText("Ending Spells")).not.toBeInTheDocument()
+    })
+
+    it("adds no activeSpellIds to a character without any", () => {
+      const onRest = vi.fn()
+      openModal(makeCharacter(), onRest)
+      confirm()
+      expect(onRest.mock.calls[0][0]).not.toHaveProperty("activeSpellIds")
     })
   })
 

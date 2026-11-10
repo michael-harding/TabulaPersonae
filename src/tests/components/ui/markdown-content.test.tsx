@@ -37,6 +37,13 @@ describe("MarkdownContent", () => {
     expect(root).toHaveClass("markdown-content", "custom-class")
   })
 
+  it("replaces its default text size with one given in its class", () => {
+    render(() => <MarkdownContent data-test="markdown-content" text="Hello" class="text-xs" />)
+    const root = screen.getByTestId("markdown-content")
+    expect(root).toHaveClass("text-xs")
+    expect(root).not.toHaveClass("text-sm")
+  })
+
   describe("sanitization of untrusted input", () => {
     it("strips an onerror handler from an injected <img> tag", () => {
       render(() => <MarkdownContent data-test="markdown-content" text='Click here <img src="x" onerror="alert(1)">' />)

@@ -15,9 +15,21 @@ const axeSource = `${axe.source}\n;axe.configure(${JSON.stringify({
   checks: [{ id: "region", options: { regionMatcher: REGION_EXEMPT } }],
 })});`
 
-/** The axe scan every E2E spec uses, so they all apply the same rules. */
-export function axeBuilder(page: Page): AxeBuilder {
-  return new AxeBuilder({ page, axeSource })
+/**
+ * The stats bar is frosted glass that the sheet scrolls behind. In a page-wide scan, axe judges its
+ * text against whatever a scroll happens to leave behind it, so the verdict depends on where the
+ * page stopped, not on the bar. Page-wide scans leave it out; it is scanned on its own, over the
+ * sheet it sits on, in contrast.spec.ts ("Stats bar").
+ */
+export const STATS_BAR = "[data-sem=stats-bar]"
+
+/**
+ * The axe scan every E2E spec uses, so they all apply the same rules. It leaves out the stats bar
+ * (see STATS_BAR) unless `statsBar` is set, for the scans of the bar itself.
+ */
+export function axeBuilder(page: Page, { statsBar = false }: { statsBar?: boolean } = {}): AxeBuilder {
+  const builder = new AxeBuilder({ page, axeSource })
+  return statsBar ? builder : builder.exclude(STATS_BAR)
 }
 
 /**

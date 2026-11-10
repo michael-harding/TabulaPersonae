@@ -25,7 +25,13 @@ export const MODALS: ModalCase[] = [
   { name: "bonus-action-add", tab: "Combat", open: (page) => click(page, "add-bonus-action-button") },
   { name: "reaction-add", tab: "Combat", open: (page) => click(page, "add-reaction-button") },
   { name: "other-add", tab: "Combat", open: (page) => click(page, "add-other-button") },
-  { name: "action-edit", tab: "Combat", open: (page) => click(page, "action-card-attack-atk1-edit-button") },
+  {
+    // Edit is in the card's expanded view
+    name: "action-edit", tab: "Combat", open: async (page) => {
+      await click(page, "action-card-attack-atk1-name")
+      await click(page, "action-card-attack-atk1-expanded-edit-button")
+    },
+  },
   { name: "feature-add", tab: "Features", open: (page) => click(page, "add-feature-class-feature") },
   // Regression: the Feature Type list opens in place, inside the modal's scroll container, and was
   // clipped by it (e001998). Only a screenshot with the list open can catch that.
@@ -127,9 +133,16 @@ export const OVERLAYS: OverlayCase[] = [
     },
   },
   {
-    name: "action-details-popover", tab: "Combat", open: async (page) => {
-      await byTest(page, "action-card-attack-atk1-details-trigger").click()
+    name: "action-card-expanded", tab: "Combat", open: async (page) => {
+      await byTest(page, "action-card-attack-atk1-name").click()
       return page.getByRole("dialog")
+    },
+  },
+  {
+    // Ensnaring Strike scales with slot level, and the fixture has 2nd-level slots
+    name: "action-card-slot-select", tab: "Combat", open: async (page) => {
+      await byTest(page, "action-card-bonus-spell-sp2-slot-select").click()
+      return page.getByRole("listbox")
     },
   },
   {

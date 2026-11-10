@@ -1,4 +1,5 @@
 import { axe } from "vitest-axe"
+import { createStore, reconcile } from "solid-js/store"
 
 import { SpellsModule } from "@/components/spells-module"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -59,6 +60,16 @@ describe("SpellsModule", () => {
     it("renders the Add Spell button", () => {
       render(() => <SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /add spell/i })).toBeInTheDocument()
+    })
+
+    // Like Edit Slots beside Spell Slots: the button heads the section it adds to, not the module
+    it("puts Add Spell beside the Spell List heading, above the search and the spells", () => {
+      render(() => <SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      const add = screen.getByRole("button", { name: /add spell/i })
+      const heading = screen.getByRole("heading", { name: "Spell List" })
+      expect(screen.getByTestId("spells-module-content")).toContainElement(add)
+      expect(add.parentElement).toContainElement(heading)
+      expect(add.compareDocumentPosition(screen.getByTestId("spell-search-input")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
     it("shows the empty state message when no spells", () => {
@@ -129,6 +140,158 @@ describe("SpellsModule", () => {
       })
       expect(screen.getByText("Fire Bolt")).toBeInTheDocument()
       expect(screen.queryByText("Mage Hand")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("custom spell attack and save DC", () => {
+    function makeSpellcaster(overrides: Partial<Character> = {}): Character {
+      return makeCharacter({
+        classFeatures: [{
+          id: "spellcasting-1", name: "Spellcasting", description: "", source: "class-feature",
+          levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }],
+        }],
+        abilityScores: { ...createDefaultCharacter().abilityScores, intelligence: 16 },
+        proficiencyBonus: 3,
+        spells: [makeSpell()],
+        ...overrides,
+      })
+    }
+
+    function clickEditButton() {
+      fireEvent.click(screen.getByRole("button", { name: /^edit$/i }))
+    }
+
+    it("does not show an Edit button in view mode when read-only", () => {
+      render(() => (
+        <ReadOnlyProvider value={true}>
+          <SpellsModule character={makeSpellcaster()} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      ))
+      expect(screen.queryByRole("button", { name: /^edit$/i })).not.toBeInTheDocument()
+    })
+
+    it("shows a custom-value toggle for spell attack and spell save DC in edit mode", () => {
+      render(() => <SpellsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      for (const id of ["spell-attack", "spell-save-dc"]) {
+        expect(screen.getByTestId(`${id}-toggle`)).toBeInTheDocument()
+      }
+    })
+
+    it("shows the stats while editing even when the character has no spells yet", () => {
+      render(() => <SpellsModule character={makeSpellcaster({ spells: [] })} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Spell Save DC")).not.toBeInTheDocument()
+      clickEditButton()
+      expect(screen.getByTestId("spell-save-dc-toggle")).toBeInTheDocument()
+      expect(screen.getByTestId("spell-attack-toggle")).toBeInTheDocument()
+    })
+
+    it("keeps Add Spell available while editing", () => {
+      render(() => <SpellsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByRole("button", { name: /add spell/i })).toBeInTheDocument()
+    })
+
+    it("shows the ability-derived spell attack and save DC in view mode", () => {
+      // INT 16 -> mod +3, prof +3 => spell attack +6, DC 8+3+3=14
+      render(() => <SpellsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      expect(screen.getByText("+6")).toBeInTheDocument()
+      expect(screen.getByText("14")).toBeInTheDocument()
+    })
+
+    it("cascades an equipped ability-score-boosting item into spell attack and save DC", () => {
+      const headband = makeMagicItem({ name: "Headband of Intellect", rarity: "rare", modifiers: { abilityScores: { intelligence: 2 } } })
+      // INT 16 + item +2 = 18 -> mod +4, prof +3 => spell attack +7, DC 8+3+4=15
+      render(() => <SpellsModule character={makeSpellcaster({ equipment: [headband] })} onUpdate={vi.fn()} />)
+      expect(screen.getByText("+7")).toBeInTheDocument()
+      expect(screen.getByText("15")).toBeInTheDocument()
+    })
+
+    it("shows a NumericInput for spell attack once switched to custom in edit mode", () => {
+      render(() => <SpellsModule character={makeSpellcaster()} onUpdate={vi.fn()} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell attack/i }))
+      expect(screen.getByRole("spinbutton", { name: /spell attack/i })).toBeInTheDocument()
+    })
+
+    it("saves a custom spell save DC override on save", () => {
+      const onUpdate = vi.fn()
+      render(() => <SpellsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell save dc/i }))
+      const input = screen.getByRole("spinbutton", { name: /spell save dc/i })
+      fireEvent.input(input, { target: { value: "18" } })
+      fireEvent.blur(input)
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ useCalculatedSpellSaveDC: false, spellSaveDC: 18 })
+      )
+    })
+
+    it("saves the calculated spell attack value when the flag stays enabled", () => {
+      const onUpdate = vi.fn()
+      render(() => <SpellsModule character={makeSpellcaster({ spellAttackBonus: 0 })} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ useCalculatedSpellAttackBonus: true, spellAttackBonus: 6 })
+      )
+    })
+
+    it("persists edits on Ctrl+S without leaving edit mode", () => {
+      const onUpdate = vi.fn()
+      render(() => <SpellsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell save dc/i }))
+      const input = screen.getByRole("spinbutton", { name: /spell save dc/i })
+      fireEvent.input(input, { target: { value: "18" } })
+      fireEvent.blur(input)
+      fireEvent.keyDown(input, { key: "s", ctrlKey: true })
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ useCalculatedSpellSaveDC: false, spellSaveDC: 18 })
+      )
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument()
+    })
+
+    it("discards an in-progress override when Cancel is clicked", () => {
+      const onUpdate = vi.fn()
+      render(() => <SpellsModule character={makeSpellcaster()} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /use custom spell attack/i }))
+      fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }))
+      expect(onUpdate).not.toHaveBeenCalled()
+      expect(screen.queryByRole("spinbutton", { name: /spell attack/i })).not.toBeInTheDocument()
+    })
+
+    it("drops the previous character's in-progress edits when the character is switched mid-edit", () => {
+      // The sheet swaps characters in place (same mounted module, new id), so edits started on
+      // one character must not be saved onto the next.
+      const onUpdate = vi.fn()
+      const [character, setCharacter] = createStore(
+        makeSpellcaster({ id: "char-a", useCalculatedSpellSaveDC: false, spellSaveDC: 20 })
+      )
+      render(() => <SpellsModule character={character} onUpdate={onUpdate} />)
+      clickEditButton()
+      setCharacter(reconcile(makeSpellcaster({ id: "char-b", useCalculatedSpellSaveDC: false, spellSaveDC: 11 })))
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ id: "char-b", spellSaveDC: 11 }))
+    })
+
+    it("falls back to the calculated value instead of rendering 'undefined' when legacy data has no stored spellAttackBonus/spellSaveDC", () => {
+      // Simulates legacy/partially-populated character data: the "use calculated" flags are off,
+      // but the manual value was never persisted, so it's undefined at runtime.
+      const char = makeSpellcaster({
+        useCalculatedSpellAttackBonus: false,
+        spellAttackBonus: undefined as unknown as number,
+        useCalculatedSpellSaveDC: false,
+        spellSaveDC: undefined as unknown as number,
+      })
+      render(() => <SpellsModule character={char} onUpdate={vi.fn()} />)
+      clickEditButton()
+      const attackInput = screen.getByRole("spinbutton", { name: /spell attack/i }) as HTMLInputElement
+      const dcInput = screen.getByRole("spinbutton", { name: /spell save dc/i }) as HTMLInputElement
+      expect(attackInput.value).toBe("6")
+      expect(dcInput.value).toBe("14")
     })
   })
 
@@ -357,6 +520,39 @@ describe("SpellsModule", () => {
         })
       )
       expect(screen.getByRole("spinbutton", { name: "Level 1 total slots" })).toBeInTheDocument()
+    })
+  })
+
+  const bless = makeSpell({ id: "bless", name: "Bless", level: 1, prepared: true, concentration: true, duration: "Concentration, up to 1 minute" })
+  const armor = makeSpell({ id: "armor", name: "Mage Armor", level: 1, prepared: true, duration: "8 hours" })
+
+  describe("deleting a spell in effect", () => {
+    beforeEach(() => cleanupPortals())
+
+    it("ends the spell along with deleting it", () => {
+      const onUpdate = vi.fn()
+      render(() => <SpellsModule character={makeCharacter({ spells: [bless, armor], activeSpellIds: ["bless", "armor"] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      confirmClick(screen.getByTestId("delete-spell-bless"))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ activeSpellIds: ["armor"] }))
+    })
+  })
+
+  // Its card leaves the Actions module, which is where it's ended from
+  describe("unpreparing a spell in effect", () => {
+    it("ends a spell when it's unprepared", () => {
+      const onUpdate = vi.fn()
+      render(() => <SpellsModule character={makeCharacter({ spells: [bless, armor], activeSpellIds: ["bless", "armor"] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("checkbox", { name: /Prepared: Bless/ }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ activeSpellIds: ["armor"] }))
+    })
+
+    it("ends a cantrip when it's no longer known", () => {
+      const onUpdate = vi.fn()
+      const guidance = makeSpell({ id: "guidance", name: "Guidance", concentration: true, duration: "Concentration, up to 1 minute" })
+      render(() => <SpellsModule character={makeCharacter({ spells: [guidance, armor], activeSpellIds: ["guidance", "armor"] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("checkbox", { name: /Known: Guidance/ }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ activeSpellIds: ["armor"] }))
     })
   })
 

@@ -5,9 +5,13 @@ import Sword from "lucide-solid/icons/sword"
 import Heart from "lucide-solid/icons/heart"
 
 import type { Character } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getSpellAttackBreakdown, getSpellSaveDCBreakdown, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveSpellcastingAbility, displayedConditions } from "@/lib/character-utils"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellAttackTooltip, getEffectiveSpellSaveDCTooltip, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveSpellcastingAbility, displayedConditions, activeSpells } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
+import { cn, SPELL_EFFECT_COLOR, TEMP_HP_COLOR } from "@/lib/utils"
+
+// The status pills: spells in effect and conditions
+const PILL = "inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full"
 
 interface StatsBarProps {
   character: Character
@@ -23,20 +27,13 @@ export function StatsBar(props: StatsBarProps) {
     (props.character.useCalculatedInitiative ?? false) ? calculateInitiative(props.character).initiative : (props.character.initiative ?? 0)
   )
   const hasSpellcasting = createMemo(() => !!getEffectiveSpellcastingAbility(props.character))
-  const useCalculatedSpellSaveDC = () => props.character.useCalculatedSpellSaveDC ?? true
-  const useCalculatedHitBonus = () => props.character.useCalculatedSpellAttackBonus ?? true
-  const spellSaveDC = createMemo(() =>
-    useCalculatedSpellSaveDC() ? getSpellSaveDC(props.character) : props.character.spellSaveDC
+  const spellSaveDC = createMemo(() => getEffectiveSpellSaveDC(props.character))
+  const hitBonus = createMemo(() => getEffectiveSpellAttackBonus(props.character))
+  const spellTooltip = createMemo(() =>
+    `Spell Hit: ${getEffectiveSpellAttackTooltip(props.character)} · DC: ${getEffectiveSpellSaveDCTooltip(props.character)}`
   )
-  const hitBonus = createMemo(() =>
-    useCalculatedHitBonus() ? getSpellAttackBonus(props.character) : props.character.spellAttackBonus
-  )
-  const spellTooltip = createMemo(() => {
-    const hit = useCalculatedHitBonus() ? getSpellAttackBreakdown(props.character) : "Custom"
-    const dc = useCalculatedSpellSaveDC() ? getSpellSaveDCBreakdown(props.character) : "Custom"
-    return `Spell Hit: ${hit} · DC: ${dc}`
-  })
   const conditions = createMemo(() => displayedConditions(props.character))
+  const spellEffects = createMemo(() => activeSpells(props.character))
 
   return (
     <div data-sem="stats-bar" class="sticky top-0 z-50 backdrop-blur contrast-more:bg-background border-b">
@@ -48,7 +45,7 @@ export function StatsBar(props: StatsBarProps) {
         />
         <Show when={tempHp() > 0}>
           <div
-            class="absolute top-0 h-full bg-blue-500 transition-all duration-300"
+            class={`absolute top-0 h-full ${TEMP_HP_COLOR.bar} transition-all duration-300`}
             style={{ left: `${tempHpLeft()}%`, width: `${tempHpWidth()}%` }}
           />
         </Show>
@@ -88,13 +85,25 @@ export function StatsBar(props: StatsBarProps) {
             </Tooltip>
           </Show>
 
-          {/* Conditions */}
-          <Show when={conditions().length > 0}>
+          {/* Spells in effect, then conditions */}
+          <Show when={spellEffects().length > 0 || conditions().length > 0}>
             <div class="w-px h-4 bg-border shrink-0" />
             <div class="flex items-center gap-1.5 flex-wrap">
+              <For each={spellEffects()}>
+                {(spell) => (
+                  // Solid while concentrating, outlined otherwise; the hidden lead-in says which to a screen reader
+                  <span
+                    data-test={`status-${spell.concentration ? "concentration" : "duration"}-${spell.id}`}
+                    class={cn(PILL, spell.concentration ? SPELL_EFFECT_COLOR.concentration : SPELL_EFFECT_COLOR.duration)}
+                  >
+                    <span class="sr-only">{spell.concentration ? "Concentrating on " : "Active: "}</span>
+                    {spell.name}
+                  </span>
+                )}
+              </For>
               <For each={conditions()}>
                 {(condition) => (
-                  <span class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-destructive text-destructive-foreground">
+                  <span class={cn(PILL, "bg-destructive text-destructive-foreground")}>
                     {condition}
                   </span>
                 )}

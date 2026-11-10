@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test"
 
 import { testCharacter, secondCharacter, publicCharacter } from "./fixtures"
-import { openSheet } from "./helpers"
+import { openSheet, parkPointer } from "./helpers"
 
 // All component screenshots are taken by navigating to the full character sheet
 // and scoping the screenshot to a specific card element.
@@ -267,5 +267,73 @@ test.describe("ActionCard uses tracker — interactive vs read-only", () => {
     await page.waitForLoadState("networkidle")
     const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Fiendish Resilience" })
     await expect(card).toHaveScreenshot("action-card-stepper-readonly.png")
+  })
+})
+
+test.describe("ActionCard spell badges", () => {
+  test("save badge with the character's DC, concentration stacked above the duration", async ({ page }) => {
+    // Ensnaring Strike: "STR/Athletics" save, Range beside Concentration and 1 minute
+    await openSheet(page, testCharacter, { tab: "Combat" })
+    await expect(page.locator('[data-test="action-card-bonus-spell-sp2"]')).toHaveScreenshot("action-card-spell-save-badge.png")
+  })
+
+  test("attack badge with the character's spell attack bonus", async ({ page }) => {
+    // Primal Savagery: a spell attack roll
+    await openSheet(page, testCharacter, { tab: "Combat" })
+    await expect(page.locator('[data-test="action-card-action-spell-sp4"]')).toHaveScreenshot("action-card-spell-attack-badge.png")
+  })
+})
+
+// Concentrating on Ensnaring Strike, with Pass without Trace as a spell lasting without concentration
+const spellsInEffect = {
+  ...testCharacter,
+  spells: testCharacter.spells.map((spell) => (spell.id === "sp3" ? { ...spell, concentration: false } : spell)),
+  activeSpellIds: ["sp2", "sp3"],
+}
+
+test.describe("Spells in effect", () => {
+  for (const theme of ["light", "dark"] as const) {
+    test(`stats bar pills — ${theme}`, async ({ page }) => {
+      await openSheet(page, spellsInEffect, { theme })
+      await expect(page.locator('[data-sem="stats-bar"]')).toHaveScreenshot(`stats-bar-spells-in-effect-${theme}.png`)
+    })
+  }
+
+  test("action card with its end button", async ({ page }) => {
+    await openSheet(page, spellsInEffect, { tab: "Combat" })
+    await expect(page.locator('[data-test="action-card-bonus-spell-sp2"]')).toHaveScreenshot("action-card-spell-in-effect.png")
+  })
+})
+
+// Tall enough that the whole module fits without scrolling, which would slide its title under the
+// sticky stats bar
+const WHOLE_MODULE = { width: 1280, height: 2000 }
+
+test.describe("ActionsModule component", () => {
+  test.use({ viewport: WHOLE_MODULE })
+
+  test("edit mode", async ({ page }) => {
+    await openSheet(page, testCharacter, { tab: "Combat" })
+    const card = page.locator('[data-test="actions-module"]')
+    await card.locator('[data-test="actions-module-edit"]').click()
+    await parkPointer(page)
+    await expect(card).toHaveScreenshot("actions-module-edit.png")
+  })
+})
+
+test.describe("SpellsModule component", () => {
+  test.use({ viewport: WHOLE_MODULE })
+
+  test("view mode", async ({ page }) => {
+    await openSheet(page, testCharacter, { tab: "Spells" })
+    await expect(page.locator('[data-test="spells-module"]')).toHaveScreenshot("spells-module-view.png")
+  })
+
+  test("edit mode", async ({ page }) => {
+    await openSheet(page, testCharacter, { tab: "Spells" })
+    const card = page.locator('[data-test="spells-module"]')
+    await card.locator('[data-test="spells-module-edit"]').click()
+    await parkPointer(page)
+    await expect(card).toHaveScreenshot("spells-module-edit.png")
   })
 })

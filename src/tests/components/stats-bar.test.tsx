@@ -1,7 +1,7 @@
 import { axe } from "vitest-axe"
 
 import { StatsBar } from "@/components/stats-bar"
-import { createDefaultCharacter } from "@/lib/character-types"
+import { createDefaultCharacter, type Spell } from "@/lib/character-types"
 
 import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 
@@ -101,6 +101,50 @@ describe("StatsBar", () => {
       const character = { ...makeCharacter(8, 10), conditions: [], exhaustionLevel: 1 }
       render(() => <StatsBar character={character} />)
       expect(screen.getByText("Exhaustion 1")).toBeInTheDocument()
+    })
+  })
+
+  describe("spells in effect", () => {
+    const spell = (overrides: Partial<Spell>): Spell => ({
+      id: "s", name: "Spell", description: "", level: 1, school: "Abjuration", castingTime: "1 action",
+      range: "Self", components: "V", duration: "Instantaneous", prepared: true, known: true, ...overrides,
+    })
+    const spells = [
+      spell({ id: "armor", name: "Mage Armor", duration: "8 hours" }),
+      spell({ id: "bless", name: "Bless", concentration: true, duration: "Concentration, up to 1 minute" }),
+    ]
+    const withSpells = (activeSpellIds: string[]) => ({ ...makeCharacter(8, 10), spells, activeSpellIds })
+
+    it("shows a concentration spell as a solid gold pill, named for a screen reader", () => {
+      render(() => <StatsBar character={withSpells(["bless"])} />)
+      const pill = screen.getByTestId("status-concentration-bless")
+      expect(pill).toHaveTextContent("Concentrating on Bless")
+      expect(pill).toHaveClass("bg-amber-400", "text-amber-950")
+      expect(screen.getByText("Concentrating on")).toHaveClass("sr-only")
+    })
+
+    it("shows a duration spell as a gold outline pill", () => {
+      render(() => <StatsBar character={withSpells(["armor"])} />)
+      const pill = screen.getByTestId("status-duration-armor")
+      expect(pill).toHaveTextContent("Active: Mage Armor")
+      expect(pill).toHaveClass("border-amber-600", "text-amber-800")
+      expect(pill).not.toHaveClass("bg-amber-400")
+    })
+
+    it("puts concentration first, then the other spells, then conditions", () => {
+      render(() => <StatsBar character={{ ...withSpells(["armor", "bless"]), conditions: ["Prone"] }} />)
+      const pills = screen.getByTestId("status-concentration-bless").parentElement!.children
+      expect([...pills].map((pill) => pill.textContent)).toEqual(["Concentrating on Bless", "Active: Mage Armor", "Prone"])
+    })
+
+    it("leaves out the ids of deleted spells", () => {
+      render(() => <StatsBar character={withSpells(["gone"])} />)
+      expect(screen.queryByText(/Concentrating on|Active:/)).not.toBeInTheDocument()
+    })
+
+    it("has no accessibility violations with spell pills shown", async () => {
+      const { container } = render(() => <StatsBar character={withSpells(["armor", "bless"])} />)
+      expect((await axe(container)).violations).toHaveLength(0)
     })
   })
 

@@ -13,6 +13,7 @@ import { axe } from "vitest-axe"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
 import PublicCharacterSheet from "@/routes/PublicCharacterSheet"
+import { sheetColorShades } from "@/lib/sheet-color"
 
 import { cleanup, render, screen, waitFor } from "../test-utils"
 
@@ -119,6 +120,21 @@ describe("PublicCharacterSheet", () => {
       await waitFor(() => expect(screen.queryByText(/loading character/i)).not.toBeInTheDocument())
       const results = await axe(container)
       expect(results.violations).toHaveLength(0)
+    })
+  })
+
+  // On <body>, not the sheet's root: popups portaled to <body> (popovers, tooltips) need it too
+  describe("sheet colour", () => {
+    it("gives the page the character's sheet colour, and takes it away when the sheet closes", async () => {
+      mockGetPublic.mockResolvedValue({ ...testCharacter, sheetColor: "#eab308" })
+      await renderAndLoad()
+      const shades = sheetColorShades("#eab308")!
+      expect(document.body).toHaveAttribute("data-sheet-color")
+      expect(document.body.style.getPropertyValue("--sheet-primary-light")).toBe(shades.light)
+      expect(document.body.style.getPropertyValue("--sheet-primary-dark")).toBe(shades.dark)
+      cleanup()
+      expect(document.body).not.toHaveAttribute("data-sheet-color")
+      expect(document.body.style.getPropertyValue("--sheet-primary-light")).toBe("")
     })
   })
 })

@@ -4,6 +4,28 @@ export interface CharacterEntry {
   id: string
   name: string
   description: string
+  /** Markdown summary shown on the entry's action card; the full description is in its expanded view. */
+  highlights?: string
+}
+
+/**
+ * Damage an entry deals. `damageRecurring` marks damage that repeats, e.g. at the start of each of
+ * the target's turns.
+ */
+export interface DamageFields {
+  damage?: string
+  damageType?: string
+  damageRecurring?: boolean
+}
+
+/**
+ * What an entry restores or grants, e.g. "2d4+2" with gainType "Healing" or "Temp HP".
+ * `gainRecurring` marks a gain that repeats each turn.
+ */
+export interface GainFields {
+  gain?: string
+  gainType?: string
+  gainRecurring?: boolean
 }
 
 export interface UseableEntry extends CharacterEntry {
@@ -86,7 +108,9 @@ export interface ItemModifiers {
   skillDisadvantage?: (keyof Skills)[]
 }
 
-export interface Equipment extends Omit<UseableEntry, "uses"> {
+// Top-level damage and gain apply to a non-weapon item used as an action (e.g. Alchemist's Fire, a
+// Potion of Healing). A weapon's damage lives in weaponStats instead.
+export interface Equipment extends Omit<UseableEntry, "uses">, DamageFields, GainFields {
   // Charges spent on a rechargeable magic item, bounded by maxUses, reset by rechargeOn.
   // Kept distinct from consumedUses below since an item can need both independently (e.g. a
   // magic consumable that both recharges on a rest and is also consumed via an action).
@@ -101,6 +125,7 @@ export interface Equipment extends Omit<UseableEntry, "uses"> {
   weaponStats?: {
     damage: string
     damageType: string
+    damageRecurring?: boolean
     weaponRange: string
     attackAbility: "str" | "dex" | "finesse"
     proficient: boolean
@@ -117,19 +142,24 @@ export interface Equipment extends Omit<UseableEntry, "uses"> {
   actionKind?: ActionKind
 }
 
-export interface Spell extends CharacterEntry {
+export interface Spell extends CharacterEntry, DamageFields, GainFields {
   level: number;
   school: string;
   castingTime: string;
   range: string;
   components: string;
   duration: string;
-  damage?: string;
+  /** Whether casting it makes a spell attack roll. Independent of attackSave: a spell can call for both. */
+  attackRoll?: boolean;
+  /** A save ability abbreviation ("DEX"), whose DC is the character's; older or imported text is kept as written. */
   attackSave?: string;
   prepared: boolean;
   known: boolean;
-  gain?: string;
   atHigherLevel?: string;
+  /** Damage added per slot level above the spell's own, e.g. "1d6". */
+  damagePerLevel?: string;
+  /** Gain added per slot level above the spell's own, e.g. "1d8". */
+  gainPerLevel?: string;
   concentration?: boolean;
   ritual?: boolean;
   grantedBy?: string;
@@ -186,20 +216,22 @@ export interface FeatureLevelEffect {
   effects: FeatureEffects
 }
 
-// Values double as their own display labels — the shared Select component's trigger renders
-// the raw controlled value verbatim (it doesn't look up a SelectItem's rendered children), so
-// using human-readable strings here avoids showing raw codes like "skill-proficiency" in the UI.
+// Values double as their own display labels. They're persisted, so they stay human-readable
+// strings rather than short codes like "skill-proficiency".
 export type FeatureTypeValue =
   | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
   | 'Ability Scores' | 'Max HP Bonus'
 
-export interface Feature extends UseableEntry {
+export interface Feature extends UseableEntry, DamageFields, GainFields {
   source: FeatureKind
   actionKind?: ActionKind
   type?: ActionType
   range?: string
+  attackBonus?: number
+  /** e.g. "DEX save DC 13", for a feature that calls for a save rather than an attack roll. */
+  attackSave?: string
   level?: number
   // 'per-level' means maxUses is ignored and the effective cap is maxUsesPerLevel * character.level
   // — same "rate × current total level" math as FeatureEffects.hpBonusPerLevel, computed fresh at
@@ -218,11 +250,9 @@ export interface Feature extends UseableEntry {
   levelEffects?: FeatureLevelEffect[]
 }
 
-interface ActionBase extends UseableEntry {
+interface ActionBase extends UseableEntry, DamageFields, GainFields {
   type: ActionType
   attackBonus?: number
-  damage?: string
-  damageType?: string
   range?: string
   trigger?: string
 }
@@ -236,6 +266,19 @@ export interface Reaction extends ActionBase {
 }
 
 export type OtherAction = ActionBase
+
+/** A section of the Actions module. */
+export type ActionSectionKey = 'action' | 'bonus-action' | 'reaction' | 'other'
+
+/**
+ * The order of an Actions section's cards: those shown in the section (`main`), then those set
+ * aside under its collapsed "More" list (`more`). Each card is named by its key, `<source>:<id>`
+ * (see action-layout.ts). A card in neither list goes at the end of main.
+ */
+export interface ActionSectionLayout {
+  main?: string[]
+  more?: string[]
+}
 
 export interface Character {
   id: string
@@ -301,8 +344,6 @@ export interface Character {
   useCalculatedSpellSaveDC?: boolean
   spellAttackBonus: number
   useCalculatedSpellAttackBonus?: boolean
-  spellModifier?: number
-  useCalculatedSpellModifier?: boolean
   spellSlots: {
     1: { total: number; used: number }
     2: { total: number; used: number }
@@ -326,6 +367,8 @@ export interface Character {
   bonusActions: BonusAction[]
   reactions: Reaction[]
   otherActions: OtherAction[]
+  /** How the Actions module lays out each of its sections (see ActionSectionLayout). Missing: every card in main, in the default order. */
+  actionLayout?: Partial<Record<ActionSectionKey, ActionSectionLayout>>
 
   personalityTraits: string
   ideals: string
@@ -355,6 +398,11 @@ export interface Character {
   conditions?: string[]
   /** Levels of Exhaustion, 0–6 (absent means 0). Not one of `conditions`, which have no levels. */
   exhaustionLevel?: number
+  /**
+   * Ids of the spells in effect: concentration or duration spells that were cast and haven't ended.
+   * At most one is a concentration spell. Ids of deleted spells are ignored (see activeSpells).
+   */
+  activeSpellIds?: string[]
 
   // 2024-only
   subclass?: string

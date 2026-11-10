@@ -1,9 +1,9 @@
-import { createSignal, createEffect, createMemo, onCleanup, Show, For } from "solid-js"
+import { createSignal, createEffect, onCleanup, Show, For } from "solid-js"
 import { useParams, useSearchParams, A } from "@solidjs/router"
 import Scroll from "lucide-solid/icons/scroll"
 import Lock from "lucide-solid/icons/lock"
 
-import { sheetColorAttributes } from "@/lib/sheet-color"
+import { useSheetColor } from "@/hooks/use-sheet-color"
 import { type Character } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
@@ -35,8 +35,7 @@ export default function PublicCharacterSheet() {
   const [isLoading, setIsLoading] = createSignal(true)
   const [activeTab, setActiveTab] = createSignal(initialTab)
 
-  // Recomputed only when the colour changes, not whenever the sheet's root re-renders
-  const sheetColor = createMemo(() => sheetColorAttributes(character()?.sheetColor))
+  useSheetColor(() => character()?.sheetColor)
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId)
@@ -86,7 +85,7 @@ export default function PublicCharacterSheet() {
       >
         {(getChar) => (
           <ReadOnlyProvider value={true}>
-            <div data-sem="public-character-sheet-route" class="bg-background" {...sheetColor()}>
+            <div data-sem="public-character-sheet-route" class="bg-background">
               <StatsBar character={getChar()} />
 
               <header class="border-b bg-card">
@@ -114,7 +113,7 @@ export default function PublicCharacterSheet() {
                 </div>
               </header>
 
-              <div class="max-w-7xl mx-auto px-4 pb-4">
+              <div class="max-w-7xl mx-auto px-1 pb-4">
                 <TabsRoot value={activeTab()} onChange={handleTabChange}>
                   <div class="flex items-center border-b border-border">
                     <TabsList class="border-b-0 flex-1">

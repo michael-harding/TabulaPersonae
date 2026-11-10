@@ -2,10 +2,10 @@ import { type Page } from "@playwright/test"
 import axe from "axe-core"
 
 import { SHEET_COLOR_PRESETS } from "../../src/lib/sheet-color"
-import { testCharacter } from "../visual/fixtures"
+import { secondCharacter, testCharacter } from "../visual/fixtures"
 import { SCENES, SHEET_TABS, useContrastHelpers } from "./contrast-audit"
 import { openSheet, seedGuest } from "./helpers"
-import { contrastScan, finishAnimations, test, expect } from "./test"
+import { axeBuilder, contrastScan, finishAnimations, STATS_BAR, test, expect } from "./test"
 
 // ACCESSIBILITY.md §9. axe checks the contrast of text and nothing else, and it passes over what it
 // cannot work out, so this audits what it leaves on the rendered page:
@@ -189,9 +189,59 @@ test.describe("Contrast", () => {
   }
 })
 
-// The stats bar is frosted glass that the sheet scrolls behind.
+// The stats bar is frosted glass that the sheet scrolls behind. Page-wide scans leave it out, since
+// they would judge it against whatever a scroll left behind it (see STATS_BAR); it is checked here.
 test.describe("Stats bar", () => {
   test.beforeEach(({ page }) => useContrastHelpers(page))
+
+  /**
+   * Every axe rule, on the bar alone, with the page at its top: behind the bar is then the sheet it
+   * sits on. As in contrastScan, text axe cannot decide on is reported too.
+   */
+  async function scanBar(page: Page) {
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await finishAnimations(page)
+    const { violations, incomplete } = await axeBuilder(page, { statsBar: true }).include(STATS_BAR).analyze()
+    const undecided = incomplete.flatMap(({ nodes }) => nodes.map(({ html, any }) => ({ html, reason: any[0]?.data?.messageKey })))
+    return { violations, undecided }
+  }
+
+  // Temporary HP (the blue +N), spell attack and save DC, and a 0 HP character, whose bar differs
+  const characters = [
+    { name: "with temporary HP and spellcasting", character: testCharacter },
+    { name: "at 0 HP", character: secondCharacter },
+  ]
+  for (const { name, character } of characters) {
+    test(`@mobile passes every axe check over the sheet it sits on, ${name}`, async ({ page }) => {
+      await seedGuest(page, character)
+      await openSheet(page, character.id)
+      await expect(page.locator(STATS_BAR)).toBeVisible()
+      expect(await scanBar(page)).toEqual({ violations: [], undecided: [] })
+    })
+  }
+
+  // The sheet colour can reach the bar (its links, focus rings and any primary-coloured text)
+  for (const { name, hex } of SHEET_COLOR_PRESETS) {
+    test(`passes every axe check with sheet colour ${name}`, async ({ page }) => {
+      await seedGuest(page, { ...testCharacter, sheetColor: hex })
+      await openSheet(page, testCharacter.id)
+      expect(await scanBar(page)).toEqual({ violations: [], undecided: [] })
+    })
+  }
+
+  test("is left out of page-wide scans, which would judge it by what is scrolled behind it", async ({ page }) => {
+    await seedGuest(page, testCharacter)
+    await openSheet(page, testCharacter.id)
+    // How many of a contrast scan's checked elements are in the bar
+    const checkedInBar = async (statsBar: boolean) => {
+      const { passes, violations, incomplete } = await axeBuilder(page, { statsBar }).withRules(["color-contrast"]).analyze()
+      const targets = [...passes, ...violations, ...incomplete].flatMap(({ nodes }) => nodes.map(({ target }) => target[0] as string))
+      return page.evaluate(({ targets, bar }) => targets.filter((t) => document.querySelector(t)?.closest(bar) != null).length, { targets, bar: STATS_BAR })
+    }
+    // The bar's text is there to check: a scan that includes it does
+    expect(await checkedInBar(true)).toBeGreaterThan(0)
+    expect(await checkedInBar(false)).toBe(0)
+  })
 
   test("is solid for someone whose system asks for more contrast", async ({ page }) => {
     await page.emulateMedia({ contrast: "more" })

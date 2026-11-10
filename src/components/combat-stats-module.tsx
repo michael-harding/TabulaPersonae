@@ -21,6 +21,7 @@ import { StepperInput } from "@/components/ui/stepper-input"
 import { InlineStepper } from "@/components/ui/inline-stepper"
 import { CalculatedValue } from "@/components/ui/calculated-value"
 import { useReadOnly } from "@/lib/read-only-context"
+import { TEMP_HP_COLOR } from "@/lib/utils"
 
 interface CombatStatsModuleProps {
   character: Character
@@ -341,7 +342,7 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
                 />
                 <Show when={tempHP() > 0}>
                   <div
-                    class="absolute top-0 h-full bg-blue-500 transition-all duration-300"
+                    class={`absolute top-0 h-full ${TEMP_HP_COLOR.bar} transition-all duration-300`}
                     style={{ left: `${tempHpLeft()}%`, width: `${tempHpWidth()}%` }}
                   />
                 </Show>

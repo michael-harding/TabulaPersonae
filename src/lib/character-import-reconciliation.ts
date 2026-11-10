@@ -2,7 +2,6 @@ import type { AbilityScores, Character } from "./character-types"
 import {
   calculateEquippedAC,
   calculateInitiative,
-  computeSpellModifier,
   getCalculatedAbilityScore,
   getEffectiveAbilityScore,
   getEffectiveCarryingCapacity,
@@ -91,7 +90,6 @@ const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
   { valueKey: "carryingCapacity", toggleKey: "useCalculatedCarryingCapacity", compute: (c) => getEffectiveCarryingCapacity(c), defaultCalculated: true },
   { valueKey: "spellSaveDC", toggleKey: "useCalculatedSpellSaveDC", compute: (c) => getSpellSaveDC(c), defaultCalculated: true },
   { valueKey: "spellAttackBonus", toggleKey: "useCalculatedSpellAttackBonus", compute: (c) => getSpellAttackBonus(c), defaultCalculated: true },
-  { valueKey: "spellModifier", toggleKey: "useCalculatedSpellModifier", compute: (c) => computeSpellModifier(c), defaultCalculated: true },
 ]
 
 function reconcileScalarField(character: Character, spec: ScalarFieldSpec): Character {
@@ -103,10 +101,10 @@ function reconcileScalarField(character: Character, spec: ScalarFieldSpec): Char
 
 /**
  * Refreshes every field the character currently has marked calculated (explicitly, or by the same
- * default its own editing module falls back to when the toggle is absent) to match a live
- * recompute — meant to run right before a character leaves the app (export). The backing store for
- * a calculated field like spellSaveDC is normally only synced when its owning module is explicitly
- * saved (see e.g. actions-module.tsx's handleSave), so it can silently drift from a fresh
+ * default the sheet falls back to when the toggle is absent) to match a live
+ * recompute — meant to run right before a character leaves the app (export). The stored value of
+ * a calculated field like spellSaveDC is only rewritten when an edit form that shows it is saved
+ * (e.g. the Spells module's Spell Save DC), so it can silently drift from a fresh
  * recompute — a level-up, an ability score change — while the toggle itself stays correctly
  * "calculated" and the live UI keeps displaying the right number regardless (display always
  * recomputes live, never reads the stale stored value directly). That drift is invisible until the

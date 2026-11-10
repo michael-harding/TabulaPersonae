@@ -1,4 +1,4 @@
-import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills } from "./character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell, UseableEntry } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -960,6 +960,43 @@ export function getSpellSaveDCBreakdown(character: Character): string {
   return `8${formatTerm(character.proficiencyBonus || 2, "Prof")}${formatTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}`
 }
 
+/** The spell save DC the sheet shows: the custom value when one is set, the calculated one otherwise. */
+export function getEffectiveSpellSaveDC(character: Character): number {
+  return (character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(character) : character.spellSaveDC
+}
+
+/** The spell attack bonus the sheet shows: the custom value when one is set, the calculated one otherwise. */
+export function getEffectiveSpellAttackBonus(character: Character): number {
+  return (character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBonus(character) : character.spellAttackBonus
+}
+
+/** The tooltip of getEffectiveSpellSaveDC: its breakdown, or "Custom" for a custom value. */
+export function getEffectiveSpellSaveDCTooltip(character: Character): string {
+  return (character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDCBreakdown(character) : "Custom"
+}
+
+/** The tooltip of getEffectiveSpellAttackBonus: its breakdown, or "Custom" for a custom value. */
+export function getEffectiveSpellAttackTooltip(character: Character): string {
+  return (character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBreakdown(character) : "Custom"
+}
+
+const SAVE_ABILITY_START = /^(str|dex|con|int|wis|cha|strength|dexterity|constitution|intelligence|wisdom|charisma)\b/i
+// A DC typed into the text ("DEX save DC 13"), with what joins it on: the character's own DC replaces it
+const TYPED_DC = /[\s,;:-]*\bDC\s*\d+\b/gi
+
+/**
+ * The label of a spell's save badge, for an Attack/Save that starts with an ability ("DEX",
+ * "STR/Athletics", "Wisdom save"); null for any other text, which is shown as written without a DC.
+ * A lone abbreviation reads "DEX Save"; other text is kept as written, less any DC typed into it.
+ */
+export function spellSaveLabel(attackSave: string | undefined): string | null {
+  const value = attackSave?.trim() ?? ""
+  if (!SAVE_ABILITY_START.test(value)) return null
+  const abbreviation = value.toUpperCase()
+  if ((Object.values(ABILITY_ABBREVIATIONS) as string[]).includes(abbreviation)) return `${abbreviation} Save`
+  return value.replace(TYPED_DC, "").trim()
+}
+
 export const SKILL_ABILITY_MAP = {
   acrobatics: "dexterity",
   animalHandling: "wisdom",
@@ -1021,8 +1058,38 @@ export function safeFeatures(raw: Feature[] | string | undefined): Feature[] {
   return raw
 }
 
+type RechargeOn = NonNullable<UseableEntry['rechargeOn']>
+
+/** How each rest a limited-use entry recharges on is named, wherever it's shown. */
+export const RECHARGE_ON_LABELS: Record<RechargeOn, string> = {
+  'short-rest': 'Short Rest',
+  'long-rest': 'Long Rest',
+}
+
+/** The "Recharge On" choices every form offers for a limited-use entry; "" means it doesn't recharge. */
+export const RECHARGE_ON_OPTIONS: { value: '' | RechargeOn; label: string }[] = [
+  { value: '', label: 'None' },
+  ...(Object.entries(RECHARGE_ON_LABELS) as [RechargeOn, string][]).map(([value, label]) => ({ value, label })),
+]
+
+/** How each kind of action is named, wherever it's shown. */
+export const ACTION_KIND_LABELS: Record<ActionKind, string> = {
+  'action': 'Action',
+  'bonus-action': 'Bonus Action',
+  'reaction': 'Reaction',
+  'other': 'Other',
+}
+
+/** The action kinds as choices, in the order the Actions module lists its sections. */
+export const ACTION_KIND_OPTIONS: { value: ActionKind; label: string }[] =
+  (Object.entries(ACTION_KIND_LABELS) as [ActionKind, string][]).map(([value, label]) => ({ value, label }))
+
 export const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
 export const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+
+/** Suggested gain types; the field also takes free text. "Temp HP" is shown in the health bar's temp HP color. */
+export const TEMP_HP_GAIN_TYPE = "Temp HP"
+export const GAIN_TYPE_OPTIONS = ["Healing", TEMP_HP_GAIN_TYPE]
 
 /**
  * Puts a list of damage types into its standard form: a value matching one of DAMAGE_TYPE_OPTIONS
@@ -1081,6 +1148,114 @@ export function displayedConditions(character: Pick<Character, "conditions" | "e
   return [...(character.conditions ?? []), ...(level > 0 ? [`${EXHAUSTION} ${level}`] : [])]
 }
 
+// ── Spells in effect ──────────────────────────────────────────────────────────────────────────
+
+const CONCENTRATION_LEAD = /^\s*concentration\b[\s,:;-]*/i
+
+/**
+ * Splits duration text that leads with "Concentration" ("Concentration, up to 1 minute", or with no
+ * comma, as some sheets write it) into that and the duration itself ("up to 1 minute").
+ */
+export function splitConcentrationDuration(text: string): { concentration: boolean; duration: string } {
+  const lead = CONCENTRATION_LEAD.exec(text)
+  return lead
+    ? { concentration: true, duration: text.slice(lead[0].length).trim() }
+    : { concentration: false, duration: text.trim() }
+}
+
+/** A spell's duration without any "Concentration" lead-in, for reading how long it lasts. */
+const bareDuration = (duration: string | undefined) => splitConcentrationDuration(duration ?? "").duration
+
+/**
+ * A spell's duration as shown on its card: the text as stored, so nothing in it is hidden, even a
+ * "Concentration" lead-in that disagrees with the spell's concentration setting. Null when it has
+ * none or is instantaneous.
+ */
+export function spellDurationLabel(duration: string | undefined): string | null {
+  const d = (duration ?? "").trim()
+  return !d || bareDuration(d).toLowerCase() === "instantaneous" ? null : d
+}
+
+/** Whether a spell stays in effect once cast: it needs concentration or lasts longer than an instant. */
+export function isSustainedSpell(spell: Pick<Spell, "concentration" | "duration">): boolean {
+  return !!spell.concentration || spellDurationLabel(spell.duration) != null
+}
+
+/**
+ * The spells in effect, concentration first, then the others in the order they were cast. Ids of
+ * deleted spells, and of spells edited so they no longer last, are left out.
+ */
+export function activeSpells(character: Pick<Character, "activeSpellIds" | "spells">): Spell[] {
+  const byId = new Map((character.spells ?? []).map((spell) => [spell.id, spell]))
+  const active = (character.activeSpellIds ?? [])
+    .map((id) => byId.get(id))
+    .filter((spell): spell is Spell => !!spell && isSustainedSpell(spell))
+  return [...active.filter((s) => s.concentration), ...active.filter((s) => !s.concentration)]
+}
+
+/**
+ * activeSpellIds once the spell is cast. A concentration spell ends any other one, since only one can
+ * be held at a time. A spell that doesn't last leaves the list as it is.
+ */
+export function withSpellActivated(character: Pick<Character, "activeSpellIds" | "spells">, spell: Spell): string[] {
+  const ids = character.activeSpellIds ?? []
+  if (!isSustainedSpell(spell)) return ids
+  const concentrationIds = new Set(spell.concentration
+    ? (character.spells ?? []).filter((s) => s.concentration).map((s) => s.id)
+    : [])
+  return [...ids.filter((id) => id !== spell.id && !concentrationIds.has(id)), spell.id]
+}
+
+/** activeSpellIds once the spell has ended. */
+export function withSpellEnded(character: Pick<Character, "activeSpellIds">, spellId: string): string[] {
+  return (character.activeSpellIds ?? []).filter((id) => id !== spellId)
+}
+
+/** Whether a spell can be cast from its action card: a cantrip while known, any other spell while prepared. */
+export function isSpellReady(spell: Pick<Spell, "level" | "known" | "prepared">): boolean {
+  return spell.level === 0 ? (spell.known ?? true) : !!spell.prepared
+}
+
+/**
+ * The character with its spells replaced: a spell that is deleted, unprepared, or (a cantrip) no
+ * longer known ends, so it isn't left in effect with no card to end it from.
+ */
+export function withSpells(character: Character, spells: Spell[]): Character {
+  if (!character.activeSpellIds) return { ...character, spells }
+  const ready = new Set(spells.filter(isSpellReady).map((spell) => spell.id))
+  return { ...character, spells, activeSpellIds: character.activeSpellIds.filter((id) => ready.has(id)) }
+}
+
+const PARSED_DURATION = /^(?:up to\s+)?(\d+)\s+(round|minute|hour)s?$/i
+
+/**
+ * Which rest outlasts a spell's duration. Only "N rounds/minutes/hours" and "up to N ..." are read:
+ * rounds, minutes, and a single hour end on any rest, and up to 8 hours on a long rest. Anything
+ * longer or written any other way ("Until dispelled", "10 days") ends only when the user ends it.
+ */
+export function spellEndsOnRest(duration: string | undefined): "any-rest" | "long-rest" | null {
+  const match = PARSED_DURATION.exec(bareDuration(duration))
+  if (!match) return null
+  const amount = Number(match[1])
+  const unit = match[2].toLowerCase()
+  if (unit !== "hour" || amount < 2) return "any-rest"
+  return amount <= 8 ? "long-rest" : null
+}
+
+/** The spells a rest ends: those whose duration it outlasts. */
+export function spellsEndedByRest(character: Pick<Character, "activeSpellIds" | "spells">, rest: "short" | "long"): Spell[] {
+  return activeSpells(character).filter((spell) => {
+    const endsOn = spellEndsOnRest(spell.duration)
+    return endsOn === "any-rest" || (endsOn === "long-rest" && rest === "long")
+  })
+}
+
+/** activeSpellIds after a rest, without the spells it ends. */
+export function activeSpellIdsAfterRest(character: Pick<Character, "activeSpellIds" | "spells">, rest: "short" | "long"): string[] {
+  const ended = new Set(spellsEndedByRest(character, rest).map((spell) => spell.id))
+  return (character.activeSpellIds ?? []).filter((id) => !ended.has(id))
+}
+
 export const SENSE_TYPES: SenseType[] = ["darkvision", "blindsight", "tremorsense", "truesight"]
 export const SENSE_LABELS: Record<SenseType, string> = {
   darkvision: "Darkvision",
@@ -1095,6 +1270,8 @@ export const BASE_ATTUNEMENT_LIMIT = 3
 
 export interface DerivedWeaponAttack {
   id: string
+  /** The equipment item the attack comes from, for editing it. */
+  itemId: string
   name: string
   type: "attack"
   attackBonus: number
@@ -1102,7 +1279,9 @@ export interface DerivedWeaponAttack {
   damage: string
   damageTooltip: string
   damageType: string
+  damageRecurring?: boolean
   range: string
+  highlights?: string
   description: string
   isDerived: true
 }
@@ -1123,7 +1302,7 @@ export function getEquippedWeaponAttacks(
       item.equipped && item.type === "weapon" && item.weaponStats != null
     )
     .map((item) => {
-      const { damage, damageType, weaponRange, attackAbility, proficient } = item.weaponStats
+      const { damage, damageType, damageRecurring, weaponRange, attackAbility, proficient } = item.weaponStats
       const bonus = isItemModifierActive(item) ? (item.modifiers?.weaponBonus ?? 0) : 0
       const usesDex = attackAbility === "dex" || (attackAbility === "finesse" && dexMod > strMod)
       const abilityMod = usesDex ? dexMod : strMod
@@ -1138,6 +1317,7 @@ export function getEquippedWeaponAttacks(
       const damageTooltip = `${damage ? `${damage}${formatTerm(abilityMod, abilityLabel)}` : abilityTerm}${bonusTerm}`
       return {
         id: `weapon-${item.id}`,
+        itemId: item.id,
         name: item.name,
         type: "attack" as const,
         attackBonus,
@@ -1145,7 +1325,9 @@ export function getEquippedWeaponAttacks(
         damage: damageStr,
         damageTooltip,
         damageType,
+        damageRecurring,
         range: weaponRange,
+        highlights: item.highlights,
         description: item.description,
         isDerived: true as const,
       }

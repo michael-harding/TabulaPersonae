@@ -128,18 +128,16 @@ describe("reconcileImportedCharacter", () => {
   })
 
   describe("spellcasting stats", () => {
-    it("marks non-caster defaults (8/0/0) as calculated", () => {
+    it("marks non-caster defaults (8/0) as calculated", () => {
       const character: Character = {
         ...createDefaultCharacter(),
         spellcastingAbility: "",
         spellSaveDC: 8,
         spellAttackBonus: 0,
-        spellModifier: 0,
       }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedSpellSaveDC).toBe(true)
       expect(result.useCalculatedSpellAttackBonus).toBe(true)
-      expect(result.useCalculatedSpellModifier).toBe(true)
     })
 
     it("marks a matching caster's stats as calculated when a Class Feature grants the ability", () => {
@@ -153,13 +151,11 @@ describe("reconcileImportedCharacter", () => {
         }],
         spellSaveDC: 13,
         spellAttackBonus: 5,
-        spellModifier: 3,
       }
       character.abilityScores = { ...character.abilityScores, intelligence: 16 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedSpellSaveDC).toBe(true)
       expect(result.useCalculatedSpellAttackBonus).toBe(true)
-      expect(result.useCalculatedSpellModifier).toBe(true)
     })
 
     it("marks a mismatched caster's stats as custom and preserves the values", () => {
@@ -171,16 +167,13 @@ describe("reconcileImportedCharacter", () => {
         }],
         spellSaveDC: 99,
         spellAttackBonus: 99,
-        spellModifier: 99,
       }
       character.abilityScores = { ...character.abilityScores, intelligence: 16 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedSpellSaveDC).toBe(false)
       expect(result.useCalculatedSpellAttackBonus).toBe(false)
-      expect(result.useCalculatedSpellModifier).toBe(false)
       expect(result.spellSaveDC).toBe(99)
       expect(result.spellAttackBonus).toBe(99)
-      expect(result.spellModifier).toBe(99)
     })
 
     it("treats a raw spellcastingAbility with no granting Class Feature as a custom override, not a calculated match", () => {
@@ -189,16 +182,13 @@ describe("reconcileImportedCharacter", () => {
         spellcastingAbility: "intelligence",
         spellSaveDC: 13,
         spellAttackBonus: 5,
-        spellModifier: 3,
       }
       character.abilityScores = { ...character.abilityScores, intelligence: 16 }
       const result = reconcileImportedCharacter(character)
       expect(result.useCalculatedSpellSaveDC).toBe(false)
       expect(result.useCalculatedSpellAttackBonus).toBe(false)
-      expect(result.useCalculatedSpellModifier).toBe(false)
       expect(result.spellSaveDC).toBe(13)
       expect(result.spellAttackBonus).toBe(5)
-      expect(result.spellModifier).toBe(3)
     })
 
     it("falls back to the non-caster calculation when spellcastingAbility is entirely missing", () => {
@@ -319,7 +309,7 @@ describe("reconcileImportedCharacters", () => {
 
 describe("freshenCalculatedFields", () => {
   // A spellcaster whose Class Feature grants intelligence (16, +3 mod) as the spellcasting
-  // ability. Default proficiencyBonus (2) -> spellSaveDC 13, spellAttackBonus 5, spellModifier 3.
+  // ability. Default proficiencyBonus (2) -> spellSaveDC 13, spellAttackBonus 5.
   function makeCaster() {
     const character: Character = {
       ...createDefaultCharacter(),
@@ -337,21 +327,18 @@ describe("freshenCalculatedFields", () => {
     expect(freshenCalculatedFields(character).spellSaveDC).toBe(13)
   })
 
-  it("refreshes spellSaveDC/spellAttackBonus/spellModifier when the toggle is entirely absent, matching the UI's own default-to-calculated fallback", () => {
-    // The exact bug scenario: a caster who never explicitly touched the Actions module toggle
+  it("refreshes spellSaveDC/spellAttackBonus when the toggle is entirely absent, matching the UI's own default-to-calculated fallback", () => {
+    // The exact bug scenario: a caster who never explicitly touched the Spells module toggle
     // still displays calculated values live (useCalculatedSpellSaveDC ?? true), but the backing
     // field was left at whatever it was last written — stale here.
     const character = makeCaster()
     delete character.useCalculatedSpellSaveDC
     delete character.useCalculatedSpellAttackBonus
-    delete character.useCalculatedSpellModifier
     character.spellSaveDC = 8
     character.spellAttackBonus = 0
-    character.spellModifier = 0
     const fresh = freshenCalculatedFields(character)
     expect(fresh.spellSaveDC).toBe(13)
     expect(fresh.spellAttackBonus).toBe(5)
-    expect(fresh.spellModifier).toBe(3)
   })
 
   it("does not touch a field explicitly marked custom, even if it differs from the calculated value", () => {
@@ -378,7 +365,7 @@ describe("freshenCalculatedFields", () => {
 
   it("is idempotent once every calculated field has already been freshened", () => {
     // createDefaultCharacter() itself leaves several calculated fields (attunementLimit,
-    // carryingCapacity, the passive scores, spellModifier) entirely unset, so a single freshen
+    // carryingCapacity, the passive scores) entirely unset, so a single freshen
     // pass legitimately fills them in — a second pass on that already-freshened result is the
     // real no-op case.
     const once = freshenCalculatedFields(createDefaultCharacter())

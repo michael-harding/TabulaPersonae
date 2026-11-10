@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js"
+import { Show } from "solid-js"
 import User from "lucide-solid/icons/user"
 
 import type { Character } from "@/lib/character-types"
@@ -7,7 +7,7 @@ import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 
 interface CharacterBasicInfoModuleProps {
@@ -34,7 +34,7 @@ const ALIGNMENTS = [
   "Lawful Good","Neutral Good","Chaotic Good",
   "Lawful Neutral","True Neutral","Chaotic Neutral",
   "Lawful Evil","Neutral Evil","Chaotic Evil",
-]
+].map((a) => ({ value: a, label: a }))
 
 // The fields this module's edit form shows (see useModuleEdit for how Save writes them)
 const toDraft = (c: Character) => ({
@@ -105,11 +105,9 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
               </div>
               <div>
                 <Label for="alignment">Alignment</Label>
-                <Select value={edit.draft().alignment} onValueChange={(v) => updateField("alignment", v)}>
+                <Select options={ALIGNMENTS} value={edit.draft().alignment} onValueChange={(v) => updateField("alignment", v)}>
                   <SelectTrigger id="alignment" data-test="alignment-select"><SelectValue placeholder="Select alignment" /></SelectTrigger>
-                  <SelectContent>
-                    <For each={ALIGNMENTS}>{(a) => <SelectItem value={a}>{a}</SelectItem>}</For>
-                  </SelectContent>
+                  <SelectContent />
                 </Select>
               </div>
             </div>

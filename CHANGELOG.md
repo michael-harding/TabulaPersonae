@@ -5,6 +5,31 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.0] - 2026-11-10
+
+### Added
+- **Reorderable action cards** — in edit mode, the cards in each Actions section (Actions, Bonus Actions, Reactions, Other) can be put in any order and moved between the section and a collapsed "More" list beneath it, for cards you rarely use. Cards can be dragged, moved with "Move earlier"/"Move later" buttons, or moved from the menu on a card's drag handle (Move to start, Move to end, and moves to and from More), so dragging is never required. Focus stays with the moved card and each move is announced. The layout is saved per character; new cards go at the end of the section
+- **Spells in effect** — casting a concentration spell or one with a duration now puts it in effect: its Cast button becomes an End button until it ends, and the stats bar shows a pill for each spell in effect (solid gold for concentration, outlined gold otherwise). Casting a new concentration spell ends the previous one. A rest ends the spells whose duration it outlasts, and the rest dialog lists them. A spell that is unprepared, forgotten or deleted is ended too. Cantrips that last get a Cast button that spends no slot
+- **Upcasting** — any spell of 1st level or higher can now be cast with a higher slot, chosen from the slot levels the character has, so a warlock with only pact slots can cast lower-level spells. Spells can carry a Damage or Gain per Higher Level amount (e.g. "1d6"); casting with a higher slot scales the damage and gain badges, with the base and upcast amounts in their tooltip
+- **Spell attack and save badges** — spell cards show the character's spell attack bonus and spell save DC as badges, each with a tooltip naming how it is calculated. A new "Has attack roll" checkbox in the spell editor marks spells that make an attack roll, independently of a saving throw, and the Attack/Save field offers the six saving throws
+- **Action card details** — opening a card shows a detailed view: a spell's school, the item that grants it, free casts and the level it is cast at; a feature's level; an item's rarity, attunement and quantity. Each card's Edit button now opens the spell, feature or item's own editor. A new Highlights field in the spell, feature and item editors sets a short Markdown summary for the card face; without it the card shows the start of the description
+- **Damage and gain on features and items** — a feature used as an action can now carry an attack bonus, a save, damage and a gain (such as healing or temporary HP), and a non-weapon item used as an action (Alchemist's Fire, a Potion of Healing) can carry damage and a gain, all shown as badges on its action card. Damage and gain can be marked as recurring, for effects that repeat each turn
+- Cast buttons briefly show a wand after a cast and ignore further presses meanwhile, so a double tap spends only one slot; the cast is announced to screen readers
+- Importing a PDF character sheet now reads a spell's SAVE/HIT column as its save or attack roll, and a duration such as "Concentration, up to 10 minutes" as a concentration spell lasting "up to 10 minutes"
+
+### Changed
+- Action cards are laid out in a grid, two to a row on phones and four on wider screens
+- Spell Save DC and Spell Attack Bonus are now edited in the Spells module, which gains a Spell List heading with Add Spell beside it, instead of in the Actions module
+- A spell save picked from the Attack/Save field uses the character's own spell save DC; text typed into it by hand or imported is shown as written
+- The Concentration chip on a spell card is now a label rather than a toggle, and a spell's duration is shown as stored, cut short with an ellipsis when it doesn't fit
+- Tab Settings rows can be moved with up/down buttons or from the drag handle's menu as well as by dragging; on phones the menu is the way to move a row
+- Dropdown lists now stay on screen: when there isn't room below the field they open above it, and near the right edge they line up with the field's right edge. Opening one no longer scrolls the page
+- Menus, popovers, tooltips and dialogs now take on the character's sheet color
+
+### Fixed
+- An equipped weapon that is also used as an action now shows as a single card that tracks its charges, instead of appearing twice
+- Weapons that aren't equipped no longer show action cards, whatever their action type
+
 ## [v1.7.0] - 2026-11-07
 
 ### Added

@@ -46,6 +46,20 @@ test.describe("Tab settings", () => {
     await expect.poll(() => tabOrder(page)).toEqual(reordered)
   })
 
+  // A phone has no room for the up/down buttons beside a tab's own controls: the handle's menu moves it
+  test("@mobile fits a phone without scrolling sideways, and moves a tab from its handle's menu", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 })
+    await seedGuest(page, [])
+    await openTabSettings(page)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360)
+    const before = await tabOrder(page)
+
+    await page.locator(`[data-test="${before[0]}"]`).click()
+    await page.getByRole("menuitem", { name: "Move down" }).click()
+
+    await expect.poll(() => tabOrder(page)).toEqual([before[1], before[0], ...before.slice(2)])
+  })
+
   test("a new tab, renamed and given a module, appears on the character sheet", async ({ page }) => {
     await seedGuest(page, testCharacter)
     await openTabSettings(page)

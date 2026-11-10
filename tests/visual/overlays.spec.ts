@@ -30,8 +30,10 @@ for (const theme of ["light", "dark"] as const) {
 test.describe("Overlays — phone", () => {
   test.use({ viewport: PHONE })
 
-  test("header-menu", async ({ page }) => {
-    const popup = await openOverlay(page, OVERLAYS.find((o) => o.name === "header-menu")!)
-    await expect(popup).toHaveScreenshot("overlay-header-menu-phone.png")
-  })
+  for (const name of ["header-menu", "action-card-expanded"]) {
+    test(name, async ({ page }) => {
+      const popup = await openOverlay(page, OVERLAYS.find((o) => o.name === name)!)
+      await expect(popup).toHaveScreenshot(`overlay-${name}-phone.png`)
+    })
+  }
 })

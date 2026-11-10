@@ -1,20 +1,38 @@
 import {
   createContext,
+  createEffect,
   createMemo,
   createSignal,
   createUniqueId,
   useContext,
+  For,
+  Show,
   JSX,
   ComponentProps,
   splitProps,
   onCleanup,
   onMount,
-  untrack,
 } from "solid-js"
+import type { Component } from "solid-js"
+import { Dynamic } from "solid-js/web"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import Check from "lucide-solid/icons/check"
 
 import { cn } from "@/lib/utils"
+
+export type SelectIcon = Component<{ class?: string; "aria-hidden"?: "true" }>
+
+export interface SelectOption {
+  value: string
+  /** What the list and the trigger show. Plain text, so it can appear in both places at once. */
+  label: string
+  /** Shown after the label, in the list and in the trigger. Decorative, so hidden from assistive technology. */
+  icon?: SelectIcon
+  /** Dims the option, in the list and in the trigger. Pair it with an icon or srHint: color alone carries no meaning. */
+  muted?: boolean
+  /** Read by screen readers after the label, e.g. why the option is muted. */
+  srHint?: string
+}
 
 interface SelectContextType {
   value: () => string | undefined
@@ -23,15 +41,13 @@ interface SelectContextType {
   setOpen: (open: boolean) => void
   placeholder: () => string | undefined
   disabled: () => boolean
-  // Ordered list of currently-mounted option values, self-reported by SelectItem via
-  // registerItem — reading the DOM for this instead races the props.children insertion effect
-  // (the <ul>'s ref can fire before its dynamic children are actually attached).
-  items: () => string[]
-  registerItem: (value: string) => () => void
-  // The keyboard-highlighted item. Derived rather than imperatively set on open, so it's always
-  // consistent with the current items() list instead of depending on precise mount-order timing.
+  options: () => SelectOption[]
+  optionFor: (value: string | undefined) => SelectOption | undefined
+  // The keyboard-highlighted value. Derived rather than imperatively set on open, so it's always
+  // consistent with the current options.
   activeValue: () => string | undefined
   setActiveValue: (value: string | undefined) => void
+  optionId: (value: string) => string
   listEl: () => HTMLUListElement | undefined
   setListEl: (el: HTMLUListElement | undefined) => void
   // The list's id, for the trigger's aria-controls
@@ -52,13 +68,8 @@ function useSelect() {
   return ctx
 }
 
-// Shared between SelectTrigger's aria-activedescendant and SelectItem's id — option values can
-// contain spaces (e.g. "Saving Throw Proficiency"), which HTML5 id attributes may not.
-function optionId(value: string) {
-  return `select-option-${value.replace(/\s+/g, "-")}`
-}
-
 type SelectRootProps = {
+  options: SelectOption[]
   value?: string
   defaultValue?: string
   onValueChange?: (value: string) => void
@@ -70,7 +81,6 @@ type SelectRootProps = {
 export function Select(props: SelectRootProps) {
   const [open, setOpenInternal] = createSignal(false)
   const [internalValue, setInternalValue] = createSignal(props.defaultValue)
-  const [items, setItems] = createSignal<string[]>([])
   const [explicitActive, setExplicitActive] = createSignal<string | undefined>(undefined)
   const [listEl, setListEl] = createSignal<HTMLUListElement>()
   const [rootEl, setRootEl] = createSignal<HTMLDivElement>()
@@ -78,15 +88,18 @@ export function Select(props: SelectRootProps) {
   const baseId = createUniqueId()
   const value = () => props.value ?? internalValue()
 
-  // Falls back to the current value's item, then the first item, whenever nothing has been
-  // explicitly highlighted yet (just opened, or the explicit pick scrolled out of items()).
+  const byValue = createMemo(() => new Map(props.options.map((o) => [o.value, o])))
+  const optionFor = (v: string | undefined) => (v == null ? undefined : byValue().get(v))
+
+  // Falls back to the current value's option, then the first, whenever nothing has been
+  // explicitly highlighted yet (just opened, or the explicit pick is no longer an option).
   const activeValue = createMemo(() => {
-    const list = items()
-    if (list.length === 0) return undefined
+    const options = props.options
+    if (options.length === 0) return undefined
     const explicit = explicitActive()
-    if (explicit != null && list.includes(explicit)) return explicit
+    if (explicit != null && byValue().has(explicit)) return explicit
     const current = value()
-    return current != null && list.includes(current) ? current : list[0]
+    return current != null && byValue().has(current) ? current : options[0].value
   })
 
   // Closing the popup by any path (select, outside click, Escape, Tab) also drops the explicit
@@ -96,25 +109,22 @@ export function Select(props: SelectRootProps) {
     if (!next) setExplicitActive(undefined)
   }
 
-  const registerItem = (v: string) => {
-    setItems((prev) => [...prev, v])
-    return () => setItems((prev) => {
-      const idx = prev.indexOf(v)
-      return idx === -1 ? prev : [...prev.slice(0, idx), ...prev.slice(idx + 1)]
-    })
-  }
-
   const onValueChange = (v: string) => {
     setInternalValue(v)
     props.onValueChange?.(v)
     setOpen(false)
   }
 
+  // Scoped to this select: several selects on a page can share option values. Option values can
+  // also contain spaces (e.g. "Saving Throw Proficiency"), which HTML5 id attributes may not.
+  const optionId = (v: string) => `${baseId}-option-${v.replace(/\s+/g, "-")}`
+
   return (
     <SelectContext.Provider value={{
       value, onValueChange, open, setOpen,
       placeholder: () => props.placeholder, disabled: () => props.disabled ?? false,
-      items, registerItem, activeValue, setActiveValue: setExplicitActive,
+      options: () => props.options, optionFor,
+      activeValue, setActiveValue: setExplicitActive, optionId,
       listEl, setListEl, rootEl,
       listId: `${baseId}-list`, triggerEl, setTriggerEl,
     }}>
@@ -131,14 +141,15 @@ export function SelectTrigger(props: ComponentProps<"button">) {
   const fallbackId = createUniqueId()
 
   const moveActive = (delta: number) => {
-    const list = ctx.items()
-    if (list.length === 0) return
-    const current = list.indexOf(ctx.activeValue() ?? "")
+    const options = ctx.options()
+    if (options.length === 0) return
+    const current = options.findIndex((o) => o.value === ctx.activeValue())
     const next = current === -1
-      ? (delta > 0 ? 0 : list.length - 1)
-      : Math.min(Math.max(current + delta, 0), list.length - 1)
-    ctx.setActiveValue(list[next])
-    ctx.listEl()?.querySelector<HTMLElement>(`[data-value="${CSS.escape(list[next])}"]`)?.scrollIntoView?.({ block: "nearest" })
+      ? (delta > 0 ? 0 : options.length - 1)
+      : Math.min(Math.max(current + delta, 0), options.length - 1)
+    const nextValue = options[next].value
+    ctx.setActiveValue(nextValue)
+    ctx.listEl()?.querySelector<HTMLElement>(`[data-value="${CSS.escape(nextValue)}"]`)?.scrollIntoView?.({ block: "nearest" })
   }
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -185,7 +196,7 @@ export function SelectTrigger(props: ComponentProps<"button">) {
       aria-expanded={ctx.open()}
       aria-haspopup="listbox"
       aria-controls={ctx.open() ? ctx.listId : undefined}
-      aria-activedescendant={ctx.open() && ctx.activeValue() != null ? optionId(ctx.activeValue()!) : undefined}
+      aria-activedescendant={ctx.open() && ctx.activeValue() != null ? ctx.optionId(ctx.activeValue()!) : undefined}
       disabled={ctx.disabled()}
       onClick={() => !ctx.disabled() && ctx.setOpen(!ctx.open())}
       onKeyDown={handleKeyDown}
@@ -196,25 +207,44 @@ export function SelectTrigger(props: ComponentProps<"button">) {
       {...others}
     >
       {local.children}
-      <ChevronDown class="h-4 w-4 shrink-0" />
+      <ChevronDown class="h-4 w-4 shrink-0" aria-hidden="true" />
     </button>
+  )
+}
+
+/** An option's label, screen-reader hint and icon, shared by the list item and the trigger. */
+function OptionContent(props: { option: SelectOption }) {
+  return (
+    <>
+      {props.option.label}
+      <Show when={props.option.srHint}>{(hint) => <span class="sr-only"> {hint()}</span>}</Show>
+      <Show when={props.option.icon}>
+        {(icon) => <Dynamic component={icon()} class="ml-1 inline-block h-3.5 w-3.5 align-[-0.125em]" aria-hidden="true" />}
+      </Show>
+    </>
   )
 }
 
 export function SelectValue(props: { placeholder?: string }) {
   const ctx = useSelect()
+  const selected = () => ctx.optionFor(ctx.value())
   return (
-    <span class="flex-1 text-left">
-      {/* Every "" SelectItem across this app's usages represents "nothing selected" (paired with
-          a "None"/"Not item-granted" label), not a real value — ?? alone wouldn't fall through to
-          the placeholder for "", since "" isn't nullish. */}
-      {ctx.value() || props.placeholder || ctx.placeholder() || ""}
+    <span class={cn("flex-1 text-left", selected()?.muted && "text-muted-foreground")}>
+      <Show
+        when={selected()}
+        // Every "" across this app's usages represents "nothing selected", not a real value — ??
+        // alone wouldn't fall through to the placeholder for "", since "" isn't nullish. A value no
+        // option lists (e.g. imported data) is shown as-is rather than hidden by the placeholder.
+        fallback={ctx.value() || props.placeholder || ctx.placeholder() || ""}
+      >
+        {(option) => <OptionContent option={option()} />}
+      </Show>
     </span>
   )
 }
 
-export function SelectContent(props: ComponentProps<"ul">) {
-  const [local, others] = splitProps(props, ["class", "children"])
+export function SelectContent(props: Omit<ComponentProps<"ul">, "children">) {
+  const [local, others] = splitProps(props, ["class"])
   const ctx = useSelect()
 
   // "Outside" means outside the whole select, trigger included. Counting the trigger as outside
@@ -228,9 +258,33 @@ export function SelectContent(props: ComponentProps<"ul">) {
   onMount(() => document.addEventListener("mousedown", handleOutsideClick))
   onCleanup(() => document.removeEventListener("mousedown", handleOutsideClick))
 
+  // The list must stay where it can be seen: inside the viewport and any scrolling container the
+  // select sits in (a modal, an expanded card). Like every select it opens below the trigger,
+  // left-aligned with it. Only when that doesn't fit does it move: above the trigger when there's
+  // more room there, as a native select does, and aligned with the trigger's right edge when it runs
+  // past the right edge (a narrow trigger near the edge of a phone screen). It never scrolls the page,
+  // which would move the trigger out from under the pointer.
+  const [placement, setPlacement] = createSignal({ above: false, alignEnd: false })
+  createEffect(() => {
+    const list = ctx.open() ? ctx.listEl() : undefined
+    const trigger = ctx.triggerEl()
+    if (!list || !trigger) return setPlacement({ above: false, alignEnd: false })
+    const bounds = visibleBounds(ctx.rootEl() ?? trigger)
+    const box = list.getBoundingClientRect()
+    const triggerBox = trigger.getBoundingClientRect()
+    const roomBelow = bounds.bottom - triggerBox.bottom
+    const roomAbove = triggerBox.top - bounds.top
+    setPlacement({
+      above: box.bottom > bounds.bottom && roomAbove > roomBelow,
+      alignEnd: box.right > bounds.right,
+    })
+  })
+
   return (
-    <div class="relative">
-      {ctx.open() && (
+    // Not positioned itself, so the list is placed against the whole select: its trigger's edges
+    <div>
+      {/* Options mount only while open: a closed select costs one trigger, however long its list. */}
+      <Show when={ctx.open()}>
         <ul
           ref={ctx.setListEl}
           id={ctx.listId}
@@ -241,62 +295,60 @@ export function SelectContent(props: ComponentProps<"ul">) {
           aria-labelledby={ctx.triggerEl()?.hasAttribute("aria-label") ? undefined : ctx.triggerEl()?.id}
           class={cn(
             "absolute z-50 max-h-96 min-w-[8rem] w-full overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md mt-1",
+            placement().above && "bottom-full mb-1 mt-0",
+            placement().alignEnd && "right-0",
             local.class
           )}
           {...others}
         >
-          {local.children}
+          <For each={ctx.options()}>{(option) => <SelectItem option={option} />}</For>
         </ul>
-      )}
+      </Show>
     </div>
   )
 }
 
-export function SelectItem(props: ComponentProps<"li"> & { value: string }) {
-  const [local, others] = splitProps(props, ["class", "value", "children"])
+/** The part of the viewport that the element's scrolling containers, if any, leave visible. */
+function visibleBounds(el: Element) {
+  const bounds = { top: 0, bottom: document.documentElement.clientHeight, right: document.documentElement.clientWidth }
+  for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+    const { overflowX, overflowY } = getComputedStyle(node)
+    if (!/auto|scroll|hidden|clip/.test(overflowX + overflowY)) continue
+    const box = node.getBoundingClientRect()
+    bounds.top = Math.max(bounds.top, box.top)
+    bounds.bottom = Math.min(bounds.bottom, box.bottom)
+    bounds.right = Math.min(bounds.right, box.right)
+  }
+  return bounds
+}
+
+function SelectItem(props: { option: SelectOption }) {
   const ctx = useSelect()
-
-  // An item's value is fixed for its lifetime, and registering during setup (not in an effect)
-  // is what keeps items() in mount order.
-  const unregister = ctx.registerItem(untrack(() => local.value))
-  onCleanup(unregister)
-
-  const isSelected = () => ctx.value() === local.value
-  const isActive = () => ctx.activeValue() === local.value
+  const isSelected = () => ctx.value() === props.option.value
+  const isActive = () => ctx.activeValue() === props.option.value
   return (
     <li
-      id={optionId(local.value)}
-      data-value={local.value}
+      id={ctx.optionId(props.option.value)}
+      data-value={props.option.value}
       role="option"
       aria-selected={isSelected()}
-      onClick={() => ctx.onValueChange(local.value)}
+      onClick={() => ctx.onValueChange(props.option.value)}
       // mousemove, not mouseenter/mouseover: keyboard nav scrolls the list under a stationary
       // cursor, and browsers fire synthetic mouseenter on whatever ends up underneath — but only
       // real cursor movement fires mousemove, so this avoids hover silently fighting the keyboard.
-      onMouseMove={() => ctx.setActiveValue(local.value)}
+      onMouseMove={() => ctx.setActiveValue(props.option.value)}
       class={cn(
         "menu-item relative flex min-h-11 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground",
+        props.option.muted && "text-muted-foreground",
         isActive() && "bg-accent text-accent-foreground",
-        local.class
       )}
-      {...others}
     >
       {isSelected() && (
         <span class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-          <Check class="h-4 w-4" />
+          <Check class="h-4 w-4" aria-hidden="true" />
         </span>
       )}
-      {local.children}
+      <span><OptionContent option={props.option} /></span>
     </li>
   )
-}
-
-export const SelectGroup = "optgroup" as unknown as (props: ComponentProps<"optgroup">) => JSX.Element
-export const SelectLabel = (props: ComponentProps<"li">) => {
-  const [local, others] = splitProps(props, ["class"])
-  return <li class={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", local.class)} {...others} />
-}
-export const SelectSeparator = (props: ComponentProps<"li">) => {
-  const [local, others] = splitProps(props, ["class"])
-  return <li class={cn("-mx-1 my-1 h-px bg-muted", local.class)} role="separator" {...others} />
 }

@@ -1,7 +1,10 @@
 import { readdirSync, readFileSync } from "fs"
 import { resolve } from "path"
 
+import { amber } from "tailwindcss/colors"
+
 import { contrastRatio, oklchToHex } from "@/lib/sheet-color"
+import { SPELL_EFFECT_COLOR } from "@/lib/utils"
 
 import tailwindConfig from "../../../tailwind.config"
 import { themeToken, type Theme } from "./theme-tokens"
@@ -48,6 +51,30 @@ describe.each(["light", "dark"] as const)("%s theme contrast", (theme) => {
 
   it(`gives the icon on an available pip ${NON_TEXT}:1 on --muted`, () => {
     expect(contrastRatio(WHITE, token(theme, "muted"))).toBeGreaterThanOrEqual(NON_TEXT)
+  })
+})
+
+// The status bar's spell pills use Tailwind's amber shades, read from their classes: a dark: class
+// overrides the plain one in the dark theme. The bar is see-through over --background.
+describe.each(["light", "dark"] as const)("%s theme spell effect pills", (theme) => {
+  const shade = (classes: string, property: "bg" | "text" | "border") => {
+    const find = (prefix: string) => classes.split(" ").find((c) => new RegExp(`^${prefix}${property}-amber-\\d+$`).test(c))
+    const found = (theme === "dark" && find("dark:")) || find("")
+    return found ? amber[found.split("-").pop() as keyof typeof amber] : undefined
+  }
+
+  describe.each(Object.entries(SPELL_EFFECT_COLOR))("%s", (_, classes) => {
+    const bar = token(theme, "background")
+    const fill = shade(classes, "bg") ?? bar
+
+    it(`has text meeting ${TEXT}:1 on its fill`, () => {
+      expect(contrastRatio(shade(classes, "text")!, fill)).toBeGreaterThanOrEqual(TEXT)
+    })
+
+    it(`has an edge meeting ${NON_TEXT}:1 against the bar`, () => {
+      const edges = [shade(classes, "border"), fill].filter((c): c is string => !!c && c !== bar)
+      expect(Math.max(...edges.map((edge) => contrastRatio(edge, bar)))).toBeGreaterThanOrEqual(NON_TEXT)
+    })
   })
 })
 

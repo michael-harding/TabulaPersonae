@@ -28,3 +28,17 @@ export const INLINE_LINK_TARGET = "inline-flex min-h-11 items-center align-middl
 // foreground: in the light theme accent is a strong red, and body text left on it has a contrast
 // ratio of about 2:1 (WCAG AA needs 4.5:1). Use this instead of writing `hover:bg-accent` alone.
 export const HOVER_ACCENT = "hover:bg-accent hover:text-accent-foreground"
+
+// Temporary hit points' color, shared by both health bars' temp HP segment and the action cards'
+// "Temp HP" gain badge so they always match. The badge's text uses its own darker shades for
+// contrast; this is the fill and the border.
+export const TEMP_HP_COLOR = { bar: "bg-blue-500", border: "border-blue-500" } as const
+
+// Spells in effect, as status bar pills: solid gold while concentrating, gold outline for any other
+// lasting spell. Text meets 4.5:1, and each pill's edge 3:1 against the bar, in both themes: on the
+// light bar the gold fill alone is too pale, so the solid pill gets the outline's darker rim too.
+// theme-contrast.test.ts checks these pairs.
+export const SPELL_EFFECT_COLOR = {
+  concentration: "border border-amber-600 bg-amber-400 text-amber-950 dark:border-amber-400",
+  duration: "border border-amber-600 text-amber-800 dark:border-amber-400 dark:text-amber-300",
+} as const
