@@ -9,8 +9,8 @@ import ChevronDown from "lucide-solid/icons/chevron-down"
 import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, ActionType, ActionSectionKey, ActionSectionLayout, Attack, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, RECHARGE_ON_OPTIONS, activeSpells, isSustainedSpell, withSpellActivated, withSpellEnded } from "@/lib/character-utils"
+import type { Character, ActionKind, ActionType, ActionSectionKey, ActionSectionLayout, Attack, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, ACTION_KIND_LABELS, RECHARGE_ON_OPTIONS, activeSpells, isSustainedSpell, withSpellActivated, withSpellEnded, withSpells, isSpellReady } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { Button } from "@/components/ui/button"
@@ -57,14 +57,6 @@ export const ACTION_TYPE_LABEL: Record<string, string> = {
   spell: "Ability",
 }
 
-type ActionKind = "action" | "bonus-action" | "reaction" | "other"
-
-const KIND_LABELS: Record<ActionKind, string> = {
-  action: "Action",
-  "bonus-action": "Bonus Action",
-  reaction: "Reaction",
-  other: "Other",
-}
 
 interface ActionFormData {
   name: string
@@ -96,7 +88,7 @@ interface ActionFormProps {
 const ACTION_TYPE_LABELS = ACTION_TYPES.map((t) => t.label)
 
 function ActionForm(props: ActionFormProps) {
-  const kindLabel = () => KIND_LABELS[props.kind]
+  const kindLabel = () => ACTION_KIND_LABELS[props.kind]
   const isEditing = () => !!props.initialData?.name
   const [formData, setFormData] = createSignal<ActionFormData>({
     name: props.initialData?.name ?? "",
@@ -219,9 +211,10 @@ function featureField(feature: Feature): 'classFeatures' | 'speciesTraits' | 'fe
     : feature.source === 'background' ? 'backgroundFeatures' : 'feats'
 }
 
+// Each accessor reads the spell's level when called: an edit keeps the same spell object (the store
+// reconciles by id), so the card isn't redrawn when the level changes.
 function createSpellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
-  const slotKey = spell.level as keyof Character['spellSlots']
-  const slots = () => getSpellSlots()[slotKey]
+  const slots = () => getSpellSlots()[spell.level as keyof Character['spellSlots']]
   // A cantrip or a free cast spends no slot
   const canCast = () => spell.level === 0 || !!spell.freeCast || (!!slots() && slots().used < slots().total)
   const higherLevels = () => ([2,3,4,5,6,7,8,9] as const)
@@ -510,16 +503,16 @@ export function ActionsModule(props: ActionsModuleProps) {
   })
 
   const attackSpells = createMemo(() => safeSpells().filter((spell) =>
-    (spell.level === 0 ? (spell.known ?? true) : spell.prepared) &&
+    isSpellReady(spell) &&
     spell.castingTime.toLowerCase().includes("1 action") &&
     !spell.castingTime.toLowerCase().includes("bonus") &&
     !spell.castingTime.toLowerCase().includes("reaction")
   ))
   const bonusActionSpells = createMemo(() => safeSpells().filter((spell) =>
-    (spell.level === 0 ? (spell.known ?? true) : spell.prepared) && spell.castingTime.toLowerCase().includes("bonus")
+    isSpellReady(spell) && spell.castingTime.toLowerCase().includes("bonus")
   ))
   const reactionSpells = createMemo(() => safeSpells().filter((spell) =>
-    (spell.level === 0 ? (spell.known ?? true) : spell.prepared) && spell.castingTime.toLowerCase().includes("reaction")
+    isSpellReady(spell) && spell.castingTime.toLowerCase().includes("reaction")
   ))
 
   const updateSpellSlotUsed = (level: number, used: number) => {
@@ -556,10 +549,10 @@ export function ActionsModule(props: ActionsModuleProps) {
   const normalizeActionForm = (data: ActionFormData) => ({
     ...data,
     rechargeOn: data.rechargeOn || undefined,
-    damageRecurring: data.damageRecurring || undefined,
+    damageRecurring: (!!data.damage.trim() && data.damageRecurring) || undefined,
     gain: data.gain || undefined,
     gainType: data.gainType || undefined,
-    gainRecurring: data.gainRecurring || undefined,
+    gainRecurring: (!!data.gain.trim() && data.gainRecurring) || undefined,
     highlights: data.highlights.trim() || undefined,
   } as const)
 
@@ -788,7 +781,7 @@ export function ActionsModule(props: ActionsModuleProps) {
 
   const equipmentById = (id: string) => (props.character.equipment ?? []).find((item) => item.id === id) ?? null
   const handleSaveSpell = (saved: Spell) => {
-    props.onUpdate({ ...props.character, spells: safeSpells().map((s) => (s.id === saved.id ? saved : s)) })
+    props.onUpdate(withSpells(props.character, safeSpells().map((s) => (s.id === saved.id ? saved : s))))
     setEditingSpell(null)
   }
   const handleSaveFeature = (saved: Feature) => {

@@ -12,7 +12,7 @@ import { StepperInput } from "@/components/ui/stepper-input"
 import { Popover, PopoverTrigger, PopoverContent, PopoverTitle } from "@/components/ui/popover"
 import { Select, SelectContent, SelectTrigger, SelectValue, type SelectOption } from "@/components/ui/select"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import { formatModifier, remainingUses, spellDurationLabel, spentFromRemaining, TEMP_HP_GAIN_TYPE } from "@/lib/character-utils"
+import { formatModifier, remainingUses, spellDurationLabel, spentFromRemaining, TEMP_HP_GAIN_TYPE, RECHARGE_ON_LABELS } from "@/lib/character-utils"
 import { scaleDiceExpression } from "@/lib/dice"
 import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
 
@@ -242,8 +242,8 @@ export function ActionCard(props: ActionCardProps) {
   // Damage and gain at the chosen slot level: each level above the spell's own adds its per-level
   // amount. The breakdown, shown as the badge's tooltip, exists only while a higher slot is chosen.
   const upcastSteps = () => selectedLevel() - (props.spellLevel ?? 0)
-  const scaled = (base: string | undefined, perLevel: string | undefined) => {
-    if (!base || !perLevel || upcastSteps() <= 0) return { value: base, tooltip: undefined }
+  const scaled = (base: string | undefined, perLevel: string | undefined): { value: string; tooltip: string | undefined } => {
+    if (!base || !perLevel || upcastSteps() <= 0) return { value: base ?? "", tooltip: undefined }
     const { value, added } = scaleDiceExpression(base, perLevel, upcastSteps())
     if (!added) return { value: base, tooltip: undefined }
     const tooltip = `${base} (${getOrdinalSuffix(props.spellLevel ?? 0)} Level) + ${added} (Upcast to ${getOrdinalSuffix(selectedLevel())})`
@@ -613,10 +613,11 @@ export function ActionCard(props: ActionCardProps) {
             <Show when={props.components}>{detailRow("Components", props.components)}</Show>
             <Show when={props.duration}>{detailRow("Duration", props.duration)}</Show>
             <Show when={props.trigger}>{detailRow("Trigger", props.trigger)}</Show>
-            <Show when={props.damageRecurring}>{detailRow("Damage", `${damageText()}, recurs each turn`)}</Show>
-            <Show when={props.gainRecurring}>{detailRow("Gain", `${gainText()}, recurs each turn`)}</Show>
+            {/* Only with an amount: the forms keep "recurs" only with one, but older saves may not */}
+            <Show when={props.damageRecurring && props.damage}>{detailRow("Damage", `${damageText()}, recurs each turn`)}</Show>
+            <Show when={props.gainRecurring && props.gain}>{detailRow("Gain", `${gainText()}, recurs each turn`)}</Show>
             <Show when={(props.maxUses ?? 0) > 0}>{detailRow("Max Uses", props.maxUses)}</Show>
-            <Show when={props.rechargeOn}>{detailRow("Recharge On", props.rechargeOn === "short-rest" ? "Short Rest" : "Long Rest")}</Show>
+            <Show when={props.rechargeOn}>{detailRow("Recharge On", RECHARGE_ON_LABELS[props.rechargeOn!])}</Show>
           </div>
 
           <Show when={props.highlights}>

@@ -15,6 +15,7 @@ import {
   ZERO_ABILITY_SCORES,
   ZERO_SENSES,
   RECHARGE_ON_OPTIONS,
+  ACTION_KIND_OPTIONS,
 } from "@/lib/character-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,13 +39,8 @@ export const RARITY_OPTIONS: { value: ItemRarity; label: string }[] = [
   { value: "artifact", label: "Artifact" },
 ]
 
-export const ACTION_KIND_OPTIONS: { value: ActionKind | ""; label: string }[] = [
-  { value: "", label: "None" },
-  { value: "action", label: "Action" },
-  { value: "bonus-action", label: "Bonus Action" },
-  { value: "reaction", label: "Reaction" },
-  { value: "other", label: "Other" },
-]
+// An item need not be used as an action at all
+const ITEM_ACTION_KIND_OPTIONS: { value: ActionKind | ""; label: string }[] = [{ value: "", label: "None" }, ...ACTION_KIND_OPTIONS]
 
 // skillAdvantage/skillDisadvantage activate on equip alone (see getEquipmentSkillEffectTotals),
 // unlike every other ItemModifiers field, which requires magic + attunement — the item summary
@@ -317,7 +313,7 @@ function EquipmentForm(props: EquipmentFormProps) {
       <div>
         <Label for="item-action-kind">Used As Action</Label>
         <Select
-          options={ACTION_KIND_OPTIONS}
+          options={ITEM_ACTION_KIND_OPTIONS}
           value={formData.actionKind}
           onValueChange={(v) => setFormData("actionKind", v as ActionKind | "")}
         >
@@ -987,10 +983,10 @@ function actionEffectFields(formData: EquipmentFormData) {
   return {
     damage: (applies && formData.damage) || undefined,
     damageType: (applies && formData.damageType) || undefined,
-    damageRecurring: (applies && formData.damageRecurring) || undefined,
+    damageRecurring: (applies && !!formData.damage && formData.damageRecurring) || undefined,
     gain: (applies && formData.gain) || undefined,
     gainType: (applies && formData.gainType) || undefined,
-    gainRecurring: (applies && formData.gainRecurring) || undefined,
+    gainRecurring: (applies && !!formData.gain && formData.gainRecurring) || undefined,
   }
 }
 

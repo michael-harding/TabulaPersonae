@@ -3,7 +3,7 @@ import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Dices from "lucide-solid/icons/dices"
 
 import type { Character, Equipment } from "@/lib/character-types"
-import { getAbilityModifier, formatModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest, activeSpellIdsAfterRest, spellsEndedByRest } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest, activeSpellIdsAfterRest, spellsEndedByRest, RECHARGE_ON_LABELS } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -263,7 +263,7 @@ export function RestModal(props: RestModalProps) {
                       <span class="text-xs text-muted-foreground capitalize">
                         {"quantity" in feature && (feature as Equipment).type === "consumable" && ((feature as Equipment).consumedUses ?? 0) > 0
                           ? `-${(feature as Equipment).consumedUses} qty`
-                          : feature.rechargeOn === "short-rest" ? "Short Rest" : "Long Rest"}
+                          : feature.rechargeOn && RECHARGE_ON_LABELS[feature.rechargeOn]}
                       </span>
                     </li>
                   )}

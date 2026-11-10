@@ -1,4 +1,4 @@
-import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell } from "./character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell, UseableEntry } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
 
 export function getAbilityModifier(score: number): number {
@@ -1058,12 +1058,31 @@ export function safeFeatures(raw: Feature[] | string | undefined): Feature[] {
   return raw
 }
 
+type RechargeOn = NonNullable<UseableEntry['rechargeOn']>
+
+/** How each rest a limited-use entry recharges on is named, wherever it's shown. */
+export const RECHARGE_ON_LABELS: Record<RechargeOn, string> = {
+  'short-rest': 'Short Rest',
+  'long-rest': 'Long Rest',
+}
+
 /** The "Recharge On" choices every form offers for a limited-use entry; "" means it doesn't recharge. */
-export const RECHARGE_ON_OPTIONS: { value: '' | 'short-rest' | 'long-rest'; label: string }[] = [
+export const RECHARGE_ON_OPTIONS: { value: '' | RechargeOn; label: string }[] = [
   { value: '', label: 'None' },
-  { value: 'short-rest', label: 'Short Rest' },
-  { value: 'long-rest', label: 'Long Rest' },
+  ...(Object.entries(RECHARGE_ON_LABELS) as [RechargeOn, string][]).map(([value, label]) => ({ value, label })),
 ]
+
+/** How each kind of action is named, wherever it's shown. */
+export const ACTION_KIND_LABELS: Record<ActionKind, string> = {
+  'action': 'Action',
+  'bonus-action': 'Bonus Action',
+  'reaction': 'Reaction',
+  'other': 'Other',
+}
+
+/** The action kinds as choices, in the order the Actions module lists its sections. */
+export const ACTION_KIND_OPTIONS: { value: ActionKind; label: string }[] =
+  (Object.entries(ACTION_KIND_LABELS) as [ActionKind, string][]).map(([value, label]) => ({ value, label }))
 
 export const DAMAGE_TYPES = ["slashing","piercing","bludgeoning","fire","cold","lightning","thunder","acid","poison","psychic","necrotic","radiant","force"]
 export const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map((t) => t.charAt(0).toUpperCase() + t.slice(1))
@@ -1190,6 +1209,21 @@ export function withSpellActivated(character: Pick<Character, "activeSpellIds" |
 /** activeSpellIds once the spell has ended. */
 export function withSpellEnded(character: Pick<Character, "activeSpellIds">, spellId: string): string[] {
   return (character.activeSpellIds ?? []).filter((id) => id !== spellId)
+}
+
+/** Whether a spell can be cast from its action card: a cantrip while known, any other spell while prepared. */
+export function isSpellReady(spell: Pick<Spell, "level" | "known" | "prepared">): boolean {
+  return spell.level === 0 ? (spell.known ?? true) : !!spell.prepared
+}
+
+/**
+ * The character with its spells replaced: a spell that is deleted, unprepared, or (a cantrip) no
+ * longer known ends, so it isn't left in effect with no card to end it from.
+ */
+export function withSpells(character: Character, spells: Spell[]): Character {
+  if (!character.activeSpellIds) return { ...character, spells }
+  const ready = new Set(spells.filter(isSpellReady).map((spell) => spell.id))
+  return { ...character, spells, activeSpellIds: character.activeSpellIds.filter((id) => ready.has(id)) }
 }
 
 const PARSED_DURATION = /^(?:up to\s+)?(\d+)\s+(round|minute|hour)s?$/i

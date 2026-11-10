@@ -335,6 +335,21 @@ describe("ActionCard", () => {
       expect(screen.getByTestId("action-card-test")).toHaveClass("hover:border-primary")
     })
 
+    it("shows recurring damage and gain as detail rows", () => {
+      render(() => <ActionCard {...makeProps({ damage: "1d6", damageType: "fire", damageRecurring: true, gain: "1d4", gainRecurring: true })} />)
+      expand()
+      const dialog = within(screen.getByRole("dialog"))
+      expect(dialog.getByText("1d6 fire, recurs each turn")).toBeInTheDocument()
+      expect(dialog.getByText("1d4, recurs each turn")).toBeInTheDocument()
+    })
+
+    // Saved before the forms kept "recurs" only with an amount
+    it("shows no recurring row without an amount", () => {
+      render(() => <ActionCard {...makeProps({ damageType: "fire", damageRecurring: true, gainRecurring: true })} />)
+      expand()
+      expect(within(screen.getByRole("dialog")).queryByText(/recurs each turn/)).not.toBeInTheDocument()
+    })
+
     it("opens on a click anywhere on the card that isn't a control", () => {
       render(() => <ActionCard {...makeProps({ range: "30 ft" })} />)
       fireEvent.click(screen.getByText(/30 ft/))

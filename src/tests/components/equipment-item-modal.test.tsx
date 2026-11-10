@@ -545,6 +545,15 @@ describe("EquipmentItemModal", () => {
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ weaponStats: expect.objectContaining({ damageRecurring: true }) }))
     })
 
+    it("keeps an item's recurring flags only with an amount", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ type: "consumable", actionKind: "action" })} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByRole("checkbox", { name: "Damage recurs each turn" }))
+      fireEvent.click(screen.getByRole("checkbox", { name: "Gain recurs each turn" }))
+      save()
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ damageRecurring: undefined, gainRecurring: undefined }))
+    })
+
     it("offers damage and gain only for a non-weapon item used as an action", () => {
       render(() => <EquipmentItemModal open={true} editingItem={makeItem({ type: "consumable" })} onSave={vi.fn()} onCancel={vi.fn()} />)
       expect(screen.queryByLabelText("Gain")).not.toBeInTheDocument()

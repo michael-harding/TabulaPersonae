@@ -13,7 +13,7 @@ import BookOpen from "lucide-solid/icons/book-open"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpellEnded } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -153,45 +153,30 @@ export function SpellsModule(props: SpellsModuleProps) {
   const handleSaveSpell = (saved: Spell) => {
     if (isReadOnly) return
     const exists = safeSpells().some((s) => s.id === saved.id)
-    props.onUpdate({
-      ...props.character,
-      spells: exists ? safeSpells().map((s) => (s.id === saved.id ? saved : s)) : [...safeSpells(), saved],
-    })
+    props.onUpdate(withSpells(props.character, exists ? safeSpells().map((s) => (s.id === saved.id ? saved : s)) : [...safeSpells(), saved]))
     setIsAddModalOpen(false)
     setEditingSpell(null)
   }
 
   const handleDeleteSpell = (spellId: string) => {
     if (isReadOnly) return
-    const updated = {
-      ...props.character,
-      spells: safeSpells().filter((spell) => spell.id !== spellId),
-      // A deleted spell is no longer in effect
-      ...(props.character.activeSpellIds ? { activeSpellIds: withSpellEnded(props.character, spellId) } : {}),
-    }
-    props.onUpdate(updated)
+    // A deleted spell is no longer in effect
+    props.onUpdate(withSpells(props.character, safeSpells().filter((spell) => spell.id !== spellId)))
   }
 
   const togglePrepared = (spellId: string) => {
     if (isReadOnly) return
-    const updated = {
-      ...props.character,
-      spells: safeSpells().map((spell) => (spell.id === spellId ? { ...spell, prepared: !spell.prepared } : spell)),
-    }
-    props.onUpdate(updated)
+    // An unprepared spell is no longer in effect
+    props.onUpdate(withSpells(props.character, safeSpells().map((spell) => (spell.id === spellId ? { ...spell, prepared: !spell.prepared } : spell))))
   }
 
   const toggleKnown = (spellId: string) => {
     if (isReadOnly) return
-    const updated = {
-      ...props.character,
-      spells: safeSpells().map((spell) =>
-        spell.id === spellId
-          ? { ...spell, known: !spell.known, prepared: spell.known ? false : spell.prepared }
-          : spell
-      ),
-    }
-    props.onUpdate(updated)
+    props.onUpdate(withSpells(props.character, safeSpells().map((spell) =>
+      spell.id === spellId
+        ? { ...spell, known: !spell.known, prepared: spell.known ? false : spell.prepared }
+        : spell
+    )))
   }
 
   const allSlotsEmpty = createMemo(() => [1,2,3,4,5,6,7,8,9].every(

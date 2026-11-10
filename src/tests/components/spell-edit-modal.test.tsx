@@ -66,6 +66,12 @@ describe("spellFromForm", () => {
     expect(spell.highlights).toBeUndefined()
   })
 
+  it("keeps a recurring flag only with an amount", () => {
+    const spell = spellFromForm(makeForm({ damage: " ", damageRecurring: true, gain: "", gainRecurring: true }))
+    expect(spell.damageRecurring).toBeUndefined()
+    expect(spell.gainRecurring).toBeUndefined()
+  })
+
   it("stores the per-level damage and gain, omitting blank ones", () => {
     expect(spellFromForm(makeForm({ damagePerLevel: " 1d6 ", gainPerLevel: "1d8" }))).toMatchObject({ damagePerLevel: "1d6", gainPerLevel: "1d8" })
     const blank = spellFromForm(makeForm({ damagePerLevel: "  ", gainPerLevel: "" }))

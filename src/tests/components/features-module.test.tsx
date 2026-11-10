@@ -685,6 +685,12 @@ describe("FeaturesModule", () => {
       expect(feature.gain).toBeUndefined()
     })
 
+    it("keeps a recurring flag only with an amount", () => {
+      const feature = featureFromForm({ ...actionForm, damage: "", damageRecurring: true, gain: "", gainRecurring: true }, { source: "class-feature" })
+      expect(feature.damageRecurring).toBeUndefined()
+      expect(feature.gainRecurring).toBeUndefined()
+    })
+
     it("omits blank highlights and keeps them on any feature", () => {
       expect(featureFromForm({ ...actionForm, highlights: "  " }, { source: "feat" }).highlights).toBeUndefined()
       expect(featureFromForm({ ...defaultFeatureForm, name: "Tough", highlights: " +2 HP/level " }, { source: "feat" }).highlights).toBe("+2 HP/level")

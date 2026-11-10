@@ -628,6 +628,16 @@ describe("ActionsModule", () => {
       expect(within(screen.getByRole("dialog")).getByText("+1d4+1 per level")).toBeInTheDocument()
     })
 
+    // The sheet reconciles each update by id, so an edited spell keeps its object and its card
+    it("checks the slots of a spell's new level once its level is edited", () => {
+      const char = makeCharacterWithUpcast({ level1Used: 2, spellOverrides: { atHigherLevel: undefined } })
+      const [character, setCharacter] = createStore(char)
+      render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
+      expect(castButton()).toBeDisabled()
+      setCharacter(reconcile({ ...char, spells: [{ ...char.spells[0], level: 2 }] }))
+      expect(castButton()).toBeEnabled()
+    })
+
     it("offers no slot-level select when atHigherLevel is not set", () => {
       render(() => <ActionsModule character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })} onUpdate={vi.fn()} />)
       expect(screen.queryByRole("combobox", { name: /at level/i })).not.toBeInTheDocument()

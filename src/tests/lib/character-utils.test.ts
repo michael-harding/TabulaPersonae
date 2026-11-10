@@ -62,6 +62,8 @@ import {
   activeSpells,
   withSpellActivated,
   withSpellEnded,
+  withSpells,
+  isSpellReady,
   spellEndsOnRest,
   spellsEndedByRest,
   activeSpellIdsAfterRest,
@@ -2338,6 +2340,37 @@ describe("withSpellEnded", () => {
   it("removes the spell", () => {
     expect(withSpellEnded({ activeSpellIds: ["bless", "alarm"] }, "bless")).toEqual(["alarm"])
     expect(withSpellEnded({}, "bless")).toEqual([])
+  })
+})
+
+describe("isSpellReady", () => {
+  it("is true for a known cantrip and a prepared spell", () => {
+    expect(isSpellReady({ level: 0, known: true, prepared: false })).toBe(true)
+    expect(isSpellReady({ level: 1, known: true, prepared: true })).toBe(true)
+  })
+
+  it("is false for a cantrip no longer known and an unprepared spell", () => {
+    expect(isSpellReady({ level: 0, known: false, prepared: false })).toBe(false)
+    expect(isSpellReady({ level: 1, known: true, prepared: false })).toBe(false)
+  })
+})
+
+describe("withSpells", () => {
+  const character = (overrides: Partial<Character> = {}): Character => ({ ...createDefaultCharacter(), ...overrides })
+  const prepared = (spell: Spell): Spell => ({ ...spell, prepared: true })
+
+  it("replaces the spells", () => {
+    expect(withSpells(character(), [mageArmor]).spells).toEqual([mageArmor])
+  })
+
+  it("ends a spell that is deleted or unprepared, keeping the rest", () => {
+    const before = character({ spells: [prepared(bless), prepared(mageArmor), prepared(alarm)], activeSpellIds: ["bless", "mage-armor", "alarm"] })
+    const after = withSpells(before, [prepared(bless), { ...mageArmor, prepared: false }])
+    expect(after.activeSpellIds).toEqual(["bless"])
+  })
+
+  it("adds no activeSpellIds to a character without them", () => {
+    expect(withSpells(character(), [mageArmor])).not.toHaveProperty("activeSpellIds")
   })
 })
 

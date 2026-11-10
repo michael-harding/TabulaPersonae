@@ -26,6 +26,7 @@ import {
   formatModifier,
   getEffectiveCarryingCapacity,
   getCarryingCapacityBreakdown,
+  ACTION_KIND_LABELS,
 } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -45,7 +46,7 @@ import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
 import { useReadOnly } from "@/lib/read-only-context"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import { EquipmentItemModal, ACTION_KIND_OPTIONS, hasOtherModifierFields } from "@/components/equipment-item-modal"
+import { EquipmentItemModal, hasOtherModifierFields } from "@/components/equipment-item-modal"
 
 const roundToOneDecimal = (n: number): number => Math.round(n * 10) / 10
 
@@ -302,7 +303,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         <Show when={item.actionKind}>
                           <Chip variant="outline" class="text-xs flex items-center gap-1">
                             <Zap class="h-3 w-3" aria-hidden="true" />
-                            {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
+                            {ACTION_KIND_LABELS[item.actionKind!]}
                           </Chip>
                         </Show>
                         <Show when={item.rarity}>
@@ -541,7 +542,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                         <Show when={item.actionKind}>
                           <Chip variant="outline" class="text-xs flex items-center gap-1">
                             <Zap class="h-3 w-3" aria-hidden="true" />
-                            {ACTION_KIND_OPTIONS.find((o) => o.value === item.actionKind)?.label}
+                            {ACTION_KIND_LABELS[item.actionKind!]}
                           </Chip>
                         </Show>
                         <Show when={item.magic}>

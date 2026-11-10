@@ -523,16 +523,35 @@ describe("SpellsModule", () => {
     })
   })
 
+  const bless = makeSpell({ id: "bless", name: "Bless", level: 1, prepared: true, concentration: true, duration: "Concentration, up to 1 minute" })
+  const armor = makeSpell({ id: "armor", name: "Mage Armor", level: 1, prepared: true, duration: "8 hours" })
+
   describe("deleting a spell in effect", () => {
     beforeEach(() => cleanupPortals())
 
     it("ends the spell along with deleting it", () => {
       const onUpdate = vi.fn()
-      const bless = makeSpell({ id: "bless", name: "Bless", level: 1, concentration: true, duration: "Concentration, up to 1 minute" })
-      const armor = makeSpell({ id: "armor", name: "Mage Armor", level: 1, duration: "8 hours" })
       render(() => <SpellsModule character={makeCharacter({ spells: [bless, armor], activeSpellIds: ["bless", "armor"] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByText("1st Level"))
       confirmClick(screen.getByTestId("delete-spell-bless"))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ activeSpellIds: ["armor"] }))
+    })
+  })
+
+  // Its card leaves the Actions module, which is where it's ended from
+  describe("unpreparing a spell in effect", () => {
+    it("ends a spell when it's unprepared", () => {
+      const onUpdate = vi.fn()
+      render(() => <SpellsModule character={makeCharacter({ spells: [bless, armor], activeSpellIds: ["bless", "armor"] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("checkbox", { name: /Prepared: Bless/ }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ activeSpellIds: ["armor"] }))
+    })
+
+    it("ends a cantrip when it's no longer known", () => {
+      const onUpdate = vi.fn()
+      const guidance = makeSpell({ id: "guidance", name: "Guidance", concentration: true, duration: "Concentration, up to 1 minute" })
+      render(() => <SpellsModule character={makeCharacter({ spells: [guidance, armor], activeSpellIds: ["guidance", "armor"] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("checkbox", { name: /Known: Guidance/ }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ activeSpellIds: ["armor"] }))
     })
   })

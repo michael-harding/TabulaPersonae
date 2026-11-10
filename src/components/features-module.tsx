@@ -13,7 +13,7 @@ import Layers from "lucide-solid/icons/layers"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, RECHARGE_ON_OPTIONS, formatModifier } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, formatModifier } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -61,22 +61,7 @@ const FEATURE_FIELD_CONFIG: FeatureFieldConfig[] = [
   { kind: 'feat',          title: 'Feats',           singular: 'Feat',           field: 'feats',         icon: Star   },
 ]
 
-const ACTION_KIND_LABELS: Record<ActionKind, string> = {
-  'action': 'Action',
-  'bonus-action': 'Bonus Action',
-  'reaction': 'Reaction',
-  'other': 'Other',
-}
-
-const ACTION_KIND_OPTIONS = (Object.entries(ACTION_KIND_LABELS) as [ActionKind, string][]).map(([value, label]) => ({ value, label }))
-
 const ACTION_TYPE_LABELS = ['Attack', 'Ability', 'Other']
-
-const RECHARGE_ON_LABELS: Record<'' | 'short-rest' | 'long-rest', string> = {
-  '': 'None',
-  'short-rest': 'Short Rest',
-  'long-rest': 'Long Rest',
-}
 
 const SAVE_ABILITIES: (keyof AbilityScores)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
 
@@ -318,10 +303,10 @@ export function featureFromForm(form: FeatureFormData, base: Partial<Feature> & 
     attackSave: (action && form.attackSave) ? form.attackSave : undefined,
     damage: (action && form.damage) ? form.damage : undefined,
     damageType: (action && form.damageType) ? form.damageType : undefined,
-    damageRecurring: (action && form.damageRecurring) ? true : undefined,
+    damageRecurring: (action && form.damage && form.damageRecurring) ? true : undefined,
     gain: (action && form.gain) ? form.gain : undefined,
     gainType: (action && form.gainType) ? form.gainType : undefined,
-    gainRecurring: (action && form.gainRecurring) ? true : undefined,
+    gainRecurring: (action && form.gain && form.gainRecurring) ? true : undefined,
     level: action ? (form.level || undefined) : undefined,
     uses: (action && form.uses) ? form.uses : undefined,
     maxUses: (action && form.maxUsesMode === 'flat' && form.maxUses) ? form.maxUses : undefined,
