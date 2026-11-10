@@ -638,14 +638,24 @@ describe("ActionsModule", () => {
       expect(castButton()).toBeEnabled()
     })
 
-    it("offers no slot-level select when atHigherLevel is not set", () => {
+    // The rules let any 1st-level or higher spell use a higher slot, even with nothing gained by it
+    it("offers the slot-level select for a spell with no higher-level effect", () => {
       render(() => <ActionsModule character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })} onUpdate={vi.fn()} />)
-      expect(screen.queryByRole("combobox", { name: /at level/i })).not.toBeInTheDocument()
+      expect(slotSelect()).toBeInTheDocument()
     })
 
-    it("offers the slot-level select for a spell that scales per level, without atHigherLevel", () => {
-      render(() => <ActionsModule character={makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined, damage: "3d4+3", damagePerLevel: "1d4+1" } })} onUpdate={vi.fn()} />)
-      expect(slotSelect()).toBeInTheDocument()
+    // A warlock's pact slots are all one level, above that of most of their spells
+    it("casts a spell the character has no slots of its own level for with a higher slot", () => {
+      const onUpdate = vi.fn()
+      const char = makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })
+      render(() => <ActionsModule character={{ ...char, spellSlots: { ...char.spellSlots, 1: { total: 0, used: 0 } } }} onUpdate={onUpdate} />)
+      expect(castButton()).toBeDisabled()
+      fireEvent.click(slotSelect())
+      fireEvent.click(screen.getByRole("option", { name: "2nd" }))
+      fireEvent.click(castButton())
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        spellSlots: expect.objectContaining({ 2: expect.objectContaining({ used: 1 }) }),
+      }))
     })
 
     it("scales the spell's damage to the chosen slot", () => {

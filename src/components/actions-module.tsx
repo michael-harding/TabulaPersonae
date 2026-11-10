@@ -686,8 +686,9 @@ export function ActionsModule(props: ActionsModuleProps) {
         onCast={spell.level > 0 || isSustainedSpell(spell) ? (level) => castSpell(spell, level) : undefined}
         active={activeSpellIds().has(spell.id)}
         onEnd={() => endSpell(spell.id)}
-        // A free cast spends no slot, so there's no level to choose
-        slotLevels={spell.level > 0 && !spell.freeCast && (spell.atHigherLevel || spell.damagePerLevel || spell.gainPerLevel) && hasHigherSlots() ? slotLevels : undefined}
+        // Any spell of 1st level or higher can be cast with a higher slot, gaining something or not.
+        // A free cast spends no slot, so there's no level to choose.
+        slotLevels={spell.level > 0 && !spell.freeCast && hasHigherSlots() ? slotLevels : undefined}
         onEdit={() => setEditingSpell(spell)}
         reorder={reorder}
       />
