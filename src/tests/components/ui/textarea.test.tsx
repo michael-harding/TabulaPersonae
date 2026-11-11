@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js"
 import { axe } from "vitest-axe"
 
 import { Textarea } from "@/components/ui/textarea"
@@ -36,6 +37,56 @@ describe("Textarea", () => {
   it("is disabled when disabled prop is set", () => {
     render(() => <Textarea disabled aria-label="Backstory" />)
     expect(screen.getByRole("textbox", { name: "Backstory" })).toBeDisabled()
+  })
+
+  it("passes its element to a ref", () => {
+    let ref: HTMLTextAreaElement | undefined
+    render(() => <Textarea ref={ref} aria-label="Backstory" />)
+    expect(ref).toBe(screen.getByRole("textbox", { name: "Backstory" }))
+  })
+
+  describe("fits its height to its text", () => {
+    // jsdom does no layout, so a textarea's content height is stood in for: 20px a line plus 16px
+    // of padding. Its border is 0 here, so the height it is given is exactly that.
+    const contentHeight = (lines: number) => `${lines * 20 + 16}px`
+
+    beforeEach(() => {
+      vi.spyOn(HTMLTextAreaElement.prototype, "scrollHeight", "get").mockImplementation(function (
+        this: HTMLTextAreaElement
+      ) {
+        return this.value.split("\n").length * 20 + 16
+      })
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it("when it first appears, as when a modal opens on a saved description", () => {
+      render(() => <Textarea value={"one\ntwo\nthree"} aria-label="Description" onInput={vi.fn()} />)
+      expect(screen.getByRole("textbox", { name: "Description" }).style.height).toBe(contentHeight(3))
+    })
+
+    it("as the user types or pastes, growing and shrinking with the text", () => {
+      render(() => <Textarea aria-label="Description" />)
+      const textarea = screen.getByRole("textbox", { name: "Description" })
+
+      fireEvent.input(textarea, { target: { value: "one\ntwo\nthree\nfour\nfive" } })
+      expect(textarea.style.height).toBe(contentHeight(5))
+
+      fireEvent.input(textarea, { target: { value: "one\ntwo" } })
+      expect(textarea.style.height).toBe(contentHeight(2))
+    })
+
+    it("when its value is changed from outside, as when a form is reset", () => {
+      const [value, setValue] = createSignal("one")
+      render(() => <Textarea value={value()} aria-label="Description" onInput={vi.fn()} />)
+      const textarea = screen.getByRole("textbox", { name: "Description" })
+      expect(textarea.style.height).toBe(contentHeight(1))
+
+      setValue("one\ntwo\nthree\nfour")
+      expect(textarea.style.height).toBe(contentHeight(4))
+    })
   })
 
   it("has no accessibility violations", async () => {
