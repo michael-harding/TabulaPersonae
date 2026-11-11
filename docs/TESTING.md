@@ -115,12 +115,18 @@ This decouples test selectors from styling and layout decisions: a component can
 
 ## 9. Visual Regression Coverage
 
-- Every modal, and every state of a modal whose layout differs (add, edit, each form variant), must have a visual baseline.
+Baselines exist so a human can review every visual change. Each one must show something no other baseline shows, or the duplicates bury the changes that matter.
+
+- Every modal, and every state of a modal whose layout differs (add, edit, each form variant), must be shown by a visual baseline.
 - Every popup rendered above the page — menu, select or combobox list, popover, tooltip — must have a baseline in its open state.
-- Every module with an edit mode must have a baseline in view mode and in edit mode.
-- Shared overlay components must have a baseline in both themes and at phone width (390px).
+- Every module with an edit mode must be shown in view mode and in edit mode.
+- Shared overlay components must have a baseline in both themes, and at phone width (390px) where their layout changes at that width.
 - A baseline must capture the state a change would affect: a popup that opens inside a modal is captured open, inside that modal.
-- A new modal, popup, or edit mode is not done until its baseline exists.
+- A state is covered by an existing baseline, and gets none of its own, when that baseline shows the same layout: the same fields and controls in the same arrangement, differing only in labels, placeholder text, or entered or selected values. A state that adds, removes, or rearranges a field or control needs its own baseline.
+- When a modal or feature type listed in `tests/popup-cases.ts` is covered by another's baseline, record which one there (`coveredBy`, `FEATURE_TYPE_COVERED_BY`). Every new modal and feature type is then classified when it is added, rather than silently left without a baseline; the file refuses to load if a mapping points at something with no baseline of its own.
+- Don't crop an element out of a page that a full-page baseline already shows in the same state. Crop only the states the full-page baselines don't show: edit mode, an empty module, a character state the fixtures don't have, an open popup.
+- Every baseline runs in Chromium. Firefox runs only the full-page, modal shell, and overlay specs (the `firefox` project's `testMatch` in `playwright.visual.config.ts`): enough to catch an engine difference in page layout or in the shared overlays without a second copy of every baseline to review.
+- A new modal, popup, or edit mode is not done until a baseline shows it.
 
 ---
 
@@ -150,4 +156,4 @@ This decouples test selectors from styling and layout decisions: a component can
 - No tests are skipped without documented human approval.
 - All UI components touched by the suite have at least one integration test.
 - axe checks are present and passing for every rendered UI component and every E2E scenario.
-- Every modal, popup, and edit mode the suite touches has a visual baseline (§9).
+- Every modal, popup, and edit mode the suite touches is shown by a visual baseline (§9).
