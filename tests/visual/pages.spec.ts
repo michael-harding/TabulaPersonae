@@ -35,16 +35,6 @@ test.describe("Auth page", () => {
 })
 
 test.describe("Character sheet page", () => {
-  test("full character sheet", async ({ page }) => {
-    await page.addInitScript((char) => {
-      localStorage.setItem("dnd-characters", JSON.stringify([char]))
-      localStorage.setItem("dnd-skip-auth", "true")
-    }, testCharacter)
-    await page.goto(`/character/${testCharacter.id}`)
-    await page.waitForLoadState("networkidle")
-    await expect(page).toHaveScreenshot("character-sheet.png", { fullPage: true })
-  })
-
   test("unconscious character with death saves", async ({ page }) => {
     await page.addInitScript((char) => {
       localStorage.setItem("dnd-characters", JSON.stringify([char]))
@@ -61,6 +51,7 @@ test.describe("Character sheet tabs", () => {
     await openSheet(page, testCharacter)
   })
 
+  // The sheet opens on the Combat tab, so this is also the sheet as it first opens
   test("combat tab — actions expanded", async ({ page }) => {
     await page.getByRole("tab", { name: "Combat" }).click()
     await expect(page).toHaveScreenshot("character-sheet-tab-combat.png", { fullPage: true })

@@ -25,7 +25,11 @@ export default defineConfig({
       },
     },
     {
+      // Full pages, the modal shell and the overlays only (TESTING.md "Visual Regression Coverage"):
+      // enough to catch an engine difference in page layout or in the shared overlays, without a
+      // second copy of every baseline to review.
       name: "firefox",
+      testMatch: ["pages.spec.ts", "themes.spec.ts", "public-share.spec.ts", "modal-shell.spec.ts", "overlays.spec.ts"],
       use: { ...devices["Desktop Firefox"] },
     },
   ],

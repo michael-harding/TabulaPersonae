@@ -18,13 +18,19 @@ export interface ModalCase {
   name: string
   tab?: string
   open: (page: Page) => Promise<void>
+  /**
+   * The modal whose visual baseline also shows this one, because the two have the same layout
+   * (TESTING.md §9). The visual suite takes no screenshot of a covered modal; the other suites
+   * still check it.
+   */
+  coveredBy?: string
 }
 
 export const MODALS: ModalCase[] = [
   { name: "action-add", tab: "Combat", open: (page) => click(page, "add-action-button") },
-  { name: "bonus-action-add", tab: "Combat", open: (page) => click(page, "add-bonus-action-button") },
+  { name: "bonus-action-add", tab: "Combat", open: (page) => click(page, "add-bonus-action-button"), coveredBy: "action-add" },
   { name: "reaction-add", tab: "Combat", open: (page) => click(page, "add-reaction-button") },
-  { name: "other-add", tab: "Combat", open: (page) => click(page, "add-other-button") },
+  { name: "other-add", tab: "Combat", open: (page) => click(page, "add-other-button"), coveredBy: "action-add" },
   {
     // Edit is in the card's expanded view
     name: "action-edit", tab: "Combat", open: async (page) => {
@@ -47,6 +53,7 @@ export const MODALS: ModalCase[] = [
       await dialog(page).locator('[data-test="item-type"]').click()
       await page.getByRole("option", { name: "Consumable", exact: true }).click()
     },
+    coveredBy: "item-add",
   },
   { name: "item-edit-weapon", tab: "Inventory", open: (page) => click(page, "equipment-edit-eq1") },
   { name: "item-edit-armor", tab: "Inventory", open: (page) => click(page, "equipment-edit-eq2") },
@@ -79,18 +86,55 @@ export const MODALS: ModalCase[] = [
 
 export const byName = (name: string) => MODALS.find((m) => m.name === name)!
 
-// Mirrors FEATURE_TYPES in src/components/features-module.tsx — the Feature form's fields differ
-// per type. The "lists every feature type" test (tests/e2e/character-sheet.spec.ts) fails when the
-// two drift, so a new type can't ship without a baseline.
-export const FEATURE_TYPES = [
-  "Action", "Spellcasting Ability", "Hit Points", "Size", "Max HP Bonus",
-  "Saving Throw Proficiency", "Skill Proficiency", "Other Proficiency", "Speed", "Senses",
-  "Damage Resistance/Immunity/Vulnerability", "Condition Immunity", "Language", "Carrying Capacity",
-  "Ability Scores",
-]
 export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 
-/** The modals also checked at phone width. */
+/** The name of the visual baseline (and of the screenshot) for a feature type's form. */
+export const featureTypeBaseline = (type: string) => `feature-add-type-${slug(type)}`
+
+// Every feature type, in the order of FEATURE_TYPES in src/components/features-module.tsx, mapped to
+// the baseline that shows its form: null for a form with a layout of its own, which gets its own
+// baseline, or the name of a baseline that already shows the same layout (TESTING.md §9). The
+// "lists every feature type" test (tests/e2e/character-sheet.spec.ts) fails when this and the app's
+// list drift, so a new type can't ship until it is given a baseline or mapped to one.
+const FEATURE_TYPE_COVERED_BY: Record<string, string | null> = {
+  "Action": "feature-edit", // the edit case opens an Action feature
+  "Spellcasting Ability": featureTypeBaseline("Size"), // one select
+  "Hit Points": null,
+  "Size": null,
+  "Max HP Bonus": null,
+  "Saving Throw Proficiency": null,
+  "Skill Proficiency": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"), // a chip-list row per level
+  "Other Proficiency": featureTypeBaseline("Language"), // a text input and Add per level
+  "Speed": null,
+  "Senses": featureTypeBaseline("Speed"), // a grid of number inputs per level
+  "Damage Resistance/Immunity/Vulnerability": null,
+  "Condition Immunity": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"),
+  "Language": null,
+  "Carrying Capacity": featureTypeBaseline("Speed"),
+  "Ability Scores": null,
+}
+
+export const FEATURE_TYPES = Object.keys(FEATURE_TYPE_COVERED_BY)
+/** The feature types with a baseline of their own. */
+export const FEATURE_TYPES_WITH_BASELINE = FEATURE_TYPES.filter((type) => FEATURE_TYPE_COVERED_BY[type] == null)
+
+// A case covered by something with no baseline of its own would be shown by none, so any suite
+// importing this file refuses to load until the mapping is fixed.
+const ownBaselines = new Set([
+  ...MODALS.filter((modal) => modal.coveredBy == null).map((modal) => modal.name),
+  ...FEATURE_TYPES_WITH_BASELINE.map(featureTypeBaseline),
+])
+const coverage = [
+  ...MODALS.map((modal) => [modal.name, modal.coveredBy] as const),
+  ...FEATURE_TYPES.map((type) => [type, FEATURE_TYPE_COVERED_BY[type]] as const),
+]
+for (const [name, coveredBy] of coverage) {
+  if (coveredBy != null && !ownBaselines.has(coveredBy)) {
+    throw new Error(`"${name}" is covered by "${coveredBy}", which has no visual baseline of its own`)
+  }
+}
+
+/** The modals also checked at phone width. The visual suite's modal shell baselines show rest-short. */
 export const PHONE_MODALS = ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "import"]
 
 const byTest = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`)

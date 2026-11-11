@@ -20,10 +20,8 @@ test.describe("Public share page", () => {
       await page.waitForLoadState("networkidle")
     })
 
-    test("full page — default tab", async ({ page }) => {
-      await expect(page).toHaveScreenshot("public-share-default-tab.png", { fullPage: true })
-    })
-
+    // The page opens on the Combat tab, so this is also the page as it first opens. It shows the
+    // read-only uses trackers: pips on "Dark One's Blessing", a stepper on "Fiendish Resilience".
     test("combat tab — actions with uses trackers (read-only)", async ({ page }) => {
       await page.getByRole("tab", { name: "Combat" }).click()
       await page.waitForLoadState("networkidle")
@@ -53,22 +51,6 @@ test.describe("Public share page", () => {
       await page.waitForLoadState("networkidle")
       await expect(page).toHaveScreenshot("public-share-character-tab.png", { fullPage: true })
     })
-
-    test("action card uses tracker pip — read-only rendering", async ({ page }) => {
-      await page.getByRole("tab", { name: "Combat" }).click()
-      await page.waitForLoadState("networkidle")
-      // Scope to the "Dark One's Blessing" card (pip tracker, ≤5 uses)
-      const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Dark One's Blessing" })
-      await expect(card).toHaveScreenshot("public-share-action-card-pip-readonly.png")
-    })
-
-    test("action card uses tracker stepper — read-only rendering", async ({ page }) => {
-      await page.getByRole("tab", { name: "Combat" }).click()
-      await page.waitForLoadState("networkidle")
-      // Scope to "Fiendish Resilience" card (stepper, >5 uses)
-      const card = page.locator(`[data-sem="action-card"]`).filter({ hasText: "Fiendish Resilience" })
-      await expect(card).toHaveScreenshot("public-share-action-card-stepper-readonly.png")
-    })
   })
 
   test.describe("character not found", () => {
@@ -84,19 +66,18 @@ test.describe("Public share page", () => {
   })
 })
 
-test.describe("Public share page — theme variants", () => {
-  for (const theme of ["light", "dark"] as const) {
-    test(`full page — ${theme}`, async ({ page }) => {
-      await page.addInitScript(
-        ({ id, data, t }) => {
-          localStorage.setItem(`dnd-public-char-${id}`, JSON.stringify(data))
-          localStorage.setItem("theme", t)
-        },
-        { id: publicCharacter.id, data: publicCharacter, t: theme }
-      )
-      await page.goto(`/share/${publicCharacter.id}`)
-      await page.waitForLoadState("networkidle")
-      await expect(page).toHaveScreenshot(`public-share-${theme}.png`, { fullPage: true })
-    })
-  }
+// Only dark: light is the default theme, which the combat tab baseline above already shows.
+test.describe("Public share page — dark theme", () => {
+  test("full page — dark", async ({ page }) => {
+    await page.addInitScript(
+      ({ id, data }) => {
+        localStorage.setItem(`dnd-public-char-${id}`, JSON.stringify(data))
+        localStorage.setItem("theme", "dark")
+      },
+      { id: publicCharacter.id, data: publicCharacter }
+    )
+    await page.goto(`/share/${publicCharacter.id}`)
+    await page.waitForLoadState("networkidle")
+    await expect(page).toHaveScreenshot("public-share-dark.png", { fullPage: true })
+  })
 })
