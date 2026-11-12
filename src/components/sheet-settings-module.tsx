@@ -8,6 +8,7 @@ import type { Character } from "@/lib/character-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { SwitchButton } from "@/components/ui/switch-button"
+import { useAuth } from "@/lib/auth-context"
 import { useReadOnly } from "@/lib/read-only-context"
 import { oklchToHex, parseHex, readableOn, SHEET_COLOR_PRESETS } from "@/lib/sheet-color"
 import { cn, HOVER_ACCENT, TOUCH_TARGET } from "@/lib/utils"
@@ -33,10 +34,14 @@ export function SheetSettingsModule(props: SheetSettingsModuleProps) {
 
 // Split out so none of this — the share-link QR resource in particular — is set up in read-only mode.
 function SheetSettingsContent(props: SheetSettingsModuleProps) {
+  const { user } = useAuth()
   const edition = () => props.character.edition ?? "2024"
   const sheetColor = () => props.character.sheetColor
+  // A shared sheet is read from the account's database, so without a signed-in user there is
+  // nothing to share and no link to give out.
+  const canShare = () => user() != null
   const shareUrl = () =>
-    props.character.isPublic ? `${window.location.origin}/share/${props.character.id}` : null
+    canShare() && props.character.isPublic ? `${window.location.origin}/share/${props.character.id}` : null
   const [qrDataUrl] = createResource(shareUrl, (url) =>
     QRCode.toDataURL(url, { width: 160, margin: 1 })
   )
@@ -125,64 +130,66 @@ function SheetSettingsContent(props: SheetSettingsModuleProps) {
           </div>
         </div>
 
-        <div class="border-t pt-4 mt-1">
-          <div class="flex items-center gap-2 mb-3">
-            <Share2 class="h-4 w-4 text-primary" aria-hidden="true" />
-            <Label class="text-sm font-medium">Public Sharing</Label>
-          </div>
-          <div class="flex items-center gap-3 mb-3">
-            <Label class="text-sm whitespace-nowrap">Share publicly</Label>
-            <SwitchButton
-              optionA="Off"
-              optionB="On"
-              value={props.character.isPublic ? "On" : "Off"}
-              onChange={(v) => props.onUpdate({ ...props.character, isPublic: v === "On" })}
-              id="sheet-settings-share-switch"
-            />
-          </div>
-          <Show when={shareUrl()}>
-            {(getUrl) => (
-              <div class="space-y-3">
-                <div class="flex items-center gap-2">
-                  <input
-                    type="text"
-                    data-test="share-url-input"
-                    readOnly
-                    value={getUrl()}
-                    aria-label="Share URL"
-                    class="flex-1 h-9 rounded-md border border-input bg-background px-3 text-xs text-muted-foreground select-all"
-                    onClick={(e) => e.currentTarget.select()}
-                  />
-                  <button
-                    type="button"
-                    data-test="share-url-copy-button"
-                    aria-label="Copy share link"
-                    class={cn(TOUCH_TARGET, HOVER_ACCENT, "h-9 px-3 rounded-md border text-xs transition-colors whitespace-nowrap")}
-                    onClick={() => {
-                      navigator.clipboard.writeText(getUrl())
-                        .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
-                        .catch(() => {})
-                    }}
-                  >
-                    {copied() ? "Copied!" : "Copy link"}
-                  </button>
+        <Show when={canShare()}>
+          <div class="border-t pt-4 mt-1">
+            <div class="flex items-center gap-2 mb-3">
+              <Share2 class="h-4 w-4 text-primary" aria-hidden="true" />
+              <Label class="text-sm font-medium">Public Sharing</Label>
+            </div>
+            <div class="flex items-center gap-3 mb-3">
+              <Label class="text-sm whitespace-nowrap">Share publicly</Label>
+              <SwitchButton
+                optionA="Off"
+                optionB="On"
+                value={props.character.isPublic ? "On" : "Off"}
+                onChange={(v) => props.onUpdate({ ...props.character, isPublic: v === "On" })}
+                id="sheet-settings-share-switch"
+              />
+            </div>
+            <Show when={shareUrl()}>
+              {(getUrl) => (
+                <div class="space-y-3">
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="text"
+                      data-test="share-url-input"
+                      readOnly
+                      value={getUrl()}
+                      aria-label="Share URL"
+                      class="flex-1 h-9 rounded-md border border-input bg-background px-3 text-xs text-muted-foreground select-all"
+                      onClick={(e) => e.currentTarget.select()}
+                    />
+                    <button
+                      type="button"
+                      data-test="share-url-copy-button"
+                      aria-label="Copy share link"
+                      class={cn(TOUCH_TARGET, HOVER_ACCENT, "h-9 px-3 rounded-md border text-xs transition-colors whitespace-nowrap")}
+                      onClick={() => {
+                        navigator.clipboard.writeText(getUrl())
+                          .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+                          .catch(() => {})
+                      }}
+                    >
+                      {copied() ? "Copied!" : "Copy link"}
+                    </button>
+                  </div>
+                  <Show when={qrDataUrl.error}>
+                    <p role="alert" class="text-xs text-destructive-text">Failed to generate QR code.</p>
+                  </Show>
+                  <Show when={qrDataUrl()}>
+                    <img
+                      src={qrDataUrl()!}
+                      alt="QR code for share link"
+                      width={160}
+                      height={160}
+                      class="rounded-md border"
+                    />
+                  </Show>
                 </div>
-                <Show when={qrDataUrl.error}>
-                  <p role="alert" class="text-xs text-destructive-text">Failed to generate QR code.</p>
-                </Show>
-                <Show when={qrDataUrl()}>
-                  <img
-                    src={qrDataUrl()!}
-                    alt="QR code for share link"
-                    width={160}
-                    height={160}
-                    class="rounded-md border"
-                  />
-                </Show>
-              </div>
-            )}
-          </Show>
-        </div>
+              )}
+            </Show>
+          </div>
+        </Show>
       </CardContent>
     </Card>
   )
