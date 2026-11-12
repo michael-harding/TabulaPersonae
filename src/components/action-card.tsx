@@ -62,7 +62,7 @@ export interface ActionCardProps {
   // Omit for spells — badge falls back to the spell level (Cantrip, 1st, 2nd...)
   badgeLabel?: string
 
-  // Spell details, shown in the expanded view
+  // Spell details, shown in the expanded view. atHigherLevel is also on the card face.
   spellLevel?: number
   spellSchool?: string
   concentration?: boolean
@@ -533,6 +533,12 @@ export function ActionCard(props: ActionCardProps) {
           fallback={<Show when={props.description}><div class="text-xs line-clamp-2">{props.description}</div></Show>}
         >
           {(highlights) => <MarkdownContent text={highlights()} class="text-xs" />}
+        </Show>
+
+        <Show when={props.atHigherLevel}>
+          <div class="text-xs line-clamp-2" data-test={hook("at-higher-level", false)}>
+            <span class="font-medium">At Higher Levels:</span> {props.atHigherLevel}
+          </div>
         </Show>
 
         <Show
