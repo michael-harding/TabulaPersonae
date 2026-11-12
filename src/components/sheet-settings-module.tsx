@@ -60,7 +60,7 @@ function SheetSettingsContent(props: SheetSettingsModuleProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-10">
+        <div class="flex flex-col gap-5">
           <div class="flex items-center gap-3">
             <Label class="text-sm font-medium whitespace-nowrap">Edition</Label>
             <SwitchButton
