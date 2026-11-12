@@ -16,8 +16,9 @@
   --secondary-foreground: oklch(1 0 0);
   --muted: oklch(34.07% 0.00004 271.152);
   --muted-foreground: oklch(0.52 0 0);
-  --accent: oklch(0.55 0.25 25);
-  --accent-foreground: oklch(1 0 0);
+  /* The hover and highlight shade. Muted text on it is still 4.6:1 (WCAG 1.4.3). */
+  --accent: oklch(0.94 0 0);
+  --accent-foreground: oklch(0.35 0 0);
   --destructive: oklch(0.55 0.25 15);
   --destructive-foreground: oklch(1 0 0);
   /* Destructive as text on the page background (an error message), not as a fill. */
@@ -60,7 +61,7 @@
   --destructive-foreground: oklch(0.95 0 0);
   /* The fill red is 2.3:1 on the dark background; text needs 4.5:1 (WCAG 1.4.3). */
   --destructive-text: oklch(0.72 0.17 15);
-  --border: oklch(0.25 0 0);
+  --border: oklch(0.4 0 0);
   --input: oklch(0.55 0 0);
   --ring: oklch(0.7 0 0);
   --chart-1: oklch(0.55 0.2 260);
@@ -74,7 +75,7 @@
   --sidebar-primary-foreground: oklch(0.95 0 0);
   --sidebar-accent: oklch(0.25 0 0);
   --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.25 0 0);
+  --sidebar-border: oklch(0.4 0 0);
   --sidebar-ring: oklch(0.45 0 0);
 }
 
