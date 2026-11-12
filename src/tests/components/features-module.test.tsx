@@ -236,6 +236,14 @@ describe("FeaturesModule", () => {
       expect(within(dialog).getByText("Add Class Feature")).toBeInTheDocument()
     })
 
+    it("keeps its actions in the sticky modal footer", () => {
+      render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const footer = within(screen.getByRole("dialog")).getByTestId("modal-footer")
+      expect(within(footer).getByRole("button", { name: "Save" })).toBeInTheDocument()
+      expect(within(footer).getByRole("button", { name: "Cancel" })).toBeInTheDocument()
+    })
+
     it("closes the modal when Cancel is clicked", () => {
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))

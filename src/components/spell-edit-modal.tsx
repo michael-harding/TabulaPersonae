@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { DamageFields, GainFields } from "@/components/effect-fields"
 import { ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 
@@ -248,13 +248,13 @@ export function SpellForm(props: SpellFormProps) {
         </div>
       </Show>
 
-      <div class="flex gap-2 justify-end pt-4">
+      <ModalFooter>
         <Button data-test="spell-form-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
         <Button data-test="spell-form-submit" onClick={() => props.onSubmit(formData())} class="gap-2">
           <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Spell" : "Add Spell"}
         </Button>
-      </div>
+      </ModalFooter>
     </div>
   )
 }

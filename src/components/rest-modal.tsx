@@ -290,7 +290,7 @@ export function RestModal(props: RestModalProps) {
           </Show>
         </div>
 
-        <ModalFooter class="mt-4">
+        <ModalFooter>
           <Show
             when={rollResult()}
             fallback={

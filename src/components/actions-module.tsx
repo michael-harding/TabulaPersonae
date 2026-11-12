@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { Chip } from "@/components/ui/chip"
@@ -193,13 +193,13 @@ function ActionForm(props: ActionFormProps) {
           placeholder={`Describe what this ${kindLabel().toLowerCase()} does...`} rows={3} />
       </div>
 
-      <div class="flex gap-2 justify-end">
+      <ModalFooter>
         <Show when={props.onDelete}>
           <ConfirmButton data-test="action-form-delete" variant="destructive" verb="Delete" onConfirm={() => props.onDelete?.()} class="mr-auto">Delete</ConfirmButton>
         </Show>
         <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
         <Button onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel()}</Button>
-      </div>
+      </ModalFooter>
     </div>
   )
 }

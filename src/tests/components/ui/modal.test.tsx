@@ -98,6 +98,22 @@ describe("Modal", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  // jsdom does no layout, so these pin the classes the sticky footer depends on; the phone
+  // baselines in tests/visual/modals.spec.ts show it in place over a scrolled form.
+  it("sticks the footer to the bottom of the modal's scroll container, across its padding", () => {
+    const dialog = openModal()
+    const footer = within(dialog).getByTestId("modal-footer")
+    expect(footer).toContainElement(within(dialog).getByRole("button", { name: "Confirm" }))
+    expect(footer).toHaveClass("modal-footer", "sticky", "bottom-0", "bg-background", "-mx-6", "px-6", "pb-6")
+    // The footer's pb-6 replaces the scroll container's bottom padding, which would otherwise offset
+    // the stuck footer from the modal's bottom edge
+    expect(dialog).toHaveClass("overflow-y-auto", "p-6", "has-[.modal-footer]:pb-0")
+  })
+
+  it("leaves room for the sticky footer when a focused field is scrolled into view", () => {
+    expect(openModal()).toHaveClass("scroll-pb-24")
+  })
+
   it("closes on Escape key down", () => {
     const onOpenChange = vi.fn()
     const dialog = openModal({ onOpenChange })

@@ -328,7 +328,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
                   from this device, so those changes will be lost.
                 </ModalDescription>
               </ModalHeader>
-              <ModalFooter class="gap-2 sm:gap-0">
+              <ModalFooter>
                 <Button data-test="sign-out-cancel" variant="outline" onClick={() => setIsSignOutDialogOpen(false)}>Cancel</Button>
                 <Button data-test="sign-out-discard" variant="destructive" onClick={signOutNow}>Sign out and discard changes</Button>
               </ModalFooter>

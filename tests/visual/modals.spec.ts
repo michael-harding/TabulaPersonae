@@ -56,7 +56,8 @@ test.describe("Modals — phone", () => {
     })
   }
 
-  // A phone can't fit the item form, so the modal scrolls; this guards the stacked footer at its end.
+  // A phone can't fit the item form, so the modal scrolls: the baseline above shows the sticky footer
+  // over the form's middle, and this one shows the form's end clearing it.
   test("item-edit-weapon scrolled to the footer", async ({ page }) => {
     await openModal(page, byName("item-edit-weapon"))
     await dialog(page).evaluate((el) => el.scrollTo(0, el.scrollHeight))

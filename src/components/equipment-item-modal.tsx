@@ -23,7 +23,7 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { DamageFields, GainFields } from "@/components/effect-fields"
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
@@ -845,13 +845,13 @@ function EquipmentForm(props: EquipmentFormProps) {
         <Label for="equipped">Currently equipped</Label>
       </div>
 
-      <div class="flex gap-2 justify-end pt-4">
+      <ModalFooter>
         <Button data-test="equipment-modal-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
         <Button data-test="equipment-modal-submit" onClick={() => props.onSubmit(unwrap(formData))} class="gap-2">
           <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Item" : "Add Item"}
         </Button>
-      </div>
+      </ModalFooter>
     </div>
   )
 }

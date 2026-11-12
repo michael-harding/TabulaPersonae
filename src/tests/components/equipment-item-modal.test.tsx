@@ -68,6 +68,13 @@ describe("EquipmentItemModal", () => {
     })
   })
 
+  it("keeps its actions in the sticky modal footer", () => {
+    render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+    const footer = screen.getByTestId("modal-footer")
+    expect(footer).toContainElement(screen.getByTestId("equipment-modal-submit"))
+    expect(footer).toContainElement(screen.getByTestId("equipment-modal-cancel"))
+  })
+
   describe("cancel and validation", () => {
     it("calls onCancel when Cancel is clicked", () => {
       const onCancel = vi.fn()
