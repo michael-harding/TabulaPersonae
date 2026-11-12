@@ -1151,7 +1151,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
     <Card data-sem="features-module">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
-          <Layers class="h-5 w-5 text-primary" aria-hidden="true" />
+          <Layers class="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
           Class Features, Species Traits, Background &amp; Feats
         </CardTitle>
       </CardHeader>

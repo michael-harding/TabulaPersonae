@@ -137,7 +137,7 @@ export default function Home() {
                         <A href={`/character/${character.id}`} class="block">
                           <CardHeader>
                             <CardTitle class="flex items-center gap-2 pr-8">
-                              <Sword class="h-5 w-5 text-primary" aria-hidden="true" />
+                              <Sword class="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
                               {character.name || "Unnamed Character"}
                             </CardTitle>
                           </CardHeader>
