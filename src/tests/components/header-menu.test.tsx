@@ -356,6 +356,47 @@ describe("HeaderMenu import failures", () => {
     await waitFor(() => expect(toast).toHaveBeenCalledExactlyOnceWith({ title: "Import Successful", description: "Imported Frodo successfully!" }))
   })
 
+  it("gives a character whose name is taken an ordinal, and confirms it under that name", async () => {
+    await importJsonText(JSON.stringify({ ...createDefaultCharacter(), id: "c1", name: "Gandalf" }))
+
+    await waitFor(() => expect(toast).toHaveBeenCalledExactlyOnceWith({ title: "Import Successful", description: "Imported Gandalf the Second successfully!" }))
+    expect(defaultProps.onImport.mock.calls[0][0].map((c) => c.name)).toEqual(["Gandalf the Second"])
+  })
+
+  it("tells apart taken names in a multi-character import, from the list and from each other", async () => {
+    await importJsonText(JSON.stringify([
+      { ...createDefaultCharacter(), id: "c1", name: "Aragorn" },
+      { ...createDefaultCharacter(), id: "c2", name: "Frodo" },
+      { ...createDefaultCharacter(), id: "c3", name: "Frodo" },
+    ]))
+
+    await waitFor(() => expect(defaultProps.onImport).toHaveBeenCalled())
+    expect(defaultProps.onImport.mock.calls[0][0].map((c) => c.name)).toEqual(["Aragorn the Second", "Frodo", "Frodo the Second"])
+  })
+
+  it("goes by the open character's current name rather than the one in the list", async () => {
+    const user = await openMenu({ currentCharacter: { ...char1, name: "Gandalf the White" } })
+    await user.click(await screen.findByText("Import Character"))
+    await user.upload(await screen.findByLabelText(/Choose JSON File/i), new File([JSON.stringify([
+      { ...createDefaultCharacter(), id: "c1", name: "Gandalf" },
+      { ...createDefaultCharacter(), id: "c2", name: "Gandalf the White" },
+    ])], "import.json", { type: "application/json" }))
+
+    await waitFor(() => expect(defaultProps.onImport).toHaveBeenCalled())
+    expect(defaultProps.onImport.mock.calls[0][0].map((c) => c.name)).toEqual(["Gandalf", "Gandalf the White the Second"])
+  })
+
+  it("gives a PDF character whose name is taken an ordinal, and confirms it under that name", async () => {
+    const { parsePdfCharacterSheet, mergeWithDefault } = await import("@/lib/pdf-parser")
+    vi.mocked(parsePdfCharacterSheet).mockResolvedValueOnce({})
+    vi.mocked(mergeWithDefault).mockReturnValueOnce({ ...createDefaultCharacter(), name: "Aragorn" })
+    const user = await openMenu()
+    await user.click(await screen.findByText("Import Character"))
+    await user.upload(await screen.findByLabelText(/Choose PDF File/i), new File(["x"], "sheet.pdf", { type: "application/pdf" }))
+
+    await waitFor(() => expect(toast).toHaveBeenCalledExactlyOnceWith({ title: "PDF Import Successful", description: "Imported Aragorn the Second from PDF!" }))
+  })
+
   it("confirms a successful multi-character import with the number actually imported", async () => {
     await importJsonText(JSON.stringify([
       { ...createDefaultCharacter(), id: "c1", name: "Frodo" },

@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast"
 import { parsePdfCharacterSheet, mergeWithDefault } from "@/lib/pdf-parser"
 import { reconcileImportedCharacter, reconcileImportedCharacters, freshenCalculatedFields } from "@/lib/character-import-reconciliation"
 import { migrateCharacter, migrateCharacters } from "@/lib/character-migrations"
+import { distinguishImportedNames } from "@/lib/character-names"
 import type { Character } from "@/lib/character-types"
 
 interface HeaderMenuProps {
@@ -108,6 +109,17 @@ export function HeaderMenu(props: HeaderMenuProps) {
     })
   }
 
+  // The characters an import's names must not repeat. The open character is the one being edited,
+  // so its name may have changed since the list was loaded.
+  const existingCharacters = () => {
+    const current = props.currentCharacter
+    if (!current) return props.characters
+    return [...props.characters.filter((c) => c.id !== current.id), current]
+  }
+
+  // Ready to save: a name already in use gets an ordinal ("Frodo the Second")
+  const prepareImport = (characters: Character[]) => distinguishImportedNames(characters, existingCharacters())
+
   const handleFileImport = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0]
     if (!file) return
@@ -121,13 +133,13 @@ export function HeaderMenu(props: HeaderMenuProps) {
             toast({ title: "Import Failed", description: "No valid characters found in file", variant: "destructive" })
             return
           }
-          const reconciled = reconcileImportedCharacters(migrateCharacters(valid))
+          const reconciled = prepareImport(reconcileImportedCharacters(migrateCharacters(valid)))
           confirmWhenSaved(props.onImport(reconciled), {
             title: "Import Successful",
             description: `Imported ${reconciled.length} characters successfully!`,
           })
         } else if (data && typeof data === "object" && data.id) {
-          const reconciled = reconcileImportedCharacter(migrateCharacter(data))
+          const [reconciled] = prepareImport([reconcileImportedCharacter(migrateCharacter(data))])
           confirmWhenSaved(props.onImport([reconciled]), {
             title: "Import Successful",
             description: `Imported ${reconciled.name || "character"} successfully!`,
@@ -151,7 +163,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
     try {
       const parsed = await parsePdfCharacterSheet(file)
       const merged = mergeWithDefault(parsed)
-      const character = reconcileImportedCharacter(migrateCharacter(merged))
+      const [character] = prepareImport([reconcileImportedCharacter(migrateCharacter(merged))])
       confirmWhenSaved(props.onImport([character]), {
         title: "PDF Import Successful",
         description: `Imported ${character.name || "character"} from PDF!`,
