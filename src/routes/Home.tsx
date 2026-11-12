@@ -7,6 +7,7 @@ import Trash2 from "lucide-solid/icons/trash-2"
 
 import { type Character, createDefaultCharacter } from "@/lib/character-types"
 import { calculateEquippedAC, getEffectiveMaxHp } from "@/lib/character-utils"
+import { sheetColorAttributes } from "@/lib/sheet-color"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import { notifyIfFailed, saveImportedCharacters } from "@/lib/save-feedback"
@@ -114,7 +115,12 @@ export default function Home() {
                     {(character) => {
                       const ac = createMemo(() => calculateEquippedAC(character).ac)
                       return (
-                      <Card class="cursor-pointer hover:shadow-lg transition-shadow relative group">
+                      // Each card in its character's sheet colour: the border, name and icon are primary
+                      <Card
+                        data-test={`character-card-${character.id}`}
+                        class="cursor-pointer hover:shadow-lg transition-shadow relative group"
+                        {...sheetColorAttributes(character.sheetColor)}
+                      >
                         <ConfirmButton
                           data-test={`delete-character-button-${character.id}`}
                           variant="ghost"
