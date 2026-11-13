@@ -8,7 +8,9 @@ import { cn } from "@/lib/utils"
 // useFormValidation. A form with a required field shows RequiredLegend and FormErrorSummary at its
 // top, marks each required field's Label `required` and its control `required`, spreads
 // `validation.controlProps(id)` onto the control, and puts a FieldError right after it. The submit
-// button stays enabled and saves only when `validation.validate()` returns true: a disabled button would not say why.
+// button stays enabled, and the form saves only when `validation.validate()` returns true: a
+// disabled button would not say why. A form of a single field uses the lighter form described on
+// FieldError.
 
 /**
  * The legend explaining the asterisk that a `required` Label shows. With `all`, it says instead that
@@ -78,12 +80,18 @@ export function FormErrorSummary(props: { validation: FormValidation; class?: st
   )
 }
 
-/** A field's error message, placed right after its control; the control points to it via `controlProps`. */
-export function FieldError(props: { validation: FormValidation; fieldId: string; class?: string }) {
+/**
+ * A field's error message, placed right after its control; the control points to it via `controlProps`.
+ *
+ * `announce` is for a form of a single field, which has no FormErrorSummary or RequiredLegend: the
+ * message is then the alert itself, and on a failed submit focus stays in (or returns to) the field.
+ */
+export function FieldError(props: { validation: FormValidation; fieldId: string; announce?: boolean; class?: string }) {
   return (
     <Show when={props.validation.error(props.fieldId)}>
       {(message) => (
         <p
+          role={props.announce ? "alert" : undefined}
           id={props.validation.errorId(props.fieldId)}
           data-test={`field-error-${props.fieldId}`}
           class={cn("mt-1 flex items-center gap-1.5 text-sm text-destructive-text", props.class)}

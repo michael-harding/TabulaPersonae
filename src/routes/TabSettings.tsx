@@ -1,4 +1,4 @@
-import { createSignal, createEffect, untrack, For, Show } from "solid-js"
+import { createSignal, createEffect, on, untrack, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import ChevronDown from "lucide-solid/icons/chevron-down"
 import ChevronLeft from "lucide-solid/icons/chevron-left"
@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { ChipButton } from "@/components/ui/chip-button"
 import { Input } from "@/components/ui/input"
+import { FieldError } from "@/components/ui/form-validation"
+import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
 import { SortableGroup, SortableHandle, SortableList, SortableMoveButton, createSortableItem, moveItem, type SortableItem } from "@/components/ui/sortable"
 
 /**
@@ -130,9 +132,14 @@ function SortableTabRow(props: SortableTabRowProps) {
   const item = createSortableItem(untrack(() => props.tab.id))
   const [renaming, setRenaming] = createSignal(false)
   const [renameValue, setRenameValue] = createSignal("")
+  const renameId = () => `tab-rename-${props.tab.id}`
+  const renameValidation = useFormValidation(() => [requiredText(renameId(), "Tab name", renameValue())])
+  let renameInput: HTMLInputElement | undefined
   createEffect(() => {
     if (!renaming()) setRenameValue(props.tab.label)
   })
+  // Each rename starts with no message showing
+  createEffect(on(renaming, () => renameValidation.reset(), { defer: true }))
 
   const moduleIds = () => props.tab.modules
 
@@ -146,8 +153,11 @@ function SortableTabRow(props: SortableTabRowProps) {
   const availableModules = () => ALL_MODULE_IDS.filter((m) => !props.tab.modules.includes(m))
 
   const submitRename = () => {
-    const label = renameValue().trim()
-    if (label) props.onRename(label)
+    if (!renameValidation.validate()) {
+      renameInput?.focus()
+      return
+    }
+    props.onRename(renameValue().trim())
     setRenaming(false)
   }
 
@@ -169,29 +179,39 @@ function SortableTabRow(props: SortableTabRowProps) {
               <span class="flex-1 font-medium truncate">{props.tab.label}</span>
             }
           >
+            {/* A single field: the lighter validation form (see FieldError). noValidate keeps the
+                browser's own required-field popup out of the way. */}
             <form
               onSubmit={(e) => { e.preventDefault(); submitRename() }}
-              class="flex-1 flex gap-2"
+              noValidate
+              class="flex-1"
             >
-              <Input
-                value={renameValue()}
-                onInput={(e) => setRenameValue(e.currentTarget.value)}
-                autofocus
-                aria-label={`New name for ${props.tab.label}`}
-                class="h-11 text-sm"
-                data-test={`tab-rename-input-${props.tab.id}`}
-              />
-              <Button type="submit" size="sm" class="h-11" data-test={`tab-rename-save-${props.tab.id}`}>Save</Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                class="h-11"
-                onClick={() => { setRenaming(false); setRenameValue(props.tab.label) }}
-                data-test={`tab-rename-cancel-${props.tab.id}`}
-              >
-                Cancel
-              </Button>
+              <div class="flex gap-2">
+                <Input
+                  ref={renameInput}
+                  id={renameId()}
+                  value={renameValue()}
+                  onInput={(e) => setRenameValue(e.currentTarget.value)}
+                  autofocus
+                  required
+                  aria-label={`New name for ${props.tab.label}`}
+                  {...renameValidation.controlProps(renameId())}
+                  class="h-11 text-sm"
+                  data-test={`tab-rename-input-${props.tab.id}`}
+                />
+                <Button type="submit" size="sm" class="h-11" data-test={`tab-rename-save-${props.tab.id}`}>Save</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  class="h-11"
+                  onClick={() => { setRenaming(false); setRenameValue(props.tab.label) }}
+                  data-test={`tab-rename-cancel-${props.tab.id}`}
+                >
+                  Cancel
+                </Button>
+              </div>
+              <FieldError validation={renameValidation} fieldId={renameId()} announce />
             </form>
           </Show>
 
@@ -314,9 +334,17 @@ export default function TabSettings() {
 
   const updateTabs = (updated: TabConfig[]) => saveTabConfig({ tabs: updated })
 
+  const addTabValidation = useFormValidation(() => [requiredText("new-tab-name", "Tab name", newTabLabel())])
+  let newTabInput: HTMLInputElement | undefined
+  // Each time the form opens, it starts with no message showing
+  createEffect(on(addingTab, () => addTabValidation.reset(), { defer: true }))
+
   const addTab = () => {
+    if (!addTabValidation.validate()) {
+      newTabInput?.focus()
+      return
+    }
     const label = newTabLabel().trim()
-    if (!label) return
     const newTab: TabConfig = { id: crypto.randomUUID(), label, modules: [] }
     updateTabs([...tabs(), newTab])
     setExpandedTabs((prev) => new Set([...prev, newTab.id]))
@@ -421,26 +449,38 @@ export default function TabSettings() {
           </Button>
         }
       >
+        {/* A single field: the lighter validation form (see FieldError). noValidate keeps the
+            browser's own required-field popup out of the way. */}
         <form
           onSubmit={(e) => { e.preventDefault(); addTab() }}
-          class="flex gap-2"
+          noValidate
         >
-          <Input
-            placeholder="Tab name"
-            value={newTabLabel()}
-            onInput={(e) => setNewTabLabel(e.currentTarget.value)}
-            autofocus
-            data-test="new-tab-name-input"
-          />
-          <Button type="submit" data-test="add-tab-submit">Add</Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => { setAddingTab(false); setNewTabLabel("") }}
-            data-test="add-tab-cancel"
-          >
-            Cancel
-          </Button>
+          <div class="flex gap-2">
+            {/* aria-label: the row's design has no visible label (the placeholder says what it is),
+                like the rename field (ACCESSIBILITY.md §11) */}
+            <Input
+              ref={newTabInput}
+              id="new-tab-name"
+              placeholder="Tab name"
+              aria-label="New tab name"
+              value={newTabLabel()}
+              onInput={(e) => setNewTabLabel(e.currentTarget.value)}
+              autofocus
+              required
+              {...addTabValidation.controlProps("new-tab-name")}
+              data-test="new-tab-name-input"
+            />
+            <Button type="submit" data-test="add-tab-submit">Add</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { setAddingTab(false); setNewTabLabel("") }}
+              data-test="add-tab-cancel"
+            >
+              Cancel
+            </Button>
+          </div>
+          <FieldError validation={addTabValidation} fieldId="new-tab-name" announce />
         </form>
       </Show>
     </div>

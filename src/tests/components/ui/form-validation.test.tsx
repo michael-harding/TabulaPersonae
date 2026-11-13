@@ -103,6 +103,21 @@ describe("form validation UI", () => {
     expect(screen.getByTestId("form-error-summary")).toHaveFocus()
   })
 
+  it("makes a field's message the alert itself only when told to announce it", () => {
+    const [value] = createSignal("")
+    render(() => {
+      const validation = useFormValidation(() => [requiredText("solo", "Tab name", value())])
+      validation.validate()
+      return (
+        <>
+          <FieldError validation={validation} fieldId="solo" announce />
+          <FieldError validation={validation} fieldId="solo" />
+        </>
+      )
+    })
+    expect(screen.getAllByText("Tab name is required").map((el) => el.getAttribute("role"))).toEqual(["alert", null])
+  })
+
   it("keeps the asterisk out of the label's accessible name", () => {
     renderForm()
     expect(screen.getByRole("textbox", { name: "Name" })).toBeRequired()
