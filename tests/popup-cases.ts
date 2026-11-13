@@ -30,6 +30,15 @@ export const MODALS: ModalCase[] = [
   { name: "action-add", tab: "Combat", open: (page) => click(page, "add-action-button") },
   { name: "bonus-action-add", tab: "Combat", open: (page) => click(page, "add-bonus-action-button"), coveredBy: "action-add" },
   { name: "reaction-add", tab: "Combat", open: (page) => click(page, "add-reaction-button") },
+  // The form validation state every add/edit form shares (src/components/ui/form-validation.tsx):
+  // the error summary and field messages after Add is pressed with the required fields empty.
+  {
+    name: "reaction-add-errors", tab: "Combat", open: async (page) => {
+      await click(page, "add-reaction-button")
+      await dialog(page).locator('[data-test="action-form-submit"]').click()
+      await expect(dialog(page).locator('[data-test="form-error-summary"]')).toBeVisible()
+    },
+  },
   { name: "other-add", tab: "Combat", open: (page) => click(page, "add-other-button"), coveredBy: "action-add" },
   {
     // Edit is in the card's expanded view

@@ -322,6 +322,57 @@ describe("Auth page — signing in", () => {
   })
 })
 
+// ─── Auth page — required fields ─────────────────────────────────────────────
+
+describe("Auth page — required fields", () => {
+  it("says every field is required", () => {
+    render(() => <Auth />)
+    expect(screen.getByTestId("required-legend")).toHaveTextContent("All fields are required")
+    expect(screen.getByTestId("auth-email-input")).toBeRequired()
+    expect(screen.getByTestId("auth-password-input")).toBeRequired()
+  })
+
+  it.each([
+    { label: "an empty email", email: "", password: "password123", field: "auth-email-input", message: "Email is required" },
+    { label: "a malformed email", email: "user@test", password: "password123", field: "auth-email-input", message: "Enter a valid email address" },
+    { label: "an empty password", email: "user@test.com", password: "", field: "auth-password-input", message: "Password is required" },
+  ])("does not sign in with $label, and says why beside the field", ({ email, password, field, message }) => {
+    const signIn = vi.fn()
+    setupAuth({ signIn })
+    render(() => <Auth />)
+
+    fillCredentials(email, password)
+    submitForm()
+
+    expect(screen.getByTestId(field)).toHaveAttribute("aria-invalid", "true")
+    expect(screen.getByTestId(field)).toHaveAccessibleDescription(message)
+    expect(screen.getByTestId("form-error-summary")).toHaveFocus()
+    expect(signIn).not.toHaveBeenCalled()
+  })
+
+  it("does not apply the sign-up password length to signing in", async () => {
+    const signIn = vi.fn().mockResolvedValue(undefined)
+    setupAuth({ signIn })
+    render(() => <Auth />)
+
+    fillCredentials("user@test.com", "12345")
+    submitForm()
+
+    await waitFor(() => expect(signIn).toHaveBeenCalledWith("user@test.com", "12345"))
+  })
+
+  it("clears the messages on switching between Sign In and Sign Up", () => {
+    render(() => <Auth />)
+    submitForm()
+    expect(screen.getByTestId("form-error-summary")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId("auth-signup-tab"))
+
+    expect(screen.queryByTestId("form-error-summary")).not.toBeInTheDocument()
+    expect(screen.getByTestId("auth-email-input")).not.toHaveAttribute("aria-invalid")
+  })
+})
+
 // ─── Auth page — sign-up validation ──────────────────────────────────────────
 
 describe("Auth page — sign-up validation", () => {
@@ -335,17 +386,24 @@ describe("Auth page — sign-up validation", () => {
     await waitFor(() => expect(dialogIsOpen()).toBe(false))
   }
 
+  // Checked before the consent dialog: there is no point asking for consent to a form that cannot be sent
   it.each([
-    { label: "passwords that do not match", password: "password123", confirm: "password124", message: "Passwords do not match" },
-    { label: "a password shorter than 6 characters", password: "12345", confirm: "12345", message: "Password should be at least 6 characters" },
-  ])("rejects $label without creating an account", async ({ password, confirm, message }) => {
+    { label: "passwords that do not match", password: "password123", confirm: "password124", field: "auth-confirm-password-input", message: "Passwords do not match" },
+    { label: "a password shorter than 6 characters", password: "12345", confirm: "12345", field: "auth-password-input", message: "Password should be at least 6 characters" },
+    { label: "an empty Confirm Password", password: "password123", confirm: "", field: "auth-confirm-password-input", message: "Confirm Password is required" },
+  ])("rejects $label beside the field, without asking for consent or creating an account", ({ password, confirm, field, message }) => {
     const signUp = vi.fn()
     setupAuth({ signUp })
     render(() => <Auth />)
 
-    await signUpWith(password, confirm)
+    fireEvent.click(screen.getByTestId("auth-signup-tab"))
+    fillCredentials("user@test.com", password)
+    fireEvent.input(screen.getByTestId("auth-confirm-password-input"), { target: { value: confirm } })
+    submitForm()
 
-    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(screen.getByTestId(field)).toHaveAccessibleDescription(message)
+    expect(screen.getByTestId("form-error-summary")).toHaveTextContent(message)
+    expect(dialogIsOpen()).toBe(false)
     expect(signUp).not.toHaveBeenCalled()
     expect(screen.getByTestId("auth-submit-button")).toBeEnabled()
   })

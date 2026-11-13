@@ -18,6 +18,8 @@ import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
+import { FieldError, FormErrorSummary, RequiredLegend } from "@/components/ui/form-validation"
+import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
 import { Textarea } from "@/components/ui/textarea"
 import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -109,19 +111,23 @@ function ActionForm(props: ActionFormProps) {
     description: props.initialData?.description ?? "",
   })
 
-  const handleSubmit = () => {
-    if (!formData().name.trim()) return
-    if (props.kind === "reaction" && !formData().trigger.trim()) return
-    props.onSubmit(formData())
-  }
+  const validation = useFormValidation(() => [
+    requiredText("action-name", `${kindLabel()} Name`, formData().name),
+    props.kind === "reaction" && requiredText("action-trigger", "Trigger", formData().trigger),
+  ])
+  const handleSubmit = () => { if (validation.validate()) props.onSubmit(formData()) }
 
   return (
     <div class="space-y-4">
+      <RequiredLegend />
+      <FormErrorSummary validation={validation} />
       <div>
-        <Label for="action-name">{kindLabel()} Name</Label>
-        <Input id="action-name" autofocus value={formData().name}
+        <Label for="action-name" required>{kindLabel()} Name</Label>
+        <Input id="action-name" data-test="action-name" autofocus required value={formData().name}
           onInput={(e) => setFormData(p => ({ ...p, name: e.currentTarget.value }))}
+          {...validation.controlProps("action-name")}
           placeholder={props.kind === "reaction" ? "e.g., Shield, Opportunity Attack" : props.kind === "bonus-action" ? "e.g., Second Wind, Cunning Action" : "e.g., Lay on Hands, Breath Weapon"} />
+        <FieldError validation={validation} fieldId="action-name" />
       </div>
 
       <div>
@@ -131,10 +137,12 @@ function ActionForm(props: ActionFormProps) {
 
       <Show when={props.kind === "reaction"}>
         <div>
-          <Label for="action-trigger">Trigger</Label>
-          <Input id="action-trigger" value={formData().trigger}
+          <Label for="action-trigger" required>Trigger</Label>
+          <Input id="action-trigger" data-test="action-trigger" required value={formData().trigger}
             onInput={(e) => setFormData(p => ({ ...p, trigger: e.currentTarget.value }))}
+            {...validation.controlProps("action-trigger")}
             placeholder="e.g., When a creature moves out of your reach" />
+          <FieldError validation={validation} fieldId="action-trigger" />
         </div>
       </Show>
 
@@ -198,7 +206,7 @@ function ActionForm(props: ActionFormProps) {
           <ConfirmButton data-test="action-form-delete" variant="destructive" verb="Delete" onConfirm={() => props.onDelete?.()} class="mr-auto">Delete</ConfirmButton>
         </Show>
         <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel()}</Button>
+        <Button data-test="action-form-submit" onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel()}</Button>
       </ModalFooter>
     </div>
   )

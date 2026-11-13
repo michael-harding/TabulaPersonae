@@ -83,19 +83,18 @@ describe("EquipmentItemModal", () => {
       expect(onCancel).toHaveBeenCalledTimes(1)
     })
 
-    it("does not call onSave when the name is empty", () => {
+    it.each([
+      { label: "empty", value: "" },
+      { label: "only whitespace", value: "   " },
+    ])("does not call onSave when the name is $label, and says why", ({ value }) => {
       const onSave = vi.fn()
       render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.input(screen.getByTestId("item-name"), { target: { value } })
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
       expect(onSave).not.toHaveBeenCalled()
-    })
-
-    it("does not call onSave when the name is only whitespace", () => {
-      const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
-      fireEvent.input(screen.getByTestId("item-name"), { target: { value: "   " } })
-      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
-      expect(onSave).not.toHaveBeenCalled()
+      expect(screen.getByTestId("item-name")).toBeRequired()
+      expect(screen.getByTestId("item-name")).toHaveAccessibleDescription("Item Name is required")
+      expect(screen.getByTestId("form-error-summary")).toHaveFocus()
     })
   })
 

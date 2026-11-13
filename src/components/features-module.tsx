@@ -23,6 +23,8 @@ import { ChipListEditor } from "@/components/ui/chip-list-editor"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
+import { FieldError, FormErrorSummary, RequiredLegend } from "@/components/ui/form-validation"
+import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
 import { Textarea } from "@/components/ui/textarea"
 import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -782,25 +784,44 @@ function FeatureForm(props: FeatureFormProps) {
     })
   }
 
-  const handleSubmit = (e: Event) => {
-    e.preventDefault()
+  // A feature needs a name. With no type picked and no name, the Name field is hidden (see the Show
+  // below): picking a type is the way to it, so the issue goes on Feature Type instead.
+  const validation = useFormValidation(() => {
     const data = formData()
-    if (!data.name.trim()) return
-    props.onSubmit(data)
+    if (data.name.trim()) return []
+    return data.featureType === ''
+      ? [{ fieldId: 'feature-type-select', message: 'Choose a Feature Type' }]
+      : [requiredText('feature-name', 'Name', data.name)]
+  })
+
+  // Mirrors the two Shows around the Name field below: the legend explains Name's asterisk, so it
+  // shows only while Name does.
+  const nameShown = () => {
+    const data = formData()
+    return (data.featureType !== '' || data.name.trim() !== '') && !NAMELESS_FEATURE_TYPES.includes(data.featureType as FeatureTypeValue)
   }
 
+  const handleSubmit = (e: Event) => {
+    e.preventDefault()
+    if (validation.validate()) props.onSubmit(formData())
+  }
+
+  // noValidate: the browser's own required-field popup would pre-empt the standard error UI.
   return (
-    <form onSubmit={handleSubmit} class="space-y-4">
+    <form onSubmit={handleSubmit} noValidate class="space-y-4">
       {/* The fields keep their own inset; ModalFooter spans the whole modal */}
       <div class="space-y-4 px-4 pt-4">
+        <Show when={nameShown()}><RequiredLegend /></Show>
+        <FormErrorSummary validation={validation} />
         <div class="space-y-1">
           <Label for="feature-type-select">Feature Type</Label>
           <Select options={FEATURE_TYPE_OPTIONS} value={formData().featureType} onValueChange={changeFeatureType}>
-            <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type">
+            <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type" {...validation.controlProps('feature-type-select')}>
               <SelectValue placeholder="None" />
             </SelectTrigger>
             <SelectContent />
           </Select>
+          <FieldError validation={validation} fieldId="feature-type-select" />
         </div>
 
         {/* Also shows once a name exists even with no type picked — otherwise editing a pre-existing
@@ -809,15 +830,17 @@ function FeatureForm(props: FeatureFormProps) {
         <Show when={formData().featureType !== '' || formData().name.trim() !== ''}>
           <Show when={!NAMELESS_FEATURE_TYPES.includes(formData().featureType as FeatureTypeValue)}>
             <div class="space-y-1">
-              <Label for="feature-name">Name</Label>
+              <Label for="feature-name" required>Name</Label>
               <Input
                 id="feature-name"
                 data-test="feature-name-input"
                 value={formData().name}
                 onInput={(e) => setFormData((d) => ({ ...d, name: e.currentTarget.value }))}
+                {...validation.controlProps('feature-name')}
                 placeholder="Feature name"
                 required
               />
+              <FieldError validation={validation} fieldId="feature-name" />
             </div>
           </Show>
           <div class="space-y-1">

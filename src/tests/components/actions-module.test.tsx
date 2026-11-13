@@ -391,24 +391,54 @@ describe("ActionsModule", () => {
       expect(screen.getByText("Add Custom Reaction")).toBeInTheDocument()
     })
 
-    it("does not add a reaction when trigger is empty", () => {
+    // Regression: an empty Trigger used to make Add Reaction do nothing, with no message saying why
+    it.each([
+      { missing: "trigger", fill: { label: /^reaction name$/i, value: "Shield" }, fieldId: "action-trigger", message: "Trigger is required" },
+      { missing: "name", fill: { label: /^trigger$/i, value: "When hit" }, fieldId: "action-name", message: "Reaction Name is required" },
+    ])("does not add a reaction when the $missing is empty, and says why", ({ fill, fieldId, message }) => {
+      const onUpdate = vi.fn()
+      render(() => <ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(fill.label), { target: { value: fill.value } })
+      fireEvent.click(within(modal).getByRole("button", { name: /^add reaction$/i }))
+      expect(onUpdate).not.toHaveBeenCalled()
+      expect(within(modal).getByTestId("form-error-summary")).toHaveTextContent(message)
+      expect(within(modal).getByTestId("form-error-summary")).toHaveFocus()
+      expect(within(modal).getByTestId(fieldId)).toHaveAccessibleDescription(message)
+    })
+
+    it("marks Name and Trigger as required", () => {
+      render(() => <ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByLabelText(/^reaction name$/i)).toBeRequired()
+      expect(within(modal).getByLabelText(/^trigger$/i)).toBeRequired()
+      expect(within(modal).getByLabelText(/^range$/i)).not.toBeRequired()
+      expect(within(modal).getByTestId("required-legend")).toBeInTheDocument()
+    })
+
+    it("adds the reaction once the missing trigger is filled in after a failed attempt", () => {
       const onUpdate = vi.fn()
       render(() => <ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.input(within(modal).getByLabelText(/^reaction name$/i), { target: { value: "Shield" } })
       fireEvent.click(within(modal).getByRole("button", { name: /^add reaction$/i }))
-      expect(onUpdate).not.toHaveBeenCalled()
+      fireEvent.input(within(modal).getByLabelText(/^trigger$/i), { target: { value: "When hit" } })
+      expect(within(modal).queryByTestId("field-error-action-trigger")).not.toBeInTheDocument()
+      fireEvent.click(within(modal).getByRole("button", { name: /^add reaction$/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        reactions: expect.arrayContaining([expect.objectContaining({ name: "Shield", trigger: "When hit" })]),
+      }))
     })
 
-    it("does not add a reaction when name is empty", () => {
-      const onUpdate = vi.fn()
-      render(() => <ActionsModule character={makeCharacter()} onUpdate={onUpdate} />)
+    it("has no accessibility violations after a failed submit", async () => {
+      render(() => <ActionsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add reaction/i }))
       const modal = screen.getByRole("dialog")
-      fireEvent.input(within(modal).getByLabelText(/^trigger$/i), { target: { value: "When hit" } })
       fireEvent.click(within(modal).getByRole("button", { name: /^add reaction$/i }))
-      expect(onUpdate).not.toHaveBeenCalled()
+      expect((await axe(modal)).violations).toHaveLength(0)
     })
 
     it("calls onUpdate with a valid reaction when both name and trigger are provided", () => {

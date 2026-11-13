@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
+import { FieldError, FormErrorSummary, RequiredLegend } from "@/components/ui/form-validation"
+import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
@@ -254,11 +256,13 @@ function EquipmentForm(props: EquipmentFormProps) {
   const [openSkillEffects, setOpenSkillEffects] = createSignal(hasSkillEffectValues(props.initialData))
   const [openCombatBonuses, setOpenCombatBonuses] = createSignal(hasCombatBonusValues(props.initialData))
   const [openUses, setOpenUses] = createSignal(hasChargesValues(props.initialData))
+  const validation = useFormValidation(() => [requiredText("item-name", "Item Name", formData.name)])
   createEffect(
     on(
       () => props.initialData,
       (init) => {
         setFormData(reconcile(cloneFormData(init)))
+        validation.reset()
         setOpenAbilityScores(hasAbilityScoreValues(init))
         setOpenSavingThrows(hasSavingThrowValues(init))
         setOpenResistances(hasResistanceValues(init))
@@ -289,15 +293,20 @@ function EquipmentForm(props: EquipmentFormProps) {
 
   return (
     <div class="space-y-4" data-sem="equipment-item-modal">
+      <RequiredLegend />
+      <FormErrorSummary validation={validation} />
       <div>
-        <Label for="item-name">Item Name</Label>
+        <Label for="item-name" required>Item Name</Label>
         <Input
           id="item-name"
           data-test="item-name"
+          required
           value={formData.name}
           onInput={(e) => setFormData("name", e.currentTarget.value)}
+          {...validation.controlProps("item-name")}
           placeholder="Enter item name"
         />
+        <FieldError validation={validation} fieldId="item-name" />
       </div>
 
       <div>
@@ -847,7 +856,7 @@ function EquipmentForm(props: EquipmentFormProps) {
 
       <ModalFooter>
         <Button data-test="equipment-modal-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button data-test="equipment-modal-submit" onClick={() => props.onSubmit(unwrap(formData))} class="gap-2">
+        <Button data-test="equipment-modal-submit" onClick={() => { if (validation.validate()) props.onSubmit(unwrap(formData)) }} class="gap-2">
           <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Item" : "Add Item"}
         </Button>
@@ -1010,7 +1019,6 @@ interface EquipmentItemModalProps {
 
 export function EquipmentItemModal(props: EquipmentItemModalProps) {
   const handleSubmit = (formData: EquipmentFormData) => {
-    if (!formData.name.trim()) return
     const item = props.editingItem
     const shared = {
       name: formData.name.trim(),

@@ -5,6 +5,7 @@ import type { Spell, Equipment, DamageFields as DamageValues, GainFields as Gain
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FieldError, FormErrorSummary, RequiredLegend } from "@/components/ui/form-validation"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -12,6 +13,7 @@ import { Combobox } from "@/components/ui/combobox"
 import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { DamageFields, GainFields } from "@/components/effect-fields"
 import { ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
 
 export interface SpellFormData extends DamageValues, GainValues {
   name: string
@@ -101,12 +103,16 @@ export function SpellForm(props: SpellFormProps) {
     { value: "", label: "Not item-granted" },
     ...props.magicItems.map((item) => ({ value: item.id, label: item.name })),
   ]
+  const validation = useFormValidation(() => [requiredText("spell-name", "Spell Name", formData().name)])
 
   return (
     <div class="space-y-4">
+      <RequiredLegend />
+      <FormErrorSummary validation={validation} />
       <div>
-        <Label for="spell-name">Spell Name</Label>
-        <Input id="spell-name" data-test="spell-name" value={formData().name} onInput={(e) => setFormData((p) => ({ ...p, name: e.currentTarget.value }))} placeholder="e.g. Fireball" />
+        <Label for="spell-name" required>Spell Name</Label>
+        <Input id="spell-name" data-test="spell-name" required value={formData().name} onInput={(e) => setFormData((p) => ({ ...p, name: e.currentTarget.value }))} {...validation.controlProps("spell-name")} placeholder="e.g. Fireball" />
+        <FieldError validation={validation} fieldId="spell-name" />
       </div>
 
       <div class="grid grid-cols-2 gap-4">
@@ -250,7 +256,7 @@ export function SpellForm(props: SpellFormProps) {
 
       <ModalFooter>
         <Button data-test="spell-form-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button data-test="spell-form-submit" onClick={() => props.onSubmit(formData())} class="gap-2">
+        <Button data-test="spell-form-submit" onClick={() => { if (validation.validate()) props.onSubmit(formData()) }} class="gap-2">
           <Save class="h-4 w-4" aria-hidden="true" />
           {props.editing ? "Update Spell" : "Add Spell"}
         </Button>
@@ -341,10 +347,7 @@ interface SpellEditModalProps {
 
 /** The spell add/edit modal, shared by the Spells module and the spell action cards. */
 export function SpellEditModal(props: SpellEditModalProps) {
-  const handleSubmit = (form: SpellFormData) => {
-    if (!form.name.trim()) return
-    props.onSave(spellFromForm(form, props.spell ?? undefined))
-  }
+  const handleSubmit = (form: SpellFormData) => props.onSave(spellFromForm(form, props.spell ?? undefined))
   return (
     <Modal open={props.open} onOpenChange={(open: boolean) => { if (!open) props.onCancel() }}>
       <ModalContent class="max-w-2xl">
