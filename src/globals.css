@@ -19,6 +19,9 @@
   /* The hover and highlight shade. Muted text on it is still 4.6:1 (WCAG 1.4.3). */
   --accent: oklch(0.94 0 0);
   --accent-foreground: oklch(0.35 0 0);
+  /* A recessed area set apart from the page, a shade off the background: darker here, lighter in
+     dark mode. Kept clear of the accent so a highlight on it still shows. */
+  --well: oklch(95% 0 271);
   --destructive: oklch(0.55 0.25 15);
   --destructive-foreground: oklch(1 0 0);
   /* Destructive as text on the page background (an error message), not as a fill. */
@@ -57,6 +60,7 @@
   --muted-foreground: oklch(.7 0 0);
   --accent: oklch(0.25 0 0);
   --accent-foreground: oklch(0.95 0 0);
+  --well: oklch(22% 0 271);
   --destructive: oklch(0.45 0.2 15);
   --destructive-foreground: oklch(0.95 0 0);
   /* The fill red is 2.3:1 on the dark background; text needs 4.5:1 (WCAG 1.4.3). */

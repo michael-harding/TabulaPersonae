@@ -362,7 +362,8 @@ function ActionSectionBody(props: ActionSectionBodyProps) {
             <ActionCardList><For each={keys().main}>{(key) => card(key)}</For></ActionCardList>
           </Show>
           <Show when={keys().more.length > 0}>
-            <Collapsible open={props.moreOpen} onOpenChange={props.onMoreOpenChange} class={keys().main.length > 0 ? "mt-3" : undefined}>
+            {/* Set apart from the page by its shade, toggle and all, as the list is in edit mode */}
+            <Collapsible open={props.moreOpen} onOpenChange={props.onMoreOpenChange} class={cn("rounded-lg bg-well p-2", keys().main.length > 0 && "mt-3")}>
               <CollapsibleTrigger data-test={hook("more-toggle")} class={cn("flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-muted-foreground transition-colors", HOVER_ACCENT)}>
                 <span>{props.moreTitle}</span>
                 <Chip variant="secondary">{keys().more.length}</Chip>
@@ -386,13 +387,13 @@ function ActionSectionBody(props: ActionSectionBodyProps) {
           <span>{props.moreTitle}</span>
           <Chip variant="secondary">{keys().more.length}</Chip>
         </div>
-        {/* Marked as where set-aside cards go, and lit up while a card is dragged over it */}
+        {/* Marked as where set-aside cards go, set apart from the page by its shade, and lit up while a card is dragged over it */}
         <SortableList
           id="more"
           ids={keys().more}
           data-test={hook("more-list")}
           class={cn(
-            "rounded-lg border border-dashed p-2 transition-colors",
+            "rounded-lg border border-dashed bg-well p-2 transition-colors",
             draggingInMore() && "border-primary bg-accent",
           )}
         >
