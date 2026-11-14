@@ -9,6 +9,7 @@ import { type Character, createDefaultCharacter } from "@/lib/character-types"
 import { calculateEquippedAC, getEffectiveMaxHp } from "@/lib/character-utils"
 import { sheetColorAttributes } from "@/lib/sheet-color"
 import { useStorageManager } from "@/lib/storage-manager"
+import { cn, HOVER_ACCENT } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { notifyIfFailed, saveImportedCharacters } from "@/lib/save-feedback"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -118,7 +119,7 @@ export default function Home() {
                       // Each card in its character's sheet colour: the border, name and icon are primary
                       <Card
                         data-test={`character-card-${character.id}`}
-                        class="cursor-pointer hover:shadow-lg transition-shadow relative group"
+                        class="cursor-pointer hover:shadow-lg transition-shadow relative group flex flex-col"
                         {...sheetColorAttributes(character.sheetColor)}
                       >
                         <ConfirmButton
@@ -134,7 +135,14 @@ export default function Home() {
                           <Trash2 class="h-4 w-4" aria-hidden="true" />
                         </ConfirmButton>
 
-                        <A href={`/character/${character.id}`} class="block">
+                        {/* Highlighted on hover to show it opens the sheet. The name keeps its sheet colour: as large
+                            text it needs 3:1, which every shade has on the accent. The delete button sits outside
+                            the link, so hovering it shows only its own highlight. It grows to fill the card, which a
+                            taller card in the same grid row stretches. */}
+                        <A
+                          href={`/character/${character.id}`}
+                          class={cn("block flex-1 rounded-[calc(var(--radius)-1px)] transition-colors", HOVER_ACCENT)}
+                        >
                           <CardHeader>
                             <CardTitle class="flex items-center gap-2 pr-8">
                               <Sword class="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
