@@ -6,7 +6,6 @@ import ScrollText from "lucide-solid/icons/scroll-text"
 import Plus from "lucide-solid/icons/plus"
 import Trash2 from "lucide-solid/icons/trash-2"
 import Pencil from "lucide-solid/icons/pencil"
-import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
 import Dices from "lucide-solid/icons/dices"
 import Layers from "lucide-solid/icons/layers"
@@ -33,7 +32,7 @@ import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleChevron, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ModifierGroup } from "@/components/ui/modifier-group"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
@@ -1192,7 +1191,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                     <section.icon class="h-4 w-4 text-primary" aria-hidden="true" />
                     <span class="font-semibold">{section.title}</span>
                     <Chip variant="secondary">{features().length}</Chip>
-                    <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+                    <CollapsibleChevron class="ml-auto" />
                   </CollapsibleTrigger>
                   <Show when={!isReadOnly}>
                     <Button

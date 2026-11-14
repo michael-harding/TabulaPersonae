@@ -1,6 +1,5 @@
 import { createSignal, createEffect, on, untrack, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router"
-import ChevronDown from "lucide-solid/icons/chevron-down"
 import ChevronLeft from "lucide-solid/icons/chevron-left"
 import Pencil from "lucide-solid/icons/pencil"
 import Plus from "lucide-solid/icons/plus"
@@ -11,7 +10,7 @@ import { useTabConfig } from "@/lib/tab-config-context"
 import { MODULE_REGISTRY, ALL_MODULE_IDS } from "@/lib/module-registry"
 import type { TabConfig, ModuleId } from "@/lib/tab-config-types"
 import { cn, HOVER_ACCENT, TOUCH_TARGET_BOX } from "@/lib/utils"
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { ChipButton } from "@/components/ui/chip-button"
@@ -244,10 +243,7 @@ function SortableTabRow(props: SortableTabRowProps) {
                 data-test={`tab-toggle-${props.tab.id}`}
                 aria-label={`${props.expanded ? "Collapse" : "Expand"} ${props.tab.label}`}
               >
-                <ChevronDown
-                  class={cn("h-4 w-4 transition-transform duration-200", props.expanded && "rotate-180")}
-                  aria-hidden="true"
-                />
+                <CollapsibleChevron />
               </CollapsibleTrigger>
             </div>
           </Show>

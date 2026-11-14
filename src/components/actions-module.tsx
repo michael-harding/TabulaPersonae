@@ -5,7 +5,6 @@ import Clock from "lucide-solid/icons/clock"
 import Target from "lucide-solid/icons/target"
 import Shield from "lucide-solid/icons/shield"
 import Sparkles from "lucide-solid/icons/sparkles"
-import ChevronDown from "lucide-solid/icons/chevron-down"
 import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
@@ -25,7 +24,7 @@ import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/com
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { Chip } from "@/components/ui/chip"
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { ActionCard, ActionCardList, type ActionCardReorder, type SlotLevel } from "@/components/action-card"
 import { SortableGroup, SortableHandle, SortableList, SortableMoveButton, createSortableItem, type SortablePosition } from "@/components/ui/sortable"
@@ -367,7 +366,7 @@ function ActionSectionBody(props: ActionSectionBodyProps) {
               <CollapsibleTrigger data-test={hook("more-toggle")} class={cn("flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-muted-foreground transition-colors", HOVER_ACCENT)}>
                 <span>{props.moreTitle}</span>
                 <Chip variant="secondary">{keys().more.length}</Chip>
-                <ChevronDown class="ml-auto h-4 w-4 transition-transform ui-expanded:rotate-180" aria-hidden="true" />
+                <CollapsibleChevron class="ml-auto" />
               </CollapsibleTrigger>
               <CollapsibleContent class="mt-2">
                 <ActionCardList><For each={keys().more}>{(key) => card(key)}</For></ActionCardList>
@@ -913,7 +912,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               <Target class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Actions</span>
               <Chip variant="secondary">{actionEntries().length}</Chip>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+              <CollapsibleChevron class="ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddAction}>
@@ -934,7 +933,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               <Clock class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Bonus Actions</span>
               <Chip variant="secondary">{bonusActionEntries().length}</Chip>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+              <CollapsibleChevron class="ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-bonus-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddBonusAction}>
@@ -955,7 +954,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               <Shield class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Reactions</span>
               <Chip variant="secondary">{reactionEntries().length}</Chip>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+              <CollapsibleChevron class="ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-reaction-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddReaction}>
@@ -976,7 +975,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               <Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Other</span>
               <Chip variant="secondary">{otherEntries().length}</Chip>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+              <CollapsibleChevron class="ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-other-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddOther}>

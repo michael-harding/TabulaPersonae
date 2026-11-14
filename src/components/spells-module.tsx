@@ -4,7 +4,6 @@ import Plus from "lucide-solid/icons/plus"
 import Edit from "lucide-solid/icons/edit"
 import Trash2 from "lucide-solid/icons/trash-2"
 import Search from "lucide-solid/icons/search"
-import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
 import Target from "lucide-solid/icons/target"
 import Circle from "lucide-solid/icons/circle"
@@ -26,7 +25,7 @@ import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleChevron, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { SpellEditModal, SPELL_LEVELS } from "@/components/spell-edit-modal"
@@ -325,7 +324,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                             </Chip>
                           </Show>
                         </div>
-                        <ChevronDown class="h-4 w-4" aria-hidden="true" />
+                        <CollapsibleChevron />
                       </CollapsibleTrigger>
                       <CollapsibleContent class="space-y-2 mt-2">
                         <Show
