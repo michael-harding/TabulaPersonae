@@ -17,10 +17,10 @@
   --muted: oklch(34.07% 0.00004 271.152);
   --muted-foreground: oklch(0.52 0 0);
   /* The hover and highlight shade. Muted text on it is still 4.6:1 (WCAG 1.4.3). */
-  --accent: oklch(0.94 0 0);
+  --accent: oklch(0.90 0 0);
   --accent-foreground: oklch(0.35 0 0);
   /* A recessed area set apart from the page, a shade off the background: darker here, lighter in
-     dark mode. Kept clear of the accent so a highlight on it still shows. */
+     dark mode. */
   --well: oklch(95% 0 271);
   --destructive: oklch(0.55 0.25 15);
   --destructive-foreground: oklch(1 0 0);
