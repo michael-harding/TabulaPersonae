@@ -6,6 +6,7 @@ import Sunrise from "lucide-solid/icons/sunrise"
 import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Settings from "lucide-solid/icons/settings"
 
+import { useDocumentTitle } from "@/hooks/use-document-title"
 import { useSheetColor } from "@/hooks/use-sheet-color"
 import { type Character } from "@/lib/character-types"
 import { useStorageManager } from "@/lib/storage-manager"
@@ -43,10 +44,7 @@ export default function CharacterSheet() {
   const [isLoading, setIsLoading] = createSignal(true)
   const [isRestOpen, setIsRestOpen] = createSignal(false)
 
-  createEffect(() => {
-    const name = charStore.data?.name
-    document.title = name ? `${name} | TabulaPersonae` : "TabulaPersonae"
-  })
+  useDocumentTitle(() => charStore.data?.name)
 
   createEffect(() => {
     if (authLoading()) return
