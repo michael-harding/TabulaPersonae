@@ -87,6 +87,20 @@ describe("Textarea", () => {
       setValue("one\ntwo\nthree\nfour")
       expect(textarea.style.height).toBe(contentHeight(4))
     })
+
+    // Measuring forces layout: a controlled field hears each key twice, from the input event and
+    // from its value coming back through props, and should measure only once
+    it("measures once per key in a controlled field", () => {
+      const [value, setValue] = createSignal("")
+      render(() => <Textarea value={value()} aria-label="Description" onInput={(e) => setValue(e.currentTarget.value)} />)
+      const textarea = screen.getByRole("textbox", { name: "Description" })
+      const measure = vi.spyOn(textarea, "scrollHeight", "get")
+
+      fireEvent.input(textarea, { target: { value: "one\ntwo" } })
+
+      expect(measure).toHaveBeenCalledTimes(1)
+      expect(textarea.style.height).toBe(contentHeight(2))
+    })
   })
 
   it("has no accessibility violations", async () => {

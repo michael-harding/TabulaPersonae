@@ -288,6 +288,23 @@ describe("FeaturesModule", () => {
       expect(within(modal).getByTestId("feature-name-input")).toHaveAccessibleDescription("Name is required")
     })
 
+    // A type with no Name field cannot be asked for one: a blank name takes the type, as picking it does
+    it("saves a nameless-type feature with no name, naming it after its type", () => {
+      const onUpdate = vi.fn()
+      const feature = makeFeature({ name: "", featureType: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+      render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /^edit$/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).queryByTestId("feature-name-input")).not.toBeInTheDocument()
+
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+
+      expect(within(modal).queryByTestId("form-error-summary")).not.toBeInTheDocument()
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ classFeatures: [expect.objectContaining({ name: "Hit Points" })] })
+      )
+    })
+
     it("calls onUpdate with new class feature on valid submit", () => {
       const onUpdate = vi.fn()
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)

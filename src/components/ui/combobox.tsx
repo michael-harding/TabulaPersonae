@@ -14,6 +14,9 @@ type ComboboxProps = {
   /** Set on the text input, so a `<Label for={id}>` names the combobox. */
   id?: string
   "aria-label"?: string
+  /** Set on the text input; spread `validation.controlProps(id)` to mark it invalid and point to its error. */
+  "aria-invalid"?: "true"
+  "aria-describedby"?: string
   "data-test"?: string
 }
 
@@ -150,9 +153,10 @@ export function Combobox(props: ComboboxProps) {
   return (
     <div data-sem="combobox" ref={containerRef} class={cn("relative", props.class)}>
       {/* The input and chevron overhang the 1px top/bottom border (-my-px) so each is a full 44px
-          tall hit target rather than 42px inside the border (ACCESSIBILITY.md touch targets). */}
+          tall hit target rather than 42px inside the border (ACCESSIBILITY.md touch targets).
+          The border is this wrapper's, so it is the one that shows an invalid input, like Input's. */}
       <div
-        class="flex h-11 w-full items-center rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+        class="flex h-11 w-full items-center rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 has-[input[aria-invalid=true]]:border-destructive"
       >
         <input
           ref={inputRef}
@@ -162,6 +166,8 @@ export function Combobox(props: ComboboxProps) {
           aria-expanded={listShown()}
           aria-controls={listShown() ? listId : undefined}
           aria-label={props["aria-label"]}
+          aria-invalid={props["aria-invalid"]}
+          aria-describedby={props["aria-describedby"]}
           data-test={props["data-test"]}
           aria-autocomplete="list"
           aria-activedescendant={activeIndex() >= 0 ? `combobox-option-${activeIndex()}` : undefined}

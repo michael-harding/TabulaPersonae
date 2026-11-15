@@ -6,9 +6,18 @@ export interface ValidationIssue {
   message: string
 }
 
-/** The issue for a required text field left blank (whitespace counts as blank), if it is. */
-export function requiredText(fieldId: string, label: string, value: string | undefined): ValidationIssue | undefined {
-  return value?.trim() ? undefined : { fieldId, message: `${label} is required` }
+/**
+ * The issue for a required text field left blank, if it is. Whitespace alone counts as blank, unless
+ * `whitespaceIsText` is set: for a field such as a password, where spaces are characters like any other.
+ */
+export function requiredText(
+  fieldId: string,
+  label: string,
+  value: string | undefined,
+  options: { whitespaceIsText?: boolean } = {},
+): ValidationIssue | undefined {
+  const filled = options.whitespaceIsText ? !!value : !!value?.trim()
+  return filled ? undefined : { fieldId, message: `${label} is required` }
 }
 
 export interface FormValidation {

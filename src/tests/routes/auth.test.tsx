@@ -350,6 +350,32 @@ describe("Auth page — required fields", () => {
     expect(signIn).not.toHaveBeenCalled()
   })
 
+  it("accepts a password of only spaces, since spaces are characters too", async () => {
+    const signIn = vi.fn().mockResolvedValue(undefined)
+    setupAuth({ signIn })
+    render(() => <Auth />)
+
+    fillCredentials("user@test.com", "      ")
+    submitForm()
+
+    await waitFor(() => expect(signIn).toHaveBeenCalledWith("user@test.com", "      "))
+    expect(screen.queryByTestId("form-error-summary")).not.toBeInTheDocument()
+  })
+
+  it("clears the last server error when a new attempt fails the checks", async () => {
+    setupAuth({ signIn: vi.fn().mockRejectedValue(makeAuthError("auth/wrong-password")) })
+    render(() => <Auth />)
+    fillCredentials("user@test.com", "password123")
+    submitForm()
+    expect(await screen.findByRole("alert")).toHaveTextContent("Incorrect password.")
+
+    fillCredentials("", "password123")
+    submitForm()
+
+    expect(screen.getByTestId("form-error-summary")).toHaveTextContent("Email is required")
+    expect(screen.queryByText("Incorrect password.")).not.toBeInTheDocument()
+  })
+
   it("does not apply the sign-up password length to signing in", async () => {
     const signIn = vi.fn().mockResolvedValue(undefined)
     setupAuth({ signIn })
@@ -442,15 +468,34 @@ describe("Auth page — sign-up validation", () => {
 // ─── Auth page — password reset ──────────────────────────────────────────────
 
 describe("Auth page — password reset", () => {
-  it("asks for an email address before sending anything", () => {
+  it.each([
+    { label: "no email", email: "", message: "Email is required" },
+    { label: "a malformed email", email: "foo", message: "Enter a valid email address" },
+  ])("sends nothing for $label, and says why beside the email field", ({ email, message }) => {
     const resetPassword = vi.fn()
     setupAuth({ resetPassword })
     render(() => <Auth />)
+    fireEvent.input(screen.getByTestId("auth-email-input"), { target: { value: email } })
 
     fireEvent.click(screen.getByTestId("auth-reset-password-button"))
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Please enter your email address")
+    expect(screen.getByTestId("auth-email-input")).toHaveAttribute("aria-invalid", "true")
+    expect(screen.getByTestId("auth-email-input")).toHaveAccessibleDescription(message)
+    expect(screen.getByTestId("form-error-summary")).toHaveFocus()
     expect(resetPassword).not.toHaveBeenCalled()
+  })
+
+  // Forgot password needs no password, so a blank one is not held against it
+  it("checks only the email, not the password", async () => {
+    const resetPassword = vi.fn().mockResolvedValue(undefined)
+    setupAuth({ resetPassword })
+    render(() => <Auth />)
+    fireEvent.input(screen.getByTestId("auth-email-input"), { target: { value: "user@test.com" } })
+
+    fireEvent.click(screen.getByTestId("auth-reset-password-button"))
+
+    await waitFor(() => expect(resetPassword).toHaveBeenCalledWith("user@test.com"))
+    expect(screen.getByTestId("auth-password-input")).not.toHaveAttribute("aria-invalid")
   })
 
   it("sends the reset email to the entered address and confirms it", async () => {
@@ -466,13 +511,13 @@ describe("Auth page — password reset", () => {
   })
 
   it("explains why the reset email could not be sent, and does not claim it was", async () => {
-    setupAuth({ resetPassword: vi.fn().mockRejectedValue(makeAuthError("auth/invalid-email")) })
+    setupAuth({ resetPassword: vi.fn().mockRejectedValue(makeAuthError("auth/user-not-found")) })
     render(() => <Auth />)
-    fireEvent.input(screen.getByTestId("auth-email-input"), { target: { value: "not-an-email" } })
+    fireEvent.input(screen.getByTestId("auth-email-input"), { target: { value: "nobody@test.com" } })
 
     fireEvent.click(screen.getByTestId("auth-reset-password-button"))
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid email address.")
+    expect(await screen.findByRole("alert")).toHaveTextContent("No user found with this email address.")
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
     expect(screen.getByTestId("auth-reset-password-button")).toBeEnabled()
   })

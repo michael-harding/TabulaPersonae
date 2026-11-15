@@ -1,4 +1,4 @@
-import { createSignal, untrack, For, Index, Show } from "solid-js"
+import { createMemo, createSignal, untrack, For, Index, Show } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
 import Leaf from "lucide-solid/icons/leaf"
 import Star from "lucide-solid/icons/star"
@@ -783,26 +783,33 @@ function FeatureForm(props: FeatureFormProps) {
     })
   }
 
-  // A feature needs a name. With no type picked and no name, the Name field is hidden (see the Show
-  // below): picking a type is the way to it, so the issue goes on Feature Type instead.
+  // Name, Highlights and Description show once a type is picked, or once a name exists
+  // even with no type: otherwise editing a pre-existing untyped feature (name/description only, no
+  // mechanical effect) would hide the very fields needed to see or change it.
+  const detailsShown = createMemo(() => formData().featureType !== '' || formData().name.trim() !== '')
+  const isNameless = createMemo(() => NAMELESS_FEATURE_TYPES.includes(formData().featureType as FeatureTypeValue))
+  // Name shows with the other details, except for the types that take their name from the type
+  // instead. The required-field legend explains Name's asterisk, so it follows this too.
+  const nameShown = createMemo(() => detailsShown() && !isNameless())
+
+  // A feature needs a name. With no type picked and no name, the Name field is hidden: picking a type
+  // is the way to it, so the issue goes on Feature Type instead. A nameless type has no Name field and
+  // needs none, since a blank name is filled from the type on saving (see handleSubmit).
   const validation = useFormValidation(() => {
     const data = formData()
-    if (data.name.trim()) return []
+    if (data.name.trim() || isNameless()) return []
     return data.featureType === ''
       ? [{ fieldId: 'feature-type-select', message: 'Choose a Feature Type' }]
       : [requiredText('feature-name', 'Name', data.name)]
   })
 
-  // Mirrors the two Shows around the Name field below: the legend explains Name's asterisk, so it
-  // shows only while Name does.
-  const nameShown = () => {
-    const data = formData()
-    return (data.featureType !== '' || data.name.trim() !== '') && !NAMELESS_FEATURE_TYPES.includes(data.featureType as FeatureTypeValue)
-  }
-
   const handleSubmit = (e: Event) => {
     e.preventDefault()
-    if (validation.validate()) props.onSubmit(formData())
+    if (!validation.validate()) return
+    const data = formData()
+    // The same default changeFeatureType gives on picking the type, for a nameless-type feature saved
+    // without one (made before that default existed, or imported that way)
+    props.onSubmit(isNameless() && !data.name.trim() ? { ...data, name: data.featureType } : data)
   }
 
   // noValidate: the browser's own required-field popup would pre-empt the standard error UI.
@@ -823,11 +830,8 @@ function FeatureForm(props: FeatureFormProps) {
           <FieldError validation={validation} fieldId="feature-type-select" />
         </div>
 
-        {/* Also shows once a name exists even with no type picked — otherwise editing a pre-existing
-            untyped feature (name/description only, no mechanical effect) would hide the very fields
-            needed to see or change it, with no way back in since Name only appears once type is set. */}
-        <Show when={formData().featureType !== '' || formData().name.trim() !== ''}>
-          <Show when={!NAMELESS_FEATURE_TYPES.includes(formData().featureType as FeatureTypeValue)}>
+        <Show when={detailsShown()}>
+          <Show when={nameShown()}>
             <div class="space-y-1">
               <Label for="feature-name" required>Name</Label>
               <Input

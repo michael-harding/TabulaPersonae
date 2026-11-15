@@ -47,6 +47,12 @@ describe("distinguishImportedNames", () => {
     expect(namesAfterImport(["Frodo"], ["Frodo", "Frodo the 100th"])).toEqual(["Frodo the 101st"])
   })
 
+  it("counts an ordinal as taken however it is written", () => {
+    expect(namesAfterImport(["Frodo the Second"], ["Frodo", "Frodo the 2nd"])).toEqual(["Frodo the Third"])
+    expect(namesAfterImport(["Frodo the 2nd"], ["Frodo", "Frodo the Second"])).toEqual(["Frodo the Third"])
+    expect(namesAfterImport(["Frodo the First"], ["Frodo"])).toEqual(["Frodo the Second"])
+  })
+
   it("goes on in words past the Nineteenth", () => {
     expect(namesAfterImport(["Frodo"], ["Frodo", "Frodo the Twentieth"])).toEqual(["Frodo the Twenty-First"])
   })

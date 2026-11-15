@@ -49,17 +49,24 @@ const nameOf = (character: Pick<Character, "name">): string => (typeof character
  * Renames imported characters whose name is already taken, so that they can be told apart:
  * a second "Frodo" becomes "Frodo the Second", the next "Frodo the Third", and so on. The ordinal
  * follows the highest one already in use, so importing "Frodo" or "Frodo the Second" alongside
- * "Frodo" and "Frodo the Second" gives "Frodo the Third". Characters earlier in the same import
- * count as taken too. Characters without a name, and those whose name is free, keep it as it is.
+ * "Frodo" and "Frodo the Second" gives "Frodo the Third". A name is taken when another has the same
+ * name and ordinal, however the ordinal is written: "Frodo the 2nd" takes "Frodo the Second", and
+ * "Frodo the First" takes "Frodo". Characters earlier in the same import count as taken too.
+ * Characters without a name, and those whose name is free, keep it as it is.
  */
 export function distinguishImportedNames(imported: Character[], existing: readonly Pick<Character, "name">[]): Character[] {
+  // Each name in use, as its name without the ordinal plus the ordinal
   const taken = new Set<string>()
   // For each name without its ordinal, the highest ordinal any character has in use
   const highestOrdinal = new Map<string, number>()
-  const claim = (name: string) => {
-    taken.add(nameKey(name))
+  const parse = (name: string) => {
     const { base, ordinal } = splitOrdinal(name.trim())
     const key = nameKey(base)
+    return { key, ordinal, takenKey: `${key}\n${ordinal}` }
+  }
+  const claim = (name: string) => {
+    const { key, ordinal, takenKey } = parse(name)
+    taken.add(takenKey)
     highestOrdinal.set(key, Math.max(highestOrdinal.get(key) ?? 0, ordinal))
   }
   for (const character of existing) {
@@ -69,7 +76,7 @@ export function distinguishImportedNames(imported: Character[], existing: readon
   return imported.map((character) => {
     const current = nameOf(character)
     if (!current.trim()) return character
-    if (!taken.has(nameKey(current))) {
+    if (!taken.has(parse(current).takenKey)) {
       claim(current)
       return character
     }

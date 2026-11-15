@@ -27,6 +27,20 @@ describe("requiredText", () => {
   it("accepts any non-blank text", () => {
     expect(requiredText("name", "Name", " Shield ")).toBeUndefined()
   })
+
+  it("accepts whitespace alone as text when told to, as in a password", () => {
+    expect(requiredText("password", "Password", "   ", { whitespaceIsText: true })).toBeUndefined()
+  })
+
+  it.each([
+    { label: "an empty value", value: "" },
+    { label: "undefined", value: undefined },
+  ])("still reports $label as missing when whitespace counts as text", ({ value }) => {
+    expect(requiredText("password", "Password", value, { whitespaceIsText: true })).toEqual({
+      fieldId: "password",
+      message: "Password is required",
+    })
+  })
 })
 
 describe("useFormValidation", () => {
