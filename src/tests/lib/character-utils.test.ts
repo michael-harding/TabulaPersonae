@@ -1,6 +1,7 @@
 import {
   getAbilityModifier,
   getProficiencyBonus,
+  getEffectiveProficiencyBonus,
   getSkillModifier,
   getSavingThrowModifier,
   getSpellSaveDC,
@@ -23,6 +24,7 @@ import {
   calculateInitiative,
   calculateMaxHitPoints,
   getEffectiveMaxHp,
+  applyLevelChange,
   isItemModifierActive,
   getEquipmentModifierTotals,
   getEffectiveAbilityScore,
@@ -118,6 +120,44 @@ describe("Character Utils", () => {
     })
   })
 
+  describe("getEffectiveProficiencyBonus", () => {
+    it("follows the character's level when calculated, whatever value is stored", () => {
+      expect(getEffectiveProficiencyBonus({ level: 5, proficiencyBonus: 2, useCalculatedProficiencyBonus: true })).toBe(3)
+      expect(getEffectiveProficiencyBonus({ level: 17, proficiencyBonus: 2, useCalculatedProficiencyBonus: true })).toBe(6)
+    })
+
+    it("defaults level to 1 when calculated with no level set", () => {
+      expect(getEffectiveProficiencyBonus({ proficiencyBonus: 4, useCalculatedProficiencyBonus: true })).toBe(2)
+    })
+
+    it("uses the stored value as-is when custom, ignoring level", () => {
+      expect(getEffectiveProficiencyBonus({ level: 5, proficiencyBonus: 2, useCalculatedProficiencyBonus: false })).toBe(2)
+      expect(getEffectiveProficiencyBonus({ level: 1, proficiencyBonus: 0, useCalculatedProficiencyBonus: false })).toBe(0)
+    })
+
+    it("treats a character with no toggle stored (saved before calculated was the default) as custom", () => {
+      expect(getEffectiveProficiencyBonus({ level: 9, proficiencyBonus: 2 })).toBe(2)
+    })
+
+    it("falls back to +2 when custom with no value stored", () => {
+      expect(getEffectiveProficiencyBonus({ level: 9 })).toBe(2)
+    })
+  })
+
+  describe("createDefaultCharacter", () => {
+    it("starts a new character with calculated proficiency bonus and maximum HP", () => {
+      const character = createDefaultCharacter()
+      expect(character.useCalculatedProficiencyBonus).toBe(true)
+      expect(character.useCalculatedMaximumHp).toBe(true)
+    })
+
+    it("stores the same proficiency bonus and maximum HP its calculations produce", () => {
+      const character = createDefaultCharacter()
+      expect(character.proficiencyBonus).toBe(getProficiencyBonus(character.level))
+      expect(character.hitPoints.maximum).toBe(calculateMaxHitPoints(character).hp)
+    })
+  })
+
   describe("getSkillModifier", () => {
     it("calculates skill modifier without proficiency", () => {
       const result = getSkillModifier(14, 2, false, false)
@@ -182,6 +222,7 @@ describe("Character Utils", () => {
         const character = createDefaultCharacter()
         character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
         character.abilityScores.intelligence = 16
+        character.level = 5
         character.proficiencyBonus = 3
 
         const result = getSpellSaveDC(character)
@@ -209,6 +250,7 @@ describe("Character Utils", () => {
         const character = createDefaultCharacter()
         character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
         character.abilityScores.intelligence = 16
+        character.level = 5
         character.proficiencyBonus = 3
         character.equipment = [makeMagicItem({ modifiers: { abilityScores: { intelligence: 2 } } })]
 
@@ -220,12 +262,25 @@ describe("Character Utils", () => {
 
   describe("effective spell save DC and attack bonus", () => {
     function makeCaster(overrides: Partial<Character> = {}): Character {
-      const character = { ...createDefaultCharacter(), ...overrides }
+      const character = { ...createDefaultCharacter(), level: 5, proficiencyBonus: 3, ...overrides }
       character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
       character.abilityScores = { ...character.abilityScores, intelligence: 16 }
-      character.proficiencyBonus = 3
       return character
     }
+
+    it("uses the level's proficiency bonus when it is calculated, not the stored one", () => {
+      const character = makeCaster({ level: 9, proficiencyBonus: 3, useCalculatedProficiencyBonus: true })
+      expect(getEffectiveSpellSaveDC(character)).toBe(15)
+      expect(getEffectiveSpellAttackBonus(character)).toBe(7)
+      expect(getEffectiveSpellSaveDCTooltip(character)).toBe("8 + 4 (Prof) + 3 (Int)")
+      expect(getEffectiveSpellAttackTooltip(character)).toBe("+3 (Int) + 4 (Prof)")
+    })
+
+    it("uses a custom proficiency bonus as it is", () => {
+      const character = makeCaster({ level: 9, proficiencyBonus: 3, useCalculatedProficiencyBonus: false })
+      expect(getEffectiveSpellSaveDC(character)).toBe(14)
+      expect(getEffectiveSpellAttackBonus(character)).toBe(6)
+    })
 
     it("calculates both, with their breakdowns, when the toggles are absent", () => {
       const character = makeCaster({ spellSaveDC: 99, spellAttackBonus: 99 })
@@ -273,6 +328,7 @@ describe("Character Utils", () => {
         const character = createDefaultCharacter()
         character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
         character.abilityScores.intelligence = 16
+        character.level = 5
         character.proficiencyBonus = 3
 
         const result = getSpellAttackBonus(character)
@@ -300,6 +356,7 @@ describe("Character Utils", () => {
         const character = createDefaultCharacter()
         character.classFeatures = [makeFeature({ name: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] })]
         character.abilityScores.intelligence = 16
+        character.level = 5
         character.proficiencyBonus = 3
         character.equipment = [makeMagicItem({ modifiers: { abilityScores: { intelligence: 2 } } })]
 
@@ -1225,6 +1282,12 @@ describe("getEquippedWeaponAttacks", () => {
     expect(atk.range).toBe("5 ft")
   })
 
+  it("adds the level's proficiency bonus when it is calculated, not the stored one", () => {
+    const char = { ...createDefaultCharacter(), abilityScores: baseScores, level: 5, proficiencyBonus: 2, useCalculatedProficiencyBonus: true, equipment: [makeWeaponItem()] }
+    const [atk] = getEquippedWeaponAttacks(char)
+    expect(atk.attackBonus).toBe(6) // STR +3, prof +3 at level 5
+  })
+
   it("carries the item's id, highlights and recurring damage flag for its action card", () => {
     const item = makeWeaponItem({
       id: "sword-1", highlights: "Bleeds",
@@ -1575,6 +1638,72 @@ describe("getEffectiveMaxHp", () => {
     const feature = makeFeature({ levelEffects: [{ level: 1, effects: { hitPointsMode: "flat", hitPointsFlatValue: 999 } }] })
     const character = { hitPoints: { maximum: 24 }, useCalculatedMaximumHp: false, classFeatures: [feature], speciesTraits: [], feats: [], level: 5 }
     expect(getEffectiveMaxHp(character)).toBe(24)
+  })
+})
+
+describe("applyLevelChange", () => {
+  // d10 Hit Die, CON 14 (+2): 12 HP at level 1 and 8 more (avg 6 + 2) for each level after
+  function makeFighter(overrides: Partial<Character> = {}): Character {
+    const base = createDefaultCharacter()
+    return {
+      ...base,
+      abilityScores: { ...base.abilityScores, constitution: 14 },
+      classFeatures: [makeFeature({ name: "Fighter", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })],
+      useCalculatedMaximumHp: true,
+      level: 3,
+      hitPoints: { current: 28, maximum: 28, temporary: 0 },
+      ...overrides,
+    }
+  }
+  const withHp = (character: Character, current: number): Character => ({ ...character, hitPoints: { ...character.hitPoints, current } })
+
+  it("adds the maximum HP a level up gains to current HP", () => {
+    const previous = makeFighter()
+    expect(applyLevelChange(previous, { ...previous, level: 4 }).hitPoints.current).toBe(36)
+  })
+
+  it("adds it to a wounded character's current HP as well", () => {
+    const previous = withHp(makeFighter(), 10)
+    expect(applyLevelChange(previous, { ...previous, level: 5 }).hitPoints.current).toBe(26)
+  })
+
+  it("takes the maximum HP a level down loses off current HP", () => {
+    const previous = makeFighter()
+    expect(applyLevelChange(previous, { ...previous, level: 2 }).hitPoints.current).toBe(20)
+  })
+
+  it("never drops current HP to 0 for losing a level", () => {
+    const previous = withHp(makeFighter(), 5)
+    expect(applyLevelChange(previous, { ...previous, level: 2 }).hitPoints.current).toBe(1)
+  })
+
+  it("leaves a character at 0 HP at 0 when they lose a level", () => {
+    const previous = withHp(makeFighter(), 0)
+    expect(applyLevelChange(previous, { ...previous, level: 2 }).hitPoints.current).toBe(0)
+  })
+
+  it("leaves current HP alone when maximum HP is custom", () => {
+    const previous = makeFighter({ useCalculatedMaximumHp: false })
+    const next = applyLevelChange(previous, { ...previous, level: 4 })
+    expect(next.hitPoints.current).toBe(28)
+    expect(getEffectiveMaxHp(next)).toBe(28)
+  })
+
+  it("adds nothing for a level with no roll entered in rolled mode", () => {
+    const rolled = makeFeature({ name: "Fighter", levelEffects: [{ level: 1, effects: { hitDiceSize: 10, hitPointsMode: "rolled", hitPointsRolledLevels: [10, 6, 6] } }] })
+    const previous = makeFighter({ classFeatures: [rolled] })
+    expect(applyLevelChange(previous, { ...previous, level: 4 }).hitPoints.current).toBe(28)
+  })
+
+  it("returns the next character unchanged when the level is the same", () => {
+    const previous = makeFighter()
+    const next = { ...previous, name: "Renamed" }
+    expect(applyLevelChange(previous, next)).toBe(next)
+  })
+
+  it("keeps the rest of the next character's hit points", () => {
+    const previous = makeFighter({ hitPoints: { current: 28, maximum: 28, temporary: 5, temporaryMaximum: 0 } })
+    expect(applyLevelChange(previous, { ...previous, level: 4 }).hitPoints).toEqual({ current: 36, maximum: 28, temporary: 5, temporaryMaximum: 0 })
   })
 })
 
@@ -2102,6 +2231,7 @@ describe("spell calculations with a feature-granted spellcasting ability", () =>
     character.spellcastingAbility = "charisma"
     character.abilityScores.wisdom = 16
     character.abilityScores.charisma = 10
+    character.level = 5
     character.proficiencyBonus = 3
 
     expect(getSpellSaveDC(character)).toBe(14) // 8 + 3 prof + 3 WIS mod

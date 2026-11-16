@@ -476,6 +476,7 @@ export function createDefaultCharacter(): Character {
       maximum: 8,
       temporary: 0,
     },
+    useCalculatedMaximumHp: true,
     deathSaves: {
       successes: 0,
       failures: 0,
@@ -489,6 +490,7 @@ export function createDefaultCharacter(): Character {
     useCalculatedBurrowSpeed: true,
     initiative: 0,
     proficiencyBonus: 2,
+    useCalculatedProficiencyBonus: true,
 
     equipment: [],
     useCalculatedCarryingCapacity: true,

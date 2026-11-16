@@ -8,7 +8,7 @@ import CheckCircle from "lucide-solid/icons/check-circle"
 import XCircle from "lucide-solid/icons/x-circle"
 
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, formatLeadingTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, speciesGrantTooltip, ABILITY_TITLE_CASE, EXHAUSTION, MAX_EXHAUSTION_LEVEL, getExhaustionEffects } from "@/lib/character-utils"
+import { getAbilityModifier, getProficiencyBonus, getEffectiveProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, formatLeadingTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, speciesGrantTooltip, ABILITY_TITLE_CASE, EXHAUSTION, MAX_EXHAUSTION_LEVEL, getExhaustionEffects } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { useModuleEdit } from "@/hooks/use-module-edit"
@@ -59,7 +59,7 @@ const toDraft = (c: Character) => {
     useCalculatedBurrowSpeed: c.useCalculatedBurrowSpeed ?? true,
     passivePerception: c.passivePerception ?? getPassiveScore(
       c.abilityScores?.wisdom ?? 10,
-      c.proficiencyBonus ?? 2,
+      getEffectiveProficiencyBonus(c),
       percSkill?.proficient ?? false,
       percSkill?.expertise ?? false,
     ),
@@ -171,14 +171,14 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
   const passivePerceptionCalc = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
-    const prof = current().proficiencyBonus ?? 2
+    const prof = getEffectiveProficiencyBonus(current())
     const percSkill = getEffectiveSkillProficiency(current(), "perception")
     return getPassiveScore(wis, prof, percSkill.proficient, percSkill.expertise)
   })
 
   const passivePerceptionTooltip = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
-    const prof = current().proficiencyBonus ?? 2
+    const prof = getEffectiveProficiencyBonus(current())
     const percSkill = getEffectiveSkillProficiency(current(), "perception")
     const wisMod = getAbilityModifier(wis)
     let formula = formatTerm(wisMod, ABILITY_TITLE_CASE.wisdom)

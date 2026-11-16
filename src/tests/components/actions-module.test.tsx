@@ -129,6 +129,7 @@ describe("ActionsModule", () => {
           levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }],
         }],
         abilityScores: { ...createDefaultCharacter().abilityScores, intelligence: 16 },
+        level: 5,
         proficiencyBonus: 3,
         ...overrides,
       })

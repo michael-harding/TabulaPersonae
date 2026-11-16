@@ -4,7 +4,7 @@ import BookOpen from "lucide-solid/icons/book-open"
 import type { Character } from "@/lib/character-types"
 import { pickFields } from "@/lib/changes"
 import { useModuleEdit } from "@/hooks/use-module-edit"
-import { getSkillModifier, getAbilityModifier, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, formatLeadingTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, SKILL_ABILITY_MAP, SKILL_DISPLAY_NAMES, ABILITY_DISPLAY_NAMES, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getEffectiveProficiencyBonus, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, formatLeadingTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, SKILL_ABILITY_MAP, SKILL_DISPLAY_NAMES, ABILITY_DISPLAY_NAMES, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { ChipListEditor } from "@/components/ui/chip-list-editor"
@@ -114,6 +114,7 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   })
   const current = edit.merged
   const effectiveScores = createMemo(() => getEffectiveAbilityScores(current()))
+  const proficiencyBonus = createMemo(() => getEffectiveProficiencyBonus(current()))
   const modifierTotals = createMemo(() => getEquipmentModifierTotals(current().equipment))
   const featureTotals = createMemo(() => getActiveFeatureEffects(current()))
   const effectiveSenses = createMemo(() => getEffectiveSenses(current()))
@@ -131,14 +132,14 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   ) => {
     const ability = SKILL_ABILITY_MAP[skillKey]
     const skill = () => getEffectiveSkillProficiency(current(), skillKey)
-    const calc = createMemo(() => getPassiveScore(effectiveScores()[ability], current().proficiencyBonus, skill().proficient, skill().expertise))
+    const calc = createMemo(() => getPassiveScore(effectiveScores()[ability], proficiencyBonus(), skill().proficient, skill().expertise))
     const tooltip = createMemo(() => {
       const abilityMod = getAbilityModifier(effectiveScores()[ability])
       let formula = formatTerm(abilityMod, ABILITY_ABBREVIATIONS[ability])
       if (skill().expertise) {
-        formula += formatTerm(current().proficiencyBonus, "Prof") + formatTerm(current().proficiencyBonus, "Exp")
+        formula += formatTerm(proficiencyBonus(), "Prof") + formatTerm(proficiencyBonus(), "Exp")
       } else if (skill().proficient) {
-        formula += formatTerm(current().proficiencyBonus, "Prof")
+        formula += formatTerm(proficiencyBonus(), "Prof")
       }
       return `10${formula}`
     })
@@ -246,11 +247,11 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 const effectiveSave = () => getEffectiveSavingThrowProficiency(current(), ability)
                 const isProficient = () => effectiveSave().proficient
                 const saveItemBonus = () => modifierTotals().savingThrows[ability]
-                const modifier = () => getSavingThrowModifier(effectiveScores()[ability], current().proficiencyBonus, isProficient(), saveItemBonus())
+                const modifier = () => getSavingThrowModifier(effectiveScores()[ability], proficiencyBonus(), isProficient(), saveItemBonus())
                 const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
                 const saveTooltip = () => {
                   let formula = formatLeadingTerm(abilityMod(), ABILITY_ABBREVIATIONS[ability])
-                  if (isProficient()) formula += formatTerm(current().proficiencyBonus, "Prof")
+                  if (isProficient()) formula += formatTerm(proficiencyBonus(), "Prof")
                   formula += formatBonusTerm(saveItemBonus(), "Item")
                   return formula
                 }
@@ -302,12 +303,12 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
                 const ability = SKILL_ABILITY_MAP[skillKey]
                 const effectiveSkill = () => getEffectiveSkillProficiency(current(), skillKey)
                 const effectiveAdvantage = () => getEffectiveSkillAdvantage(current(), skillKey)
-                const modifier = () => getSkillModifier(effectiveScores()[ability], current().proficiencyBonus, effectiveSkill().proficient, effectiveSkill().expertise)
+                const modifier = () => getSkillModifier(effectiveScores()[ability], proficiencyBonus(), effectiveSkill().proficient, effectiveSkill().expertise)
                 const abilityMod = () => getAbilityModifier(effectiveScores()[ability])
                 const skillTooltip = () => {
                   let formula = formatLeadingTerm(abilityMod(), ABILITY_ABBREVIATIONS[ability])
-                  if (effectiveSkill().proficient) formula += formatTerm(current().proficiencyBonus, "Prof")
-                  if (effectiveSkill().expertise) formula += formatTerm(current().proficiencyBonus, "Exp")
+                  if (effectiveSkill().proficient) formula += formatTerm(proficiencyBonus(), "Prof")
+                  if (effectiveSkill().expertise) formula += formatTerm(proficiencyBonus(), "Exp")
                   return formula
                 }
                 return (

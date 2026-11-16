@@ -393,6 +393,9 @@ export function seedLocalStorage(characters: Character[]) {
 export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const current: Record<string, unknown> = { ...createDefaultCharacter() }
   for (const flag of CALCULATED_VALUE_FLAGS) delete current[flag]
+  // New characters start with these calculated; an older save has neither, which leaves both custom
+  delete current.useCalculatedProficiencyBonus
+  delete current.useCalculatedMaximumHp
   return {
     ...current,
     id: "legacy-char-1",

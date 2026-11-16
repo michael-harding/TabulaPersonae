@@ -12,6 +12,7 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
     ...createDefaultCharacter(),
     level: 3,
     hitPoints: { current: 15, maximum: 24, temporary: 0 },
+    useCalculatedMaximumHp: false,
     spentHitDice: 0,
     hitDice: "1d8",
     // Hit die size is only ever consulted via a Feature grant — most of this file's tests exercise

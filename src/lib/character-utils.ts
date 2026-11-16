@@ -9,6 +9,20 @@ export function getProficiencyBonus(level: number): number {
   return Math.ceil(Math.max(1, level) / 4) + 1
 }
 
+type ProficiencyBonusCharacter = Partial<Pick<Character, "level" | "proficiencyBonus" | "useCalculatedProficiencyBonus">>
+
+/**
+ * The proficiency bonus every roll adds: the level's when calculated, the stored value as-is when
+ * custom. The stored value of a calculated bonus is only rewritten when Combat Stats is saved, so it
+ * goes stale after a level change; nothing may read character.proficiencyBonus directly. A
+ * character saved before new characters started out calculated has no toggle, and stays custom.
+ */
+export function getEffectiveProficiencyBonus(character: ProficiencyBonusCharacter): number {
+  return (character.useCalculatedProficiencyBonus ?? false)
+    ? getProficiencyBonus(character.level ?? 1)
+    : (character.proficiencyBonus ?? 2)
+}
+
 export function getSkillModifier(
   abilityScore: number,
   proficiencyBonus: number,
@@ -926,18 +940,32 @@ export function getEffectiveMaxHp(character?: MaxHpCharacter): number {
   return Math.max(1, baseHp + (hitPoints?.temporaryMaximum ?? 0))
 }
 
+/**
+ * `next` with its current HP moved by the maximum HP its level change gained or lost: a level up
+ * heals by what it adds, a level down takes it away again. Losing a level is not damage, so it never
+ * drops a conscious character to 0. A custom maximum doesn't follow the level, so nothing moves.
+ */
+export function applyLevelChange(previous: Character, next: Character): Character {
+  if ((previous.level ?? 1) === (next.level ?? 1)) return next
+  const change = getEffectiveMaxHp(next) - getEffectiveMaxHp(previous)
+  if (change === 0) return next
+  const current = next.hitPoints?.current ?? 0
+  const floor = Math.min(current, 1)
+  return { ...next, hitPoints: { ...next.hitPoints, current: Math.max(floor, Math.min(current + change, getEffectiveMaxHp(next))) } }
+}
+
 export function getSpellSaveDC(character: Character): number {
   const ability = getEffectiveSpellcastingAbility(character)
   if (!ability) return 8
   const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
-  return 8 + (character.proficiencyBonus || 2) + abilityMod
+  return 8 + getEffectiveProficiencyBonus(character) + abilityMod
 }
 
 export function getSpellAttackBonus(character: Character): number {
   const ability = getEffectiveSpellcastingAbility(character)
   if (!ability) return 0
   const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
-  return (character.proficiencyBonus || 2) + abilityMod
+  return getEffectiveProficiencyBonus(character) + abilityMod
 }
 
 export function computeSpellModifier(character: Character): number {
@@ -950,14 +978,14 @@ export function computeSpellModifier(character: Character): number {
 export function getSpellAttackBreakdown(character: Character): string {
   const ability = getEffectiveSpellcastingAbility(character)
   if (!ability) return "No spellcasting ability set"
-  return `${formatLeadingTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}${formatTerm(character.proficiencyBonus || 2, "Prof")}`
+  return `${formatLeadingTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}${formatTerm(getEffectiveProficiencyBonus(character), "Prof")}`
 }
 
 /** The tooltip breakdown of getSpellSaveDC. */
 export function getSpellSaveDCBreakdown(character: Character): string {
   const ability = getEffectiveSpellcastingAbility(character)
   if (!ability) return "No spellcasting ability set"
-  return `8${formatTerm(character.proficiencyBonus || 2, "Prof")}${formatTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}`
+  return `8${formatTerm(getEffectiveProficiencyBonus(character), "Prof")}${formatTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}`
 }
 
 /** The spell save DC the sheet shows: the custom value when one is set, the calculated one otherwise. */
@@ -1287,11 +1315,11 @@ export interface DerivedWeaponAttack {
 }
 
 export function getEquippedWeaponAttacks(
-  character: Pick<Character, "equipment" | "abilityScores" | "proficiencyBonus" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
-    & FeatureEffectCharacter
+  character: Pick<Character, "equipment" | "abilityScores" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
+    & ProficiencyBonusCharacter & FeatureEffectCharacter
 ): DerivedWeaponAttack[] {
   const equipment = character.equipment ?? []
-  const profBonus = character.proficiencyBonus ?? 2
+  const profBonus = getEffectiveProficiencyBonus(character)
   const itemTotals = getEquipmentModifierTotals(equipment)
   const featureTotals = getActiveFeatureEffects(character)
   const strMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "strength", itemTotals, featureTotals))

@@ -1,12 +1,14 @@
 import type { AbilityScores, Character } from "./character-types"
 import {
   calculateEquippedAC,
+  calculateMaxHitPoints,
   calculateInitiative,
   getCalculatedAbilityScore,
   getEffectiveAbilityScore,
   getEffectiveCarryingCapacity,
   getPassiveScore,
   getProficiencyBonus,
+  getEffectiveProficiencyBonus,
   getSpellAttackBonus,
   getSpellSaveDC,
   BASE_ATTUNEMENT_LIMIT,
@@ -56,7 +58,7 @@ const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
     compute: (c) =>
       getPassiveScore(
         getEffectiveAbilityScore(c, "wisdom"),
-        c.proficiencyBonus ?? 2,
+        getEffectiveProficiencyBonus(c),
         c.skills?.perception?.proficient ?? false,
         c.skills?.perception?.expertise ?? false,
       ),
@@ -68,7 +70,7 @@ const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
     compute: (c) =>
       getPassiveScore(
         getEffectiveAbilityScore(c, "wisdom"),
-        c.proficiencyBonus ?? 2,
+        getEffectiveProficiencyBonus(c),
         c.skills?.insight?.proficient ?? false,
         c.skills?.insight?.expertise ?? false,
       ),
@@ -80,7 +82,7 @@ const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
     compute: (c) =>
       getPassiveScore(
         getEffectiveAbilityScore(c, "intelligence"),
-        c.proficiencyBonus ?? 2,
+        getEffectiveProficiencyBonus(c),
         c.skills?.investigation?.proficient ?? false,
         c.skills?.investigation?.expertise ?? false,
       ),
@@ -97,6 +99,22 @@ function reconcileScalarField(character: Character, spec: ScalarFieldSpec): Char
   if (!isFiniteNumber(value)) return character
   const calculated = spec.compute(character)
   return { ...character, [spec.toggleKey]: value === calculated }
+}
+
+// Maximum HP is nested in hitPoints, so it can't be a ScalarFieldSpec. Compared without
+// temporaryMaximum, which calculateMaxHitPoints leaves out as well.
+function reconcileMaximumHp(character: Character): Character {
+  const maximum = character.hitPoints?.maximum
+  if (!isFiniteNumber(maximum)) return character
+  return { ...character, useCalculatedMaximumHp: maximum === calculateMaxHitPoints(character).hp }
+}
+
+function freshenMaximumHp(character: Character): Character {
+  // Custom when absent, as getEffectiveMaxHp treats it
+  if (!(character.useCalculatedMaximumHp ?? false)) return character
+  const calculated = calculateMaxHitPoints(character).hp
+  if (character.hitPoints?.maximum === calculated) return character
+  return { ...character, hitPoints: { ...character.hitPoints, maximum: calculated } }
 }
 
 /**
@@ -121,7 +139,7 @@ export function freshenCalculatedFields(character: Character): Character {
     if (next[spec.valueKey] === calculated) continue
     next = { ...next, [spec.valueKey]: calculated }
   }
-  return next
+  return freshenMaximumHp(next)
 }
 
 /**
@@ -140,7 +158,7 @@ export function reconcileImportedCharacter(imported: Character): Character {
     for (const spec of SCALAR_FIELD_SPECS) {
       character = reconcileScalarField(character, spec)
     }
-    return character
+    return reconcileMaximumHp(character)
   } catch (error) {
     console.error("Failed to reconcile calculated fields on imported character:", error)
     return imported

@@ -54,6 +54,26 @@ describe("reconcileImportedCharacter", () => {
     })
   })
 
+  describe("maximum HP", () => {
+    it("marks calculated when the imported maximum matches the calculation", () => {
+      // Default Hit Points feature: d8, CON 10 -> 8 at level 1
+      const character: Character = { ...createDefaultCharacter(), useCalculatedMaximumHp: false }
+      expect(reconcileImportedCharacter(character).useCalculatedMaximumHp).toBe(true)
+    })
+
+    it("marks custom and preserves a mismatched maximum, such as one scraped from a PDF", () => {
+      const character: Character = { ...createDefaultCharacter(), level: 5, hitPoints: { current: 45, maximum: 45, temporary: 0 } }
+      const result = reconcileImportedCharacter(character)
+      expect(result.useCalculatedMaximumHp).toBe(false)
+      expect(result.hitPoints.maximum).toBe(45)
+    })
+
+    it("leaves the toggle alone when the import has no maximum", () => {
+      const character = { ...createDefaultCharacter(), hitPoints: { current: 8, temporary: 0 } } as Character
+      expect(reconcileImportedCharacter(character).useCalculatedMaximumHp).toBe(true)
+    })
+  })
+
   describe("passive scores", () => {
     it("marks passivePerception calculated when it matches", () => {
       const character: Character = { ...createDefaultCharacter(), passivePerception: 10 }
@@ -353,6 +373,29 @@ describe("freshenCalculatedFields", () => {
     const fresh = freshenCalculatedFields(character)
     expect(fresh.initiative).toBe(7)
     expect(fresh.proficiencyBonus).toBe(99)
+  })
+
+  it("refreshes a stale maximum HP when it is calculated, keeping the rest of the hit points", () => {
+    // Default Hit Points feature: d8, CON 10 -> 8 + 4 more levels * avg(5) = 28 at level 5
+    const character: Character = { ...createDefaultCharacter(), level: 5, useCalculatedMaximumHp: true, hitPoints: { current: 20, maximum: 8, temporary: 3 } }
+    expect(freshenCalculatedFields(character).hitPoints).toEqual({ current: 20, maximum: 28, temporary: 3 })
+  })
+
+  it("does not touch maximum HP when it is custom or its toggle is absent", () => {
+    const custom: Character = { ...createDefaultCharacter(), level: 5, useCalculatedMaximumHp: false }
+    expect(freshenCalculatedFields(custom).hitPoints.maximum).toBe(8)
+    const absent: Character = { ...createDefaultCharacter(), level: 5 }
+    delete absent.useCalculatedMaximumHp
+    expect(freshenCalculatedFields(absent).hitPoints.maximum).toBe(8)
+  })
+
+  it("re-imports a levelled-up character with calculated proficiency bonus and maximum HP still calculated", () => {
+    const character: Character = { ...createDefaultCharacter(), level: 5 } // stored +2 and 8 HP are stale
+    const reimported = reconcileImportedCharacter(freshenCalculatedFields(character))
+    expect(reimported.useCalculatedProficiencyBonus).toBe(true)
+    expect(reimported.useCalculatedMaximumHp).toBe(true)
+    expect(reimported.proficiencyBonus).toBe(3)
+    expect(reimported.hitPoints.maximum).toBe(28)
   })
 
   it("round-trips through export and re-import as calculated, fixing the reported bug end-to-end", () => {

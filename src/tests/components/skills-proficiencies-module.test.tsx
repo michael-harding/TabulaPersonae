@@ -21,6 +21,7 @@ function makeCharacter(overrides: Partial<Character> = {}) {
       wisdom: 8,
       charisma: 13,
     },
+    level: 5,
     proficiencyBonus: 3,
     savingThrows: {
       strength: true,
@@ -129,6 +130,19 @@ describe("SkillsProficienciesModule", () => {
       // Stealth (dex=14 → +2, expertise: +2 + 2×3 = +8)
       const expected = formatModifier(getSkillModifier(14, 3, true, true))
       expect(screen.getAllByText(expected).length).toBeGreaterThan(0)
+    })
+
+    it("adds the level's proficiency bonus when it is calculated, not the stored one", () => {
+      // Level 9: +4. STR 16 (+3) proficient → +7; DEX 14 (+2) with expertise → +10
+      render(() => <SkillsProficienciesModule character={makeCharacter({ level: 9, proficiencyBonus: 3, useCalculatedProficiencyBonus: true })} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("saving-throw-modifier-strength")).toHaveTextContent("+7")
+      expect(screen.getByTestId("skill-modifier-athletics")).toHaveTextContent("+7")
+      expect(screen.getByTestId("skill-modifier-stealth")).toHaveTextContent("+10")
+    })
+
+    it("adds a custom proficiency bonus as it is, whatever the level", () => {
+      render(() => <SkillsProficienciesModule character={makeCharacter({ level: 9, proficiencyBonus: 3, useCalculatedProficiencyBonus: false })} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("skill-modifier-athletics")).toHaveTextContent("+6")
     })
 
     it("renders languages", () => {
@@ -644,6 +658,7 @@ describe("SkillsProficienciesModule", () => {
           insight: { proficient: false, expertise: false },
           investigation: { proficient: true, expertise: true },
         },
+        level: 1,
         proficiencyBonus: 2,
         ...overrides,
       })

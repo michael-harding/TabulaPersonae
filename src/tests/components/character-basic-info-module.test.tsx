@@ -103,6 +103,35 @@ describe("CharacterBasicInfoModule", () => {
       )
     })
 
+    describe("current HP on a level change", () => {
+      // The default Hit Points feature: d8, CON 10 → 8 HP at level 1 and 5 more for each level after
+      function saveLevel(character: Character, level: number) {
+        const onUpdate = vi.fn()
+        render(() => <CharacterBasicInfoModule character={character} onUpdate={onUpdate} />)
+        clickEditButton()
+        const levelInput = screen.getByLabelText(/^level$/i)
+        fireEvent.input(levelInput, { target: { value: String(level) } })
+        fireEvent.blur(levelInput)
+        fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+        return onUpdate.mock.calls[0][0] as Character
+      }
+
+      it("gains the maximum HP the new level adds when maximum HP is calculated", () => {
+        const wounded = { ...createDefaultCharacter(), hitPoints: { current: 6, maximum: 8, temporary: 0 } }
+        expect(saveLevel(wounded, 3).hitPoints.current).toBe(16)
+      })
+
+      it("loses the maximum HP a lower level takes away", () => {
+        const character = { ...createDefaultCharacter(), level: 3, hitPoints: { current: 18, maximum: 18, temporary: 0 } }
+        expect(saveLevel(character, 2).hitPoints.current).toBe(13)
+      })
+
+      it("keeps current HP when maximum HP is custom", () => {
+        const character = { ...createDefaultCharacter(), useCalculatedMaximumHp: false, hitPoints: { current: 6, maximum: 8, temporary: 0 } }
+        expect(saveLevel(character, 3).hitPoints.current).toBe(6)
+      })
+    })
+
     it("persists edits on Ctrl+S without leaving edit mode", () => {
       const onUpdate = vi.fn()
       render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={onUpdate} />)

@@ -9,6 +9,7 @@ function makeCharacter(current: number, maximum: number) {
   return {
     ...createDefaultCharacter(),
     hitPoints: { current, maximum, temporary: 0 },
+    useCalculatedMaximumHp: false,
   }
 }
 
@@ -16,11 +17,13 @@ function makeSpellcaster() {
   return {
     ...createDefaultCharacter(),
     hitPoints: { current: 8, maximum: 10, temporary: 0 },
+    useCalculatedMaximumHp: false,
     classFeatures: [{
       id: "spellcasting-1", name: "Spellcasting", description: "", source: "class-feature" as const,
       levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" as const } }],
     }],
     abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 18 },
+    level: 5,
     proficiencyBonus: 3,
   }
 }
@@ -48,7 +51,7 @@ describe("StatsBar", () => {
   })
 
   it("handles missing hitPoints by defaulting to 0/1", () => {
-    const character = { ...createDefaultCharacter(), hitPoints: undefined }
+    const character = { ...createDefaultCharacter(), hitPoints: undefined, useCalculatedMaximumHp: false }
     // @ts-expect-error hitPoints is required on Character; this simulates a stored record that lost it
     render(() => <StatsBar character={character} />)
     expect(screen.getByText(/\/1/)).toBeInTheDocument()
@@ -69,7 +72,7 @@ describe("StatsBar", () => {
 
   describe("temporary HP", () => {
     it("shows temporary HP as an addition between current and maximum", () => {
-      const character = { ...createDefaultCharacter(), hitPoints: { current: 8, maximum: 10, temporary: 5 } }
+      const character = { ...createDefaultCharacter(), hitPoints: { current: 8, maximum: 10, temporary: 5 }, useCalculatedMaximumHp: false }
       render(() => <StatsBar character={character} />)
       expect(screen.getByTestId("current-hp")).toHaveTextContent("8")
       expect(screen.getByText("+5")).toBeInTheDocument()
@@ -77,7 +80,7 @@ describe("StatsBar", () => {
     })
 
     it("marks the temporary HP so tests can find it apart from other +N values", () => {
-      const character = { ...createDefaultCharacter(), hitPoints: { current: 8, maximum: 10, temporary: 5 } }
+      const character = { ...createDefaultCharacter(), hitPoints: { current: 8, maximum: 10, temporary: 5 }, useCalculatedMaximumHp: false }
       render(() => <StatsBar character={character} />)
       expect(screen.getByTestId("temp-hp")).toHaveTextContent("+5")
     })

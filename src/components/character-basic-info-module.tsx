@@ -2,6 +2,7 @@ import { Show } from "solid-js"
 import User from "lucide-solid/icons/user"
 
 import type { Character } from "@/lib/character-types"
+import { applyLevelChange } from "@/lib/character-utils"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { EditableModule } from "@/components/editable-module"
 import { Input } from "@/components/ui/input"
@@ -51,7 +52,7 @@ const toDraft = (c: Character) => ({
 type Draft = ReturnType<typeof toDraft>
 
 export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
-  const edit = useModuleEdit({ character: () => props.character, toDraft, onUpdate: (c) => props.onUpdate(c) })
+  const edit = useModuleEdit({ character: () => props.character, toDraft, onUpdate: (c) => props.onUpdate(applyLevelChange(props.character, c)) })
 
   const edition = () => props.character.edition ?? "2024"
   const raceLabel = () => edition() === "2014" ? "Race" : "Species"

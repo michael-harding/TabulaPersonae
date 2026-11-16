@@ -13,10 +13,12 @@ function makeCharacter(overrides: Partial<Character> = {}) {
   return {
     ...createDefaultCharacter(),
     hitPoints: { current: 10, maximum: 20, temporary: 0 },
+    useCalculatedMaximumHp: false,
     armorClass: 15,
     initiative: 2,
     speed: 30,
     proficiencyBonus: 3,
+    useCalculatedProficiencyBonus: false,
     deathSaves: { successes: 0, failures: 0 },
     ...overrides,
   }
@@ -1421,8 +1423,35 @@ describe("CombatStatsModule", () => {
   })
 })
 
+describe("CombatStatsModule — a new character", () => {
+  it("shows Proficiency Bonus and Maximum HP as calculated, with a switch to custom", () => {
+    render(() => <CombatStatsModule character={createDefaultCharacter()} onUpdate={vi.fn()} />)
+    clickEditButton()
+    expect(screen.getByRole("button", { name: "Use custom Proficiency Bonus" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Use custom Maximum" })).toBeInTheDocument()
+    expect(screen.queryByLabelText("Proficiency Bonus")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Maximum")).not.toBeInTheDocument()
+  })
+})
+
+describe("CombatStatsModule — a calculated proficiency bonus", () => {
+  it("adds the level's bonus to passive perception, not the stored one", () => {
+    // Level 9: +4. WIS 14 (+2), proficient → 10 + 2 + 4 = 16
+    const character = makeCharacter({
+      level: 9,
+      proficiencyBonus: 2,
+      useCalculatedProficiencyBonus: true,
+      abilityScores: { ...createDefaultCharacter().abilityScores, wisdom: 14 },
+      skills: { ...createDefaultCharacter().skills, perception: { proficient: true, expertise: false } },
+    })
+    render(() => <CombatStatsModule character={character} onUpdate={vi.fn()} />)
+    const passive = screen.getByText("Passive Perception").closest('[data-sem="calculated-value"]') as HTMLElement
+    expect(passive).toHaveTextContent("16")
+  })
+})
+
 describe("CombatStatsModule — switching a calculated stat to calculated or custom", () => {
-  // Maximum HP, Initiative and Proficiency Bonus start as custom values; Passive Perception starts calculated.
+  // makeCharacter holds custom Maximum HP, Initiative and Proficiency Bonus; Passive Perception is calculated.
   it.each([
     { label: "Maximum", toggleKey: "useCalculatedMaximumHp" },
     { label: "Initiative", toggleKey: "useCalculatedInitiative" },
