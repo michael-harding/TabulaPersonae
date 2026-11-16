@@ -91,3 +91,22 @@ test.describe("Leaving guest mode", () => {
     expect(await page.evaluate(() => localStorage.getItem("dnd-skip-auth"))).toBeNull()
   })
 })
+
+test.describe("Character list layout", () => {
+  test("each card's link fills it, even beside a taller card in the same row", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    const longName = "Bartholomew Fizzlebottom the Unreasonably Verbose of Lower Wexford"
+    await seedGuest(page, [{ ...testCharacter, name: longName }, secondCharacter])
+    await page.goto("/")
+
+    // The link is what highlights on hover, so a short link leaves part of a stretched card unlit
+    for (const character of [{ ...testCharacter, name: longName }, secondCharacter]) {
+      const cardBox = (await page.locator(`[data-test="character-card-${character.id}"]`).boundingBox())!
+      const linkBox = (await card(page, character.name).boundingBox())!
+      expect(linkBox.y + linkBox.height, `${character.name}'s link reaches the bottom of its card`).toBeCloseTo(cardBox.y + cardBox.height - 1, 0)
+    }
+    // Otherwise the cards are the same height anyway and this proves nothing
+    const [long, short] = await Promise.all([longName, secondCharacter.name].map((name) => page.getByText(name, { exact: true }).boundingBox()))
+    expect(long!.height, "the long name wraps onto more lines").toBeGreaterThan(short!.height)
+  })
+})

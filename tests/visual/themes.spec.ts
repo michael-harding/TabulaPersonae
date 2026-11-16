@@ -4,9 +4,10 @@ import { testCharacter } from "./fixtures"
 
 // next-themes persists the chosen theme in localStorage under the key "theme".
 // Setting it before page load is the simplest way to force a theme without
-// interacting with the UI toggle.
+// interacting with the UI toggle. Only dark: light is the default theme, so
+// pages.spec.ts already shows these pages light.
 
-for (const theme of ["light", "dark"] as const) {
+for (const theme of ["dark"] as const) {
   test.describe(`Theme: ${theme}`, () => {
     test.beforeEach(async ({ page }) => {
       await page.addInitScript(

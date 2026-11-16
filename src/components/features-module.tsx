@@ -1,4 +1,4 @@
-import { createSignal, untrack, For, Index, Show } from "solid-js"
+import { createMemo, createSignal, untrack, For, Index, Show } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
 import Leaf from "lucide-solid/icons/leaf"
 import Star from "lucide-solid/icons/star"
@@ -6,7 +6,6 @@ import ScrollText from "lucide-solid/icons/scroll-text"
 import Plus from "lucide-solid/icons/plus"
 import Trash2 from "lucide-solid/icons/trash-2"
 import Pencil from "lucide-solid/icons/pencil"
-import ChevronDown from "lucide-solid/icons/chevron-down"
 import Zap from "lucide-solid/icons/zap"
 import Dices from "lucide-solid/icons/dices"
 import Layers from "lucide-solid/icons/layers"
@@ -23,15 +22,17 @@ import { ChipListEditor } from "@/components/ui/chip-list-editor"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
+import { FieldError, FormErrorSummary, RequiredLegend } from "@/components/ui/form-validation"
+import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
 import { Textarea } from "@/components/ui/textarea"
 import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleChevron, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ModifierGroup } from "@/components/ui/modifier-group"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { StepperInput } from "@/components/ui/stepper-input"
@@ -782,312 +783,340 @@ function FeatureForm(props: FeatureFormProps) {
     })
   }
 
+  // Name, Highlights and Description show once a type is picked, or once a name exists
+  // even with no type: otherwise editing a pre-existing untyped feature (name/description only, no
+  // mechanical effect) would hide the very fields needed to see or change it.
+  const detailsShown = createMemo(() => formData().featureType !== '' || formData().name.trim() !== '')
+  const isNameless = createMemo(() => NAMELESS_FEATURE_TYPES.includes(formData().featureType as FeatureTypeValue))
+  // Name shows with the other details, except for the types that take their name from the type
+  // instead. The required-field legend explains Name's asterisk, so it follows this too.
+  const nameShown = createMemo(() => detailsShown() && !isNameless())
+
+  // A feature needs a name. With no type picked and no name, the Name field is hidden: picking a type
+  // is the way to it, so the issue goes on Feature Type instead. A nameless type has no Name field and
+  // needs none, since a blank name is filled from the type on saving (see handleSubmit).
+  const validation = useFormValidation(() => {
+    const data = formData()
+    if (data.name.trim() || isNameless()) return []
+    return data.featureType === ''
+      ? [{ fieldId: 'feature-type-select', message: 'Choose a Feature Type' }]
+      : [requiredText('feature-name', 'Name', data.name)]
+  })
+
   const handleSubmit = (e: Event) => {
     e.preventDefault()
+    if (!validation.validate()) return
     const data = formData()
-    if (!data.name.trim()) return
-    props.onSubmit(data)
+    // The same default changeFeatureType gives on picking the type, for a nameless-type feature saved
+    // without one (made before that default existed, or imported that way)
+    props.onSubmit(isNameless() && !data.name.trim() ? { ...data, name: data.featureType } : data)
   }
 
+  // noValidate: the browser's own required-field popup would pre-empt the standard error UI.
   return (
-    <form onSubmit={handleSubmit} class="space-y-4 p-4">
-      <div class="space-y-1">
-        <Label for="feature-type-select">Feature Type</Label>
-        <Select options={FEATURE_TYPE_OPTIONS} value={formData().featureType} onValueChange={changeFeatureType}>
-          <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type">
-            <SelectValue placeholder="None" />
-          </SelectTrigger>
-          <SelectContent />
-        </Select>
-      </div>
+    <form onSubmit={handleSubmit} noValidate class="space-y-4">
+      {/* The fields keep their own inset; ModalFooter spans the whole modal */}
+      <div class="space-y-4 px-4 pt-4">
+        <Show when={nameShown()}><RequiredLegend /></Show>
+        <FormErrorSummary validation={validation} />
+        <div class="space-y-1">
+          <Label for="feature-type-select">Feature Type</Label>
+          <Select options={FEATURE_TYPE_OPTIONS} value={formData().featureType} onValueChange={changeFeatureType}>
+            <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type" {...validation.controlProps('feature-type-select')}>
+              <SelectValue placeholder="None" />
+            </SelectTrigger>
+            <SelectContent />
+          </Select>
+          <FieldError validation={validation} fieldId="feature-type-select" />
+        </div>
 
-      {/* Also shows once a name exists even with no type picked — otherwise editing a pre-existing
-          untyped feature (name/description only, no mechanical effect) would hide the very fields
-          needed to see or change it, with no way back in since Name only appears once type is set. */}
-      <Show when={formData().featureType !== '' || formData().name.trim() !== ''}>
-        <Show when={!NAMELESS_FEATURE_TYPES.includes(formData().featureType as FeatureTypeValue)}>
+        <Show when={detailsShown()}>
+          <Show when={nameShown()}>
+            <div class="space-y-1">
+              <Label for="feature-name" required>Name</Label>
+              <Input
+                id="feature-name"
+                data-test="feature-name-input"
+                value={formData().name}
+                onInput={(e) => setFormData((d) => ({ ...d, name: e.currentTarget.value }))}
+                {...validation.controlProps('feature-name')}
+                placeholder="Feature name"
+                required
+              />
+              <FieldError validation={validation} fieldId="feature-name" />
+            </div>
+          </Show>
           <div class="space-y-1">
-            <Label for="feature-name">Name</Label>
-            <Input
-              id="feature-name"
-              data-test="feature-name-input"
-              value={formData().name}
-              onInput={(e) => setFormData((d) => ({ ...d, name: e.currentTarget.value }))}
-              placeholder="Feature name"
-              required
+            <Label for="feature-highlights">Highlights</Label>
+            <Textarea
+              id="feature-highlights"
+              data-test="feature-highlights-input"
+              value={formData().highlights}
+              onInput={(e) => setFormData((d) => ({ ...d, highlights: e.currentTarget.value }))}
+              placeholder="Shown on the action card (Markdown)"
+              rows={2}
+            />
+          </div>
+          <div class="space-y-1">
+            <Label for="feature-description">Description</Label>
+            <Textarea
+              id="feature-description"
+              data-test="feature-description-input"
+              value={formData().description}
+              onInput={(e) => setFormData((d) => ({ ...d, description: e.currentTarget.value }))}
+              placeholder="Describe the feature..."
+              rows={4}
             />
           </div>
         </Show>
-        <div class="space-y-1">
-          <Label for="feature-highlights">Highlights</Label>
-          <Textarea
-            id="feature-highlights"
-            data-test="feature-highlights-input"
-            value={formData().highlights}
-            onInput={(e) => setFormData((d) => ({ ...d, highlights: e.currentTarget.value }))}
-            placeholder="Shown on the action card (Markdown)"
-            rows={2}
-          />
-        </div>
-        <div class="space-y-1">
-          <Label for="feature-description">Description</Label>
-          <Textarea
-            id="feature-description"
-            data-test="feature-description-input"
-            value={formData().description}
-            onInput={(e) => setFormData((d) => ({ ...d, description: e.currentTarget.value }))}
-            placeholder="Describe the feature..."
-            rows={4}
-          />
-        </div>
-      </Show>
 
-      <Show when={formData().featureType === 'Action'}>
-        <div class="space-y-4 border rounded-md p-3">
-          <div class="flex items-center gap-2">
-            <Label class="text-xs whitespace-nowrap">At Level</Label>
-            <NumericInput data-test="feature-action-level-input" aria-label="At Level" class="w-20" min={1} max={20} value={formData().level} onChange={(v) => setFormData((d) => ({ ...d, level: v }))} />
-          </div>
-          <div class="space-y-1">
-            <Label for="feature-action-kind">Action Kind</Label>
-            <Select options={ACTION_KIND_OPTIONS} value={formData().actionKind || 'action'} onValueChange={(v) => setFormData((d) => ({ ...d, actionKind: v as ActionKind | '' }))}>
-              <SelectTrigger id="feature-action-kind" data-test="feature-action-kind-select" aria-label="Action Kind"><SelectValue /></SelectTrigger>
-              <SelectContent />
-            </Select>
-          </div>
-          <div class="space-y-1">
-            <Label for="feature-action-type">Type</Label>
-            <Combobox
-              data-test="feature-action-type-combobox"
-              value={formData().type}
-              onValueChange={(v) => setFormData((d) => ({ ...d, type: v }))}
-              options={ACTION_TYPE_LABELS}
-              aria-label="Type"
-            />
-          </div>
-          <div class="space-y-1">
-            <Label for="feature-range">Range</Label>
-            <Input
-              id="feature-range"
-              data-test="feature-range-input"
-              value={formData().range}
-              onInput={(e) => setFormData((d) => ({ ...d, range: e.currentTarget.value }))}
-              placeholder="5 ft, 30 ft, Touch, Self"
-            />
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div class="space-y-1">
-              <Label for="feature-attack-bonus">Attack Bonus</Label>
-              <NumericInput id="feature-attack-bonus" data-test="feature-attack-bonus-input" value={formData().attackBonus}
-                onChange={(v) => setFormData((d) => ({ ...d, attackBonus: v }))} placeholder="+5" />
+        <Show when={formData().featureType === 'Action'}>
+          <div class="space-y-4 border rounded-md p-3">
+            <div class="flex items-center gap-2">
+              <Label class="text-xs whitespace-nowrap">At Level</Label>
+              <NumericInput data-test="feature-action-level-input" aria-label="At Level" class="w-20" min={1} max={20} value={formData().level} onChange={(v) => setFormData((d) => ({ ...d, level: v }))} />
             </div>
             <div class="space-y-1">
-              <Label for="feature-attack-save">Attack/Save</Label>
-              <Input id="feature-attack-save" data-test="feature-attack-save-input" value={formData().attackSave}
-                onInput={(e) => setFormData((d) => ({ ...d, attackSave: e.currentTarget.value }))} placeholder="e.g. DEX save DC 13" />
-            </div>
-          </div>
-          <DamageFields idPrefix="feature" value={formData()} onChange={(patch) => setFormData((d) => ({ ...d, ...patch }))} placeholder="e.g. 2d6" />
-          <GainFields idPrefix="feature" value={formData()} onChange={(patch) => setFormData((d) => ({ ...d, ...patch }))} placeholder="e.g. 1d10" />
-          <div class="grid grid-cols-2 gap-2">
-            <div class="space-y-1">
-              <Label for="feature-uses">Uses Spent</Label>
-              <NumericInput id="feature-uses" data-test="feature-uses-input" min={0} value={formData().uses}
-                onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
+              <Label for="feature-action-kind">Action Kind</Label>
+              <Select options={ACTION_KIND_OPTIONS} value={formData().actionKind || 'action'} onValueChange={(v) => setFormData((d) => ({ ...d, actionKind: v as ActionKind | '' }))}>
+                <SelectTrigger id="feature-action-kind" data-test="feature-action-kind-select" aria-label="Action Kind"><SelectValue /></SelectTrigger>
+                <SelectContent />
+              </Select>
             </div>
             <div class="space-y-1">
-              <Label for="feature-uses-scaling">Uses Scaling</Label>
-              <Select
-                options={MAX_USES_MODE_OPTIONS}
-                value={formData().maxUsesMode}
-                onValueChange={(v) => setFormData((d) => ({ ...d, maxUsesMode: v as 'flat' | 'per-level' }))}
-              >
-                <SelectTrigger id="feature-uses-scaling" data-test="feature-uses-scaling-select" aria-label="Uses Scaling"><SelectValue /></SelectTrigger>
+              <Label for="feature-action-type">Type</Label>
+              <Combobox
+                data-test="feature-action-type-combobox"
+                value={formData().type}
+                onValueChange={(v) => setFormData((d) => ({ ...d, type: v }))}
+                options={ACTION_TYPE_LABELS}
+                aria-label="Type"
+              />
+            </div>
+            <div class="space-y-1">
+              <Label for="feature-range">Range</Label>
+              <Input
+                id="feature-range"
+                data-test="feature-range-input"
+                value={formData().range}
+                onInput={(e) => setFormData((d) => ({ ...d, range: e.currentTarget.value }))}
+                placeholder="5 ft, 30 ft, Touch, Self"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1">
+                <Label for="feature-attack-bonus">Attack Bonus</Label>
+                <NumericInput id="feature-attack-bonus" data-test="feature-attack-bonus-input" value={formData().attackBonus}
+                  onChange={(v) => setFormData((d) => ({ ...d, attackBonus: v }))} placeholder="+5" />
+              </div>
+              <div class="space-y-1">
+                <Label for="feature-attack-save">Attack/Save</Label>
+                <Input id="feature-attack-save" data-test="feature-attack-save-input" value={formData().attackSave}
+                  onInput={(e) => setFormData((d) => ({ ...d, attackSave: e.currentTarget.value }))} placeholder="e.g. DEX save DC 13" />
+              </div>
+            </div>
+            <DamageFields idPrefix="feature" value={formData()} onChange={(patch) => setFormData((d) => ({ ...d, ...patch }))} placeholder="e.g. 2d6" />
+            <GainFields idPrefix="feature" value={formData()} onChange={(patch) => setFormData((d) => ({ ...d, ...patch }))} placeholder="e.g. 1d10" />
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1">
+                <Label for="feature-uses">Uses Spent</Label>
+                <NumericInput id="feature-uses" data-test="feature-uses-input" min={0} value={formData().uses}
+                  onChange={(v) => setFormData((d) => ({ ...d, uses: v }))} />
+              </div>
+              <div class="space-y-1">
+                <Label for="feature-uses-scaling">Uses Scaling</Label>
+                <Select
+                  options={MAX_USES_MODE_OPTIONS}
+                  value={formData().maxUsesMode}
+                  onValueChange={(v) => setFormData((d) => ({ ...d, maxUsesMode: v as 'flat' | 'per-level' }))}
+                >
+                  <SelectTrigger id="feature-uses-scaling" data-test="feature-uses-scaling-select" aria-label="Uses Scaling"><SelectValue /></SelectTrigger>
+                  <SelectContent />
+                </Select>
+              </div>
+            </div>
+            <Show
+              when={formData().maxUsesMode === 'per-level'}
+              fallback={
+                <div class="space-y-1">
+                  <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
+                  <NumericInput id="feature-max-uses" data-test="feature-max-uses-input" min={0} value={formData().maxUses}
+                    onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
+                </div>
+              }
+            >
+              <div class="space-y-1">
+                <Label for="feature-max-uses-per-level">Max Uses per Level</Label>
+                <NumericInput id="feature-max-uses-per-level" data-test="feature-max-uses-per-level-input" min={0} value={formData().maxUsesPerLevel}
+                  onChange={(v) => setFormData((d) => ({ ...d, maxUsesPerLevel: v, uses: 0 }))} />
+                <p class="text-xs text-muted-foreground">
+                  = {formData().maxUsesPerLevel * props.characterLevel} at Level {props.characterLevel}
+                </p>
+              </div>
+            </Show>
+            <div class="space-y-1">
+              <Label for="feature-recharge">Recharge On</Label>
+              <Select options={RECHARGE_ON_OPTIONS} value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
+                <SelectTrigger id="feature-recharge" data-test="feature-recharge-select"><SelectValue /></SelectTrigger>
                 <SelectContent />
               </Select>
             </div>
           </div>
-          <Show
-            when={formData().maxUsesMode === 'per-level'}
-            fallback={
+        </Show>
+
+        <Show when={formData().featureType === 'Spellcasting Ability'}>
+          <div class="space-y-1">
+            <Label for="feature-spellcasting-ability">Spellcasting Ability</Label>
+            <Select
+              options={SPELLCASTING_ABILITY_OPTIONS}
+              value={singleTierEffects().spellcastingAbility ?? ''}
+              onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), spellcastingAbility: (v || undefined) as keyof AbilityScores | undefined })}
+            >
+              <SelectTrigger id="feature-spellcasting-ability" data-test="feature-spellcasting-ability-select" aria-label="Spellcasting Ability"><SelectValue /></SelectTrigger>
+              <SelectContent />
+            </Select>
+          </div>
+        </Show>
+
+        <Show when={formData().featureType === 'Hit Points'}>
+          <div class="space-y-4 border rounded-md p-3">
+            <div class="space-y-1">
+              <Label for="feature-hit-die">Hit Die</Label>
+              <Select
+                options={HIT_DIE_OPTIONS}
+                value={singleTierEffects().hitDiceSize ? String(singleTierEffects().hitDiceSize) : ''}
+                onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitDiceSize: v ? Number(v) : undefined })}
+              >
+                <SelectTrigger id="feature-hit-die" data-test="feature-hit-die-select" aria-label="Hit Die"><SelectValue /></SelectTrigger>
+                <SelectContent />
+              </Select>
+            </div>
+
+            <div class="space-y-1">
+              <Label for="feature-hp-mode">Max HP Calculation</Label>
+              <Select
+                options={HIT_POINTS_MODE_OPTIONS}
+                value={singleTierEffects().hitPointsMode ?? 'per-level'}
+                onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsMode: v as HitPointsMode })}
+              >
+                <SelectTrigger id="feature-hp-mode" data-test="feature-hp-mode-select" aria-label="Max HP Calculation"><SelectValue /></SelectTrigger>
+                <SelectContent />
+              </Select>
+            </div>
+
+            <Show when={(singleTierEffects().hitPointsMode ?? 'per-level') === 'flat'}>
               <div class="space-y-1">
-                <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
-                <NumericInput id="feature-max-uses" data-test="feature-max-uses-input" min={0} value={formData().maxUses}
-                  onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
+                <Label for="feature-hp-flat">Flat Max HP Value</Label>
+                <NumericInput
+                  id="feature-hp-flat" data-test="feature-hp-flat-input" aria-label="Flat Max HP Value" min={0}
+                  value={singleTierEffects().hitPointsFlatValue ?? 0}
+                  onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsFlatValue: v ?? undefined })}
+                />
               </div>
-            }
-          >
-            <div class="space-y-1">
-              <Label for="feature-max-uses-per-level">Max Uses per Level</Label>
-              <NumericInput id="feature-max-uses-per-level" data-test="feature-max-uses-per-level-input" min={0} value={formData().maxUsesPerLevel}
-                onChange={(v) => setFormData((d) => ({ ...d, maxUsesPerLevel: v, uses: 0 }))} />
-              <p class="text-xs text-muted-foreground">
-                = {formData().maxUsesPerLevel * props.characterLevel} at Level {props.characterLevel}
-              </p>
-            </div>
-          </Show>
-          <div class="space-y-1">
-            <Label for="feature-recharge">Recharge On</Label>
-            <Select options={RECHARGE_ON_OPTIONS} value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
-              <SelectTrigger id="feature-recharge" data-test="feature-recharge-select"><SelectValue /></SelectTrigger>
-              <SelectContent />
-            </Select>
+            </Show>
+
+            <Show when={(singleTierEffects().hitPointsMode ?? 'per-level') === 'per-level'}>
+              <div class="space-y-1">
+                <Label for="feature-hp-per-level">HP per Level After 1st</Label>
+                <NumericInput
+                  id="feature-hp-per-level" data-test="feature-hp-per-level-input" aria-label="HP per Level After 1st" min={0}
+                  value={singleTierEffects().hitPointsPerLevelAmount ?? (Math.floor((singleTierEffects().hitDiceSize ?? 8) / 2) + 1)}
+                  onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsPerLevelAmount: v })}
+                />
+              </div>
+            </Show>
+
+            <Show when={singleTierEffects().hitPointsMode === 'rolled'}>
+              <div class="space-y-2">
+                <Label class="text-xs">Rolled HP by Level</Label>
+                <Index each={Array.from({ length: rolledRowCount() })}>
+                  {(_, index) => (
+                    <div class="flex items-center gap-2">
+                      <Label class="text-xs whitespace-nowrap w-16">Level {index + 1}</Label>
+                      <Label class="text-xs whitespace-nowrap">Rolled</Label>
+                      <NumericInput aria-label={`Rolled amount for level ${index + 1}`} class="w-16" min={0}
+                        value={rolledAmountAt(index)} onChange={(v) => updateRolledLevel(index, v)} />
+                      <Show when={index >= props.characterLevel}>
+                        <ConfirmButton
+                          data-test={`rolled-hp-level-${index + 1}-remove`}
+                          verb="Remove"
+                          subject={`level ${index + 1} roll`}
+                          variant="ghostDestructive"
+                          size="bareIcon"
+                          onConfirm={() => removeRolledLevel(index)}
+                        >
+                          <Trash2 class="h-4 w-4" aria-hidden="true" />
+                        </ConfirmButton>
+                      </Show>
+                    </div>
+                  )}
+                </Index>
+                <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addRolledLevel}>
+                  <Plus class="h-3 w-3" aria-hidden="true" />
+                  Add Level Roll
+                </Button>
+              </div>
+            </Show>
           </div>
-        </div>
-      </Show>
+        </Show>
 
-      <Show when={formData().featureType === 'Spellcasting Ability'}>
-        <div class="space-y-1">
-          <Label for="feature-spellcasting-ability">Spellcasting Ability</Label>
-          <Select
-            options={SPELLCASTING_ABILITY_OPTIONS}
-            value={singleTierEffects().spellcastingAbility ?? ''}
-            onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), spellcastingAbility: (v || undefined) as keyof AbilityScores | undefined })}
-          >
-            <SelectTrigger id="feature-spellcasting-ability" data-test="feature-spellcasting-ability-select" aria-label="Spellcasting Ability"><SelectValue /></SelectTrigger>
-            <SelectContent />
-          </Select>
-        </div>
-      </Show>
-
-      <Show when={formData().featureType === 'Hit Points'}>
-        <div class="space-y-4 border rounded-md p-3">
+        <Show when={formData().featureType === 'Size'}>
           <div class="space-y-1">
-            <Label for="feature-hit-die">Hit Die</Label>
+            <Label for="feature-size">Size</Label>
             <Select
-              options={HIT_DIE_OPTIONS}
-              value={singleTierEffects().hitDiceSize ? String(singleTierEffects().hitDiceSize) : ''}
-              onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitDiceSize: v ? Number(v) : undefined })}
+              options={SIZE_OPTIONS}
+              value={singleTierEffects().size ?? ''}
+              onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), size: v || undefined })}
             >
-              <SelectTrigger id="feature-hit-die" data-test="feature-hit-die-select" aria-label="Hit Die"><SelectValue /></SelectTrigger>
+              <SelectTrigger id="feature-size" aria-label="Size"><SelectValue placeholder="None" /></SelectTrigger>
               <SelectContent />
             </Select>
           </div>
+        </Show>
 
+        <Show when={formData().featureType === 'Max HP Bonus'}>
           <div class="space-y-1">
-            <Label for="feature-hp-mode">Max HP Calculation</Label>
-            <Select
-              options={HIT_POINTS_MODE_OPTIONS}
-              value={singleTierEffects().hitPointsMode ?? 'per-level'}
-              onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsMode: v as HitPointsMode })}
-            >
-              <SelectTrigger id="feature-hp-mode" data-test="feature-hp-mode-select" aria-label="Max HP Calculation"><SelectValue /></SelectTrigger>
-              <SelectContent />
-            </Select>
+            <Label for="feature-hp-bonus-per-level" class="text-xs">Max HP Bonus (per level)</Label>
+            <NumericInput
+              id="feature-hp-bonus-per-level"
+              aria-label="Max HP Bonus (per level)"
+              value={singleTierEffects().hpBonusPerLevel ?? 0}
+              onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hpBonusPerLevel: v ?? undefined })}
+            />
           </div>
+        </Show>
 
-          <Show when={(singleTierEffects().hitPointsMode ?? 'per-level') === 'flat'}>
-            <div class="space-y-1">
-              <Label for="feature-hp-flat">Flat Max HP Value</Label>
-              <NumericInput
-                id="feature-hp-flat" data-test="feature-hp-flat-input" aria-label="Flat Max HP Value" min={0}
-                value={singleTierEffects().hitPointsFlatValue ?? 0}
-                onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsFlatValue: v ?? undefined })}
-              />
-            </div>
-          </Show>
+        <Show when={isTieredEffectType(formData().featureType)}>
+          <div class="space-y-3">
+            <Index each={formData().levelEffects}>
+              {(tier, i) => (
+                <LevelEffectRow
+                  featureType={formData().featureType as
+                    | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+                    | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
+                    | 'Ability Scores'}
+                  index={i}
+                  tier={tier()}
+                  effectGroupsOpen={() => getEffectGroupsOpen(i)}
+                  onEffectGroupOpenChange={(key, open) => setEffectGroupOpen(i, key, open)}
+                  onLevelChange={(level) => updateLevelEffect(i, { level })}
+                  onEffectsChange={(effects) => updateLevelEffect(i, { effects })}
+                  onRemove={() => removeLevelEffect(i)}
+                />
+              )}
+            </Index>
+            <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addLevelEffect}>
+              <Plus class="h-3 w-3" aria-hidden="true" />
+              Add Level
+            </Button>
+          </div>
+        </Show>
+      </div>
 
-          <Show when={(singleTierEffects().hitPointsMode ?? 'per-level') === 'per-level'}>
-            <div class="space-y-1">
-              <Label for="feature-hp-per-level">HP per Level After 1st</Label>
-              <NumericInput
-                id="feature-hp-per-level" data-test="feature-hp-per-level-input" aria-label="HP per Level After 1st" min={0}
-                value={singleTierEffects().hitPointsPerLevelAmount ?? (Math.floor((singleTierEffects().hitDiceSize ?? 8) / 2) + 1)}
-                onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hitPointsPerLevelAmount: v })}
-              />
-            </div>
-          </Show>
-
-          <Show when={singleTierEffects().hitPointsMode === 'rolled'}>
-            <div class="space-y-2">
-              <Label class="text-xs">Rolled HP by Level</Label>
-              <Index each={Array.from({ length: rolledRowCount() })}>
-                {(_, index) => (
-                  <div class="flex items-center gap-2">
-                    <Label class="text-xs whitespace-nowrap w-16">Level {index + 1}</Label>
-                    <Label class="text-xs whitespace-nowrap">Rolled</Label>
-                    <NumericInput aria-label={`Rolled amount for level ${index + 1}`} class="w-16" min={0}
-                      value={rolledAmountAt(index)} onChange={(v) => updateRolledLevel(index, v)} />
-                    <Show when={index >= props.characterLevel}>
-                      <ConfirmButton
-                        data-test={`rolled-hp-level-${index + 1}-remove`}
-                        verb="Remove"
-                        subject={`level ${index + 1} roll`}
-                        variant="ghostDestructive"
-                        size="bareIcon"
-                        onConfirm={() => removeRolledLevel(index)}
-                      >
-                        <Trash2 class="h-4 w-4" aria-hidden="true" />
-                      </ConfirmButton>
-                    </Show>
-                  </div>
-                )}
-              </Index>
-              <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addRolledLevel}>
-                <Plus class="h-3 w-3" aria-hidden="true" />
-                Add Level Roll
-              </Button>
-            </div>
-          </Show>
-        </div>
-      </Show>
-
-      <Show when={formData().featureType === 'Size'}>
-        <div class="space-y-1">
-          <Label for="feature-size">Size</Label>
-          <Select
-            options={SIZE_OPTIONS}
-            value={singleTierEffects().size ?? ''}
-            onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), size: v || undefined })}
-          >
-            <SelectTrigger id="feature-size" aria-label="Size"><SelectValue placeholder="None" /></SelectTrigger>
-            <SelectContent />
-          </Select>
-        </div>
-      </Show>
-
-      <Show when={formData().featureType === 'Max HP Bonus'}>
-        <div class="space-y-1">
-          <Label for="feature-hp-bonus-per-level" class="text-xs">Max HP Bonus (per level)</Label>
-          <NumericInput
-            id="feature-hp-bonus-per-level"
-            aria-label="Max HP Bonus (per level)"
-            value={singleTierEffects().hpBonusPerLevel ?? 0}
-            onChange={(v) => setSingleTierEffects({ ...singleTierEffects(), hpBonusPerLevel: v ?? undefined })}
-          />
-        </div>
-      </Show>
-
-      <Show when={isTieredEffectType(formData().featureType)}>
-        <div class="space-y-3">
-          <Index each={formData().levelEffects}>
-            {(tier, i) => (
-              <LevelEffectRow
-                featureType={formData().featureType as
-                  | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
-                  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-                  | 'Ability Scores'}
-                index={i}
-                tier={tier()}
-                effectGroupsOpen={() => getEffectGroupsOpen(i)}
-                onEffectGroupOpenChange={(key, open) => setEffectGroupOpen(i, key, open)}
-                onLevelChange={(level) => updateLevelEffect(i, { level })}
-                onEffectsChange={(effects) => updateLevelEffect(i, { effects })}
-                onRemove={() => removeLevelEffect(i)}
-              />
-            )}
-          </Index>
-          <Button type="button" variant="outline" size="sm" class="gap-1" onClick={addLevelEffect}>
-            <Plus class="h-3 w-3" aria-hidden="true" />
-            Add Level
-          </Button>
-        </div>
-      </Show>
-
-      <div class="flex gap-2 justify-end">
+      <ModalFooter>
         <Button type="button" variant="outline" onClick={props.onCancel}>Cancel</Button>
         <Button type="submit">Save</Button>
-      </div>
+      </ModalFooter>
     </form>
   )
 }
@@ -1148,7 +1177,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
     <Card data-sem="features-module">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
-          <Layers class="h-5 w-5 text-primary" aria-hidden="true" />
+          <Layers class="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
           Class Features, Species Traits, Background &amp; Feats
         </CardTitle>
       </CardHeader>
@@ -1166,7 +1195,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                     <section.icon class="h-4 w-4 text-primary" aria-hidden="true" />
                     <span class="font-semibold">{section.title}</span>
                     <Chip variant="secondary">{features().length}</Chip>
-                    <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+                    <CollapsibleChevron class="ml-auto" />
                   </CollapsibleTrigger>
                   <Show when={!isReadOnly}>
                     <Button

@@ -1,5 +1,5 @@
 > **Document Authority**: This document is the authoritative accessibility standard for this repository. It supplements `CONSTITUTION.md` §9; where the two conflict, `CONSTITUTION.md` rules.
-> **Last updated:** 2026-11-04
+> **Last updated:** 2026-11-12
 
 ---
 
@@ -138,6 +138,7 @@ This document governs all accessibility requirements for this repository. It exp
 - Groups of related controls (radio buttons, checkboxes) must be wrapped in `<fieldset>` with a `<legend>` that describes the group.
 - Appropriate `autocomplete` attribute values must be used on personal data fields (name, email, address, telephone, etc.).
 - When a form is submitted with validation errors, an error summary must appear at the top of the form, announced via `role="alert"`, and receive focus.
+- Forms must meet the required-field and error rules above through the shared form validation components, not per-form code: `useFormValidation` (`src/hooks/use-form-validation.ts`) for the checks and their state, and `RequiredLegend`, `FormErrorSummary` and `FieldError` (`src/components/ui/form-validation.tsx`) with a `required` `Label` for the UI. The submit button stays enabled; a failed submit shows the errors rather than doing nothing.
 
 ---
 

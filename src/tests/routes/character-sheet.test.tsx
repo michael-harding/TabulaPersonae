@@ -226,6 +226,14 @@ describe("CharacterSheet loading", () => {
     expect(document.title).toBe("TabulaPersonae")
     expect(screen.getByRole("heading", { name: "Unnamed Character" })).toBeInTheDocument()
   })
+
+  it("restores the app name in the page title when leaving the sheet", async () => {
+    await renderAndLoad()
+    expect(document.title).toBe("Testy McTestface | TabulaPersonae")
+
+    cleanup()
+    expect(document.title).toBe("TabulaPersonae")
+  })
 })
 
 describe("CharacterSheet saving", () => {

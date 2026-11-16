@@ -236,6 +236,14 @@ describe("FeaturesModule", () => {
       expect(within(dialog).getByText("Add Class Feature")).toBeInTheDocument()
     })
 
+    it("keeps its actions in the sticky modal footer", () => {
+      render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const footer = within(screen.getByRole("dialog")).getByTestId("modal-footer")
+      expect(within(footer).getByRole("button", { name: "Save" })).toBeInTheDocument()
+      expect(within(footer).getByRole("button", { name: "Cancel" })).toBeInTheDocument()
+    })
+
     it("closes the modal when Cancel is clicked", () => {
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
@@ -244,13 +252,57 @@ describe("FeaturesModule", () => {
       expect(screen.getByRole("dialog")).toHaveAttribute("data-closed")
     })
 
-    it("does not call onUpdate when name is empty", () => {
+    // With no type and no name the Name field is hidden, so the message points at Feature Type
+    it("does not save a feature with no type or name, and asks for a Feature Type", () => {
       const onUpdate = vi.fn()
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
       expect(onUpdate).not.toHaveBeenCalled()
+      expect(within(modal).getByTestId("feature-type-select")).toHaveAccessibleDescription("Choose a Feature Type")
+      expect(within(modal).getByTestId("form-error-summary")).toHaveFocus()
+    })
+
+    it("explains the required asterisk only while the Name field shows", () => {
+      render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).queryByTestId("required-legend")).not.toBeInTheDocument()
+      fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Other Proficiency" }))
+      expect(within(modal).getByTestId("required-legend")).toBeInTheDocument()
+    })
+
+    it("does not save a typed feature whose name was cleared, and says why", () => {
+      const onUpdate = vi.fn()
+      render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Other Proficiency" }))
+      fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: " " } })
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+      expect(onUpdate).not.toHaveBeenCalled()
+      expect(within(modal).getByTestId("feature-name-input")).toBeRequired()
+      expect(within(modal).getByTestId("feature-name-input")).toHaveAccessibleDescription("Name is required")
+    })
+
+    // A type with no Name field cannot be asked for one: a blank name takes the type, as picking it does
+    it("saves a nameless-type feature with no name, naming it after its type", () => {
+      const onUpdate = vi.fn()
+      const feature = makeFeature({ name: "", featureType: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 10 } }] })
+      render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /^edit$/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).queryByTestId("feature-name-input")).not.toBeInTheDocument()
+
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+
+      expect(within(modal).queryByTestId("form-error-summary")).not.toBeInTheDocument()
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ classFeatures: [expect.objectContaining({ name: "Hit Points" })] })
+      )
     })
 
     it("calls onUpdate with new class feature on valid submit", () => {

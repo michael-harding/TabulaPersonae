@@ -140,6 +140,13 @@ describe("SpellEditModal", () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ damagePerLevel: "2d6", gainPerLevel: "1d8" }))
   })
 
+  it("keeps its actions in the sticky modal footer", () => {
+    render(() => <SpellEditModal open spell={null} magicItems={[]} onSave={vi.fn()} onCancel={vi.fn()} />)
+    const footer = screen.getByTestId("modal-footer")
+    expect(footer).toContainElement(screen.getByTestId("spell-form-submit"))
+    expect(footer).toContainElement(screen.getByTestId("spell-form-cancel"))
+  })
+
   it("adds a spell when given none", () => {
     const onSave = vi.fn()
     render(() => <SpellEditModal open spell={null} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
@@ -174,11 +181,14 @@ describe("SpellEditModal", () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ attackSave: "Dex Save" }))
   })
 
-  it("does not save a spell without a name", () => {
+  it("does not save a spell without a name, and says why", () => {
     const onSave = vi.fn()
     render(() => <SpellEditModal open spell={null} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
     fireEvent.click(screen.getByTestId("spell-form-submit"))
     expect(onSave).not.toHaveBeenCalled()
+    expect(screen.getByTestId("spell-name")).toBeRequired()
+    expect(screen.getByTestId("spell-name")).toHaveAccessibleDescription("Spell Name is required")
+    expect(screen.getByTestId("form-error-summary")).toHaveFocus()
   })
 
   it("has no accessibility violations", async () => {

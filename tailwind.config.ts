@@ -43,6 +43,7 @@ const config: Config = {
           foreground: "var(--destructive-foreground)",
           text: "var(--destructive-text)",
         },
+        well: "var(--well)",
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",

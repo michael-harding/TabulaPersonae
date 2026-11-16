@@ -5,7 +5,6 @@ import Clock from "lucide-solid/icons/clock"
 import Target from "lucide-solid/icons/target"
 import Shield from "lucide-solid/icons/shield"
 import Sparkles from "lucide-solid/icons/sparkles"
-import ChevronDown from "lucide-solid/icons/chevron-down"
 import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
@@ -18,12 +17,14 @@ import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
+import { FieldError, FormErrorSummary, RequiredLegend } from "@/components/ui/form-validation"
+import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
 import { Textarea } from "@/components/ui/textarea"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
+import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { Chip } from "@/components/ui/chip"
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { ActionCard, ActionCardList, type ActionCardReorder, type SlotLevel } from "@/components/action-card"
 import { SortableGroup, SortableHandle, SortableList, SortableMoveButton, createSortableItem, type SortablePosition } from "@/components/ui/sortable"
@@ -109,19 +110,23 @@ function ActionForm(props: ActionFormProps) {
     description: props.initialData?.description ?? "",
   })
 
-  const handleSubmit = () => {
-    if (!formData().name.trim()) return
-    if (props.kind === "reaction" && !formData().trigger.trim()) return
-    props.onSubmit(formData())
-  }
+  const validation = useFormValidation(() => [
+    requiredText("action-name", `${kindLabel()} Name`, formData().name),
+    props.kind === "reaction" && requiredText("action-trigger", "Trigger", formData().trigger),
+  ])
+  const handleSubmit = () => { if (validation.validate()) props.onSubmit(formData()) }
 
   return (
     <div class="space-y-4">
+      <RequiredLegend />
+      <FormErrorSummary validation={validation} />
       <div>
-        <Label for="action-name">{kindLabel()} Name</Label>
-        <Input id="action-name" autofocus value={formData().name}
+        <Label for="action-name" required>{kindLabel()} Name</Label>
+        <Input id="action-name" data-test="action-name" autofocus required value={formData().name}
           onInput={(e) => setFormData(p => ({ ...p, name: e.currentTarget.value }))}
+          {...validation.controlProps("action-name")}
           placeholder={props.kind === "reaction" ? "e.g., Shield, Opportunity Attack" : props.kind === "bonus-action" ? "e.g., Second Wind, Cunning Action" : "e.g., Lay on Hands, Breath Weapon"} />
+        <FieldError validation={validation} fieldId="action-name" />
       </div>
 
       <div>
@@ -131,10 +136,12 @@ function ActionForm(props: ActionFormProps) {
 
       <Show when={props.kind === "reaction"}>
         <div>
-          <Label for="action-trigger">Trigger</Label>
-          <Input id="action-trigger" value={formData().trigger}
+          <Label for="action-trigger" required>Trigger</Label>
+          <Input id="action-trigger" data-test="action-trigger" required value={formData().trigger}
             onInput={(e) => setFormData(p => ({ ...p, trigger: e.currentTarget.value }))}
+            {...validation.controlProps("action-trigger")}
             placeholder="e.g., When a creature moves out of your reach" />
+          <FieldError validation={validation} fieldId="action-trigger" />
         </div>
       </Show>
 
@@ -193,13 +200,13 @@ function ActionForm(props: ActionFormProps) {
           placeholder={`Describe what this ${kindLabel().toLowerCase()} does...`} rows={3} />
       </div>
 
-      <div class="flex gap-2 justify-end">
+      <ModalFooter>
         <Show when={props.onDelete}>
           <ConfirmButton data-test="action-form-delete" variant="destructive" verb="Delete" onConfirm={() => props.onDelete?.()} class="mr-auto">Delete</ConfirmButton>
         </Show>
         <Button variant="outline" onClick={props.onCancel}>Cancel</Button>
-        <Button onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel()}</Button>
-      </div>
+        <Button data-test="action-form-submit" onClick={handleSubmit}>{isEditing() ? "Save" : "Add"} {kindLabel()}</Button>
+      </ModalFooter>
     </div>
   )
 }
@@ -354,11 +361,12 @@ function ActionSectionBody(props: ActionSectionBodyProps) {
             <ActionCardList><For each={keys().main}>{(key) => card(key)}</For></ActionCardList>
           </Show>
           <Show when={keys().more.length > 0}>
-            <Collapsible open={props.moreOpen} onOpenChange={props.onMoreOpenChange} class={keys().main.length > 0 ? "mt-3" : undefined}>
+            {/* Set apart from the page by its shade, toggle and all, as the list is in edit mode */}
+            <Collapsible open={props.moreOpen} onOpenChange={props.onMoreOpenChange} class={cn("rounded-lg bg-well p-2", keys().main.length > 0 && "mt-3")}>
               <CollapsibleTrigger data-test={hook("more-toggle")} class={cn("flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-muted-foreground transition-colors", HOVER_ACCENT)}>
                 <span>{props.moreTitle}</span>
                 <Chip variant="secondary">{keys().more.length}</Chip>
-                <ChevronDown class="ml-auto h-4 w-4 transition-transform ui-expanded:rotate-180" aria-hidden="true" />
+                <CollapsibleChevron class="ml-auto" />
               </CollapsibleTrigger>
               <CollapsibleContent class="mt-2">
                 <ActionCardList><For each={keys().more}>{(key) => card(key)}</For></ActionCardList>
@@ -378,13 +386,13 @@ function ActionSectionBody(props: ActionSectionBodyProps) {
           <span>{props.moreTitle}</span>
           <Chip variant="secondary">{keys().more.length}</Chip>
         </div>
-        {/* Marked as where set-aside cards go, and lit up while a card is dragged over it */}
+        {/* Marked as where set-aside cards go, set apart from the page by its shade, and lit up while a card is dragged over it */}
         <SortableList
           id="more"
           ids={keys().more}
           data-test={hook("more-list")}
           class={cn(
-            "rounded-lg border border-dashed p-2 transition-colors",
+            "rounded-lg border border-dashed bg-well p-2 transition-colors",
             draggingInMore() && "border-primary bg-accent",
           )}
         >
@@ -904,7 +912,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               <Target class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Actions</span>
               <Chip variant="secondary">{actionEntries().length}</Chip>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+              <CollapsibleChevron class="ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddAction}>
@@ -925,7 +933,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               <Clock class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Bonus Actions</span>
               <Chip variant="secondary">{bonusActionEntries().length}</Chip>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+              <CollapsibleChevron class="ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-bonus-action-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddBonusAction}>
@@ -946,7 +954,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               <Shield class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Reactions</span>
               <Chip variant="secondary">{reactionEntries().length}</Chip>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+              <CollapsibleChevron class="ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-reaction-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddReaction}>
@@ -967,7 +975,7 @@ export function ActionsModule(props: ActionsModuleProps) {
               <Sparkles class="h-5 w-5 text-primary" aria-hidden="true" />
               <span class="text-lg font-semibold">Other</span>
               <Chip variant="secondary">{otherEntries().length}</Chip>
-              <ChevronDown class="h-4 w-4 transition-transform ui-expanded:rotate-180 ml-auto" aria-hidden="true" />
+              <CollapsibleChevron class="ml-auto" />
             </CollapsibleTrigger>
             <Show when={!isReadOnly}>
               <Button data-test="add-other-button" variant="outline" size="sm" class="gap-1 h-7 ml-2" onClick={openAddOther}>

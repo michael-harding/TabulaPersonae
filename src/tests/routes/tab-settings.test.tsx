@@ -186,12 +186,57 @@ describe("TabSettings page", () => {
     })
   })
 
-  it("submitting an empty tab name does not call saveTabConfig", async () => {
+  // A single-field form: the message beside the field is the alert, with no summary (form-validation.tsx)
+  it("submitting an empty tab name saves nothing, says why, and keeps focus in the field", async () => {
     render(() => <TabSettings />)
     fireEvent.click(screen.getByRole("button", { name: /add tab/i }))
-    await screen.findByPlaceholderText(/tab name/i)
+    const input = await screen.findByRole("textbox", { name: "New tab name" })
+    expect(input).toBeRequired()
+    fireEvent.input(input, { target: { value: "  " } })
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }))
     expect(mockSaveTabConfig).not.toHaveBeenCalled()
+    expect(screen.getByRole("alert")).toHaveTextContent("Tab name is required")
+    expect(input).toHaveAttribute("aria-invalid", "true")
+    expect(input).toHaveAccessibleDescription("Tab name is required")
+    expect(input).toHaveFocus()
+    expect(screen.queryByTestId("form-error-summary")).not.toBeInTheDocument()
+
+    fireEvent.input(input, { target: { value: "Loot" } })
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("an add-tab form opened again starts without the message", async () => {
+    render(() => <TabSettings />)
+    fireEvent.click(screen.getByTestId("add-tab-button"))
+    fireEvent.click(screen.getByTestId("add-tab-submit"))
+    expect(screen.getByRole("alert")).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId("add-tab-cancel"))
+    fireEvent.click(screen.getByTestId("add-tab-button"))
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  // It used to close the rename field and quietly keep the old name
+  it("saving an empty rename keeps the field open and says why", async () => {
+    render(() => <TabSettings />)
+    fireEvent.click(screen.getByTestId("tab-rename-tab-combat"))
+    const input = screen.getByTestId("tab-rename-input-tab-combat")
+    fireEvent.input(input, { target: { value: "" } })
+    fireEvent.click(screen.getByTestId("tab-rename-save-tab-combat"))
+    expect(mockSaveTabConfig).not.toHaveBeenCalled()
+    expect(screen.getByTestId("tab-rename-input-tab-combat")).toHaveAccessibleDescription("Tab name is required")
+    expect(screen.getByRole("alert")).toHaveTextContent("Tab name is required")
+    expect(input).toHaveFocus()
+
+    fireEvent.click(screen.getByTestId("tab-rename-cancel-tab-combat"))
+    fireEvent.click(screen.getByTestId("tab-rename-tab-combat"))
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("has no accessibility violations with a tab name message showing", async () => {
+    const { container } = render(() => <TabSettings />)
+    fireEvent.click(screen.getByTestId("add-tab-button"))
+    fireEvent.click(screen.getByTestId("add-tab-submit"))
+    expect((await axe(container)).violations).toHaveLength(0)
   })
 
   it("a single click on delete tab only arms it — nothing is saved", () => {

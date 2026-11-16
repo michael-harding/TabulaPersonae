@@ -19,6 +19,7 @@ import userEvent from "@testing-library/user-event"
 
 import { useAuth } from "@/lib/auth-context"
 import { createDefaultCharacter, type Character } from "@/lib/character-types"
+import { sheetColorShades } from "@/lib/sheet-color"
 import Home from "@/routes/Home"
 
 import { cleanup, cleanupPortals, render, screen, waitFor, fireEvent, confirmClick } from "../test-utils"
@@ -84,6 +85,42 @@ describe("Home character list", () => {
     }
     await renderAndLoad([character])
     expect(screen.getByText("HP: 10/15")).toBeInTheDocument()
+  })
+})
+
+// On each card rather than <body>: every card has its own character's colour
+describe("Home character card colour", () => {
+  const card = (id: string) => screen.getByTestId(`character-card-${id}`)
+
+  it("shows each card in a readable shade of its character's sheet colour for each theme", async () => {
+    const gold = sheetColorShades("#eab308")!
+    const purple = sheetColorShades("#8b5cf6")!
+    mockStorageManager.getCharacters.mockResolvedValue([
+      { ...createDefaultCharacter(), id: "char-1", name: "Goldie", sheetColor: "#eab308" },
+      { ...createDefaultCharacter(), id: "char-2", name: "Violet", sheetColor: "#8b5cf6" },
+    ])
+    render(() => <Home />)
+    await waitFor(() => expect(screen.getByText("Violet")).toBeInTheDocument())
+
+    expect(card("char-1")).toHaveAttribute("data-sheet-color")
+    expect(card("char-1").style.getPropertyValue("--sheet-primary-light")).toBe(gold.light)
+    expect(card("char-1").style.getPropertyValue("--sheet-primary-dark")).toBe(gold.dark)
+    expect(card("char-2").style.getPropertyValue("--sheet-primary-light")).toBe(purple.light)
+    expect(card("char-2").style.getPropertyValue("--sheet-primary-dark")).toBe(purple.dark)
+    // Never the raw colour as the theme's primary: that is what made text unreadable
+    expect(card("char-1").style.getPropertyValue("--primary")).toBe("")
+  })
+
+  it("keeps the theme's own colour on a card whose character has none", async () => {
+    await renderAndLoad([{ ...createDefaultCharacter(), id: "char-1", name: "Plain" }])
+    expect(card("char-1")).not.toHaveAttribute("data-sheet-color")
+    expect(card("char-1").style.getPropertyValue("--sheet-primary-light")).toBe("")
+  })
+
+  it("keeps the colour on the card, leaving the page in the theme's colour", async () => {
+    await renderAndLoad([{ ...createDefaultCharacter(), id: "char-1", name: "Goldie", sheetColor: "#eab308" }])
+    expect(document.body).not.toHaveAttribute("data-sheet-color")
+    expect(document.body.style.getPropertyValue("--sheet-primary-light")).toBe("")
   })
 })
 

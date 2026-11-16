@@ -1,10 +1,21 @@
 import { axe } from "vitest-axe"
 
 import { SheetSettingsModule } from "@/components/sheet-settings-module"
+import { useAuth } from "@/lib/auth-context"
 import { createDefaultCharacter } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 import { render, screen, fireEvent } from "../test-utils"
+import { createMockAuth, createTestUser } from "../mocks/auth"
+
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: vi.fn(),
+}))
+
+const mockUseAuth = vi.mocked(useAuth)
+const signedIn = () => createMockAuth({ user: () => createTestUser() })
+// Characters kept only on this device: skip-auth, without an account
+const localOnly = () => createMockAuth({ skipAuth: () => true })
 
 const baseCharacter = createDefaultCharacter()
 const char2014 = { ...baseCharacter, edition: "2014" as const }
@@ -14,6 +25,10 @@ const charPublic = { ...baseCharacter, id: "char-abc", isPublic: true }
 const charPrivate = { ...baseCharacter, id: "char-abc", isPublic: false }
 
 describe("SheetSettingsModule", () => {
+  beforeEach(() => {
+    mockUseAuth.mockReturnValue(signedIn())
+  })
+
   describe("edition switch", () => {
     it("renders both edition labels", () => {
       render(() => <SheetSettingsModule character={baseCharacter} onUpdate={vi.fn()} />)
@@ -164,6 +179,38 @@ describe("SheetSettingsModule", () => {
     it("does not show the Copy link button when isPublic is false", () => {
       render(() => <SheetSettingsModule character={charPrivate} onUpdate={vi.fn()} />)
       expect(screen.queryByRole("button", { name: /copy share link/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe("without a signed-in user", () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue(localOnly())
+    })
+
+    it("does not offer public sharing", () => {
+      render(() => <SheetSettingsModule character={charPrivate} onUpdate={vi.fn()} />)
+      expect(screen.queryByText("Public Sharing")).not.toBeInTheDocument()
+      expect(screen.queryByText("Share publicly")).not.toBeInTheDocument()
+      expect(screen.queryByRole("checkbox", { name: /off on/i })).not.toBeInTheDocument()
+    })
+
+    it("does not show a share link even for a character marked public", () => {
+      render(() => <SheetSettingsModule character={charPublic} onUpdate={vi.fn()} />)
+      expect(screen.queryByLabelText("Share URL")).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /copy share link/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("img", { name: /qr code/i })).not.toBeInTheDocument()
+    })
+
+    it("still offers the other sheet settings", () => {
+      render(() => <SheetSettingsModule character={baseCharacter} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("checkbox", { name: /2014 2024/i })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /red theme color/i })).toBeInTheDocument()
+    })
+
+    it("has no accessibility violations", async () => {
+      const { container } = render(() => <SheetSettingsModule character={baseCharacter} onUpdate={vi.fn()} />)
+      const results = await axe(container)
+      expect(results.violations).toHaveLength(0)
     })
   })
 

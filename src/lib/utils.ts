@@ -25,8 +25,8 @@ export const TOUCH_TARGET_BOX = "inline-flex min-h-11 min-w-11 shrink-0 items-ce
 export const INLINE_LINK_TARGET = "inline-flex min-h-11 items-center align-middle"
 
 // The hover highlight for a row or control. The accent background always comes with the accent
-// foreground: in the light theme accent is a strong red, and body text left on it has a contrast
-// ratio of about 2:1 (WCAG AA needs 4.5:1). Use this instead of writing `hover:bg-accent` alone.
+// foreground, so text on the highlight is the colour each theme pairs with it rather than whatever
+// the row inherited. Use this instead of writing `hover:bg-accent` alone.
 export const HOVER_ACCENT = "hover:bg-accent hover:text-accent-foreground"
 
 // Temporary hit points' color, shared by both health bars' temp HP segment and the action cards'

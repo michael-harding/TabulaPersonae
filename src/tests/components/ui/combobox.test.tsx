@@ -18,6 +18,19 @@ describe("Combobox", () => {
     expect(screen.getByRole("combobox", { name: "Class" })).toBeInTheDocument()
   })
 
+  // What validation.controlProps(id) spreads onto a control that failed a check
+  it("puts aria-invalid and aria-describedby on the input, so an error message describes it", () => {
+    render(() => (
+      <>
+        <Combobox options={OPTIONS} aria-label="Class" aria-invalid="true" aria-describedby="class-error" />
+        <p id="class-error">Class is required</p>
+      </>
+    ))
+    const input = screen.getByRole("combobox", { name: "Class" })
+    expect(input).toHaveAttribute("aria-invalid", "true")
+    expect(input).toHaveAccessibleDescription("Class is required")
+  })
+
   it.each([
     ["the <label for> that names the input", () => (
       <>

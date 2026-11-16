@@ -313,5 +313,12 @@ test.describe("Contrast while hovering", () => {
         expect(await auditHover(page)).toEqual([])
       })
     }
+    // Each card on the list is in its character's sheet colour, and the whole card highlights
+    test(`${name} sheet colour, character list`, async ({ page }) => {
+      await seedGuest(page, { ...testCharacter, sheetColor: hex })
+      await page.goto("/")
+      await expect(page.locator(`[data-test="character-card-${testCharacter.id}"]`)).toBeVisible()
+      expect(await auditHover(page)).toEqual([])
+    })
   }
 })

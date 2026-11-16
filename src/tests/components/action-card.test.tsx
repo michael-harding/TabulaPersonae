@@ -125,6 +125,28 @@ describe("ActionCard", () => {
     })
   })
 
+  describe("at higher levels", () => {
+    it("shows At Higher Levels on the card face, below the highlights, clamped to two lines", () => {
+      render(() => <ActionCard {...makeProps({ highlights: "Big boom", atHigherLevel: "+1d6 per slot level above 3rd" })} />)
+      const row = screen.getByTestId("action-card-test-at-higher-level")
+      expect(row).toHaveTextContent("At Higher Levels: +1d6 per slot level above 3rd")
+      expect(row).toHaveClass("line-clamp-2")
+      const summary = screen.getByText("Big boom")
+      expect(summary.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it("shows it alongside the description when there are no highlights", () => {
+      render(() => <ActionCard {...makeProps({ description: "A great action.", atHigherLevel: "+1d6" })} />)
+      expect(screen.getByText("A great action.")).toBeInTheDocument()
+      expect(screen.getByTestId("action-card-test-at-higher-level")).toHaveTextContent("+1d6")
+    })
+
+    it("shows no At Higher Levels line without a value", () => {
+      render(() => <ActionCard {...makeProps({ description: "A great action." })} />)
+      expect(screen.queryByTestId("action-card-test-at-higher-level")).not.toBeInTheDocument()
+    })
+  })
+
   describe("stat badges", () => {
     it("shows the attack bonus as a two-line badge", () => {
       render(() => <ActionCard {...makeProps({ attackBonus: 5 })} />)

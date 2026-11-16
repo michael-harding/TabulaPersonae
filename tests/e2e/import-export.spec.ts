@@ -122,8 +122,20 @@ test.describe("Importing JSON", () => {
     const original = stored.find((c) => c.id === testCharacter.id)!
     // The export also carries the calculated values of the moment (e.g. passive Perception) for
     // other tools to read, so the copy may hold more fields — but every field of the original
-    // comes back unchanged.
-    expect(copy).toMatchObject({ ...original, id: copy.id })
+    // comes back unchanged, apart from the name that tells the two apart.
+    expect(copy).toMatchObject({ ...original, id: copy.id, name: `${original.name} the Second` })
+  })
+
+  test("a character whose name is taken gets the next ordinal, and opens under it", async ({ page }) => {
+    await seedGuest(page, [testCharacter, { ...secondCharacter, name: `${testCharacter.name} the Second` }])
+    await page.goto("/")
+    await importFile(page, jsonFile("aria.json", testCharacter))
+
+    const name = `${testCharacter.name} the Third`
+    await expect(page.getByText(`Imported ${name} successfully!`)).toBeVisible()
+    const imported = (await storedCharacters(page)).find((c) => c.name === name)!
+    await expect(page).toHaveURL(`/character/${imported.id}`)
+    await expect(page.getByRole("heading", { name })).toBeVisible()
   })
 })
 

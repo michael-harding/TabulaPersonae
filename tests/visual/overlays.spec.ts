@@ -27,10 +27,11 @@ for (const theme of ["light", "dark"] as const) {
   })
 }
 
+// Only the overlays whose layout changes at phone width: the header menu's matches its desktop baseline.
 test.describe("Overlays — phone", () => {
   test.use({ viewport: PHONE })
 
-  for (const name of ["header-menu", "action-card-expanded"]) {
+  for (const name of ["action-card-expanded"]) {
     test(name, async ({ page }) => {
       const popup = await openOverlay(page, OVERLAYS.find((o) => o.name === name)!)
       await expect(popup).toHaveScreenshot(`overlay-${name}-phone.png`)

@@ -34,6 +34,21 @@ describe("Label", () => {
     expect(screen.getByLabelText("Name")).toBeInTheDocument()
   })
 
+  it("shows a required asterisk only when marked required, hidden from screen readers", () => {
+    render(() => (
+      <>
+        <Label for="req-field" required>Trigger</Label>
+        <Input id="req-field" required onInput={vi.fn()} />
+        <Label for="opt-field">Range</Label>
+        <Input id="opt-field" onInput={vi.fn()} />
+      </>
+    ))
+    expect(screen.getByTestId("required-mark-req-field")).toHaveAttribute("aria-hidden", "true")
+    expect(screen.queryByTestId("required-mark-opt-field")).not.toBeInTheDocument()
+    // The asterisk sits outside the label, so the field's name stays "Trigger"
+    expect(screen.getByRole("textbox", { name: "Trigger" })).toBeRequired()
+  })
+
   it("has no accessibility violations", async () => {
     const { container } = render(() => (
       <>

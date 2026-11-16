@@ -5,6 +5,27 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.9.0] - 2026-11-15
+
+### Added
+- **Required-field validation** — the action, equipment, feature and spell editors and the sign-in form now mark required fields with an asterisk. Saving with a field missing or invalid keeps the form open and shows a summary of the errors, which takes focus, and a message beneath each field that screen readers read with it; the Save button is never left silently disabled. Sign-in checks the email's format and the password's length before the Terms of Use dialog, and a password reset checks only the email. Adding or renaming a tab with a blank name now says why instead of doing nothing or quietly keeping the old name
+- **Text areas that fit their text** — description and notes fields now grow and shrink with their text, including pasted text and text that rewraps when the window narrows, in place of a resize handle and an inner scrollbar. Long text scrolls the dialog or page instead, without the view jumping while you type
+- **Numbered names for duplicate imports** — importing a character whose name is already taken (ignoring case and spacing) now names it "the Second", "the Third" and so on, continuing past the highest already in use, for JSON and PDF imports alike. The success message gives the final name
+- A spell's At Higher Levels text is now shown on its action card, beneath the highlights, cut to two lines
+- Each card on the character list is shown in that character's sheet color
+
+### Changed
+- In the action, equipment, feature and spell editors, the Save and Cancel buttons stay pinned to the bottom of the dialog while a long form scrolls beneath them
+- The collapsed "More" list beneath each Actions section sits on a recessed shade, setting it apart from the main cards
+- The hover highlight in the light theme is now a light gray rather than red, so text on it stays readable, and the whole of a character card is highlighted when hovered. Dividers in the dark theme are brighter
+- Sheet Settings are stacked in a single column at every screen width
+
+### Fixed
+- The chevrons on collapsible sections now turn when a section is opened
+- The Public Sharing settings are hidden when no one is signed in, since characters kept only on this device can't be shared
+- The browser tab no longer keeps a character's name after leaving their sheet
+- Icons beside long card titles no longer get squashed
+
 ## [v1.8.0] - 2026-11-10
 
 ### Added

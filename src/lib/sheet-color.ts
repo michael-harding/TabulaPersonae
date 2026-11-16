@@ -132,8 +132,9 @@ export function sheetColorShades(hex: string): { light: string; dark: string } |
 }
 
 /**
- * The attributes that give a sheet its colour, which useSheetColor sets on the page: the shades,
- * and the data-sheet-color attribute globals.css applies them through. None keeps the theme's colour.
+ * The attributes that give a sheet its colour, which useSheetColor sets on the page and the home
+ * page spreads onto each character's card: the shades, and the data-sheet-color attribute
+ * globals.css applies them through. None keeps the theme's colour.
  */
 export function sheetColorAttributes(hex: string | undefined): { "data-sheet-color"?: ""; style?: Record<string, string> } {
   const shades = hex == null ? null : sheetColorShades(hex)

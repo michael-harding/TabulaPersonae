@@ -1,7 +1,9 @@
-import { type Page } from "@playwright/test"
+import { expect, type Page } from "@playwright/test"
 
 import type { Character } from "../../src/lib/character-types"
+import type { ModalCase } from "../popup-cases"
 import { expandedSectionsStorage } from "../sheet-storage"
+import { testCharacter } from "./fixtures"
 
 /** Tall enough that no modal scrolls, so a change below its fold still shows in the screenshot. */
 export const TALL = { width: 1280, height: 1600 }
@@ -41,4 +43,12 @@ export async function parkPointer(page: Page) {
 /** The open modal. */
 export function dialog(page: Page) {
   return page.getByRole("dialog")
+}
+
+/** Opens the test character's sheet and the given modal, with the pointer parked. */
+export async function openModal(page: Page, modal: ModalCase, theme?: Theme) {
+  await openSheet(page, testCharacter, { tab: modal.tab, theme })
+  await modal.open(page)
+  await expect(dialog(page)).toBeVisible()
+  await parkPointer(page)
 }

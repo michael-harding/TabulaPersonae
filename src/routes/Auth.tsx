@@ -1,10 +1,13 @@
-import { createSignal, createEffect, Show } from "solid-js"
+import { createSignal, createEffect, on, Show } from "solid-js"
 import { useNavigate, A } from "@solidjs/router"
 import { Dialog as DialogPrimitive } from "@kobalte/core/dialog"
 import Scroll from "lucide-solid/icons/scroll"
 
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { FieldError, FormErrorSummary, RequiredLegend } from "@/components/ui/form-validation"
+import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
 import { INLINE_LINK_TARGET } from "@/lib/utils"
 
 const TERMS_KEY = "dnd-terms-accepted"
@@ -79,12 +82,9 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
   }
 
   const doSubmit = async () => {
-    setError("")
     setLoading(true)
     try {
       if (isSignUp()) {
-        if (password() !== confirmPassword()) { setError("Passwords do not match"); setLoading(false); return }
-        if (password().length < 6) { setError("Password should be at least 6 characters"); setLoading(false); return }
         await signUp(email(), password())
       } else {
         await signIn(email(), password())
@@ -96,8 +96,29 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
     }
   }
 
+  // Forgot password needs only the email; Sign In and Create Account check every field. Whichever
+  // was tried last decides which checks apply as the user goes on editing.
+  const [resetting, setResetting] = createSignal(false)
+  const emailIssue = () =>
+    requiredText("auth-email", "Email", email())
+      ?? (EMAIL_PATTERN.test(email().trim()) ? undefined : { fieldId: "auth-email", message: "Enter a valid email address" })
+  // Spaces are characters like any other in a password, so one of only spaces is not blank
+  const validation = useFormValidation(() => resetting() ? [emailIssue()] : [
+    emailIssue(),
+    requiredText("auth-password", "Password", password(), { whitespaceIsText: true })
+      ?? (isSignUp() && password().length < 6 ? { fieldId: "auth-password", message: "Password should be at least 6 characters" } : undefined),
+    isSignUp() && (requiredText("confirm-password", "Confirm Password", confirmPassword(), { whitespaceIsText: true })
+      ?? (password() !== confirmPassword() ? { fieldId: "confirm-password", message: "Passwords do not match" } : undefined)),
+  ])
+  // Switching between Sign In and Sign Up changes which checks apply: start again from no messages.
+  createEffect(on(isSignUp, () => validation.reset(), { defer: true }))
+
+  // Each attempt starts by clearing the last one's server message, so it never sits beside new ones
   const handleSubmit = (e: Event) => {
     e.preventDefault()
+    setError("")
+    setResetting(false)
+    if (!validation.validate()) return
     if (isSignUp()) {
       props.onNeedConsent(doSubmit)
     } else {
@@ -106,7 +127,10 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
   }
 
   const handlePasswordReset = async () => {
-    if (!email()) { setError("Please enter your email address"); return }
+    setError("")
+    setResetEmailSent(false)
+    setResetting(true)
+    if (!validation.validate()) return
     setLoading(true)
     try {
       await resetPassword(email())
@@ -138,46 +162,52 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
           Sign Up
         </button>
       </div>
-      <form onSubmit={handleSubmit} class="space-y-4">
+      {/* noValidate: the browser's own required-field popup would pre-empt the standard error UI. */}
+      <form onSubmit={handleSubmit} noValidate class="space-y-4">
+        <RequiredLegend all />
+        <FormErrorSummary validation={validation} />
         <div class="space-y-2">
           <label for="auth-email" class="text-sm font-medium">Email</label>
-          <input
+          <Input
             id="auth-email"
             data-test="auth-email-input"
             type="email"
             placeholder="Enter your email"
             value={email()}
             onInput={(e) => setEmail(e.currentTarget.value)}
-            class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm placeholder:text-muted-foreground"
             required
+            {...validation.controlProps("auth-email")}
           />
+          <FieldError validation={validation} fieldId="auth-email" />
         </div>
         <div class="space-y-2">
           <label for="auth-password" class="text-sm font-medium">Password</label>
-          <input
+          <Input
             id="auth-password"
             data-test="auth-password-input"
             type="password"
             placeholder={isSignUp() ? "Create a password" : "Enter your password"}
             value={password()}
             onInput={(e) => setPassword(e.currentTarget.value)}
-            class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm placeholder:text-muted-foreground"
             required
+            {...validation.controlProps("auth-password")}
           />
+          <FieldError validation={validation} fieldId="auth-password" />
         </div>
         <Show when={isSignUp()}>
           <div class="space-y-2">
             <label for="confirm-password" class="text-sm font-medium">Confirm Password</label>
-            <input
+            <Input
               id="confirm-password"
               data-test="auth-confirm-password-input"
               type="password"
               placeholder="Confirm your password"
               value={confirmPassword()}
               onInput={(e) => setConfirmPassword(e.currentTarget.value)}
-              class="w-full h-11 px-3 border border-input bg-background rounded-md text-sm placeholder:text-muted-foreground"
               required
+              {...validation.controlProps("confirm-password")}
             />
+            <FieldError validation={validation} fieldId="confirm-password" />
           </div>
           <p class="text-xs text-muted-foreground">
             By creating an account, you agree to our{" "}
@@ -211,6 +241,10 @@ function AuthForm(props: { onNeedConsent: (next: () => void) => void }) {
     </div>
   )
 }
+
+// Something@something.something: enough to catch a typo before the round trip to the server, which
+// has the final say (ARCHITECTURE.md: UI validation is additive to server-side validation).
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function Auth() {
   const { user, skipAuth, loading } = useAuth()
