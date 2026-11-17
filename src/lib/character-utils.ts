@@ -1,5 +1,6 @@
-import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell, UseableEntry } from "./character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell, SpellSlotLevel, UseableEntry } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
+import type { FeatureListField } from "./required-features"
 
 export function getAbilityModifier(score: number): number {
   return Math.floor((Math.max(0, score) - 10) / 2)
@@ -133,7 +134,7 @@ export function featureSourceLabel(feature: Pick<Feature, "name" | "source">): s
 export function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue | '' {
   if (actionKind) return 'Action'
   const effects = levelEffects?.[0]?.effects
-  if (effects?.spellcastingAbility) return 'Spellcasting Ability'
+  if (effects?.spellcastingAbility || effects?.spellSlots) return 'Spellcasting'
   if (
     effects?.hitDiceSize ||
     effects?.hitPointsMode != null ||
@@ -343,6 +344,19 @@ export interface FeatureEffectTotals {
   carryingCapacityMultiplier: number
   hpBonusPerLevel: number
   hpBonusPerLevelGrants: SourcedBonus[]
+  /** How many slots of each level the character has, summed over its Spellcasting features. */
+  spellSlots: Record<SpellSlotLevel, number>
+}
+
+export const SPELL_SLOT_LEVELS: readonly SpellSlotLevel[] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+const ZERO_SPELL_SLOTS: Record<SpellSlotLevel, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 }
+
+/** A spell slot level as it's read aloud: 1 → "1st", 2 → "2nd", 3 → "3rd", 4 → "4th". */
+export function ordinal(level: number): string {
+  const suffixes = ["th", "st", "nd", "rd"]
+  const v = level % 100
+  return level + (suffixes[(v - 20) % 10] ?? suffixes[v] ?? suffixes[0])
 }
 
 // Every tier whose level threshold has been reached, oldest first — not just the highest one.
@@ -390,6 +404,7 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     carryingCapacityMultiplier: 1,
     hpBonusPerLevel: 0,
     hpBonusPerLevelGrants: [],
+    spellSlots: { ...ZERO_SPELL_SLOTS },
   }
   const level = character.level ?? 1
 
@@ -511,10 +526,117 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
           totals.hpBonusPerLevelGrants.push({ source: sourceLabel, amount: hpBonusPerLevelAmount })
         }
       }
+
+      // Not folded like the rest: each Spellcasting tier is a whole row of the slot table, so only the
+      // highest one reached counts (tiers are in level order), and a row without slots gives none.
+      // Separate features still add up.
+      const slotRow = tiers[tiers.length - 1].spellSlots
+      for (const slotLevel of SPELL_SLOT_LEVELS) {
+        totals.spellSlots[slotLevel] += Math.max(0, Number(slotRow?.[slotLevel] ?? 0))
+      }
     }
   }
 
   return totals
+}
+
+export interface SpellSlotState {
+  total: number
+  used: number
+}
+
+/**
+ * The character's spell slots at each level: how many its Spellcasting features give it, and how
+ * many of those are spent. A spent count above the total (the feature was edited, or the character's
+ * level lowered) counts as all of them spent.
+ */
+export function getSpellSlots(
+  character: FeatureEffectCharacter & Pick<Character, "spentSpellSlots">,
+): Record<SpellSlotLevel, SpellSlotState> {
+  const totals = getActiveFeatureEffects(character).spellSlots
+  const slots = {} as Record<SpellSlotLevel, SpellSlotState>
+  for (const slotLevel of SPELL_SLOT_LEVELS) {
+    const total = totals[slotLevel]
+    slots[slotLevel] = { total, used: Math.min(total, Math.max(0, character.spentSpellSlots?.[slotLevel] ?? 0)) }
+  }
+  return slots
+}
+
+/** The character with `used` of its slots of `slotLevel` spent. */
+export function withSpentSpellSlots(character: Character, slotLevel: SpellSlotLevel, used: number): Character {
+  return { ...character, spentSpellSlots: { ...character.spentSpellSlots, [slotLevel]: Math.max(0, used) } }
+}
+
+const FEATURE_LIST_BY_KIND: Record<FeatureKind, FeatureListField> = {
+  "class-feature": "classFeatures",
+  "species-trait": "speciesTraits",
+  "background": "backgroundFeatures",
+  "feat": "feats",
+}
+
+/** The list a feature of this kind lives in. */
+export function featureListField(kind: FeatureKind): FeatureListField {
+  return FEATURE_LIST_BY_KIND[kind]
+}
+
+/** The name a new Spellcasting feature starts with. */
+export const SPELLCASTING_FEATURE_NAME = "Spellcasting & Spell Slots"
+
+/** Whether any of the feature's rows gives a spell slot. */
+export function givesSpellSlots(feature: Feature): boolean {
+  return (feature.levelEffects ?? []).some((tier) => Object.values(tier.effects.spellSlots ?? {}).some((count) => (count ?? 0) > 0))
+}
+
+/**
+ * The feature the Spells module's Edit Slots button opens, in the Features tab's order: the first
+ * Spellcasting feature giving slots, else the first Spellcasting class feature (a species trait or
+ * feat granting only a spellcasting ability isn't where a class's slots go).
+ */
+export function findSpellcastingFeature(character: FeatureEffectCharacter): Feature | undefined {
+  const spellcasting = Object.values(FEATURE_LIST_BY_KIND)
+    .flatMap((field) => safeFeatures(character[field]))
+    .filter((feature) => feature.featureType === "Spellcasting")
+  return spellcasting.find(givesSpellSlots) ?? spellcasting.find((feature) => feature.source === "class-feature")
+}
+
+/** A feature row's level, kept within the character levels 1–20. */
+export function clampFeatureLevel(level: number): number {
+  return Math.min(20, Math.max(1, Math.floor(level) || 1))
+}
+
+/**
+ * A Spellcasting Class Feature giving this ability and these slots from `level` on: what
+ * spellcasting from outside the Features tab becomes. Either may be absent.
+ */
+export function makeSpellcastingFeature(
+  effects: Pick<FeatureEffects, "spellcastingAbility" | "spellSlots">,
+  level: number,
+  description: string,
+): Feature {
+  return {
+    id: crypto.randomUUID(),
+    name: SPELLCASTING_FEATURE_NAME,
+    description,
+    source: "class-feature",
+    featureType: "Spellcasting",
+    levelEffects: [{
+      level: clampFeatureLevel(level),
+      effects: {
+        ...(effects.spellcastingAbility ? { spellcastingAbility: effects.spellcastingAbility } : {}),
+        ...(effects.spellSlots ? { spellSlots: effects.spellSlots } : {}),
+      },
+    }],
+  }
+}
+
+/** The character with `feature` saved to its list: replacing the feature with its id, or added at the end. */
+export function withFeatureSaved(character: Character, feature: Feature): Character {
+  const field = featureListField(feature.source)
+  const list = safeFeatures(character[field])
+  return {
+    ...character,
+    [field]: list.some((f) => f.id === feature.id) ? list.map((f) => (f.id === feature.id ? feature : f)) : [...list, feature],
+  }
 }
 
 // Spellcasting ability is only ever set via a Class Feature/Species Trait/Feat grant — the raw

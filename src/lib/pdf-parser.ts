@@ -1,22 +1,18 @@
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFString, type PDFObject } from "pdf-lib"
 
-import type { AbilityScores, ActionKind, Attack, Character, Equipment, Feature, FeatureKind, Skills, Spell } from "./character-types"
+import type { AbilityScores, ActionKind, Attack, Character, Equipment, Feature, FeatureKind, Skills, Spell, SpellSlotLevel } from "./character-types"
 import { createDefaultCharacter } from "./character-types"
-import { makeSizeTrait, splitConcentrationDuration } from "./character-utils"
-
-type SpellSlots = Character["spellSlots"]
-type SpellSlotLevel = keyof SpellSlots
+import { makeSizeTrait, makeSpellcastingFeature, splitConcentrationDuration } from "./character-utils"
 
 /**
  * What a PDF yields: only the fields the sheet actually held. The grouped fields can be partly
- * filled too (three of the six ability scores, some spell slot levels), so they are partial as
- * well. mergeWithDefault fills every gap from createDefaultCharacter().
+ * filled too (three of the six ability scores), so they are partial as well. mergeWithDefault
+ * fills every gap from createDefaultCharacter().
  */
-export type ParsedCharacter = Omit<Partial<Character>, "abilityScores" | "savingThrows" | "skills" | "spellSlots"> & {
+export type ParsedCharacter = Omit<Partial<Character>, "abilityScores" | "savingThrows" | "skills"> & {
   abilityScores?: Partial<AbilityScores>
   savingThrows?: Partial<Character["savingThrows"]>
   skills?: Partial<Skills>
-  spellSlots?: Partial<SpellSlots>
 }
 
 // --- Primitive parsers (exported for unit tests) ---
@@ -595,17 +591,31 @@ export function mapFieldsToCharacter(fields: Record<string, string | boolean>): 
   const spellcastingAbility = parseSpellcastingAbility(f("spellCastingAbility0"))
   if (spellcastingAbility) result.spellcastingAbility = spellcastingAbility
 
-  // Parse spell slots from section headers: "2 Slots OO"
-  const spellSlots: Partial<SpellSlots> = {}
+  // Parse spell slots from section headers: "2 Slots OO". The spellcasting ability and the slots are
+  // given by a Spellcasting class feature, so the sheet's become one, from the sheet's level on.
+  const slotTotals: Partial<Record<SpellSlotLevel, number>> = {}
+  const spentSlots: Partial<Record<SpellSlotLevel, number>> = {}
   for (let i = 1; i <= 9; i++) {
     const headerRaw = f(`spellSlotHeader${i}`)
     if (!headerRaw) continue
     const parsed = parseSpellSlotHeader(headerRaw)
     if (parsed && parsed.total > 0) {
-      spellSlots[i as SpellSlotLevel] = parsed
+      slotTotals[i as SpellSlotLevel] = parsed.total
+      if (parsed.used > 0) spentSlots[i as SpellSlotLevel] = parsed.used
     }
   }
-  if (Object.keys(spellSlots).length > 0) result.spellSlots = spellSlots
+  const hasSlots = Object.keys(slotTotals).length > 0
+  if (spellcastingAbility || hasSlots) {
+    result.classFeatures = [
+      ...(result.classFeatures ?? []),
+      makeSpellcastingFeature(
+        { spellcastingAbility: spellcastingAbility || undefined, spellSlots: hasSlots ? slotTotals : undefined },
+        result.level ?? 1,
+        "Grants this character's spellcasting ability and spell slots, from the imported character sheet. Add a level for each change in your class's spell slot table.",
+      ),
+    ]
+    if (Object.keys(spentSlots).length > 0) result.spentSpellSlots = spentSlots
+  }
 
   // Parse individual spells
   const spells: Spell[] = []
@@ -659,16 +669,6 @@ function mergeSkills(defaults: Skills, parsed?: Partial<Skills>): Skills {
   return result
 }
 
-function mergeSpellSlots(defaults: SpellSlots, parsed?: Partial<SpellSlots>): SpellSlots {
-  if (!parsed) return defaults
-  const result = { ...defaults }
-  for (let i = 1; i <= 9; i++) {
-    const level = i as SpellSlotLevel
-    if (parsed[level]) result[level] = { ...defaults[level], ...parsed[level] }
-  }
-  return result
-}
-
 export function mergeWithDefault(parsed: ParsedCharacter): Character {
   const d = createDefaultCharacter()
   return {
@@ -681,7 +681,6 @@ export function mergeWithDefault(parsed: ParsedCharacter): Character {
     skills: mergeSkills(d.skills, parsed.skills),
     hitPoints: { ...d.hitPoints, ...parsed.hitPoints },
     deathSaves: { ...d.deathSaves, ...parsed.deathSaves },
-    spellSlots: mergeSpellSlots(d.spellSlots, parsed.spellSlots),
     coins: { ...d.coins, ...parsed.coins } as NonNullable<Character["coins"]>,
   }
 }

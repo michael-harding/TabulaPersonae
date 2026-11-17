@@ -8,8 +8,8 @@ import Sparkles from "lucide-solid/icons/sparkles"
 import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, ActionKind, ActionType, ActionSectionKey, ActionSectionLayout, Attack, Equipment, Feature, Spell, OtherAction } from "@/lib/character-types"
-import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, ACTION_KIND_LABELS, RECHARGE_ON_OPTIONS, activeSpells, isSustainedSpell, withSpellActivated, withSpellEnded, withSpells, isSpellReady } from "@/lib/character-utils"
+import type { Character, ActionKind, ActionType, ActionSectionKey, ActionSectionLayout, Attack, Equipment, Feature, Spell, SpellSlotLevel, OtherAction } from "@/lib/character-types"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, ACTION_KIND_LABELS, RECHARGE_ON_OPTIONS, activeSpells, isSustainedSpell, withSpellActivated, withSpellEnded, withSpells, isSpellReady, getSpellSlots, withSpentSpellSlots, withFeatureSaved, featureListField, SPELL_SLOT_LEVELS, type SpellSlotState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { Button } from "@/components/ui/button"
@@ -212,26 +212,20 @@ function ActionForm(props: ActionFormProps) {
 }
 
 /** The character's list a feature is stored in. */
-function featureField(feature: Feature): 'classFeatures' | 'speciesTraits' | 'feats' | 'backgroundFeatures' {
-  return feature.source === 'class-feature' ? 'classFeatures'
-    : feature.source === 'species-trait' ? 'speciesTraits'
-    : feature.source === 'background' ? 'backgroundFeatures' : 'feats'
-}
-
 // Each accessor reads the spell's level when called: an edit keeps the same spell object (the store
 // reconciles by id), so the card isn't redrawn when the level changes.
-function createSpellAccessors(spell: Spell, getSpellSlots: () => Character['spellSlots']) {
-  const slots = () => getSpellSlots()[spell.level as keyof Character['spellSlots']]
+function createSpellAccessors(spell: Spell, spellSlots: () => Record<SpellSlotLevel, SpellSlotState>) {
+  const slots = () => spellSlots()[spell.level as SpellSlotLevel] as SpellSlotState | undefined
   // A cantrip or a free cast spends no slot
-  const canCast = () => spell.level === 0 || !!spell.freeCast || (!!slots() && slots().used < slots().total)
-  const higherLevels = () => ([2,3,4,5,6,7,8,9] as const)
+  const canCast = () => spell.level === 0 || !!spell.freeCast || (!!slots() && slots()!.used < slots()!.total)
+  const higherLevels = () => SPELL_SLOT_LEVELS
     .filter(l => l > spell.level)
-    .filter(l => (getSpellSlots()[l]?.total ?? 0) > 0)
+    .filter(l => spellSlots()[l].total > 0)
   // Whether the character has any slot level above the spell's, spent or not
   const hasHigherSlots = () => higherLevels().length > 0
   // The spell's own level and each higher level the character has slots of, with what's left
   const slotLevels = (): SlotLevel[] => [spell.level, ...higherLevels()].map((level) => {
-    const s = getSpellSlots()[level as keyof Character['spellSlots']]
+    const s = spellSlots()[level as SpellSlotLevel] as SpellSlotState | undefined
     return { level, remaining: s ? Math.max(0, s.total - s.used) : 0 }
   })
   return { canCast, slotLevels, hasHigherSlots }
@@ -523,14 +517,9 @@ export function ActionsModule(props: ActionsModuleProps) {
     isSpellReady(spell) && spell.castingTime.toLowerCase().includes("reaction")
   ))
 
-  const updateSpellSlotUsed = (level: number, used: number) => {
-    props.onUpdate({
-      ...props.character,
-      spellSlots: {
-        ...props.character.spellSlots,
-        [level]: { ...props.character.spellSlots[level as keyof typeof props.character.spellSlots], used },
-      },
-    })
+  const spellSlots = createMemo(() => getSpellSlots(props.character))
+  const updateSpellSlotUsed = (level: SpellSlotLevel, used: number) => {
+    props.onUpdate(withSpentSpellSlots(props.character, level, used))
   }
 
   // Casting spends a slot of the chosen level (a cantrip or a free cast spends none) and puts a spell
@@ -539,12 +528,12 @@ export function ActionsModule(props: ActionsModuleProps) {
   const castSpell = (spell: Spell, level: number) => {
     const spendsSlot = spell.level > 0 && !spell.freeCast
     const sustained = isSustainedSpell(spell)
-    const slots = props.character.spellSlots[level as keyof typeof props.character.spellSlots]
+    const slots = spellSlots()[level as SpellSlotLevel] as SpellSlotState | undefined
     if (spendsSlot && (!slots || slots.used >= slots.total)) return
     if (!spendsSlot && !sustained) return
+    const spent = spendsSlot ? withSpentSpellSlots(props.character, level as SpellSlotLevel, slots!.used + 1) : props.character
     props.onUpdate({
-      ...props.character,
-      ...(spendsSlot ? { spellSlots: { ...props.character.spellSlots, [level]: { ...slots, used: slots.used + 1 } } } : {}),
+      ...spent,
       ...(sustained ? { activeSpellIds: withSpellActivated(props.character, spell) } : {}),
     })
   }
@@ -637,7 +626,7 @@ export function ActionsModule(props: ActionsModuleProps) {
     props.onUpdate({ ...props.character, reactions: (props.character.reactions || []).map(r => r.id === id ? { ...r, uses: v } : r) })
   }
   const handleFeatureUsesChange = (feature: Feature, v: number) => {
-    const field = featureField(feature)
+    const field = featureListField(feature.source)
     props.onUpdate({
       ...props.character,
       [field]: safeFeatures(props.character[field]).map(f => f.id === feature.id ? { ...f, uses: v } : f),
@@ -657,7 +646,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   // A spell cast as "1 bonus action or 1 reaction" is listed in both sections, so the section keeps
   // its test hooks apart from the other copy
   const renderSpell = (spell: Spell, section: 'action' | 'bonus' | 'reaction', reorder?: ActionCardReorder) => {
-    const { canCast, slotLevels, hasHigherSlots } = createSpellAccessors(spell, () => props.character.spellSlots)
+    const { canCast, slotLevels, hasHigherSlots } = createSpellAccessors(spell, spellSlots)
     return (
       <ActionCard
         data-test={`action-card-${section}-spell-${spell.id}`}
@@ -794,8 +783,7 @@ export function ActionsModule(props: ActionsModuleProps) {
     setEditingSpell(null)
   }
   const handleSaveFeature = (saved: Feature) => {
-    const field = featureField(saved)
-    props.onUpdate({ ...props.character, [field]: safeFeatures(props.character[field]).map((f) => (f.id === saved.id ? saved : f)) })
+    props.onUpdate(withFeatureSaved(props.character, saved))
     setEditingFeature(null)
   }
   const handleSaveItem = (saved: Equipment) => {
@@ -902,7 +890,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       contentClass="space-y-6"
     >
         <div class="my-4">
-          <SpellSlotTracker spellSlots={props.character.spellSlots} onToggle={updateSpellSlotUsed} />
+          <SpellSlotTracker slots={spellSlots()} onToggle={updateSpellSlotUsed} />
         </div>
 
         {/* Actions */}

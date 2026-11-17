@@ -174,7 +174,11 @@ export type ActionKind = 'action' | 'bonus-action' | 'reaction' | 'other'
 /** How a "Hit Points" feature's Max HP contribution is computed — see FeatureEffects.hitPointsMode. */
 export type HitPointsMode = 'flat' | 'per-level' | 'rolled'
 
+/** A spell slot's level, 1st to 9th. */
+export type SpellSlotLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
 export interface FeatureEffects {
+  /** 'Spellcasting': set once for the whole feature, so every row carries it (see the Spellcasting form). */
   spellcastingAbility?: keyof AbilityScores
   hitDiceSize?: number
   hitPointsMode?: HitPointsMode
@@ -213,6 +217,12 @@ export interface FeatureEffects {
   abilityScoreMaxCaps?: Partial<Record<keyof AbilityScores, number>>
   abilityScoreBaseMax?: Partial<Record<keyof AbilityScores, number>>
   hpBonusPerLevel?: number
+  /**
+   * 'Spellcasting': how many slots of each level the character has. Unlike every other effect, a
+   * feature's tiers don't add up: each one is a row of the class's spell slot table, so the highest
+   * tier the character has reached gives the totals, none when it has none (see getActiveFeatureEffects).
+   */
+  spellSlots?: Partial<Record<SpellSlotLevel, number>>
 }
 
 export interface FeatureLevelEffect {
@@ -228,7 +238,7 @@ export type RequiredFeatureType = 'Hit Points' | 'Creature Type' | 'Size'
 // of a required type other than the required one, from before that type was required; it works
 // exactly like its required type but can't be picked for a new feature.
 export type FeatureTypeValue =
-  | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size' | 'Creature Type'
+  | 'Action' | 'Spellcasting' | 'Hit Points' | 'Size' | 'Creature Type'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
   | 'Ability Scores' | 'Max HP Bonus'
@@ -354,17 +364,11 @@ export interface Character {
   useCalculatedSpellSaveDC?: boolean
   spellAttackBonus: number
   useCalculatedSpellAttackBonus?: boolean
-  spellSlots: {
-    1: { total: number; used: number }
-    2: { total: number; used: number }
-    3: { total: number; used: number }
-    4: { total: number; used: number }
-    5: { total: number; used: number }
-    6: { total: number; used: number }
-    7: { total: number; used: number }
-    8: { total: number; used: number }
-    9: { total: number; used: number }
-  }
+  /**
+   * Slots spent at each level since the last long rest. How many the character has comes from its
+   * Spellcasting features, so a level it has no slots of has none spent (see getSpellSlots).
+   */
+  spentSpellSlots?: Partial<Record<SpellSlotLevel, number>>
 
   languages: string[]
   otherProficiencies: string[]
@@ -508,17 +512,7 @@ export function createDefaultCharacter(): Character {
     spellcastingAbility: "",
     spellSaveDC: 8,
     spellAttackBonus: 0,
-    spellSlots: {
-      1: { total: 0, used: 0 },
-      2: { total: 0, used: 0 },
-      3: { total: 0, used: 0 },
-      4: { total: 0, used: 0 },
-      5: { total: 0, used: 0 },
-      6: { total: 0, used: 0 },
-      7: { total: 0, used: 0 },
-      8: { total: 0, used: 0 },
-      9: { total: 0, used: 0 },
-    },
+    spentSpellSlots: {},
 
     languages: [],
     otherProficiencies: [],

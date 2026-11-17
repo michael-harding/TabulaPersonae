@@ -11,8 +11,8 @@ import Dices from "lucide-solid/icons/dices"
 import Layers from "lucide-solid/icons/layers"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, CREATURE_TYPES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, formatModifier } from "@/lib/character-utils"
+import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, SpellSlotLevel, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
+import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, CREATURE_TYPES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, formatModifier, ordinal, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME, withFeatureSaved } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { effectFeatureType, isRequiredFeature, isRequiredFeatureType } from "@/lib/required-features"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -91,12 +91,6 @@ const MAX_USES_MODE_OPTIONS: { value: 'flat' | 'per-level'; label: string }[] = 
 function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: FeatureEffects): string {
   const parts: string[] = []
   switch (featureType) {
-    case 'Spellcasting Ability': {
-      if (effects.spellcastingAbility) {
-        parts.push(`Spellcasting Ability: ${ABILITY_ABBREVIATIONS[effects.spellcastingAbility]}`)
-      }
-      break
-    }
     case 'Hit Points': {
       if (effects.hitDiceSize) parts.push(`Hit Die: d${effects.hitDiceSize}`)
       if (effects.hitPointsMode === 'flat' && effects.hitPointsFlatValue) {
@@ -179,6 +173,12 @@ function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: Featur
       fmtGroup('Base Max', effects.abilityScoreBaseMax, (v) => `${v}`)
       break
     }
+    // The ability is the whole feature's, so it gets a line of its own (see featureEffectLines)
+    case 'Spellcasting': {
+      const slots = SPELL_SLOT_LEVELS.filter((level) => (effects.spellSlots?.[level] ?? 0) > 0)
+      if (slots.length > 0) parts.push(`Spell Slots: ${slots.map((level) => `${effects.spellSlots![level]} × ${ordinal(level)}`).join(', ')}`)
+      break
+    }
   }
   return parts.join(' · ')
 }
@@ -186,21 +186,32 @@ function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: Featur
 // Builds the display lines for a feature's levelEffects — one line per tier that has anything
 // populated (a tier added and never filled in is dropped silently rather than rendering blank).
 // 'Action' and '' never reach here (see card JSX, which only calls this for other featureTypes).
-function featureEffectLines(feature: Feature): { level: number; text: string }[] {
+// `level` is null for a line about the whole feature rather than one tier: a Spellcasting
+// feature's ability, which every tier carries.
+function featureEffectLines(feature: Feature): { level: number | null; text: string }[] {
   const type = effectFeatureType(feature.featureType ?? '') as FeatureTypeValue
-  return (feature.levelEffects ?? [])
+  const tierLines = (feature.levelEffects ?? [])
     .map((tier) => ({ level: tier.level, text: formatFeatureEffectsLine(type, tier.effects) }))
     .filter((line) => line.text !== '')
+  const ability = type === 'Spellcasting' ? spellcastingAbilityOf(feature.levelEffects ?? []) : undefined
+  return ability ? [{ level: null, text: `Spellcasting Ability: ${ABILITY_ABBREVIATIONS[ability]}` }, ...tierLines] : tierLines
+}
+
+// A Spellcasting feature's ability: every row carries it, so the first row that has one
+function spellcastingAbilityOf(tiers: FeatureLevelEffect[]): keyof AbilityScores | undefined {
+  return tiers.find((tier) => tier.effects.spellcastingAbility)?.effects.spellcastingAbility
 }
 
 const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 
-// Spellcasting Ability, Hit Points, Size, and Creature Type are fixed facts of a class/species, not something
+// Hit Points, Size, and Creature Type are fixed facts of a class/species, not something
 // that changes at higher levels, so they get a single always-on control. The proficiency-grant
 // types (and the other species-trait-shaped effects below) genuinely can be granted or expanded
 // at different levels, so they keep the repeatable level-tier list. Hit Points bundles a Hit Die
 // selector (used independently by Rest Modal's hit-dice-spending flow) with a choice of three Max
 // HP calculation modes (flat / per-level / rolled) — see the 'Hit Points' block in FeatureForm.
+// Spellcasting is tiered for its spell slot table; its ability is the whole feature's, set once
+// above the rows and saved onto each of them (see setSpellcastingAbility in FeatureForm).
 // Max HP Bonus is single-tier too, but for a different reason than the other three: its value is
 // a single always-scaling rate (× total character level, computed in calculateMaxHitPoints), not a
 // flat amount that can stack across tiers — a second tier wouldn't have a sensible combined value
@@ -208,14 +219,15 @@ const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 // granting trait/feat can be picked up at any level, it needs no editable level either: a feature is
 // only ever added once actually gained, and amount × current-level is already algebraically
 // equivalent to 5e RAW (e.g. Tough) for any level at or after that, regardless of which level it was.
-const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size', 'Creature Type', 'Max HP Bonus']
+const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Hit Points', 'Size', 'Creature Type', 'Max HP Bonus']
 // The Name field is hidden entirely for these — the feature type itself is already the name
 // (see changeFeatureType, which fills formData.name with the type string so the hidden field still
 // has a value to submit/display). Max HP Bonus is deliberately excluded even though it's also a
 // SINGLE_EFFECT_TYPE: a character can gain HP-bonus-per-level from more than one source, so its Name
 // stays visible and user-editable to tell those sources apart.
-const NAMELESS_FEATURE_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size', 'Creature Type']
+const NAMELESS_FEATURE_TYPES: FeatureTypeValue[] = ['Hit Points', 'Size', 'Creature Type']
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
+  'Spellcasting',
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
   'Ability Scores',
@@ -325,6 +337,37 @@ export function featureFromForm(form: FeatureFormData, base: Partial<Feature> & 
   }
 }
 
+/** The form with `type` picked as its Feature Type: what picking it from the menu does. */
+export function withFeatureType(form: FeatureFormData, type: FeatureTypeValue | ''): FeatureFormData {
+  if (type === form.featureType) return form
+  return {
+    ...form,
+    featureType: type,
+    // A blank Name defaults to the newly picked type's name — the only way NAMELESS_FEATURE_TYPES
+    // ever get a name (their Name field is hidden), and a visible starting point for every other
+    // type that the user can overwrite. Never overwrites a name the user already typed.
+    name: form.name.trim() === '' && type !== '' ? defaultFeatureName(type) : form.name,
+    actionKind: type === 'Action' ? 'action' : '',
+    ...ACTION_FIELD_DEFAULTS,
+    level: 1,
+    levelEffects: (SINGLE_EFFECT_TYPES as string[]).includes(type) || isTieredEffectType(type) ? [{ level: 1, effects: {} }] : [],
+  }
+}
+
+/** The name a new feature of this type starts with: the type's own, but for Spellcasting's. */
+function defaultFeatureName(type: FeatureTypeValue): string {
+  return type === 'Spellcasting' ? SPELLCASTING_FEATURE_NAME : type
+}
+
+// A new Spellcasting level is the next row of the slot table: one level after the highest so far,
+// starting from that row (its slots, and the feature's ability), since a row usually adds a slot or
+// two to the one before it.
+function nextSpellcastingTier(tiers: FeatureLevelEffect[]): FeatureLevelEffect {
+  if (tiers.length === 0) return { level: 1, effects: {} }
+  const highest = tiers.reduce((top, tier) => (tier.level > top.level ? tier : top))
+  return { level: Math.min(20, highest.level + 1), effects: { ...highest.effects, spellSlots: { ...highest.effects.spellSlots } } }
+}
+
 interface FeatureFormProps {
   initialData?: FeatureFormData
   characterLevel: number
@@ -351,11 +394,13 @@ function computeInitialEffectGroups(effects: FeatureEffects): Record<EffectGroup
   }
 }
 
+type TieredEffectType =
+  | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
+  | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
+  | 'Ability Scores' | 'Spellcasting'
+
 function LevelEffectRow(props: {
-  featureType:
-    | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
-    | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-    | 'Ability Scores'
+  featureType: TieredEffectType
   index: number
   tier: FeatureLevelEffect
   effectGroupsOpen: () => Record<EffectGroupKey, boolean>
@@ -381,6 +426,14 @@ function LevelEffectRow(props: {
     const current = effects().skillProficiencies ?? []
     const next = skills.map((skill) => current.find((g) => g.skill === skill) ?? { skill, expertise: false })
     update({ skillProficiencies: next.length > 0 ? next : undefined })
+  }
+  // A slot level with none is left out, and a row with none at all has no slot counts: a row
+  // without slots gives none, whichever way it's stored (see getActiveFeatureEffects).
+  const setSpellSlots = (slotLevel: SpellSlotLevel, count: number) => {
+    const next = { ...effects().spellSlots }
+    if (count > 0) next[slotLevel] = count
+    else delete next[slotLevel]
+    update({ spellSlots: Object.keys(next).length > 0 ? next : undefined })
   }
   const toggleSkillExpertise = (skill: keyof Skills) => {
     const next = (effects().skillProficiencies ?? []).map((g) => (g.skill === skill ? { ...g, expertise: !g.expertise } : g))
@@ -683,6 +736,30 @@ function LevelEffectRow(props: {
           </ModifierGroup>
         </div>
       </Show>
+
+      <Show when={props.featureType === 'Spellcasting'}>
+        <div class="space-y-1">
+          <Label class="text-xs">Spell Slots</Label>
+          <div class="grid grid-cols-3 gap-2">
+            <For each={SPELL_SLOT_LEVELS}>
+              {(slotLevel) => (
+                <div>
+                  <Label for={`fx-spell-slots-${props.index}-${slotLevel}`} class="text-xs text-muted-foreground">{ordinal(slotLevel)}</Label>
+                  <NumericInput
+                    id={`fx-spell-slots-${props.index}-${slotLevel}`}
+                    data-test={`level-effect-${props.index}-spell-slots-${slotLevel}`}
+                    aria-label={`${ordinal(slotLevel)} level slots`}
+                    min={0}
+                    max={20}
+                    value={effects().spellSlots?.[slotLevel] ?? 0}
+                    onChange={(v) => setSpellSlots(slotLevel, v)}
+                  />
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
+      </Show>
     </div>
   )
 }
@@ -700,7 +777,7 @@ function FeatureForm(props: FeatureFormProps) {
     ? FEATURE_TYPE_OPTIONS
     : [...FEATURE_TYPE_OPTIONS, { value: initialType, label: initialType }]
 
-  // Spellcasting Ability / Hit Points / Size / Max HP Bonus aren't level-dependent — they're always
+  // Hit Points / Size / Max HP Bonus aren't level-dependent — they're always
   // in force as soon as the feature exists, modeled as a single tier fixed at level 1 rather than a
   // user-editable level. This holds for Max HP Bonus too even though its granting trait/feat can be
   // picked up at any level: the feature object itself is only ever added to the character once
@@ -747,6 +824,18 @@ function FeatureForm(props: FeatureFormProps) {
     setSingleTierEffects({ ...singleTierEffects(), hitPointsRolledLevels: next })
   }
 
+  // The ability is the whole feature's: every row carries it, so whichever row applies has it. With
+  // every row removed, it starts a level 1 row rather than going nowhere.
+  const setSpellcastingAbility = (ability: keyof AbilityScores | undefined) => setFormData((d) => {
+    const withAbility = (effects: FeatureEffects): FeatureEffects => {
+      const next = { ...effects, spellcastingAbility: ability }
+      if (!ability) delete next.spellcastingAbility
+      return next
+    }
+    const tiers = d.levelEffects.length > 0 ? d.levelEffects : [{ level: 1, effects: {} }]
+    return { ...d, levelEffects: tiers.map((tier) => ({ ...tier, effects: withAbility(tier.effects) })) }
+  })
+
   const updateLevelEffect = (index: number, patch: Partial<FeatureLevelEffect>) => {
     setFormData((d) => ({ ...d, levelEffects: d.levelEffects.map((t, i) => (i === index ? { ...t, ...patch } : t)) }))
   }
@@ -765,7 +854,8 @@ function FeatureForm(props: FeatureFormProps) {
 
   const addLevelEffect = () => {
     const newIndex = formData().levelEffects.length
-    setFormData((d) => ({ ...d, levelEffects: [...d.levelEffects, { level: 1, effects: {} }] }))
+    const tier = effectType() === 'Spellcasting' ? nextSpellcastingTier(formData().levelEffects) : { level: 1, effects: {} }
+    setFormData((d) => ({ ...d, levelEffects: [...d.levelEffects, tier] }))
     setEffectGroupsOpen((g) => ({ ...g, [newIndex]: computeInitialEffectGroups({}) }))
   }
   const removeLevelEffect = (index: number) => {
@@ -781,24 +871,7 @@ function FeatureForm(props: FeatureFormProps) {
     })
   }
 
-  const changeFeatureType = (value: string) => {
-    const next = value as FeatureTypeValue | ''
-    setFormData((d) => {
-      if (next === d.featureType) return d
-      return {
-        ...d,
-        featureType: next,
-        // A blank Name defaults to the newly picked type string — the only way NAMELESS_FEATURE_TYPES
-        // ever get a name (their Name field is hidden), and a visible starting point for every other
-        // type that the user can overwrite. Never overwrites a name the user already typed.
-        name: d.name.trim() === '' && next !== '' ? next : d.name,
-        actionKind: next === 'Action' ? 'action' : '',
-        ...ACTION_FIELD_DEFAULTS,
-        level: 1,
-        levelEffects: (SINGLE_EFFECT_TYPES as string[]).includes(next) || isTieredEffectType(next) ? [{ level: 1, effects: {} }] : [],
-      }
-    })
-  }
+  const changeFeatureType = (value: string) => setFormData((d) => withFeatureType(d, value as FeatureTypeValue | ''))
 
   // Name, Highlights and Description show once a type is picked, or once a name exists
   // even with no type: otherwise editing a pre-existing untyped feature (name/description only, no
@@ -983,20 +1056,6 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
         </Show>
 
-        <Show when={effectType() === 'Spellcasting Ability'}>
-          <div class="space-y-1">
-            <Label for="feature-spellcasting-ability">Spellcasting Ability</Label>
-            <Select
-              options={SPELLCASTING_ABILITY_OPTIONS}
-              value={singleTierEffects().spellcastingAbility ?? ''}
-              onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), spellcastingAbility: (v || undefined) as keyof AbilityScores | undefined })}
-            >
-              <SelectTrigger id="feature-spellcasting-ability" data-test="feature-spellcasting-ability-select" aria-label="Spellcasting Ability"><SelectValue /></SelectTrigger>
-              <SelectContent />
-            </Select>
-          </div>
-        </Show>
-
         <Show when={effectType() === 'Hit Points'}>
           <div class="space-y-4 border rounded-md p-3">
             <div class="space-y-1">
@@ -1121,13 +1180,26 @@ function FeatureForm(props: FeatureFormProps) {
 
         <Show when={isTieredEffectType(effectType())}>
           <div class="space-y-3">
+            <Show when={effectType() === 'Spellcasting'}>
+              <div class="space-y-1">
+                <Label for="feature-spellcasting-ability">Spellcasting Ability</Label>
+                <Select
+                  options={SPELLCASTING_ABILITY_OPTIONS}
+                  value={spellcastingAbilityOf(formData().levelEffects) ?? ''}
+                  onValueChange={(v) => setSpellcastingAbility((v || undefined) as keyof AbilityScores | undefined)}
+                >
+                  <SelectTrigger id="feature-spellcasting-ability" data-test="feature-spellcasting-ability-select" aria-label="Spellcasting Ability"><SelectValue /></SelectTrigger>
+                  <SelectContent />
+                </Select>
+              </div>
+              <p data-test="spellcasting-hint" class="text-xs text-muted-foreground">
+                Each level lists all the spell slots the character has from that level on, like a row of your class's spell slot table. The highest level the character has reached applies. The spellcasting ability applies from the first level.
+              </p>
+            </Show>
             <Index each={formData().levelEffects}>
               {(tier, i) => (
                 <LevelEffectRow
-                  featureType={effectType() as
-                    | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
-                    | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-                    | 'Ability Scores'}
+                  featureType={effectType() as TieredEffectType}
                   index={i}
                   tier={tier()}
                   effectGroupsOpen={() => getEffectGroupsOpen(i)}
@@ -1173,12 +1245,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
   }
 
   const handleSave = (saved: Feature) => {
-    const field = FEATURE_FIELD_CONFIG.find((c) => c.kind === saved.source)!.field
-    const list = safeFeatures(props.character[field])
-    props.onUpdate({
-      ...props.character,
-      [field]: list.some((f) => f.id === saved.id) ? list.map((f) => (f.id === saved.id ? saved : f)) : [...list, saved],
-    })
+    props.onUpdate(withFeatureSaved(props.character, saved))
     setIsAddOpen(null)
     setEditingFeature(null)
   }
@@ -1320,7 +1387,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                     <For each={lines}>
                                       {(line) => (
                                         <div>
-                                          <Show when={lines.length > 1}>
+                                          <Show when={lines.length > 1 && line.level != null}>
                                             <span class="font-medium">Level {line.level}: </span>
                                           </Show>
                                           {line.text}
@@ -1428,6 +1495,8 @@ interface FeatureEditModalProps {
   kind: FeatureKind
   /** The feature to edit, or null to add a new one. */
   feature: Feature | null
+  /** The Feature Type a new feature starts with; none picked when absent. */
+  initialType?: FeatureTypeValue
   characterLevel: number
   onSave: (feature: Feature) => void
   onCancel: () => void
@@ -1452,7 +1521,7 @@ export function FeatureEditModal(props: FeatureEditModalProps) {
                 <ModalTitle>{feature ? "Edit" : "Add"} {subject(feature)}</ModalTitle>
               </ModalHeader>
               <FeatureForm
-                initialData={feature ? featureToForm(feature) : undefined}
+                initialData={feature ? featureToForm(feature) : props.initialType ? withFeatureType(defaultFeatureForm, props.initialType) : undefined}
                 characterLevel={props.characterLevel}
                 onSubmit={(data) => props.onSave(featureFromForm(data, feature ?? { source: props.kind }))}
                 onCancel={props.onCancel}
