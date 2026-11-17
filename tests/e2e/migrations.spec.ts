@@ -23,6 +23,8 @@ function expectMigrated(character: Character) {
   expect(features.find((f) => f.name === "Hit Points")?.levelEffects?.[0].effects).toEqual({ hitDiceSize: 8 })
   // A Feature from before featureType has one now
   expect(features.find((f) => f.name === "Channel Divinity")).toHaveProperty("featureType")
+  // The required species traits, one of each, with their starting values
+  expect(character.speciesTraits?.map((f) => f.featureType)).toEqual(["Creature Type", "Size", "Speed", "Language"])
   // The single `uses` field moved to where each kind of item keeps it
   const wand = character.equipment.find((e) => e.name === "Wand of Magic Missiles")!
   const potion = character.equipment.find((e) => e.name === "Potion of Healing")!
@@ -69,6 +71,7 @@ test.describe("A character saved by an older version", () => {
     const savedAgain = await storedCharacter(page, legacy.id)
     expectMigrated(savedAgain)
     expect(savedAgain.classFeatures?.map((f) => f.id)).toEqual(saved.classFeatures?.map((f) => f.id))
+    expect(savedAgain.speciesTraits?.map((f) => f.id)).toEqual(saved.speciesTraits?.map((f) => f.id))
     await expectFeaturesListed(page)
   })
 
@@ -82,7 +85,8 @@ test.describe("A character saved by an older version", () => {
     await makeAnEdit(page)
     await reload(page)
     const saved = await storedCharacter(page, character.id)
-    expect(saved.speciesTraits?.map((trait) => trait.levelEffects?.[0].effects)).toEqual([{ size: "Small" }])
+    // The required Size trait, holding the size that was entered
+    expect(saved.speciesTraits?.filter((trait) => trait.featureType === "Size").map((trait) => trait.levelEffects?.[0].effects)).toEqual([{ size: "Small" }])
     // Size is a Species Trait: the old size fields are gone from the saved character
     expect(saved).not.toHaveProperty("size")
     expect(saved).not.toHaveProperty("useCalculatedSize")
@@ -122,5 +126,6 @@ test.describe("A character saved by an older version", () => {
     const savedAgain = (await readCharacter(character.id))!
     expectMigrated(savedAgain)
     expect(savedAgain.classFeatures?.map((f) => f.id)).toEqual(saved.classFeatures?.map((f) => f.id))
+    expect(savedAgain.speciesTraits?.map((f) => f.id)).toEqual(saved.speciesTraits?.map((f) => f.id))
   })
 })

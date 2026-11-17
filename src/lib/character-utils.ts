@@ -142,6 +142,7 @@ export function inferFeatureType(actionKind: ActionKind | undefined, levelEffect
     (effects?.hitPointsRolledLevels?.length ?? 0) > 0
   ) return 'Hit Points'
   if (effects?.size) return 'Size'
+  if (effects?.creatureType) return 'Creature Type'
   if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
   if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
   if (effects?.otherProficiencies?.length) return 'Other Proficiency'
@@ -1293,6 +1294,11 @@ export const SENSE_LABELS: Record<SenseType, string> = {
 }
 
 export const SIZES = ["Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"]
+
+export const CREATURE_TYPES = [
+  "Aberration", "Beast", "Celestial", "Construct", "Dragon", "Elemental", "Fey",
+  "Fiend", "Giant", "Humanoid", "Monstrosity", "Ooze", "Plant", "Undead",
+]
 
 export const BASE_ATTUNEMENT_LIMIT = 3
 

@@ -317,7 +317,7 @@ describe("CombatStatsModule", () => {
 
   describe("movement speed tooltip", () => {
     it("shows a fallback message when no species trait grants Speed", async () => {
-      render(() => <CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <CombatStatsModule character={makeCharacter({ speciesTraits: [] })} onUpdate={vi.fn()} />)
       fireEvent.focus(tooltipTriggerFor("Speed"))
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       expect(screen.getByRole("tooltip")).toHaveTextContent(/no species trait grants this/i)
@@ -674,7 +674,7 @@ describe("CombatStatsModule", () => {
     })
 
     it("shows 0 ft walk speed with no hardcoded '30 ft' default when nothing grants one", () => {
-      render(() => <CombatStatsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      render(() => <CombatStatsModule character={makeCharacter({ speciesTraits: [] })} onUpdate={vi.fn()} />)
       expect(screen.getByText("0 ft")).toBeInTheDocument()
     })
 

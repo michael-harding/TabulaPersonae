@@ -9,6 +9,9 @@ import { testCharacter } from "./visual/fixtures"
 const click = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`).click()
 const dialog = (page: Page) => page.getByRole("dialog")
 
+/** Opens a feature's edit form by its Edit button, which is named after the feature. */
+const editFeature = (page: Page, name: string) => page.getByRole("button", { name: `Edit ${name}`, exact: true }).click()
+
 async function openFeatureType(page: Page) {
   await click(page, "add-feature-class-feature")
   await dialog(page).locator('[data-test="feature-type-select"]').click()
@@ -52,6 +55,13 @@ export const MODALS: ModalCase[] = [
   // clipped by it (e001998). Only a screenshot with the list open can catch that.
   { name: "feature-add-type-open", tab: "Features", open: openFeatureType },
   { name: "feature-edit", tab: "Features", open: (page) => click(page, "feature-edit-cf3") },
+  // The required features (src/lib/required-features.ts). Their types aren't in the Add menu, so
+  // their forms open from Edit, with the Feature Type locked.
+  { name: "feature-edit-hit-points", tab: "Features", open: (page) => editFeature(page, "Hit Points") },
+  { name: "feature-edit-creature-type", tab: "Features", open: (page) => editFeature(page, "Creature Type") },
+  { name: "feature-edit-size", tab: "Features", open: (page) => editFeature(page, "Size"), coveredBy: "feature-edit-creature-type" }, // one select
+  { name: "feature-edit-speed", tab: "Features", open: (page) => editFeature(page, "Speed") },
+  { name: "feature-edit-languages", tab: "Features", open: (page) => editFeature(page, "Languages") },
   { name: "spell-add", tab: "Spells", open: (page) => click(page, "add-spell-button") },
   { name: "spell-edit", tab: "Spells", open: (page) => click(page, "edit-spell-sp3") },
   { name: "spell-slots", tab: "Spells", open: (page) => click(page, "edit-spell-slots-button") },
@@ -100,26 +110,24 @@ export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").r
 /** The name of the visual baseline (and of the screenshot) for a feature type's form. */
 export const featureTypeBaseline = (type: string) => `feature-add-type-${slug(type)}`
 
-// Every feature type, in the order of FEATURE_TYPES in src/components/features-module.tsx, mapped to
+// Every feature type the Add menu offers, in the order of FEATURE_TYPES in
+// src/components/features-module.tsx (the required types are not offered: see the feature-edit-*
+// modals above for their forms), mapped to
 // the baseline that shows its form: null for a form with a layout of its own, which gets its own
 // baseline, or the name of a baseline that already shows the same layout (TESTING.md §9). The
 // "lists every feature type" test (tests/e2e/character-sheet.spec.ts) fails when this and the app's
 // list drift, so a new type can't ship until it is given a baseline or mapped to one.
 const FEATURE_TYPE_COVERED_BY: Record<string, string | null> = {
   "Action": "feature-edit", // the edit case opens an Action feature
-  "Spellcasting Ability": featureTypeBaseline("Size"), // one select
-  "Hit Points": null,
-  "Size": null,
+  "Spellcasting Ability": null,
   "Max HP Bonus": null,
   "Saving Throw Proficiency": null,
   "Skill Proficiency": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"), // a chip-list row per level
-  "Other Proficiency": featureTypeBaseline("Language"), // a text input and Add per level
-  "Speed": null,
-  "Senses": featureTypeBaseline("Speed"), // a grid of number inputs per level
+  "Other Proficiency": null,
+  "Senses": null,
   "Damage Resistance/Immunity/Vulnerability": null,
   "Condition Immunity": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"),
-  "Language": null,
-  "Carrying Capacity": featureTypeBaseline("Speed"),
+  "Carrying Capacity": featureTypeBaseline("Senses"), // a grid of number inputs per level
   "Ability Scores": null,
 }
 

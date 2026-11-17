@@ -1,5 +1,7 @@
 // D&D Character Data Types
 
+import { createRequiredFeatures } from "./required-features"
+
 export interface CharacterEntry {
   id: string
   name: string
@@ -191,6 +193,8 @@ export interface FeatureEffects {
   skillDisadvantage?: (keyof Skills)[]
   otherProficiencies?: string[]
   size?: string
+  /** e.g. "Humanoid" (see CREATURE_TYPES); a homebrew type is kept as written. */
+  creatureType?: string
   speed?: number
   flySpeed?: number
   swimSpeed?: number
@@ -216,13 +220,19 @@ export interface FeatureLevelEffect {
   effects: FeatureEffects
 }
 
+/** The types every character has exactly one feature of (see required-features.ts). */
+export type RequiredFeatureType = 'Hit Points' | 'Creature Type' | 'Size' | 'Speed' | 'Language'
+
 // Values double as their own display labels. They're persisted, so they stay human-readable
-// strings rather than short codes like "skill-proficiency".
+// strings rather than short codes like "skill-proficiency". A "<type> (legacy)" value is a feature
+// of a required type other than the required one, from before that type was required; it works
+// exactly like its required type but can't be picked for a new feature.
 export type FeatureTypeValue =
-  | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
+  | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size' | 'Creature Type'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
   | 'Ability Scores' | 'Max HP Bonus'
+  | `${RequiredFeatureType} (legacy)`
 
 export interface Feature extends UseableEntry, DamageFields, GainFields {
   source: FeatureKind
@@ -545,19 +555,8 @@ export function createDefaultCharacter(): Character {
 
     subclass: "",
     useCalculatedSenses: { darkvision: true, blindsight: true, tremorsense: true, truesight: true },
-    // Every character has a hit die, unlike spellcasting — so a starter grant is created up front
-    // rather than left for the player to add, matching what every class already provides at level 1.
-    classFeatures: [
-      {
-        id: crypto.randomUUID(),
-        name: "Hit Points",
-        description: "Grants this character's hit die, used to calculate Max HP and spend Hit Dice on a short rest. Update the die size to match your class.",
-        source: "class-feature",
-        featureType: "Hit Points",
-        levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
-      },
-    ],
-    speciesTraits: [],
+    // Hit Points, Creature Type, Size, Speed and Languages
+    ...createRequiredFeatures(),
     feats: [],
     backgroundFeatures: [],
 

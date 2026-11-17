@@ -1,7 +1,7 @@
 import { migrateCharacter, migrateCharacters } from "@/lib/character-migrations"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character } from "@/lib/character-types"
-import { getEffectiveHitDiceSize, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
+import type { Character, Feature } from "@/lib/character-types"
+import { getEffectiveHitDiceSize, getEffectiveLanguages, getEffectiveMovementSpeeds, getEffectiveSize, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
 
 describe("migrateCharacter", () => {
   it("is a no-op for an already-current character", () => {
@@ -86,7 +86,8 @@ describe("migrateCharacter", () => {
     // won't match the feature-derived calculation (0 / ""). Backfilling `true` here would silently
     // replace the player's value with that calculated one — exactly the bug this migration exists
     // to prevent.
-    const raw = { ...createDefaultCharacter(), speed: 25, flySpeed: 10, swimSpeed: 5, climbSpeed: 5, burrowSpeed: 5, size: "Small" }
+    // No species traits: saved before Size, Speed and the rest were required Species Traits
+    const raw = { ...createDefaultCharacter(), speciesTraits: [], speed: 25, flySpeed: 10, swimSpeed: 5, climbSpeed: 5, burrowSpeed: 5, size: "Small" }
     delete raw.useCalculatedSpeed
     delete raw.useCalculatedFlySpeed
     delete raw.useCalculatedSwimSpeed
@@ -99,8 +100,8 @@ describe("migrateCharacter", () => {
     expect(migrated.useCalculatedClimbSpeed).toBe(false)
     expect(migrated.useCalculatedBurrowSpeed).toBe(false)
     expect(migrated.speed).toBe(25)
-    // Size is a Species Trait now: the typed-in size is kept as one
-    expect(migrated.speciesTraits?.at(-1)?.levelEffects?.[0].effects).toEqual({ size: "Small" })
+    // Size is a Species Trait now: the typed-in size is kept as one, and is the required Size trait
+    expect(migrated.speciesTraits?.filter((trait) => trait.featureType === "Size").map((trait) => trait.levelEffects?.[0].effects)).toEqual([{ size: "Small" }])
     expect(migrated).not.toHaveProperty("size")
   })
 
@@ -144,16 +145,16 @@ describe("migrateCharacter", () => {
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("intelligence")
-      expect(migrated.classFeatures).toHaveLength(1)
       // Named plainly, not "Legacy Spellcasting" — it's meant to be a normal, permanent Feature,
       // not a disposable placeholder a player might delete and lose spellcasting functionality.
-      expect(migrated.classFeatures![0].name).toBe("Spellcasting")
+      // Alongside it, the required Hit Points feature every character gets.
+      expect(migrated.classFeatures!.map((f) => f.name)).toEqual(["Hit Points", "Spellcasting"])
     })
 
     it("does not synthesize a Spellcasting Feature from a legacy value that is not an ability", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "Intelligence (INT)", hitDice: "" }
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
-      expect(migrateCharacter(raw).classFeatures).toEqual([])
+      expect(migrateCharacter(raw).classFeatures!.map((f) => f.featureType)).toEqual(["Hit Points"])
     })
 
     it("synthesizes a Feature granting the legacy hit die size when nothing else grants one", () => {
@@ -194,7 +195,7 @@ describe("migrateCharacter", () => {
       }
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
-      expect(migrated.classFeatures).toHaveLength(1)
+      expect(migrated.classFeatures!.filter((f) => f.levelEffects?.some((tier) => tier.effects.spellcastingAbility))).toHaveLength(1)
     })
 
     it("also covers PDF-imported characters, whose plain Features have no levelEffects", () => {
@@ -221,10 +222,9 @@ describe("migrateCharacter", () => {
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       expect(() => migrateCharacter(raw)).not.toThrow()
       const migrated = migrateCharacter(raw)
-      // Only the synthesized "Spellcasting" Feature — the legacy string was discarded via
-      // safeFeatures(), not spread into ~35 one-character entries.
-      expect(migrated.classFeatures).toHaveLength(1)
-      expect(migrated.classFeatures![0].name).toBe("Spellcasting")
+      // Only the synthesized "Spellcasting" Feature and the required Hit Points — the legacy string
+      // was discarded via safeFeatures(), not spread into ~35 one-character entries.
+      expect(migrated.classFeatures!.map((f) => f.name)).toEqual(["Hit Points", "Spellcasting"])
     })
   })
 
@@ -264,15 +264,14 @@ describe("migrateCharacter", () => {
         ],
       }
       const migrated = migrateCharacter(raw)
-      expect(migrated.classFeatures![0].featureType).toBe("")
+      expect(migrated.classFeatures!.find((f) => f.id === "f1")?.featureType).toBe("")
     })
 
     it("gives a legacy-synthesized Spellcasting Feature the correct featureType", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
-      expect(migrated.classFeatures![0].name).toBe("Spellcasting")
-      expect(migrated.classFeatures![0].featureType).toBe("Spellcasting Ability")
+      expect(migrated.classFeatures!.find((f) => f.name === "Spellcasting")?.featureType).toBe("Spellcasting Ability")
     })
 
     it("backfills featureType on every feature list, not just classFeatures", () => {
@@ -283,17 +282,23 @@ describe("migrateCharacter", () => {
         backgroundFeatures: [{ id: "f3", name: "Acolyte", description: "", source: "background" }],
       }
       const migrated = migrateCharacter(raw)
-      expect(migrated.speciesTraits![0].featureType).toBe("Senses")
+      expect(migrated.speciesTraits!.find((f) => f.id === "f1")?.featureType).toBe("Senses")
       expect(migrated.feats![0].featureType).toBe("Max HP Bonus")
       expect(migrated.backgroundFeatures![0].featureType).toBe("")
     })
   })
 
   // Size is a Species Trait. A size the user entered by hand becomes one; a value nothing proves
-  // they chose (the old "Medium" default) is not turned into a trait.
+  // they chose (the old "Medium" default) is not turned into a trait. Either way the character ends
+  // up with the required Size trait: the one carried over, or the default.
   describe("custom size", () => {
     const sizeTraits = (character: ReturnType<typeof migrateCharacter>) =>
       (character.speciesTraits ?? []).filter((trait) => trait.levelEffects?.some((tier) => tier.effects?.size))
+    // The required Size trait's starting value, not one carried over from the stored size
+    const defaultSizeTrait = expect.objectContaining({
+      featureType: "Size", description: expect.stringContaining("Update it to match your species"),
+      levelEffects: [{ level: 1, effects: { size: "Medium" } }],
+    })
 
     it("turns a size the user switched to custom into a Species Trait granting it", () => {
       const migrated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [], size: "Small", useCalculatedSize: false })
@@ -307,7 +312,7 @@ describe("migrateCharacter", () => {
     // older character whose size didn't match the calculated one, the old default included
     it("does not turn a stored Medium into a trait, even with the custom flag set", () => {
       const migrated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [], size: "Medium", useCalculatedSize: false })
-      expect(sizeTraits(migrated)).toEqual([])
+      expect(sizeTraits(migrated)).toEqual([defaultSizeTrait])
     })
 
     it("turns an older character's non-default size into a trait, since only the user could have set it", () => {
@@ -317,12 +322,12 @@ describe("migrateCharacter", () => {
 
     it("does not turn an older character's Medium into a trait: it was the default, not necessarily a choice", () => {
       const raw: Record<string, unknown> = { ...createDefaultCharacter(), speciesTraits: [], size: "Medium" }
-      expect(sizeTraits(migrateCharacter(raw))).toEqual([])
+      expect(sizeTraits(migrateCharacter(raw))).toEqual([defaultSizeTrait])
     })
 
     it("adds nothing when the size is calculated, or a trait already grants one", () => {
       const calculated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [], size: "Small", useCalculatedSize: true })
-      expect(sizeTraits(calculated)).toEqual([])
+      expect(sizeTraits(calculated)).toEqual([defaultSizeTrait])
       const granted = {
         id: "t1", name: "Small", description: "", source: "species-trait" as const, featureType: "Size" as const,
         levelEffects: [{ level: 1, effects: { size: "Small" } }],
@@ -340,6 +345,52 @@ describe("migrateCharacter", () => {
       }
       const migrated = migrateCharacter({ ...createDefaultCharacter(), level: 3, speciesTraits: [later], size: "Small", useCalculatedSize: false })
       expect(sizeTraits(migrated)).toEqual([later])
+    })
+  })
+
+  // Every character has exactly one Hit Points class feature, and one Creature Type, Size, Speed and
+  // Language species trait. See ensureRequiredFeatures for the rules; these cover the wiring.
+  describe("required features", () => {
+    const types = (features: Feature[] | undefined) => (features ?? []).map((f) => f.featureType)
+
+    it("gives a character saved before they existed every required feature, with the starting values", () => {
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), classFeatures: [], speciesTraits: [] })
+      expect(types(migrated.classFeatures)).toEqual(["Hit Points"])
+      expect(types(migrated.speciesTraits)).toEqual(["Creature Type", "Size", "Speed", "Language"])
+      expect(getEffectiveHitDiceSize(migrated)).toBe(8)
+      expect(getEffectiveSize(migrated).size).toBe("Medium")
+      expect(getEffectiveMovementSpeeds(migrated).walk).toBe(30)
+      expect(getEffectiveLanguages({ ...migrated, languages: [] }).granted).toEqual(["Common"])
+      expect(migrated.speciesTraits![0].levelEffects).toEqual([{ level: 1, effects: { creatureType: "Humanoid" } }])
+    })
+
+    it("adopts the character's own feature of a required type instead of adding one", () => {
+      const speed: Feature = { id: "s1", name: "Wood Elf Speed", description: "", source: "species-trait", featureType: "Speed", levelEffects: [{ level: 1, effects: { speed: 35 } }] }
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [speed] })
+      expect(migrated.speciesTraits!.filter((f) => f.featureType === "Speed")).toEqual([speed])
+      expect(getEffectiveMovementSpeeds(migrated).walk).toBe(35)
+    })
+
+    it("relabels every other feature of a required type as legacy, without changing what it grants", () => {
+      const speed = (id: string, source: Feature["source"], walk: number): Feature => ({
+        id, name: id, description: "", source, featureType: "Speed", levelEffects: [{ level: 1, effects: { speed: walk } }],
+      })
+      const raw = { ...createDefaultCharacter(), speciesTraits: [speed("base", "species-trait", 30), speed("boots", "species-trait", 35)], feats: [speed("feat", "feat", 40)] }
+      const migrated = migrateCharacter(raw)
+      expect(types(migrated.speciesTraits)).toEqual(["Creature Type", "Size", "Language", "Speed", "Speed (legacy)"])
+      expect(types(migrated.feats)).toEqual(["Speed (legacy)"])
+      expect(getEffectiveMovementSpeeds(migrated).walk).toBe(getEffectiveMovementSpeeds(raw).walk)
+    })
+
+    it("treats a Creature Type feature from an older record as the required one", () => {
+      const trait = { id: "c1", name: "Fey", description: "", source: "species-trait", levelEffects: [{ level: 1, effects: { creatureType: "Fey" } }] }
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [trait] })
+      expect(migrated.speciesTraits!.filter((f) => f.featureType === "Creature Type").map((f) => f.id)).toEqual(["c1"])
+    })
+
+    it("changes nothing the second time", () => {
+      const once = migrateCharacter({ ...createDefaultCharacter(), classFeatures: [], speciesTraits: [] })
+      expect(migrateCharacter(once)).toBe(once)
     })
   })
 

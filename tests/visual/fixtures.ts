@@ -387,7 +387,8 @@ export function seedLocalStorage(characters: Character[]) {
  *   - items with the single `uses` field that became `charges` (magic item with charges) and
  *     `consumedUses` (consumable);
  *   - damage resistances typed as free text;
- *   - Exhaustion as a plain condition, before it had levels.
+ *   - Exhaustion as a plain condition, before it had levels;
+ *   - no species traits, from before Creature Type, Size, Speed and Languages were required ones.
  * Not typed as Character: it is deliberately not one.
  */
 export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -408,6 +409,7 @@ export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Re
     classFeatures: [
       { id: "lf-channel", name: "Channel Divinity", description: "Turn Undead.", source: "class-feature" },
     ],
+    speciesTraits: [],
     equipment: [
       { id: "le-wand", name: "Wand of Magic Missiles", quantity: 1, weight: 1, description: "", equipped: true, type: "other", magic: true, maxUses: 7, uses: 2 },
       { id: "le-potion", name: "Potion of Healing", quantity: 3, weight: 0.5, description: "", equipped: false, type: "consumable", uses: 1 },

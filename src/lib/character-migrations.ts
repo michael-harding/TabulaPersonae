@@ -1,5 +1,6 @@
 import type { Character, Equipment, Feature, SenseType } from "./character-types"
 import { ABILITY_KEYS, calculateEquippedAC, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, hasChargesTracking, inferFeatureType, makeSizeTrait, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import { ensureRequiredFeatures, FEATURE_LIST_FIELDS, type FeatureListField } from "./required-features"
 
 // Exported for the legacy-character test fixtures, which must leave out exactly these keys
 export const CALCULATED_VALUE_FLAGS = [
@@ -14,8 +15,6 @@ export const CALCULATED_VALUE_FLAGS = [
   // the dedicated block below, not in the generic backfill() helper.
   "useCalculatedSenses",
 ] as const
-
-const FEATURE_LIST_FIELDS = ["classFeatures", "speciesTraits", "feats", "backgroundFeatures"] as const
 
 // Free text until these became a menu of the standard damage types plus custom entries.
 const DAMAGE_TYPE_LIST_FIELDS = ["damageResistances", "damageImmunities", "damageVulnerabilities"] as const
@@ -205,11 +204,19 @@ export function migrateCharacter(raw: unknown): Character {
   const sizeTrait = importCustomSize(raw)
   if (sizeTrait) patch.speciesTraits = [...safeFeatures(raw.speciesTraits), sizeTrait]
 
+  const featureLists = {} as Record<FeatureListField, Feature[]>
   for (const field of FEATURE_LIST_FIELDS) {
     const current = safeFeatures((patch[field] as Feature[] | undefined) ?? raw[field])
     const backfilled = backfillFeatureTypes(current)
     if (backfilled) patch[field] = backfilled
+    featureLists[field] = backfilled ?? current
   }
+
+  // After the backfill, which it relies on: a feature's type is what makes it the required one.
+  // Runs on every load, not once: an imported file can lack a required feature at any time. The
+  // starting values go even to a character saved before these were required, since every character
+  // has these features; nothing the character already has is overwritten (see ensureRequiredFeatures).
+  Object.assign(patch, ensureRequiredFeatures(featureLists))
 
   // Exhaustion was an on/off condition before it had levels. The stored condition proves level 1
   // and nothing more, so that is what it becomes; a stored level is never second-guessed.

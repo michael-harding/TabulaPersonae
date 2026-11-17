@@ -12,8 +12,9 @@ import Layers from "lucide-solid/icons/layers"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, formatModifier } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, CREATURE_TYPES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, formatModifier } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
+import { effectFeatureType, isRequiredFeature, isRequiredFeatureType } from "@/lib/required-features"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
@@ -110,6 +111,9 @@ function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: Featur
     case 'Size':
       if (effects.size) parts.push(`Size: ${effects.size}`)
       break
+    case 'Creature Type':
+      if (effects.creatureType) parts.push(`Creature Type: ${effects.creatureType}`)
+      break
     case 'Max HP Bonus':
       if (effects.hpBonusPerLevel) parts.push(`+${effects.hpBonusPerLevel} Max HP per level`)
       break
@@ -183,7 +187,7 @@ function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: Featur
 // populated (a tier added and never filled in is dropped silently rather than rendering blank).
 // 'Action' and '' never reach here (see card JSX, which only calls this for other featureTypes).
 function featureEffectLines(feature: Feature): { level: number; text: string }[] {
-  const type = feature.featureType as FeatureTypeValue
+  const type = effectFeatureType(feature.featureType ?? '') as FeatureTypeValue
   return (feature.levelEffects ?? [])
     .map((tier) => ({ level: tier.level, text: formatFeatureEffectsLine(type, tier.effects) }))
     .filter((line) => line.text !== '')
@@ -191,7 +195,7 @@ function featureEffectLines(feature: Feature): { level: number; text: string }[]
 
 const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 
-// Spellcasting Ability, Hit Points, and Size are fixed facts of a class/species, not something
+// Spellcasting Ability, Hit Points, Size, and Creature Type are fixed facts of a class/species, not something
 // that changes at higher levels, so they get a single always-on control. The proficiency-grant
 // types (and the other species-trait-shaped effects below) genuinely can be granted or expanded
 // at different levels, so they keep the repeatable level-tier list. Hit Points bundles a Hit Die
@@ -204,20 +208,23 @@ const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 // granting trait/feat can be picked up at any level, it needs no editable level either: a feature is
 // only ever added once actually gained, and amount × current-level is already algebraically
 // equivalent to 5e RAW (e.g. Tough) for any level at or after that, regardless of which level it was.
-const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size', 'Max HP Bonus']
-// The Name field is hidden entirely for these three — the feature type itself is already the name
+const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size', 'Creature Type', 'Max HP Bonus']
+// The Name field is hidden entirely for these — the feature type itself is already the name
 // (see changeFeatureType, which fills formData.name with the type string so the hidden field still
 // has a value to submit/display). Max HP Bonus is deliberately excluded even though it's also a
 // SINGLE_EFFECT_TYPE: a character can gain HP-bonus-per-level from more than one source, so its Name
 // stays visible and user-editable to tell those sources apart.
-const NAMELESS_FEATURE_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size']
+const NAMELESS_FEATURE_TYPES: FeatureTypeValue[] = ['Spellcasting Ability', 'Hit Points', 'Size', 'Creature Type']
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
   'Ability Scores',
 ]
-const FEATURE_TYPES: FeatureTypeValue[] = ['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES]
+// Required types aren't offered: every character already has its one feature of each (see
+// required-features.ts), and that feature's type is locked.
+const FEATURE_TYPES: FeatureTypeValue[] = (['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES] as FeatureTypeValue[]).filter((t) => !isRequiredFeatureType(t))
 const FEATURE_TYPE_OPTIONS = [{ value: '', label: 'None' }, ...FEATURE_TYPES.map((t) => ({ value: t, label: t }))]
+const CREATURE_TYPE_OPTIONS = [{ value: '', label: 'None' }, ...CREATURE_TYPES.map((t) => ({ value: t, label: t }))]
 const HIT_DIE_OPTIONS = [{ value: '', label: 'None' }, ...DIE_SIZES.map((s) => ({ value: String(s), label: `d${s}` }))]
 const SIZE_OPTIONS = [{ value: '', label: 'None' }, ...SIZES.map((s) => ({ value: s, label: s }))]
 
@@ -682,6 +689,15 @@ function LevelEffectRow(props: {
 
 function FeatureForm(props: FeatureFormProps) {
   const [formData, setFormData] = createSignal<FeatureFormData>(props.initialData ?? defaultFeatureForm)
+  // A legacy type behaves like its required type: same fields, same card summary
+  const effectType = createMemo(() => effectFeatureType(formData().featureType))
+  // A required feature keeps its type. A feature opened with a type that isn't offered (a legacy
+  // one) still lists it, so the menu shows it and can return to it.
+  const initialType = untrack(() => props.initialData?.featureType ?? '')
+  const typeLocked = isRequiredFeatureType(initialType)
+  const typeOptions = initialType === '' || FEATURE_TYPES.includes(initialType)
+    ? FEATURE_TYPE_OPTIONS
+    : [...FEATURE_TYPE_OPTIONS, { value: initialType, label: initialType }]
 
   // Spellcasting Ability / Hit Points / Size / Max HP Bonus aren't level-dependent — they're always
   // in force as soon as the feature exists, modeled as a single tier fixed at level 1 rather than a
@@ -787,7 +803,7 @@ function FeatureForm(props: FeatureFormProps) {
   // even with no type: otherwise editing a pre-existing untyped feature (name/description only, no
   // mechanical effect) would hide the very fields needed to see or change it.
   const detailsShown = createMemo(() => formData().featureType !== '' || formData().name.trim() !== '')
-  const isNameless = createMemo(() => NAMELESS_FEATURE_TYPES.includes(formData().featureType as FeatureTypeValue))
+  const isNameless = createMemo(() => NAMELESS_FEATURE_TYPES.includes(effectType() as FeatureTypeValue))
   // Name shows with the other details, except for the types that take their name from the type
   // instead. The required-field legend explains Name's asterisk, so it follows this too.
   const nameShown = createMemo(() => detailsShown() && !isNameless())
@@ -809,7 +825,7 @@ function FeatureForm(props: FeatureFormProps) {
     const data = formData()
     // The same default changeFeatureType gives on picking the type, for a nameless-type feature saved
     // without one (made before that default existed, or imported that way)
-    props.onSubmit(isNameless() && !data.name.trim() ? { ...data, name: data.featureType } : data)
+    props.onSubmit(isNameless() && !data.name.trim() ? { ...data, name: effectType() } : data)
   }
 
   // noValidate: the browser's own required-field popup would pre-empt the standard error UI.
@@ -821,13 +837,16 @@ function FeatureForm(props: FeatureFormProps) {
         <FormErrorSummary validation={validation} />
         <div class="space-y-1">
           <Label for="feature-type-select">Feature Type</Label>
-          <Select options={FEATURE_TYPE_OPTIONS} value={formData().featureType} onValueChange={changeFeatureType}>
+          <Select options={typeOptions} value={formData().featureType} onValueChange={changeFeatureType} disabled={typeLocked}>
             <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type" {...validation.controlProps('feature-type-select')}>
               <SelectValue placeholder="None" />
             </SelectTrigger>
             <SelectContent />
           </Select>
           <FieldError validation={validation} fieldId="feature-type-select" />
+          <Show when={typeLocked}>
+            <p class="text-xs text-muted-foreground" data-test="feature-type-locked-hint">Every character has this feature, so its type can't change.</p>
+          </Show>
         </div>
 
         <Show when={detailsShown()}>
@@ -964,7 +983,7 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
         </Show>
 
-        <Show when={formData().featureType === 'Spellcasting Ability'}>
+        <Show when={effectType() === 'Spellcasting Ability'}>
           <div class="space-y-1">
             <Label for="feature-spellcasting-ability">Spellcasting Ability</Label>
             <Select
@@ -978,7 +997,7 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
         </Show>
 
-        <Show when={formData().featureType === 'Hit Points'}>
+        <Show when={effectType() === 'Hit Points'}>
           <div class="space-y-4 border rounded-md p-3">
             <div class="space-y-1">
               <Label for="feature-hit-die">Hit Die</Label>
@@ -1060,7 +1079,7 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
         </Show>
 
-        <Show when={formData().featureType === 'Size'}>
+        <Show when={effectType() === 'Size'}>
           <div class="space-y-1">
             <Label for="feature-size">Size</Label>
             <Select
@@ -1074,7 +1093,21 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
         </Show>
 
-        <Show when={formData().featureType === 'Max HP Bonus'}>
+        <Show when={effectType() === 'Creature Type'}>
+          <div class="space-y-1">
+            <Label for="feature-creature-type">Creature Type</Label>
+            <Select
+              options={CREATURE_TYPE_OPTIONS}
+              value={singleTierEffects().creatureType ?? ''}
+              onValueChange={(v) => setSingleTierEffects({ ...singleTierEffects(), creatureType: v || undefined })}
+            >
+              <SelectTrigger id="feature-creature-type" data-test="feature-creature-type-select" aria-label="Creature Type"><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectContent />
+            </Select>
+          </div>
+        </Show>
+
+        <Show when={effectType() === 'Max HP Bonus'}>
           <div class="space-y-1">
             <Label for="feature-hp-bonus-per-level" class="text-xs">Max HP Bonus (per level)</Label>
             <NumericInput
@@ -1086,12 +1119,12 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
         </Show>
 
-        <Show when={isTieredEffectType(formData().featureType)}>
+        <Show when={isTieredEffectType(effectType())}>
           <div class="space-y-3">
             <Index each={formData().levelEffects}>
               {(tier, i) => (
                 <LevelEffectRow
-                  featureType={formData().featureType as
+                  featureType={effectType() as
                     | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
                     | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
                     | 'Ability Scores'}
@@ -1260,18 +1293,21 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                                     <Pencil class="h-4 w-4" aria-hidden="true" />
                                   </button>
                                 </Tooltip>
-                                <Tooltip content={`Delete ${section.singular}`}>
-                                  <ConfirmButton
-                                    data-test={`feature-delete-${feature.id}`}
-                                    verb="Delete"
-                                    subject={feature.name}
-                                    variant="ghostDestructive"
-                                    size="bareIcon"
-                                    onConfirm={() => handleDelete(section.field, feature.id)}
-                                  >
-                                    <Trash2 class="h-4 w-4" aria-hidden="true" />
-                                  </ConfirmButton>
-                                </Tooltip>
+                                {/* Every character keeps its required features */}
+                                <Show when={!isRequiredFeature(feature)}>
+                                  <Tooltip content={`Delete ${section.singular}`}>
+                                    <ConfirmButton
+                                      data-test={`feature-delete-${feature.id}`}
+                                      verb="Delete"
+                                      subject={feature.name}
+                                      variant="ghostDestructive"
+                                      size="bareIcon"
+                                      onConfirm={() => handleDelete(section.field, feature.id)}
+                                    >
+                                      <Trash2 class="h-4 w-4" aria-hidden="true" />
+                                    </ConfirmButton>
+                                  </Tooltip>
+                                </Show>
                               </div>
                             </Show>
                           </div>
