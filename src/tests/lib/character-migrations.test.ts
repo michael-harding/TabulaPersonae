@@ -1,7 +1,7 @@
 import { migrateCharacter, migrateCharacters } from "@/lib/character-migrations"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Feature } from "@/lib/character-types"
-import { getEffectiveHitDiceSize, getEffectiveSize, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
+import { getEffectiveHitDiceSize, getEffectiveSize, getEffectiveSpellcastingAbility, getSpellSlots } from "@/lib/character-utils"
 
 describe("migrateCharacter", () => {
   it("is a no-op for an already-current character", () => {
@@ -271,7 +271,7 @@ describe("migrateCharacter", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "intelligence", hitDice: "" }
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
-      expect(migrated.classFeatures!.find((f) => f.name === "Spellcasting")?.featureType).toBe("Spellcasting Ability")
+      expect(migrated.classFeatures!.find((f) => f.name === "Spellcasting")?.featureType).toBe("Spellcasting")
     })
 
     it("backfills featureType on every feature list, not just classFeatures", () => {
@@ -345,6 +345,135 @@ describe("migrateCharacter", () => {
       }
       const migrated = migrateCharacter({ ...createDefaultCharacter(), level: 3, speciesTraits: [later], size: "Small", useCalculatedSize: false })
       expect(sizeTraits(migrated)).toEqual([later])
+    })
+  })
+
+  // The Spellcasting Ability type became Spellcasting, which gives the spell slots as well
+  describe("Spellcasting Ability features", () => {
+    const old = (overrides: Record<string, unknown> = {}) => ({
+      id: "sa", name: "Spellcasting Ability", description: "", source: "class-feature", featureType: "Spellcasting Ability",
+      levelEffects: [{ level: 1, effects: { spellcastingAbility: "charisma" } }], ...overrides,
+    })
+
+    it("become Spellcasting features keeping their ability, in whichever list they are", () => {
+      const raw = { ...createDefaultCharacter(), feats: [old({ id: "ft", source: "feat" })] }
+      const migrated = migrateCharacter({ ...raw, classFeatures: [...raw.classFeatures!, old()] })
+      const retyped = [...migrated.classFeatures!, ...migrated.feats!].filter((f) => f.featureType === "Spellcasting")
+      expect(retyped.map((f) => [f.id, f.levelEffects])).toEqual([
+        ["sa", [{ level: 1, effects: { spellcastingAbility: "charisma" } }]],
+        ["ft", [{ level: 1, effects: { spellcastingAbility: "charisma" } }]],
+      ])
+      expect(getEffectiveSpellcastingAbility(migrated)).toBe("charisma")
+    })
+
+    // Its Name field was hidden, so a feature named after the old type was named by the app
+    it("take the new default name when named after the old type, and keep any other name", () => {
+      const raw = createDefaultCharacter()
+      const migrated = migrateCharacter({ ...raw, classFeatures: [...raw.classFeatures!, old(), old({ id: "w", name: "Wizard Spellcasting" })] })
+      expect(migrated.classFeatures!.filter((f) => f.featureType === "Spellcasting").map((f) => f.name)).toEqual(["Spellcasting & Spell Slots", "Wizard Spellcasting"])
+    })
+  })
+
+  // Spell slots were entered on the character as `{ 1: { total, used }, ..., 9: { total, used } }`
+  // before the Spellcasting class feature gave them
+  describe("spell slots", () => {
+    const legacySlots = (slots: Record<number, { total: number; used: number }>) => {
+      const all: Record<number, { total: number; used: number }> = {}
+      for (let level = 1; level <= 9; level++) all[level] = slots[level] ?? { total: 0, used: 0 }
+      return all
+    }
+    const spellcastingFeatures = (character: Character) => (character.classFeatures ?? []).filter((f) => f.featureType === "Spellcasting")
+    // A character saved before spentSpellSlots existed
+    const legacyCharacter = (overrides: Record<string, unknown>): Record<string, unknown> => {
+      const raw: Record<string, unknown> = { ...createDefaultCharacter(), ...overrides }
+      delete raw.spentSpellSlots
+      return raw
+    }
+    const withClassFeature = (feature: Record<string, unknown>) => [...createDefaultCharacter().classFeatures!, feature]
+
+    it("turns entered slots into a Spellcasting class feature from the character's level on, keeping the spent ones", () => {
+      const raw = legacyCharacter({ level: 5, spellSlots: legacySlots({ 1: { total: 4, used: 1 }, 2: { total: 3, used: 0 }, 3: { total: 2, used: 2 } }) })
+      const migrated = migrateCharacter(raw)
+      expect(spellcastingFeatures(migrated)).toEqual([expect.objectContaining({
+        name: "Spellcasting & Spell Slots", source: "class-feature", featureType: "Spellcasting",
+        levelEffects: [{ level: 5, effects: { spellSlots: { 1: 4, 2: 3, 3: 2 } } }],
+      })])
+      expect(migrated.spentSpellSlots).toEqual({ 1: 1, 3: 2 })
+      expect(migrated).not.toHaveProperty("spellSlots")
+      // Nothing on screen changes
+      expect(getSpellSlots(migrated)[1]).toEqual({ total: 4, used: 1 })
+      expect(getSpellSlots(migrated)[3]).toEqual({ total: 2, used: 2 })
+    })
+
+    it("adds the feature after the character's own class features", () => {
+      const migrated = migrateCharacter(legacyCharacter({ spellSlots: legacySlots({ 1: { total: 2, used: 0 } }) }))
+      expect(migrated.classFeatures?.map((f) => f.featureType)).toEqual(["Hit Points", "Spellcasting"])
+    })
+
+    it("adds the slots to the character's Spellcasting class feature as a row with its ability", () => {
+      const ability = { id: "sa", name: "Spellcasting", description: "", source: "class-feature", featureType: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] }
+      const migrated = migrateCharacter(legacyCharacter({ level: 3, classFeatures: withClassFeature(ability), spellSlots: legacySlots({ 1: { total: 4, used: 0 } }) }))
+      expect(spellcastingFeatures(migrated).map((f) => [f.id, f.levelEffects])).toEqual([["sa", [
+        { level: 1, effects: { spellcastingAbility: "wisdom" } },
+        { level: 3, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4 } } },
+      ]]])
+      expect(getEffectiveSpellcastingAbility(migrated)).toBe("wisdom")
+      expect(getSpellSlots(migrated)[1].total).toBe(4)
+    })
+
+    it("puts the slots on the row at the character's level when there is one", () => {
+      const ability = { id: "sa", name: "Spellcasting", description: "", source: "class-feature", featureType: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }] }
+      const migrated = migrateCharacter(legacyCharacter({ level: 1, classFeatures: withClassFeature(ability), spellSlots: legacySlots({ 1: { total: 2, used: 0 } }) }))
+      expect(spellcastingFeatures(migrated)[0].levelEffects).toEqual([{ level: 1, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 2 } } }])
+    })
+
+    // The old type's features are retyped first, so they take the slots too
+    it("adds the slots to a feature of the old Spellcasting Ability type", () => {
+      const ability = { id: "sa", name: "Spellcasting Ability", description: "", source: "class-feature", featureType: "Spellcasting Ability", levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }] }
+      const migrated = migrateCharacter(legacyCharacter({ level: 2, classFeatures: withClassFeature(ability), spellSlots: legacySlots({ 1: { total: 3, used: 0 } }) }))
+      expect(spellcastingFeatures(migrated)).toEqual([expect.objectContaining({ id: "sa", name: "Spellcasting & Spell Slots" })])
+      expect(spellcastingFeatures(migrated)[0].levelEffects?.at(-1)).toEqual({ level: 2, effects: { spellcastingAbility: "intelligence", spellSlots: { 1: 3 } } })
+    })
+
+    // Innate spellcasting from a species isn't where a class's slots go
+    it("gives the slots a class feature of their own when only a species trait grants an ability", () => {
+      const drowMagic = { id: "dm", name: "Drow Magic", description: "", source: "species-trait", featureType: "Spellcasting", levelEffects: [{ level: 1, effects: { spellcastingAbility: "charisma" } }] }
+      const base = createDefaultCharacter()
+      const migrated = migrateCharacter(legacyCharacter({ speciesTraits: [...base.speciesTraits!, drowMagic], spellSlots: legacySlots({ 1: { total: 2, used: 0 } }) }))
+      expect(migrated.speciesTraits?.find((f) => f.id === "dm")).toEqual(drowMagic)
+      expect(spellcastingFeatures(migrated)).toEqual([expect.objectContaining({ levelEffects: [{ level: 1, effects: { spellSlots: { 1: 2 } } }] })])
+    })
+
+    // Every character used to be saved with nine empty levels: that is no evidence of a spellcaster
+    it("adds nothing for a character with no slots, and drops the empty field", () => {
+      const migrated = migrateCharacter(legacyCharacter({ spellSlots: legacySlots({}) }))
+      expect(spellcastingFeatures(migrated)).toEqual([])
+      expect(migrated).not.toHaveProperty("spellSlots")
+      expect(migrated).not.toHaveProperty("spentSpellSlots")
+    })
+
+    it("counts no more spent than there were, and ignores malformed entries", () => {
+      const migrated = migrateCharacter(legacyCharacter({ spellSlots: { 1: { total: 2, used: 9 }, 2: { total: "3", used: 1 }, 3: null, 4: { total: 1.9 } } }))
+      expect(spellcastingFeatures(migrated)[0].levelEffects?.[0].effects).toEqual({ spellSlots: { 1: 2, 4: 1 } })
+      expect(migrated.spentSpellSlots).toEqual({ 1: 2 })
+    })
+
+    // Not from any real save; an import file can be hand-edited into it
+    it("keeps spent slots already recorded the current way", () => {
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), spentSpellSlots: { 2: 1 }, spellSlots: legacySlots({ 1: { total: 2, used: 1 } }) })
+      expect(migrated.spentSpellSlots).toEqual({ 2: 1 })
+    })
+
+    it("adds no slots when a feature already gives some, but still drops the old field", () => {
+      const feature = { id: "slots", name: "Spellcasting & Spell Slots", description: "", source: "class-feature" as const, featureType: "Spellcasting" as const, levelEffects: [{ level: 1, effects: { spellSlots: { 1: 2 } } }] }
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), level: 3, classFeatures: withClassFeature(feature), spellSlots: legacySlots({ 1: { total: 4, used: 1 } }) })
+      expect(spellcastingFeatures(migrated)).toEqual([feature])
+      expect(migrated).not.toHaveProperty("spellSlots")
+    })
+
+    it("is a no-op the second time", () => {
+      const once = migrateCharacter(legacyCharacter({ spellSlots: legacySlots({ 1: { total: 2, used: 1 } }) }))
+      expect(migrateCharacter(once)).toBe(once)
     })
   })
 

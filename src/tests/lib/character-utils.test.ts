@@ -69,6 +69,14 @@ import {
   spellEndsOnRest,
   spellsEndedByRest,
   activeSpellIdsAfterRest,
+  getSpellSlots,
+  withSpentSpellSlots,
+  findSpellcastingFeature,
+  makeSpellcastingFeature,
+  givesSpellSlots,
+  featureListField,
+  withFeatureSaved,
+  ordinal,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type Character, type Equipment, type Feature, type Spell } from "@/lib/character-types"
 
@@ -2133,7 +2141,7 @@ describe("inferFeatureType", () => {
   })
 
   it("checks spellcastingAbility before hitDiceSize when both are somehow present", () => {
-    expect(inferFeatureType(undefined, [{ level: 1, effects: { spellcastingAbility: "wisdom", hitDiceSize: 8 } }])).toBe("Spellcasting Ability")
+    expect(inferFeatureType(undefined, [{ level: 1, effects: { spellcastingAbility: "wisdom", hitDiceSize: 8 } }])).toBe("Spellcasting")
   })
 })
 
@@ -2532,5 +2540,156 @@ describe("spells ended by a rest", () => {
   it("also ends spells of up to 8 hours on a long rest", () => {
     expect(spellsEndedByRest(character, "long").map((s) => s.id)).toEqual(["bless", "mage-armor", "longstrider"])
     expect(activeSpellIdsAfterRest(character, "long")).toEqual(["alarm"])
+  })
+})
+
+describe("spell slots from Spellcasting features", () => {
+  // A Ranger-style table: each row is all the slots from its level on
+  const ranger = makeFeature({
+    id: "slots",
+    name: "Spellcasting & Spell Slots",
+    featureType: "Spellcasting",
+    levelEffects: [
+      { level: 2, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 2 } } },
+      { level: 3, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 3 } } },
+      { level: 5, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4, 2: 2 } } },
+    ],
+  })
+  const atLevel = (level: number, overrides: Partial<Character> = {}): Character => ({ ...createDefaultCharacter(), level, classFeatures: [ranger], ...overrides })
+  const totals = (character: Character) => Object.fromEntries(Object.entries(getSpellSlots(character)).filter(([, slot]) => slot.total > 0).map(([level, slot]) => [level, slot.total]))
+
+  it.each([
+    [1, {}],
+    [2, { 1: 2 }],
+    [4, { 1: 3 }],
+    [5, { 1: 4, 2: 2 }],
+    [20, { 1: 4, 2: 2 }],
+  ])("at level %i, gives the highest row reached, not the rows added up", (level, expected) => {
+    expect(totals(atLevel(level))).toEqual(expected)
+  })
+
+  it("gives the spellcasting ability from the first row's level on", () => {
+    expect(getEffectiveSpellcastingAbility(atLevel(1))).toBe("")
+    expect(getEffectiveSpellcastingAbility(atLevel(2))).toBe("wisdom")
+  })
+
+  it("orders the rows by level, whatever order they were entered in", () => {
+    const shuffled = { ...ranger, levelEffects: [...ranger.levelEffects!].reverse() }
+    expect(totals(atLevel(4, { classFeatures: [shuffled] }))).toEqual({ 1: 3 })
+  })
+
+  it.each([
+    ["emptied of slots", { spellSlots: {} }],
+    ["with only the ability", { spellcastingAbility: "wisdom" as const }],
+  ])("takes a row %s as having none, rather than falling back to the row below", (_label, effects) => {
+    const later = { ...ranger, levelEffects: [...ranger.levelEffects!, { level: 6, effects }] }
+    expect(totals(atLevel(6, { classFeatures: [later] }))).toEqual({})
+  })
+
+  it("adds up the slots of separate Spellcasting features", () => {
+    const pact = makeFeature({ id: "pact", name: "Pact Magic", featureType: "Spellcasting", levelEffects: [{ level: 1, effects: { spellSlots: { 2: 2 } } }] })
+    expect(totals(atLevel(5, { classFeatures: [ranger], feats: [pact] }))).toEqual({ 1: 4, 2: 4 })
+  })
+
+  it("ignores negative or non-numeric slot counts from external JSON", () => {
+    // @ts-expect-error a string is outside FeatureEffects, but a hand-edited import file can hold one
+    const odd = makeFeature({ id: "odd", featureType: "Spellcasting", levelEffects: [{ level: 1, effects: { spellSlots: { 1: -2, 2: "x" } } }] })
+    expect(totals(atLevel(1, { classFeatures: [odd] }))).toEqual({})
+  })
+
+  it("counts spent slots up to the total, so a lowered total never shows more spent than there are", () => {
+    const slots = getSpellSlots(atLevel(5, { spentSpellSlots: { 1: 1, 2: 5, 3: 2 } }))
+    expect(slots[1]).toEqual({ total: 4, used: 1 })
+    expect(slots[2]).toEqual({ total: 2, used: 2 })
+    expect(slots[3]).toEqual({ total: 0, used: 0 })
+  })
+
+  it("has no slots and none spent for a character with no Spellcasting feature", () => {
+    const slots = getSpellSlots(createDefaultCharacter())
+    expect(Object.values(slots).every((slot) => slot.total === 0 && slot.used === 0)).toBe(true)
+  })
+
+  it("withSpentSpellSlots records one level's spent count, keeping the others", () => {
+    const character = atLevel(5, { spentSpellSlots: { 2: 1 } })
+    expect(withSpentSpellSlots(character, 1, 3).spentSpellSlots).toEqual({ 1: 3, 2: 1 })
+    expect(withSpentSpellSlots(character, 1, -1).spentSpellSlots).toEqual({ 1: 0, 2: 1 })
+  })
+})
+
+describe("findSpellcastingFeature / givesSpellSlots", () => {
+  const spellcasting = (id: string, source: Feature["source"], slots: boolean) => makeFeature({
+    id, source, featureType: "Spellcasting",
+    levelEffects: [{ level: 1, effects: { spellcastingAbility: "charisma", ...(slots ? { spellSlots: { 1: 2 } } : {}) } }],
+  })
+
+  it("tells a feature giving slots from one giving only an ability", () => {
+    expect(givesSpellSlots(spellcasting("a", "class-feature", true))).toBe(true)
+    expect(givesSpellSlots(spellcasting("b", "class-feature", false))).toBe(false)
+    expect(givesSpellSlots(makeFeature({ levelEffects: [{ level: 1, effects: { spellSlots: { 1: 0 } } }] }))).toBe(false)
+  })
+
+  it("finds the first Spellcasting feature giving slots, in the Features tab's order", () => {
+    const character = { ...createDefaultCharacter(), feats: [spellcasting("feat", "feat", true)], classFeatures: [makeFeature({ id: "other" }), spellcasting("class", "class-feature", true)] }
+    expect(findSpellcastingFeature(character)?.id).toBe("class")
+    expect(findSpellcastingFeature({ ...character, classFeatures: [] })?.id).toBe("feat")
+  })
+
+  // An innate-spellcasting species trait isn't where a class's slots go
+  it("otherwise finds the first Spellcasting class feature, passing over others with no slots", () => {
+    const character = { ...createDefaultCharacter(), speciesTraits: [spellcasting("drow-magic", "species-trait", false)], classFeatures: [spellcasting("class", "class-feature", false)] }
+    expect(findSpellcastingFeature(character)?.id).toBe("class")
+    expect(findSpellcastingFeature({ ...character, classFeatures: [] })).toBeUndefined()
+  })
+
+  it("finds none for a character without one", () => {
+    expect(findSpellcastingFeature(createDefaultCharacter())).toBeUndefined()
+  })
+})
+
+describe("makeSpellcastingFeature", () => {
+  it("makes a Spellcasting class feature giving the ability and slots from the level on", () => {
+    expect(makeSpellcastingFeature({ spellcastingAbility: "intelligence", spellSlots: { 1: 4 } }, 7, "From an import.")).toEqual({
+      id: expect.any(String), name: "Spellcasting & Spell Slots", description: "From an import.", source: "class-feature", featureType: "Spellcasting",
+      levelEffects: [{ level: 7, effects: { spellcastingAbility: "intelligence", spellSlots: { 1: 4 } } }],
+    })
+  })
+
+  it("leaves out what it isn't given", () => {
+    expect(makeSpellcastingFeature({ spellSlots: { 1: 2 } }, 1, "").levelEffects?.[0].effects).toStrictEqual({ spellSlots: { 1: 2 } })
+    expect(makeSpellcastingFeature({ spellcastingAbility: "wisdom", spellSlots: undefined }, 1, "").levelEffects?.[0].effects).toStrictEqual({ spellcastingAbility: "wisdom" })
+  })
+
+  it.each([[0, 1], [25, 20], [Number.NaN, 1], [3.7, 3]])("keeps the level %s within 1–20 (%s)", (level, expected) => {
+    expect(makeSpellcastingFeature({ spellSlots: { 1: 1 } }, level, "").levelEffects?.[0].level).toBe(expected)
+  })
+})
+
+describe("withFeatureSaved / featureListField", () => {
+  it.each([
+    ["class-feature", "classFeatures"],
+    ["species-trait", "speciesTraits"],
+    ["feat", "feats"],
+    ["background", "backgroundFeatures"],
+  ] as const)("keeps a %s in %s", (kind, field) => {
+    expect(featureListField(kind)).toBe(field)
+  })
+
+  it("replaces the feature with the same id, in place", () => {
+    const character = { ...createDefaultCharacter(), feats: [makeFeature({ id: "a", source: "feat" }), makeFeature({ id: "b", source: "feat" })] }
+    const saved = withFeatureSaved(character, makeFeature({ id: "a", source: "feat", name: "Renamed" }))
+    expect(saved.feats?.map((f) => [f.id, f.name])).toEqual([["a", "Renamed"], ["b", "Test Feature"]])
+  })
+
+  it("adds a new feature at the end of its list", () => {
+    const character = createDefaultCharacter()
+    const saved = withFeatureSaved(character, makeFeature({ id: "new", source: "class-feature" }))
+    expect(saved.classFeatures?.map((f) => f.id)).toEqual([...character.classFeatures!.map((f) => f.id), "new"])
+    expect(saved.speciesTraits).toBe(character.speciesTraits)
+  })
+})
+
+describe("ordinal", () => {
+  it.each([[1, "1st"], [2, "2nd"], [3, "3rd"], [4, "4th"], [9, "9th"], [11, "11th"], [12, "12th"], [13, "13th"], [21, "21st"]])("reads %i as %s", (n, expected) => {
+    expect(ordinal(n)).toBe(expected)
   })
 })

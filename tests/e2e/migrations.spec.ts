@@ -17,9 +17,14 @@ const legacy = makeLegacyCharacter() as unknown as Character
 function expectMigrated(character: Character) {
   const features = character.classFeatures ?? []
   // The legacy spellcasting ability and hit die each became exactly one granting Feature
-  expect(features.filter((f) => f.name === "Spellcasting")).toHaveLength(1)
+  expect(features.filter((f) => f.featureType === "Spellcasting")).toHaveLength(1)
   expect(features.filter((f) => f.name === "Hit Points")).toHaveLength(1)
-  expect(features.find((f) => f.name === "Spellcasting")?.levelEffects?.[0].effects).toEqual({ spellcastingAbility: "wisdom" })
+  // The entered spell slots joined it as a row from the character's level (3) on, with its ability,
+  // keeping the slot already spent; the old field is gone
+  expect(features.find((f) => f.name === "Spellcasting")?.levelEffects).toEqual([
+    { level: 1, effects: { spellcastingAbility: "wisdom" } },
+    { level: 3, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4, 2: 2 } } },
+  ])
   expect(features.find((f) => f.name === "Hit Points")?.levelEffects?.[0].effects).toEqual({ hitDiceSize: 8 })
   // A Feature from before featureType has one now
   expect(features.find((f) => f.name === "Channel Divinity")).toHaveProperty("featureType")
@@ -37,6 +42,8 @@ function expectMigrated(character: Character) {
   expect(character.exhaustionLevel).toBe(1)
   expect(character.conditions ?? []).not.toContain("Exhaustion")
   expect(character).toHaveProperty("useCalculatedArmorClass")
+  expect(character.spentSpellSlots).toEqual({ 1: 1 })
+  expect(character).not.toHaveProperty("spellSlots")
 }
 
 /** The generated features are listed on the Features tab. */

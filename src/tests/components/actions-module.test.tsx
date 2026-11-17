@@ -7,9 +7,10 @@ import { ActionsModule } from "@/components/actions-module"
 import { CAST_FEEDBACK_MS } from "@/components/action-card"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
+import { getSpellSlots } from "@/lib/character-utils"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { cleanup, render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick, finishClosing } from "../test-utils"
+import { cleanup, render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick, finishClosing, withSpellSlots } from "../test-utils"
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return { ...createDefaultCharacter(), ...overrides }
@@ -234,22 +235,16 @@ describe("ActionsModule", () => {
 
   describe("SpellSlotTracker integration", () => {
     it("renders slot circles for levels with total > 0", () => {
-      const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 3, used: 1 } }
-      render(() => <ActionsModule character={makeCharacter({ spellSlots })} onUpdate={vi.fn()} />)
+      render(() => <ActionsModule character={withSpellSlots(makeCharacter(), { 1: { total: 3, used: 1 } })} onUpdate={vi.fn()} />)
       expect(screen.getAllByLabelText("Used slot (click to restore)")).toHaveLength(1)
       expect(screen.getAllByLabelText("Available slot (click to use)")).toHaveLength(2)
     })
 
     it("calls onUpdate with incremented used count when a slot circle is clicked", () => {
       const onUpdate = vi.fn()
-      const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 0 } }
-      render(() => <ActionsModule character={makeCharacter({ spellSlots })} onUpdate={onUpdate} />)
+      render(() => <ActionsModule character={withSpellSlots(makeCharacter(), { 1: { total: 2 } })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByLabelText("Available slot (click to use)")[0])
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 1 }) }),
-        })
-      )
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentSpellSlots: { 1: 1 } }))
     })
   })
 
@@ -491,29 +486,22 @@ describe("ActionsModule", () => {
 
     it("renders an enabled Cast button for a non-cantrip when slots are available", () => {
       const spell = makeSpell({ id: "sp-1", name: "Bless", level: 1, castingTime: "1 action", prepared: true, known: true })
-      const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 0 } }
-      render(() => <ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={vi.fn()} />)
+      render(() => <ActionsModule character={withSpellSlots(makeCharacter({ spells: [spell] }), { 1: { total: 2 } })} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /cast/i })).not.toBeDisabled()
     })
 
     it("renders a disabled Cast button when no slots remain", () => {
       const spell = makeSpell({ id: "sp-1", name: "Bless", level: 1, castingTime: "1 action", prepared: true, known: true })
-      const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 2 } }
-      render(() => <ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={vi.fn()} />)
+      render(() => <ActionsModule character={withSpellSlots(makeCharacter({ spells: [spell] }), { 1: { total: 2, used: 2 } })} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /cast/i })).toBeDisabled()
     })
 
     it("calls onUpdate with incremented used count when Cast is clicked", () => {
       const onUpdate = vi.fn()
       const spell = makeSpell({ id: "sp-1", name: "Bless", level: 1, castingTime: "1 action", prepared: true, known: true })
-      const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 0 } }
-      render(() => <ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={onUpdate} />)
+      render(() => <ActionsModule character={withSpellSlots(makeCharacter({ spells: [spell] }), { 1: { total: 2 } })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /cast/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 1 }) }),
-        })
-      )
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentSpellSlots: { 1: 1 } }))
     })
 
     // Regression: freeCast spells (item-granted, no-slot-cost) previously used the same
@@ -521,16 +509,14 @@ describe("ActionsModule", () => {
     // exactly like any other prepared spell.
     it("keeps a freeCast spell castable even when all slots at its level are used", () => {
       const spell = makeSpell({ id: "sp-free", name: "Free Fireball", level: 1, castingTime: "1 action", prepared: true, known: true, freeCast: true })
-      const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 1, used: 1 } }
-      render(() => <ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={vi.fn()} />)
+      render(() => <ActionsModule character={withSpellSlots(makeCharacter({ spells: [spell] }), { 1: { total: 1, used: 1 } })} onUpdate={vi.fn()} />)
       expect(screen.getByRole("button", { name: /cast/i })).not.toBeDisabled()
     })
 
     it("does not consume a spell slot when casting a freeCast spell", () => {
       const onUpdate = vi.fn()
       const spell = makeSpell({ id: "sp-free", name: "Free Fireball", level: 1, castingTime: "1 action", prepared: true, known: true, freeCast: true })
-      const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 1, used: 1 } }
-      render(() => <ActionsModule character={makeCharacter({ spells: [spell], spellSlots })} onUpdate={onUpdate} />)
+      render(() => <ActionsModule character={withSpellSlots(makeCharacter({ spells: [spell] }), { 1: { total: 1, used: 1 } })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /cast/i }))
       expect(onUpdate).not.toHaveBeenCalled()
     })
@@ -543,12 +529,10 @@ describe("ActionsModule", () => {
     const bless = makeSpell({ id: "bless", name: "Bless", level: 1, prepared: true, concentration: true, duration: "Concentration, up to 1 minute" })
     const hex = makeSpell({ id: "hex", name: "Hex", level: 1, prepared: true, concentration: true, duration: "Concentration, up to 1 hour" })
     const mageArmor = makeSpell({ id: "mage-armor", name: "Mage Armor", level: 1, prepared: true, duration: "8 hours" })
-    const spellSlots = { ...createDefaultCharacter().spellSlots, 1: { total: 4, used: 0 } }
-
-    // The module re-rendered with each update, as the sheet does
-    function renderLive(overrides: Partial<Character> = {}) {
+    // The module re-rendered with each update, as the sheet does. Four 1st-level slots unless `slots` says otherwise.
+    function renderLive(overrides: Partial<Character> = {}, slots: Parameters<typeof withSpellSlots>[1] = { 1: { total: 4 } }) {
       const onUpdate = vi.fn()
-      const [character, setCharacter] = createSignal(makeCharacter({ spells: [bless, hex, mageArmor], spellSlots, ...overrides }))
+      const [character, setCharacter] = createSignal(withSpellSlots(makeCharacter({ spells: [bless, hex, mageArmor], ...overrides }), slots))
       render(() => <ActionsModule character={character()} onUpdate={(c) => { onUpdate(c); setCharacter(c) }} />)
       return { onUpdate, character }
     }
@@ -561,7 +545,7 @@ describe("ActionsModule", () => {
       const { onUpdate, character } = renderLive()
       cast("Bless")
       expect(onUpdate).toHaveBeenCalledOnce()
-      expect(character().spellSlots[1].used).toBe(1)
+      expect(getSpellSlots(character())[1].used).toBe(1)
       expect(character().activeSpellIds).toEqual(["bless"])
       expect(screen.getByRole("button", { name: "End Bless" })).toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "Cast Bless" })).not.toBeInTheDocument()
@@ -588,31 +572,31 @@ describe("ActionsModule", () => {
       fireEvent.click(screen.getByRole("button", { name: "End Bless" }))
       expect(onUpdate).toHaveBeenCalledOnce()
       expect(character().activeSpellIds).toEqual(["mage-armor"])
-      expect(character().spellSlots[1].used).toBe(0)
+      expect(getSpellSlots(character())[1].used).toBe(0)
       expect(screen.getByRole("button", { name: "Cast Bless" })).toBeInTheDocument()
     })
 
     it("only spends the slot of a spell that doesn't last", () => {
       const { character } = renderLive({ spells: [makeSpell({ id: "mm", name: "Magic Missile", level: 1, prepared: true })] })
       cast("Magic Missile")
-      expect(character().spellSlots[1].used).toBe(1)
+      expect(getSpellSlots(character())[1].used).toBe(1)
       expect(character().activeSpellIds).toBeUndefined()
       expect(screen.getByRole("button", { name: "Cast Magic Missile" })).toBeInTheDocument()
     })
 
     it("puts a free cast spell in effect without spending a slot", () => {
-      const { character } = renderLive({ spells: [{ ...mageArmor, freeCast: true }], spellSlots: { ...spellSlots, 1: { total: 1, used: 1 } } })
+      const { character } = renderLive({ spells: [{ ...mageArmor, freeCast: true }] }, { 1: { total: 1, used: 1 } })
       cast("Mage Armor")
-      expect(character().spellSlots[1].used).toBe(1)
+      expect(character().spentSpellSlots).toEqual({ 1: 1 })
       expect(character().activeSpellIds).toEqual(["mage-armor"])
     })
 
     it("gives a lasting cantrip a Cast button that spends no slot", () => {
       const guidance = makeSpell({ id: "guidance", name: "Guidance", level: 0, concentration: true, duration: "Concentration, up to 1 minute" })
-      const { character } = renderLive({ spells: [guidance], spellSlots: createDefaultCharacter().spellSlots })
+      const { character } = renderLive({ spells: [guidance] }, {})
       expect(screen.getByRole("button", { name: "Cast Guidance" })).toBeEnabled()
       cast("Guidance")
-      expect(character().spellSlots).toEqual(createDefaultCharacter().spellSlots)
+      expect(character().spentSpellSlots).toEqual({})
       expect(character().activeSpellIds).toEqual(["guidance"])
       expect(screen.getByRole("button", { name: "End Guidance" })).toBeInTheDocument()
     })
@@ -644,18 +628,15 @@ describe("ActionsModule", () => {
     }
 
     function makeCharacterWithUpcast({
+      level1Total = 2,
       level1Used = 0,
       level2Total = 1,
       level2Used = 0,
       spellOverrides = {} as Partial<Spell>,
     } = {}): Character {
-      return makeCharacter({
-        spells: [makeUpcastSpell(spellOverrides)],
-        spellSlots: {
-          ...createDefaultCharacter().spellSlots,
-          1: { total: 2, used: level1Used },
-          2: { total: level2Total, used: level2Used },
-        },
+      return withSpellSlots(makeCharacter({ spells: [makeUpcastSpell(spellOverrides)] }), {
+        1: { total: level1Total, used: level1Used },
+        2: { total: level2Total, used: level2Used },
       })
     }
 
@@ -687,15 +668,13 @@ describe("ActionsModule", () => {
     // A warlock's pact slots are all one level, above that of most of their spells
     it("casts a spell the character has no slots of its own level for with a higher slot", () => {
       const onUpdate = vi.fn()
-      const char = makeCharacterWithUpcast({ spellOverrides: { atHigherLevel: undefined } })
-      render(() => <ActionsModule character={{ ...char, spellSlots: { ...char.spellSlots, 1: { total: 0, used: 0 } } }} onUpdate={onUpdate} />)
+      const char = makeCharacterWithUpcast({ level1Total: 0, spellOverrides: { atHigherLevel: undefined } })
+      render(() => <ActionsModule character={char} onUpdate={onUpdate} />)
       expect(castButton()).toBeDisabled()
       fireEvent.click(slotSelect())
       fireEvent.click(screen.getByRole("option", { name: "2nd" }))
       fireEvent.click(castButton())
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
-        spellSlots: expect.objectContaining({ 2: expect.objectContaining({ used: 1 }) }),
-      }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentSpellSlots: { 2: 1 } }))
     })
 
     it("scales the spell's damage to the chosen slot", () => {
@@ -722,9 +701,7 @@ describe("ActionsModule", () => {
       render(() => <ActionsModule character={makeCharacterWithUpcast()} onUpdate={onUpdate} />)
       expect(slotSelect()).toHaveTextContent("1st")
       fireEvent.click(castButton())
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
-        spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 1 }), 2: expect.objectContaining({ used: 0 }) }),
-      }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentSpellSlots: { 1: 1 } }))
     })
 
     it("casts with a chosen higher slot, leaving the base slot alone", () => {
@@ -733,9 +710,7 @@ describe("ActionsModule", () => {
       fireEvent.click(slotSelect())
       fireEvent.click(screen.getByRole("option", { name: "2nd" }))
       fireEvent.click(castButton())
-      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
-        spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 0 }), 2: expect.objectContaining({ used: 1 }) }),
-      }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentSpellSlots: { 2: 1 } }))
     })
 
     it("still lists a spent higher level, as unavailable", () => {
@@ -745,14 +720,10 @@ describe("ActionsModule", () => {
     })
 
     it("lists only the spell's own level and those above it", () => {
-      const char = makeCharacter({
-        spells: [makeUpcastSpell({ level: 2 })],
-        spellSlots: {
-          ...createDefaultCharacter().spellSlots,
-          1: { total: 2, used: 0 },
-          2: { total: 2, used: 0 },
-          3: { total: 1, used: 0 },
-        },
+      const char = withSpellSlots(makeCharacter({ spells: [makeUpcastSpell({ level: 2 })] }), {
+        1: { total: 2 },
+        2: { total: 2 },
+        3: { total: 1 },
       })
       render(() => <ActionsModule character={char} onUpdate={vi.fn()} />)
       fireEvent.click(slotSelect())
@@ -762,13 +733,9 @@ describe("ActionsModule", () => {
     // TESTING.md §6: a spell cast as a bonus action or a reaction is listed in both sections, so
     // each copy needs its own hooks, and choosing a level on one must not change the other
     it("keeps a spell listed in two sections apart by section", () => {
-      const char = makeCharacter({
-        spells: [makeUpcastSpell({ castingTime: "1 bonus action or 1 reaction" })],
-        spellSlots: {
-          ...createDefaultCharacter().spellSlots,
-          1: { total: 2, used: 0 },
-          2: { total: 1, used: 0 },
-        },
+      const char = withSpellSlots(makeCharacter({ spells: [makeUpcastSpell({ castingTime: "1 bonus action or 1 reaction" })] }), {
+        1: { total: 2 },
+        2: { total: 1 },
       })
       render(() => <ActionsModule character={char} onUpdate={vi.fn()} />)
       const bonusSelect = screen.getByTestId("action-card-bonus-spell-sp-upcast-slot-select")
@@ -1968,7 +1935,7 @@ describe("ActionsModule", () => {
 
       it("lays out a spell listed in two sections separately in each", () => {
         const shield = makeSpell({ id: "sh", name: "Shield", level: 1, prepared: true, castingTime: "1 bonus action or 1 reaction" })
-        const { onUpdate } = renderLive(makeCharacter({ spells: [shield], spellSlots: { ...createDefaultCharacter().spellSlots, 1: { total: 2, used: 0 } } }))
+        const { onUpdate } = renderLive(withSpellSlots(makeCharacter({ spells: [shield] }), { 1: { total: 2 } }))
         startEditing()
 
         const bonusCard = screen.getByTestId("action-card-bonus-spell-sh")

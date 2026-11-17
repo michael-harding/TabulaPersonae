@@ -2,6 +2,8 @@ import { render, fireEvent, screen, waitFor } from "@solidjs/testing-library"
 import type { JSX } from "solid-js"
 
 import { CONFIRM_GUARD_MS } from "@/components/ui/confirm-button"
+import type { Character, SpellSlotLevel } from "@/lib/character-types"
+import { makeSpellcastingFeature } from "@/lib/character-utils"
 
 type RenderOptions = NonNullable<Parameters<typeof render>[1]>
 
@@ -64,6 +66,24 @@ export function confirmClick(el: Element) {
     fireEvent.click(el, { detail: 1 })
   } finally {
     now.mockRestore()
+  }
+}
+
+/**
+ * The character given these spell slots, `{ level: { total, used } }`, the way the sheet gives them:
+ * by a Spellcasting class feature (from level 1 on), with `used` of each level spent.
+ */
+export function withSpellSlots(character: Character, slots: Partial<Record<SpellSlotLevel, { total: number; used?: number }>>): Character {
+  const totals: Partial<Record<SpellSlotLevel, number>> = {}
+  const spent: Partial<Record<SpellSlotLevel, number>> = {}
+  for (const [level, { total, used }] of Object.entries(slots) as [string, { total: number; used?: number }][]) {
+    totals[Number(level) as SpellSlotLevel] = total
+    if (used) spent[Number(level) as SpellSlotLevel] = used
+  }
+  return {
+    ...character,
+    classFeatures: [...(character.classFeatures ?? []), makeSpellcastingFeature({ spellSlots: totals }, 1, "")],
+    spentSpellSlots: { ...character.spentSpellSlots, ...spent },
   }
 }
 

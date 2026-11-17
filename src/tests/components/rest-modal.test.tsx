@@ -4,6 +4,7 @@ import { axe } from "vitest-axe"
 import { RestModal } from "@/components/rest-modal"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Attack, BonusAction, Feature, Equipment, OtherAction, Spell } from "@/lib/character-types"
+import { getSpellSlots, makeSpellcastingFeature } from "@/lib/character-utils"
 
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
@@ -393,21 +394,31 @@ describe("RestModal", () => {
       expect(updated.spentHitDice).toBe(0)
     })
 
-    it("calls onRest with all spell slot used counts reset to 0", () => {
+    it("calls onRest with every spent spell slot restored, keeping the slots the feature gives", () => {
       const onRest = vi.fn()
       const char = makeCharacter({
-        spellSlots: {
-          ...createDefaultCharacter().spellSlots,
-          1: { total: 4, used: 3 },
-          2: { total: 3, used: 2 },
-        },
+        classFeatures: [...makeCharacter().classFeatures!, makeSpellcastingFeature({ spellSlots: { 1: 4, 2: 3 } }, 1, "")],
+        spentSpellSlots: { 1: 3, 2: 2 },
       })
       openModal(char, onRest)
       switchToLong()
       fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
       const updated: Character = onRest.mock.calls[0][0]
-      expect(updated.spellSlots[1].used).toBe(0)
-      expect(updated.spellSlots[2].used).toBe(0)
+      expect(updated.spentSpellSlots).toEqual({})
+      expect(getSpellSlots(updated)[1]).toEqual({ total: 4, used: 0 })
+      expect(getSpellSlots(updated)[2]).toEqual({ total: 3, used: 0 })
+    })
+
+    it("leaves spent spell slots spent on a short rest", () => {
+      const onRest = vi.fn()
+      const char = makeCharacter({
+        classFeatures: [...makeCharacter().classFeatures!, makeSpellcastingFeature({ spellSlots: { 1: 4 } }, 1, "")],
+        spentSpellSlots: { 1: 3 },
+      })
+      openModal(char, onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.spentSpellSlots).toEqual({ 1: 3 })
     })
 
     it.each([[3, 2], [1, 0]])("lowers exhaustion from level %i to %i", (from, to) => {

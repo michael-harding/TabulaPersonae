@@ -148,7 +148,7 @@ export const SCENES: Scene[] = [
     },
   },
   {
-    name: "Edit Spell Slots modal",
+    name: "Spell Slots feature form, from Edit Slots",
     within: DIALOG,
     open: async (page) => {
       await openGuestSheet(page, "Spells")

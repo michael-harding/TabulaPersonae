@@ -152,7 +152,7 @@ test.describe("Touch targets", () => {
     expectAccessibleTouchTargets(await auditTouchTargets(page))
   })
 
-  test("Edit Spell Slots modal", async ({ page }) => {
+  test("Spell Slots feature form, from Edit Slots", async ({ page }) => {
     await openSheet(page, testCharacter.id, "Spells")
     await page.getByRole("button", { name: /edit slots/i }).click()
     await expect(page.getByRole("dialog")).toBeVisible()

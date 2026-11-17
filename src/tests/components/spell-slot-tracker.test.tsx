@@ -1,16 +1,17 @@
 import { axe } from "vitest-axe"
 
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
-import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character } from "@/lib/character-types"
+import type { SpellSlotLevel } from "@/lib/character-types"
+import { SPELL_SLOT_LEVELS, type SpellSlotState } from "@/lib/character-utils"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 import { render, screen, fireEvent } from "../test-utils"
 
-type SpellSlots = Character["spellSlots"]
+type SpellSlots = Record<SpellSlotLevel, SpellSlotState>
 
 function makeSpellSlots(overrides: Partial<SpellSlots> = {}): SpellSlots {
-  return { ...createDefaultCharacter().spellSlots, ...overrides }
+  const none = Object.fromEntries(SPELL_SLOT_LEVELS.map((level) => [level, { total: 0, used: 0 }])) as SpellSlots
+  return { ...none, ...overrides }
 }
 
 describe("SpellSlotTracker", () => {
@@ -19,14 +20,14 @@ describe("SpellSlotTracker", () => {
   })
 
   it("renders nothing when all slot totals are 0", () => {
-    render(() => <SpellSlotTracker spellSlots={makeSpellSlots()} onToggle={vi.fn()} />)
+    render(() => <SpellSlotTracker slots={makeSpellSlots()} onToggle={vi.fn()} />)
     expect(screen.queryAllByRole("button")).toHaveLength(0)
   })
 
   it("only renders levels with total > 0", () => {
     render(() => (
       <SpellSlotTracker
-        spellSlots={makeSpellSlots({ 1: { total: 3, used: 0 }, 3: { total: 2, used: 0 } })}
+        slots={makeSpellSlots({ 1: { total: 3, used: 0 }, 3: { total: 2, used: 0 } })}
         onToggle={vi.fn()}
       />
     ))
@@ -39,7 +40,7 @@ describe("SpellSlotTracker", () => {
     const allSlots = makeSpellSlots(
       Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((l) => [l, { total: 1, used: 0 }]))
     )
-    render(() => <SpellSlotTracker spellSlots={allSlots} onToggle={vi.fn()} />)
+    render(() => <SpellSlotTracker slots={allSlots} onToggle={vi.fn()} />)
     for (const label of ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"]) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
@@ -47,14 +48,14 @@ describe("SpellSlotTracker", () => {
 
   it("renders the correct number of circle buttons for a level", () => {
     render(() => (
-      <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 0 } })} onToggle={vi.fn()} />
+      <SpellSlotTracker slots={makeSpellSlots({ 1: { total: 3, used: 0 } })} onToggle={vi.fn()} />
     ))
     expect(screen.getAllByLabelText("Available slot (click to use)")).toHaveLength(3)
   })
 
   it("renders used slots with the correct title", () => {
     render(() => (
-      <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 2 } })} onToggle={vi.fn()} />
+      <SpellSlotTracker slots={makeSpellSlots({ 1: { total: 3, used: 2 } })} onToggle={vi.fn()} />
     ))
     expect(screen.getAllByLabelText("Used slot (click to restore)")).toHaveLength(2)
     expect(screen.getAllByLabelText("Available slot (click to use)")).toHaveLength(1)
@@ -63,7 +64,7 @@ describe("SpellSlotTracker", () => {
   it("calls onToggle with level and used+1 when an available slot is clicked", () => {
     const onToggle = vi.fn()
     render(() => (
-      <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 0 } })} onToggle={onToggle} />
+      <SpellSlotTracker slots={makeSpellSlots({ 1: { total: 3, used: 0 } })} onToggle={onToggle} />
     ))
     fireEvent.click(screen.getAllByLabelText("Available slot (click to use)")[0])
     expect(onToggle).toHaveBeenCalledWith(1, 1)
@@ -72,7 +73,7 @@ describe("SpellSlotTracker", () => {
   it("calls onToggle with level and used-1 when a used slot is clicked", () => {
     const onToggle = vi.fn()
     render(() => (
-      <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 2 } })} onToggle={onToggle} />
+      <SpellSlotTracker slots={makeSpellSlots({ 1: { total: 3, used: 2 } })} onToggle={onToggle} />
     ))
     fireEvent.click(screen.getAllByLabelText("Used slot (click to restore)")[0])
     expect(onToggle).toHaveBeenCalledWith(1, 1)
@@ -81,7 +82,7 @@ describe("SpellSlotTracker", () => {
   it("clamps newUsed to total when clicking the last available slot at full capacity", () => {
     const onToggle = vi.fn()
     render(() => (
-      <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 2, used: 1 } })} onToggle={onToggle} />
+      <SpellSlotTracker slots={makeSpellSlots({ 1: { total: 2, used: 1 } })} onToggle={onToggle} />
     ))
     // slot at index 1 (>= used=1) → newUsed = 2, clamped to min(2, 2) = 2
     fireEvent.click(screen.getAllByLabelText("Available slot (click to use)")[0])
@@ -91,7 +92,7 @@ describe("SpellSlotTracker", () => {
   it("renders multiple levels independently", () => {
     render(() => (
       <SpellSlotTracker
-        spellSlots={makeSpellSlots({ 1: { total: 2, used: 0 }, 2: { total: 4, used: 0 } })}
+        slots={makeSpellSlots({ 1: { total: 2, used: 0 }, 2: { total: 4, used: 0 } })}
         onToggle={vi.fn()}
       />
     ))
@@ -100,14 +101,14 @@ describe("SpellSlotTracker", () => {
 
   it("has no accessibility violations", async () => {
     const { container } = render(() => (
-      <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 1 } })} onToggle={vi.fn()} />
+      <SpellSlotTracker slots={makeSpellSlots({ 1: { total: 3, used: 1 } })} onToggle={vi.fn()} />
     ))
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
   })
 
   it("marks each available slot with a wand", () => {
-    render(() => <SpellSlotTracker spellSlots={makeSpellSlots({ 1: { total: 3, used: 1 } })} onToggle={vi.fn()} />)
+    render(() => <SpellSlotTracker slots={makeSpellSlots({ 1: { total: 3, used: 1 } })} onToggle={vi.fn()} />)
     expect(screen.getByTestId("spell-slot-level-1-pips-slot-0").querySelector("svg")).toBeNull()
     expect(screen.getByTestId("spell-slot-level-1-pips-slot-1").querySelector(".lucide-wand-sparkles")).not.toBeNull()
   })
@@ -117,7 +118,7 @@ describe("SpellSlotTracker", () => {
       render(() => (
         <ReadOnlyProvider value={true}>
           <SpellSlotTracker
-            spellSlots={makeSpellSlots({ 1: { total: 3, used: 1 } })}
+            slots={makeSpellSlots({ 1: { total: 3, used: 1 } })}
             onToggle={vi.fn()}
           />
         </ReadOnlyProvider>
@@ -132,7 +133,7 @@ describe("SpellSlotTracker", () => {
       render(() => (
         <ReadOnlyProvider value={true}>
           <SpellSlotTracker
-            spellSlots={makeSpellSlots({ 2: { total: 2, used: 0 } })}
+            slots={makeSpellSlots({ 2: { total: 2, used: 0 } })}
             onToggle={vi.fn()}
           />
         </ReadOnlyProvider>

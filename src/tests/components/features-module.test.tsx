@@ -794,48 +794,7 @@ describe("FeaturesModule", () => {
       )
     })
 
-    describe("Spellcasting Ability / Hit Points (not level-dependent)", () => {
-      it("shows only the Spellcasting Ability control, with no Add Level button", () => {
-        render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
-        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
-        const modal = screen.getByRole("dialog")
-        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Spellcasting Ability" }))
-        expect(within(modal).getByRole("combobox", { name: /^spellcasting ability$/i })).toBeInTheDocument()
-        expect(within(modal).queryByRole("button", { name: /add level/i })).not.toBeInTheDocument()
-        expect(within(modal).queryByLabelText("Add skill proficiency")).not.toBeInTheDocument()
-        expect(within(modal).queryByRole("checkbox", { name: "WIS" })).not.toBeInTheDocument()
-        // the action-only fields must not appear for a mechanical Feature Type
-        expect(within(modal).queryByLabelText(/^range$/i)).not.toBeInTheDocument()
-      })
-
-      it("persists a spellcasting ability grant with no At Level input", () => {
-        const onUpdate = vi.fn()
-        render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
-        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
-        const modal = screen.getByRole("dialog")
-        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Spellcasting Ability" }))
-        // Name is hidden for this type and defaults to the type string
-        expect(within(modal).queryByLabelText(/^name$/i)).not.toBeInTheDocument()
-        expect(within(modal).queryByLabelText(/at level/i)).not.toBeInTheDocument()
-        fireEvent.click(within(modal).getByRole("combobox", { name: /^spellcasting ability$/i }))
-        fireEvent.click(within(modal).getByRole("option", { name: "Wisdom" }))
-        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
-        expect(onUpdate).toHaveBeenCalledWith(
-          expect.objectContaining({
-            classFeatures: expect.arrayContaining([
-              expect.objectContaining({
-                name: "Spellcasting Ability",
-                actionKind: undefined,
-                level: undefined,
-                levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }],
-              }),
-            ]),
-          })
-        )
-      })
-
+    describe("Hit Points (not level-dependent)", () => {
       it("shows the Hit Die and Max HP Calculation controls, defaulted to 'per-level', with no Add Level button", () => {
         render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
         fireEvent.click(screen.getByRole("button", { name: /edit hit points/i }))
@@ -1093,7 +1052,7 @@ describe("FeaturesModule", () => {
         const onUpdate = vi.fn()
         const feature = makeFeature({
           name: "Spellcasting",
-          featureType: "Spellcasting Ability",
+          featureType: "Spellcasting",
           levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom" } }],
         })
         render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
@@ -1393,6 +1352,142 @@ describe("FeaturesModule", () => {
             ]),
           })
         )
+      })
+    })
+
+    // One ability for the whole feature, and rows of the class's spell slot table: all the slots
+    // from that level on
+    describe("Spellcasting (an ability, and a slot table by level)", () => {
+      const pickSpellcasting = () => {
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Spellcasting" }))
+        return modal
+      }
+      const setSlots = (modal: HTMLElement, tier: number, slotLevel: number, value: string) => {
+        const input = within(modal).getByTestId(`level-effect-${tier}-spell-slots-${slotLevel}`)
+        fireEvent.input(input, { target: { value } })
+        fireEvent.keyDown(input, { key: "Enter" })
+      }
+      const setAbility = (modal: HTMLElement, ability: string) => {
+        fireEvent.click(within(modal).getByRole("combobox", { name: /^spellcasting ability$/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: ability }))
+      }
+      const saved = (onUpdate: ReturnType<typeof vi.fn>) => (onUpdate.mock.calls[0][0] as Character).classFeatures!.at(-1)!
+
+      it("shows the ability, the hint, and a level row with a slot count for each spell level", () => {
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        const modal = pickSpellcasting()
+        expect(within(modal).getByRole("combobox", { name: /^spellcasting ability$/i })).toHaveTextContent("None")
+        expect(within(modal).getByTestId("spellcasting-hint")).toBeInTheDocument()
+        expect(within(modal).getByLabelText(/^name$/i)).toHaveValue("Spellcasting & Spell Slots")
+        for (const ordinal of ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"]) {
+          expect(within(modal).getByRole("spinbutton", { name: `${ordinal} level slots` })).toHaveValue(0)
+        }
+        // the action-only fields must not appear for a mechanical Feature Type
+        expect(within(modal).queryByLabelText(/^range$/i)).not.toBeInTheDocument()
+      })
+
+      it("persists the ability and the slot counts, leaving out the levels with none", () => {
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        const modal = pickSpellcasting()
+        setAbility(modal, "Wisdom")
+        setSlots(modal, 0, 1, "2")
+        setSlots(modal, 0, 2, "1")
+        setSlots(modal, 0, 2, "0")
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate)).toMatchObject({
+          name: "Spellcasting & Spell Slots", featureType: "Spellcasting", actionKind: undefined, level: undefined,
+          levelEffects: [{ level: 1, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 2 } } }],
+        })
+      })
+
+      // e.g. a species trait's innate spellcasting
+      it("persists an ability with no slots", () => {
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        const modal = pickSpellcasting()
+        setAbility(modal, "Charisma")
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate).levelEffects).toStrictEqual([{ level: 1, effects: { spellcastingAbility: "charisma" } }])
+      })
+
+      it("starts a new level as the next row of the table, from the highest row so far", () => {
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        const modal = pickSpellcasting()
+        setAbility(modal, "Wisdom")
+        setSlots(modal, 0, 1, "2")
+        fireEvent.click(within(modal).getByRole("button", { name: /add level/i }))
+        expect(within(modal).getByTestId("level-effect-1-level-input")).toHaveValue(2)
+        expect(within(modal).getByTestId("level-effect-1-spell-slots-1")).toHaveValue(2)
+        setSlots(modal, 1, 1, "3")
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate).levelEffects).toEqual([
+          { level: 1, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 2 } } },
+          { level: 2, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 3 } } },
+        ])
+      })
+
+      it("saves the ability onto every row, and clearing it takes it off every row", () => {
+        const onUpdate = vi.fn()
+        const feature = makeFeature({
+          name: "Spellcasting & Spell Slots",
+          featureType: "Spellcasting",
+          levelEffects: [
+            { level: 1, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 2 } } },
+            { level: 3, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4 } } },
+          ],
+        })
+        render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit spellcasting & spell slots/i }))
+        const modal = screen.getByRole("dialog")
+        expect(within(modal).getByRole("combobox", { name: /^spellcasting ability$/i })).toHaveTextContent("Wisdom")
+        setAbility(modal, "Intelligence")
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate).levelEffects?.map((tier) => tier.effects.spellcastingAbility)).toEqual(["intelligence", "intelligence"])
+
+        onUpdate.mockClear()
+        fireEvent.click(screen.getByRole("button", { name: /edit spellcasting & spell slots/i }))
+        setAbility(screen.getByRole("dialog"), "None")
+        fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate).levelEffects?.every((tier) => !("spellcastingAbility" in tier.effects))).toBe(true)
+      })
+
+      it("starts a level 1 row for an ability chosen after every row was removed", () => {
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        const modal = pickSpellcasting()
+        confirmClick(within(modal).getByTestId("level-effect-0-remove-button"))
+        setAbility(modal, "Wisdom")
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate).levelEffects).toEqual([{ level: 1, effects: { spellcastingAbility: "wisdom" } }])
+      })
+
+      it("has no accessibility violations", async () => {
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        const modal = pickSpellcasting()
+        fireEvent.click(within(modal).getByRole("button", { name: /add level/i }))
+        const results = await axe(modal)
+        expect(results.violations).toHaveLength(0)
+      })
+
+      it("summarises the ability once and each row on the feature's card", () => {
+        const feature = makeFeature({
+          name: "Spellcasting & Spell Slots",
+          featureType: "Spellcasting",
+          levelEffects: [
+            { level: 1, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 2 } } },
+            { level: 3, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4, 2: 2 } } },
+          ],
+        })
+        render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getAllByText(/Spellcasting Ability: WIS/)).toHaveLength(1)
+        expect(screen.getByText("Spellcasting Ability: WIS").textContent).toBe("Spellcasting Ability: WIS")
+        expect(screen.getByText("Spell Slots: 2 × 1st").textContent).toBe("Level 1: Spell Slots: 2 × 1st")
+        expect(screen.getByText("Spell Slots: 4 × 1st, 2 × 2nd").textContent).toBe("Level 3: Spell Slots: 4 × 1st, 2 × 2nd")
       })
     })
 
@@ -1896,16 +1991,16 @@ describe("FeaturesModule", () => {
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
-      fireEvent.click(within(modal).getByRole("option", { name: "Spellcasting Ability" }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Spellcasting" }))
       fireEvent.click(within(modal).getByRole("combobox", { name: /^spellcasting ability$/i }))
       fireEvent.click(within(modal).getByRole("option", { name: "Wisdom" }))
-      // switching away from Spellcasting Ability should drop the value that was just set
+      // switching away from Spellcasting should drop the value that was just set
       fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
       fireEvent.click(within(modal).getByRole("option", { name: "Action" }))
       expect(within(modal).queryByRole("combobox", { name: /^spellcasting ability$/i })).not.toBeInTheDocument()
       expect(within(modal).getByRole("combobox", { name: /Action Kind/i })).toBeInTheDocument()
-      // Name is hidden for Spellcasting Ability but becomes visible again for Action, pre-filled
-      // with the auto-derived "Spellcasting Ability" default — overwrite it with a custom name
+      // Name is pre-filled with Spellcasting's "Spellcasting & Spell Slots" default, which picking
+      // Action keeps — overwrite it with a custom name
       fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Test" } })
       fireEvent.click(within(modal).getByRole("combobox", { name: /Action Kind/i }))
       fireEvent.click(within(modal).getByRole("option", { name: "Action" }))
@@ -2149,7 +2244,7 @@ describe("FeaturesModule", () => {
     describe("levelEffects summary", () => {
       it("shows the spellcasting ability granted", () => {
         const feature = makeFeature({
-          featureType: "Spellcasting Ability",
+          featureType: "Spellcasting",
           levelEffects: [{ level: 1, effects: { spellcastingAbility: "charisma" } }],
         })
         render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)

@@ -63,17 +63,8 @@ export const testCharacter: Character = {
   spellcastingAbility: "wisdom",
   spellSaveDC: 14,
   spellAttackBonus: 6,
-  spellSlots: {
-    1: { total: 4, used: 1 },
-    2: { total: 2, used: 0 },
-    3: { total: 0, used: 0 },
-    4: { total: 0, used: 0 },
-    5: { total: 0, used: 0 },
-    6: { total: 0, used: 0 },
-    7: { total: 0, used: 0 },
-    8: { total: 0, used: 0 },
-    9: { total: 0, used: 0 },
-  },
+  // The slots themselves are the Spellcasting class feature's (cf5)
+  spentSpellSlots: { 1: 1 },
   spells: [
     {
       id: "sp1",
@@ -276,6 +267,18 @@ export const testCharacter: Character = {
       source: "class-feature",
       description: "Your tenacity can wear down the most resilient foes. Once per turn, when you hit a creature with a weapon attack, you deal an extra 1d8 damage if it's below its hit point maximum.",
     },
+    {
+      id: "cf5",
+      name: "Spellcasting & Spell Slots",
+      source: "class-feature",
+      featureType: "Spellcasting",
+      description: "The Ranger's spellcasting, from 2nd level.",
+      levelEffects: [
+        { level: 2, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 2 } } },
+        { level: 3, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 3 } } },
+        { level: 5, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4, 2: 2 } } },
+      ],
+    },
   ],
   speciesTraits: [
     {
@@ -388,6 +391,7 @@ export function seedLocalStorage(characters: Character[]) {
  *     `consumedUses` (consumable);
  *   - damage resistances typed as free text;
  *   - Exhaustion as a plain condition, before it had levels;
+ *   - spell slots entered on the character, before the Spellcasting feature gave them;
  *   - no species traits, from before Creature Type and Size were required ones.
  * Not typed as Character: it is deliberately not one.
  */
@@ -397,6 +401,8 @@ export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Re
   // New characters start with these calculated; an older save has neither, which leaves both custom
   delete current.useCalculatedProficiencyBonus
   delete current.useCalculatedMaximumHp
+  // Spent slots were kept in spellSlots (below) before they had a field of their own
+  delete current.spentSpellSlots
   return {
     ...current,
     id: "legacy-char-1",
@@ -417,6 +423,12 @@ export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Re
     damageResistances: ["poison"],
     // Before exhaustion had levels it was an on/off condition
     conditions: ["Exhaustion"],
+    // Before spell slots were a class feature: totals and spent slots, at every level
+    spellSlots: {
+      1: { total: 4, used: 1 }, 2: { total: 2, used: 0 }, 3: { total: 0, used: 0 },
+      4: { total: 0, used: 0 }, 5: { total: 0, used: 0 }, 6: { total: 0, used: 0 },
+      7: { total: 0, used: 0 }, 8: { total: 0, used: 0 }, 9: { total: 0, used: 0 },
+    },
     ...overrides,
   }
 }

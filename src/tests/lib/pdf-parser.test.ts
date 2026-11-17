@@ -19,6 +19,8 @@ import {
   parseSpellSaveHit,
   parseSpellDuration,
 } from "@/lib/pdf-parser"
+import { migrateCharacter } from "@/lib/character-migrations"
+import { getEffectiveSpellcastingAbility } from "@/lib/character-utils"
 
 vi.mock("pdf-lib", () => ({
   PDFDocument: { load: vi.fn() },
@@ -604,22 +606,45 @@ describe("pdf-parser", () => {
     describe("spell slots", () => {
       // D&D Beyond stores "N Slots OO..." strings in spellSlotHeader1..9
       // "O" = open slot, missing O = used slot
-      it("calculates used = total - open count from spellSlotHeader", () => {
+      const spellSlotsFeatures = (result: ReturnType<typeof mapFieldsToCharacter>) =>
+        (result.classFeatures ?? []).filter((feature) => feature.featureType === "Spellcasting")
+
+      it("becomes a Spellcasting class feature giving the ability and slots from the sheet's level on", () => {
+        const result = mapFieldsToCharacter({ "CLASS  LEVEL": "Wizard 3", spellCastingAbility0: "INT", spellSlotHeader1: "4 Slots OO", spellSlotHeader2: "2 Slots OO" })
+        const features = spellSlotsFeatures(result)
+        expect(features).toHaveLength(1)
+        expect(features[0]).toMatchObject({ name: "Spellcasting & Spell Slots", source: "class-feature" })
+        expect(features[0].levelEffects).toEqual([{ level: 3, effects: { spellcastingAbility: "intelligence", spellSlots: { 1: 4, 2: 2 } } }])
+      })
+
+      // Regression: the sheet's ability only reached the legacy spellcastingAbility field, which no
+      // calculation reads, so an imported caster had no spellcasting ability
+      it("gives the sheet's spellcasting ability even with no slots, and it takes effect once imported", () => {
+        const result = mapFieldsToCharacter({ "CLASS  LEVEL": "Cleric 1", spellCastingAbility0: "WIS" })
+        expect(spellSlotsFeatures(result)[0].levelEffects).toEqual([{ level: 1, effects: { spellcastingAbility: "wisdom" } }])
+        expect(getEffectiveSpellcastingAbility(migrateCharacter(mergeWithDefault(result)))).toBe("wisdom")
+      })
+      it("calculates spent = total - open count from spellSlotHeader", () => {
         // "4 Slots OO" = 4 total, 2 open, 2 used
         const result = mapFieldsToCharacter({ spellSlotHeader1: "4 Slots OO" })
-        expect(result.spellSlots?.[1]).toEqual({ total: 4, used: 2 })
+        expect(result.spentSpellSlots).toEqual({ 1: 2 })
       })
-      it("all slots open = zero used", () => {
+      it("all slots open = none spent", () => {
         const result = mapFieldsToCharacter({ spellSlotHeader1: "2 Slots OO" })
-        expect(result.spellSlots?.[1]?.used).toBe(0)
+        expect(result.spentSpellSlots).toBeUndefined()
       })
       it("handles multiple slot levels", () => {
         const result = mapFieldsToCharacter({
           spellSlotHeader1: "4 Slots OOO",
           spellSlotHeader2: "3 Slots O",
         })
-        expect(result.spellSlots?.[1]).toEqual({ total: 4, used: 1 })
-        expect(result.spellSlots?.[2]).toEqual({ total: 3, used: 2 })
+        expect(spellSlotsFeatures(result)[0].levelEffects?.[0].effects).toEqual({ spellSlots: { 1: 4, 2: 3 } })
+        expect(result.spentSpellSlots).toEqual({ 1: 1, 2: 2 })
+      })
+      it("adds no feature for a sheet with no slots and no ability", () => {
+        const result = mapFieldsToCharacter({ spellSlotHeader1: "0 Slots" })
+        expect(spellSlotsFeatures(result)).toHaveLength(0)
+        expect(result.spentSpellSlots).toBeUndefined()
       })
     })
 
@@ -713,7 +738,9 @@ describe("pdf-parser", () => {
         expect(result.coins?.gp).toBe(42)
         expect(result.spellcastingAbility).toBe("charisma")
         expect(result.spellcastingClass).toBe("Paladin")
-        expect(result.spellSlots?.[1]).toEqual({ total: 2, used: 0 })
+        expect(result.classFeatures?.find((feature) => feature.featureType === "Spellcasting")?.levelEffects).toEqual([
+          { level: 2, effects: { spellcastingAbility: "charisma", spellSlots: { 1: 2 } } },
+        ])
       })
     })
   })
@@ -751,10 +778,9 @@ describe("pdf-parser", () => {
       expect(result.skills.athletics.proficient).toBe(true)
       expect(result.skills.acrobatics.proficient).toBe(false)
     })
-    it("deep-merges spellSlots", () => {
-      const result = mergeWithDefault({ spellSlots: { 1: { total: 4, used: 2 } } })
-      expect(result.spellSlots[1]).toEqual({ total: 4, used: 2 })
-      expect(result.spellSlots[2]).toEqual({ total: 0, used: 0 })
+    it("keeps the spent spell slots", () => {
+      const result = mergeWithDefault({ spentSpellSlots: { 1: 2 } })
+      expect(result.spentSpellSlots).toEqual({ 1: 2 })
     })
     it("merges coins", () => {
       const result = mergeWithDefault({ coins: { cp: 5, sp: 0, ep: 0, gp: 42, pp: 0 } })

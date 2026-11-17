@@ -62,6 +62,7 @@ export const MODALS: ModalCase[] = [
   { name: "feature-edit-size", tab: "Features", open: (page) => editFeature(page, "Size"), coveredBy: "feature-edit-creature-type" }, // one select
   { name: "spell-add", tab: "Spells", open: (page) => click(page, "add-spell-button") },
   { name: "spell-edit", tab: "Spells", open: (page) => click(page, "edit-spell-sp3") },
+  // Edit Slots opens the Spellcasting class feature's form: its ability, and the fixture's three level rows
   { name: "spell-slots", tab: "Spells", open: (page) => click(page, "edit-spell-slots-button") },
   { name: "item-add", tab: "Inventory", open: (page) => click(page, "add-equipment-button") },
   {
@@ -117,8 +118,8 @@ export const featureTypeBaseline = (type: string) => `feature-add-type-${slug(ty
 // list drift, so a new type can't ship until it is given a baseline or mapped to one.
 const FEATURE_TYPE_COVERED_BY: Record<string, string | null> = {
   "Action": "feature-edit", // the edit case opens an Action feature
-  "Spellcasting Ability": null,
   "Max HP Bonus": null,
+  "Spellcasting": "spell-slots", // the Edit Slots case opens the fixture's Spellcasting feature
   "Saving Throw Proficiency": null,
   "Skill Proficiency": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"), // a chip-list row per level
   "Other Proficiency": featureTypeBaseline("Language"), // a text input and Add per level
