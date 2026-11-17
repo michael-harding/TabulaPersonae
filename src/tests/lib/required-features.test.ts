@@ -1,5 +1,5 @@
 import type { Feature, FeatureTypeValue } from "@/lib/character-types"
-import { createRequiredFeatures, effectFeatureType, ensureRequiredFeatures, isRequiredFeature, REQUIRED_FEATURE_TYPES } from "@/lib/required-features"
+import { createStartingFeatures, effectFeatureType, ensureRequiredFeatures, isRequiredFeature, REQUIRED_FEATURE_TYPES } from "@/lib/required-features"
 
 const feature = (id: string, source: Feature["source"], featureType: FeatureTypeValue | "", effects: Feature["levelEffects"] = []): Feature => ({
   id, name: id, description: "", source, featureType, levelEffects: effects,
@@ -7,11 +7,11 @@ const feature = (id: string, source: Feature["source"], featureType: FeatureType
 
 const emptyLists = () => ({ classFeatures: [] as Feature[], speciesTraits: [] as Feature[], feats: [] as Feature[], backgroundFeatures: [] as Feature[] })
 
-describe("createRequiredFeatures", () => {
+describe("createStartingFeatures", () => {
   it("makes Hit Points a class feature and the rest species traits, with the starting values", () => {
-    const { classFeatures, speciesTraits } = createRequiredFeatures()
+    const { classFeatures, speciesTraits } = createStartingFeatures()
     expect(classFeatures).toEqual([expect.objectContaining({ name: "Hit Points", source: "class-feature", featureType: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })])
-    expect(speciesTraits!.map((f) => [f.name, f.source, f.featureType, f.levelEffects])).toEqual([
+    expect(speciesTraits!.map((f: Feature) => [f.name, f.source, f.featureType, f.levelEffects])).toEqual([
       ["Creature Type", "species-trait", "Creature Type", [{ level: 1, effects: { creatureType: "Humanoid" } }]],
       ["Size", "species-trait", "Size", [{ level: 1, effects: { size: "Medium" } }]],
       ["Speed", "species-trait", "Speed", [{ level: 1, effects: { speed: 30 } }]],
@@ -20,8 +20,8 @@ describe("createRequiredFeatures", () => {
   })
 
   it("gives each feature its own id and effects object", () => {
-    const first = createRequiredFeatures()
-    const second = createRequiredFeatures()
+    const first = createStartingFeatures()
+    const second = createStartingFeatures()
     expect(first.speciesTraits![0].id).not.toBe(second.speciesTraits![0].id)
     expect(first.speciesTraits![3].levelEffects![0].effects.languages).not.toBe(second.speciesTraits![3].levelEffects![0].effects.languages)
   })
@@ -36,6 +36,9 @@ describe("isRequiredFeature / effectFeatureType", () => {
 
   it("leaves every other type as it is", () => {
     expect(isRequiredFeature({ featureType: "Senses" })).toBe(false)
+    // A character can get speed and languages from several features
+    expect(isRequiredFeature({ featureType: "Speed" })).toBe(false)
+    expect(isRequiredFeature({ featureType: "Language" })).toBe(false)
     expect(isRequiredFeature({ featureType: "" })).toBe(false)
     expect(isRequiredFeature({})).toBe(false)
     expect(effectFeatureType("Senses")).toBe("Senses")
@@ -48,7 +51,7 @@ describe("ensureRequiredFeatures", () => {
     const rage = feature("rage", "class-feature", "Action")
     const result = ensureRequiredFeatures({ ...emptyLists(), classFeatures: [rage] })!
     expect(result.classFeatures!.map((f) => f.featureType)).toEqual(["Hit Points", "Action"])
-    expect(result.speciesTraits!.map((f) => f.featureType)).toEqual(["Creature Type", "Size", "Speed", "Language"])
+    expect(result.speciesTraits!.map((f) => f.featureType)).toEqual(["Creature Type", "Size"])
     expect(result).not.toHaveProperty("feats")
     expect(result).not.toHaveProperty("backgroundFeatures")
   })
@@ -78,8 +81,18 @@ describe("ensureRequiredFeatures", () => {
   })
 
   it("returns undefined when every required feature is already in place", () => {
-    const { classFeatures, speciesTraits } = createRequiredFeatures()
-    const lists = { ...emptyLists(), classFeatures: classFeatures!, speciesTraits: speciesTraits!, feats: [feature("legacy", "feat", "Speed (legacy)")] }
+    const { classFeatures, speciesTraits } = createStartingFeatures()
+    const lists = { ...emptyLists(), classFeatures: classFeatures!, speciesTraits: speciesTraits!, feats: [feature("legacy", "feat", "Size (legacy)")] }
+    expect(ensureRequiredFeatures(lists)).toBeUndefined()
+  })
+
+  it("adds no Speed or Languages, and leaves any number of them as they are", () => {
+    const { classFeatures, speciesTraits } = createStartingFeatures()
+    const lists = {
+      ...emptyLists(), classFeatures: classFeatures!,
+      speciesTraits: speciesTraits!.filter((f) => f.featureType !== "Speed" && f.featureType !== "Language"),
+      feats: [feature("mobile", "feat", "Speed"), feature("linguist", "feat", "Language"), feature("linguist2", "feat", "Language")],
+    }
     expect(ensureRequiredFeatures(lists)).toBeUndefined()
   })
 })

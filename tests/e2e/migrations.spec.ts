@@ -23,8 +23,8 @@ function expectMigrated(character: Character) {
   expect(features.find((f) => f.name === "Hit Points")?.levelEffects?.[0].effects).toEqual({ hitDiceSize: 8 })
   // A Feature from before featureType has one now
   expect(features.find((f) => f.name === "Channel Divinity")).toHaveProperty("featureType")
-  // The required species traits, one of each, with their starting values
-  expect(character.speciesTraits?.map((f) => f.featureType)).toEqual(["Creature Type", "Size", "Speed", "Language"])
+  // The required species traits, one of each. Speed and Languages aren't required, so none are added.
+  expect(character.speciesTraits?.map((f) => f.featureType)).toEqual(["Creature Type", "Size"])
   // The single `uses` field moved to where each kind of item keeps it
   const wand = character.equipment.find((e) => e.name === "Wand of Magic Missiles")!
   const potion = character.equipment.find((e) => e.name === "Potion of Healing")!

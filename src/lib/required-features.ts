@@ -3,9 +3,9 @@ import type { Character, Feature, FeatureEffects, FeatureKind, FeatureTypeValue,
 export const FEATURE_LIST_FIELDS = ["classFeatures", "speciesTraits", "feats", "backgroundFeatures"] as const
 export type FeatureListField = (typeof FEATURE_LIST_FIELDS)[number]
 
-interface RequiredFeatureSpec {
-  type: RequiredFeatureType
-  /** The list the required feature lives in. */
+interface FeatureSpec<Type extends FeatureTypeValue = FeatureTypeValue> {
+  type: Type
+  /** The list the feature lives in. */
   field: FeatureListField
   source: FeatureKind
   name: string
@@ -15,12 +15,14 @@ interface RequiredFeatureSpec {
 }
 
 /**
- * The features every character has exactly one of. Required-ness comes from the Feature Type alone:
- * these types are not offered in the Feature Type menu, a required feature's type is locked, and it
- * cannot be deleted, so the one feature of each type in its list is the required one. Any other
+ * The features every character has exactly one of: those a character can only get from its class
+ * (the hit die) or species (creature type, size). Required-ness comes from the Feature Type alone:
+ * these types are not offered in the Feature Type menu, a required feature's form has no Feature Type
+ * field (the type is its title), and it cannot be deleted, so the one feature of each type in its
+ * list is the required one. Any other
  * feature of the type is relabelled "<type> (legacy)" by ensureRequiredFeatures.
  */
-const REQUIRED_FEATURES: RequiredFeatureSpec[] = [
+const REQUIRED_FEATURES: FeatureSpec<RequiredFeatureType>[] = [
   {
     type: "Hit Points",
     field: "classFeatures",
@@ -45,6 +47,14 @@ const REQUIRED_FEATURES: RequiredFeatureSpec[] = [
     description: "Grants this character's size. Update it to match your species.",
     effects: () => ({ size: "Medium" }),
   },
+]
+
+/**
+ * Ordinary features a new character starts with, which the player can change or delete. Speed and
+ * languages can come from several features (a species trait, a feat, a background), so neither is
+ * required, and an existing character never gets these added.
+ */
+const STARTER_FEATURES: FeatureSpec[] = [
   {
     type: "Speed",
     field: "speciesTraits",
@@ -58,7 +68,7 @@ const REQUIRED_FEATURES: RequiredFeatureSpec[] = [
     field: "speciesTraits",
     source: "species-trait",
     name: "Languages",
-    description: "Grants the languages this character knows. Add any others your species, background or class gives.",
+    description: "Grants the languages this character knows from its species.",
     effects: () => ({ languages: ["Common"] }),
   },
 ]
@@ -86,7 +96,7 @@ export function effectFeatureType(type: FeatureTypeValue | ""): FeatureTypeValue
   return isRequiredFeatureType(base) ? base : type
 }
 
-function makeRequiredFeature(spec: RequiredFeatureSpec): Feature {
+function makeFeature(spec: FeatureSpec): Feature {
   return {
     id: crypto.randomUUID(),
     name: spec.name,
@@ -97,19 +107,20 @@ function makeRequiredFeature(spec: RequiredFeatureSpec): Feature {
   }
 }
 
-/** A new character's required features, for createDefaultCharacter. */
-export function createRequiredFeatures(): Pick<Character, "classFeatures" | "speciesTraits"> {
+/** A new character's features: the required ones, then the starter ones. For createDefaultCharacter. */
+export function createStartingFeatures(): Pick<Character, "classFeatures" | "speciesTraits"> {
+  const specs = [...REQUIRED_FEATURES, ...STARTER_FEATURES]
   return {
-    classFeatures: REQUIRED_FEATURES.filter((spec) => spec.field === "classFeatures").map(makeRequiredFeature),
-    speciesTraits: REQUIRED_FEATURES.filter((spec) => spec.field === "speciesTraits").map(makeRequiredFeature),
+    classFeatures: specs.filter((spec) => spec.field === "classFeatures").map(makeFeature),
+    speciesTraits: specs.filter((spec) => spec.field === "speciesTraits").map(makeFeature),
   }
 }
 
 /**
  * Gives a character exactly one feature of each required type, in that type's list:
  * - the first feature of the type already in its list becomes the required one, as it is;
- * - a list with none gets a new one with the starting values, placed first in the list. Size, Speed
- *   and the hit die take the value of the last feature that sets them, so an existing feature that
+ * - a list with none gets a new one with the starting values, placed first in the list. Size and
+ *   the hit die take the value of the last feature that sets them, so an existing feature that
  *   grants one, under another type, keeps winning;
  * - every other feature of the type, in any list, becomes "<type> (legacy)". Only the label changes:
  *   its effects still apply, so no calculated value moves.
@@ -135,7 +146,7 @@ export function ensureRequiredFeatures(
       changed.add(field)
     }
     if (!kept) {
-      (added[spec.field] ??= []).push(makeRequiredFeature(spec))
+      (added[spec.field] ??= []).push(makeFeature(spec))
       changed.add(spec.field)
     }
   }

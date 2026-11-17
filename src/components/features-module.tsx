@@ -691,10 +691,11 @@ function FeatureForm(props: FeatureFormProps) {
   const [formData, setFormData] = createSignal<FeatureFormData>(props.initialData ?? defaultFeatureForm)
   // A legacy type behaves like its required type: same fields, same card summary
   const effectType = createMemo(() => effectFeatureType(formData().featureType))
-  // A required feature keeps its type. A feature opened with a type that isn't offered (a legacy
-  // one) still lists it, so the menu shows it and can return to it.
+  // A required feature keeps its type: its form has no Feature Type field, and the modal's title
+  // names the type instead (see FeatureEditModal). A feature opened with a type that isn't offered
+  // (a legacy one) still lists it, so the menu shows it and can return to it.
   const initialType = untrack(() => props.initialData?.featureType ?? '')
-  const typeLocked = isRequiredFeatureType(initialType)
+  const typeFixed = isRequiredFeatureType(initialType)
   const typeOptions = initialType === '' || FEATURE_TYPES.includes(initialType)
     ? FEATURE_TYPE_OPTIONS
     : [...FEATURE_TYPE_OPTIONS, { value: initialType, label: initialType }]
@@ -835,19 +836,18 @@ function FeatureForm(props: FeatureFormProps) {
       <div class="space-y-4 px-4 pt-4">
         <Show when={nameShown()}><RequiredLegend /></Show>
         <FormErrorSummary validation={validation} />
-        <div class="space-y-1">
-          <Label for="feature-type-select">Feature Type</Label>
-          <Select options={typeOptions} value={formData().featureType} onValueChange={changeFeatureType} disabled={typeLocked}>
-            <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type" {...validation.controlProps('feature-type-select')}>
-              <SelectValue placeholder="None" />
-            </SelectTrigger>
-            <SelectContent />
-          </Select>
-          <FieldError validation={validation} fieldId="feature-type-select" />
-          <Show when={typeLocked}>
-            <p class="text-xs text-muted-foreground" data-test="feature-type-locked-hint">Every character has this feature, so its type can't change.</p>
-          </Show>
-        </div>
+        <Show when={!typeFixed}>
+          <div class="space-y-1">
+            <Label for="feature-type-select">Feature Type</Label>
+            <Select options={typeOptions} value={formData().featureType} onValueChange={changeFeatureType}>
+              <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type" {...validation.controlProps('feature-type-select')}>
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent />
+            </Select>
+            <FieldError validation={validation} fieldId="feature-type-select" />
+          </div>
+        </Show>
 
         <Show when={detailsShown()}>
           <Show when={nameShown()}>
@@ -1436,6 +1436,8 @@ interface FeatureEditModalProps {
 /** The feature add/edit modal, shared by the Features module and the feature action cards. */
 export function FeatureEditModal(props: FeatureEditModalProps) {
   const singular = () => FEATURE_FIELD_CONFIG.find((s) => s.kind === (props.feature?.source ?? props.kind))!.singular
+  // A required feature's type can't change, so the title names it in place of a Feature Type field
+  const subject = (feature: Feature | null) => (feature && isRequiredFeature(feature) ? feature.featureType : singular())
   return (
     <Modal open={props.open} onOpenChange={(open) => { if (!open) props.onCancel() }}>
       {/* Adding starts with only Feature Type, whose dropdown opens in place and is clipped by the
@@ -1447,7 +1449,7 @@ export function FeatureEditModal(props: FeatureEditModalProps) {
           {({ feature }) => (
             <>
               <ModalHeader>
-                <ModalTitle>{feature ? "Edit" : "Add"} {singular()}</ModalTitle>
+                <ModalTitle>{feature ? "Edit" : "Add"} {subject(feature)}</ModalTitle>
               </ModalHeader>
               <FeatureForm
                 initialData={feature ? featureToForm(feature) : undefined}

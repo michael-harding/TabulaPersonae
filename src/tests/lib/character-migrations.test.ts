@@ -1,7 +1,7 @@
 import { migrateCharacter, migrateCharacters } from "@/lib/character-migrations"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Feature } from "@/lib/character-types"
-import { getEffectiveHitDiceSize, getEffectiveLanguages, getEffectiveMovementSpeeds, getEffectiveSize, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
+import { getEffectiveHitDiceSize, getEffectiveSize, getEffectiveSpellcastingAbility } from "@/lib/character-utils"
 
 describe("migrateCharacter", () => {
   it("is a no-op for an already-current character", () => {
@@ -348,38 +348,46 @@ describe("migrateCharacter", () => {
     })
   })
 
-  // Every character has exactly one Hit Points class feature, and one Creature Type, Size, Speed and
-  // Language species trait. See ensureRequiredFeatures for the rules; these cover the wiring.
+  // Every character has exactly one Hit Points class feature, and one Creature Type and Size species
+  // trait. See ensureRequiredFeatures for the rules; these cover the wiring.
   describe("required features", () => {
     const types = (features: Feature[] | undefined) => (features ?? []).map((f) => f.featureType)
 
     it("gives a character saved before they existed every required feature, with the starting values", () => {
       const migrated = migrateCharacter({ ...createDefaultCharacter(), classFeatures: [], speciesTraits: [] })
       expect(types(migrated.classFeatures)).toEqual(["Hit Points"])
-      expect(types(migrated.speciesTraits)).toEqual(["Creature Type", "Size", "Speed", "Language"])
+      // Speed and Languages are not required: a new character starts with them, an older one doesn't
+      expect(types(migrated.speciesTraits)).toEqual(["Creature Type", "Size"])
       expect(getEffectiveHitDiceSize(migrated)).toBe(8)
       expect(getEffectiveSize(migrated).size).toBe("Medium")
-      expect(getEffectiveMovementSpeeds(migrated).walk).toBe(30)
-      expect(getEffectiveLanguages({ ...migrated, languages: [] }).granted).toEqual(["Common"])
       expect(migrated.speciesTraits![0].levelEffects).toEqual([{ level: 1, effects: { creatureType: "Humanoid" } }])
     })
 
     it("adopts the character's own feature of a required type instead of adding one", () => {
-      const speed: Feature = { id: "s1", name: "Wood Elf Speed", description: "", source: "species-trait", featureType: "Speed", levelEffects: [{ level: 1, effects: { speed: 35 } }] }
-      const migrated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [speed] })
-      expect(migrated.speciesTraits!.filter((f) => f.featureType === "Speed")).toEqual([speed])
-      expect(getEffectiveMovementSpeeds(migrated).walk).toBe(35)
+      const size: Feature = { id: "s1", name: "Small", description: "", source: "species-trait", featureType: "Size", levelEffects: [{ level: 1, effects: { size: "Small" } }] }
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits: [size] })
+      expect(migrated.speciesTraits!.filter((f) => f.featureType === "Size")).toEqual([size])
+      expect(getEffectiveSize(migrated).size).toBe("Small")
     })
 
     it("relabels every other feature of a required type as legacy, without changing what it grants", () => {
-      const speed = (id: string, source: Feature["source"], walk: number): Feature => ({
-        id, name: id, description: "", source, featureType: "Speed", levelEffects: [{ level: 1, effects: { speed: walk } }],
+      const size = (id: string, source: Feature["source"], value: string): Feature => ({
+        id, name: id, description: "", source, featureType: "Size", levelEffects: [{ level: 1, effects: { size: value } }],
       })
-      const raw = { ...createDefaultCharacter(), speciesTraits: [speed("base", "species-trait", 30), speed("boots", "species-trait", 35)], feats: [speed("feat", "feat", 40)] }
+      const raw = { ...createDefaultCharacter(), speciesTraits: [size("base", "species-trait", "Small"), size("growth", "species-trait", "Medium")], feats: [size("feat", "feat", "Large")] }
       const migrated = migrateCharacter(raw)
-      expect(types(migrated.speciesTraits)).toEqual(["Creature Type", "Size", "Language", "Speed", "Speed (legacy)"])
-      expect(types(migrated.feats)).toEqual(["Speed (legacy)"])
-      expect(getEffectiveMovementSpeeds(migrated).walk).toBe(getEffectiveMovementSpeeds(raw).walk)
+      expect(types(migrated.speciesTraits)).toEqual(["Creature Type", "Size", "Size (legacy)"])
+      expect(types(migrated.feats)).toEqual(["Size (legacy)"])
+      expect(getEffectiveSize(migrated).size).toBe(getEffectiveSize(raw).size)
+    })
+
+    it("leaves Speed and Language features as they are, however many there are", () => {
+      const grant = (id: string, source: Feature["source"], featureType: "Speed" | "Language"): Feature => ({ id, name: id, description: "", source, featureType })
+      const speciesTraits = [grant("walk", "species-trait", "Speed"), grant("tongues", "species-trait", "Language")]
+      const feats = [grant("mobile", "feat", "Speed"), grant("linguist", "feat", "Language")]
+      const migrated = migrateCharacter({ ...createDefaultCharacter(), speciesTraits, feats })
+      expect(types(migrated.speciesTraits)).toEqual(["Creature Type", "Size", "Speed", "Language"])
+      expect(migrated.feats).toEqual(feats)
     })
 
     it("treats a Creature Type feature from an older record as the required one", () => {

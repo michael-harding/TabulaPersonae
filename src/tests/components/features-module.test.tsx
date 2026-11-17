@@ -990,7 +990,8 @@ describe("FeaturesModule", () => {
         })
         render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
         fireEvent.click(screen.getByRole("button", { name: /edit legacy hit die/i }))
-        expect(screen.getByRole("combobox", { name: /feature type/i })).toHaveTextContent("Hit Points")
+        // A required type is shown as the form's title
+        expect(screen.getByRole("heading", { name: "Edit Hit Points" })).toBeInTheDocument()
         expect(screen.getByLabelText(/hp per level after 1st/i)).toHaveValue(6)
       })
 
@@ -1348,8 +1349,10 @@ describe("FeaturesModule", () => {
       it("shows the Add Level button and persists Walk/Fly values", () => {
         const onUpdate = vi.fn()
         render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
-        fireEvent.click(screen.getByRole("button", { name: /edit speed/i }))
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
         const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Speed" }))
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Fleet of Foot" } })
         expect(within(modal).getByRole("button", { name: /add level/i })).toBeInTheDocument()
         fireEvent.input(within(modal).getByLabelText(/^walk$/i), { target: { value: "10" } })
@@ -1359,7 +1362,7 @@ describe("FeaturesModule", () => {
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
-            speciesTraits: expect.arrayContaining([
+            classFeatures: expect.arrayContaining([
               expect.objectContaining({
                 name: "Fleet of Foot",
                 levelEffects: [{ level: 1, effects: { speed: 10, flySpeed: 30 } }],
@@ -1372,15 +1375,17 @@ describe("FeaturesModule", () => {
       it("persists an explicit Walk speed of 0 instead of clearing it", () => {
         const onUpdate = vi.fn()
         render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
-        fireEvent.click(screen.getByRole("button", { name: /edit speed/i }))
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
         const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Speed" }))
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Petrified" } })
         fireEvent.input(within(modal).getByLabelText(/^walk$/i), { target: { value: "0" } })
         fireEvent.keyDown(within(modal).getByLabelText(/^walk$/i), { key: "Enter" })
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(onUpdate).toHaveBeenCalledWith(
           expect.objectContaining({
-            speciesTraits: expect.arrayContaining([
+            classFeatures: expect.arrayContaining([
               expect.objectContaining({
                 name: "Petrified",
                 levelEffects: [{ level: 1, effects: { speed: 0 } }],
@@ -1492,11 +1497,13 @@ describe("FeaturesModule", () => {
     })
 
     describe("Language (level-tiered)", () => {
-      it("persists a language added to the required Languages trait", () => {
+      it("persists a granted language", () => {
         const onUpdate = vi.fn()
         render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
-        fireEvent.click(screen.getByRole("button", { name: /edit languages/i }))
+        fireEvent.click(screen.getByRole("button", { name: /add species trait/i }))
         const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Language" }))
         fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Draconic Ancestry" } })
         const input = within(modal).getByLabelText(/new language/i)
         fireEvent.input(input, { target: { value: "Draconic" } })
@@ -1511,7 +1518,7 @@ describe("FeaturesModule", () => {
             speciesTraits: expect.arrayContaining([
               expect.objectContaining({
                 name: "Draconic Ancestry",
-                levelEffects: [{ level: 1, effects: { languages: ["Common", "Draconic"] } }],
+                levelEffects: [{ level: 1, effects: { languages: ["Draconic"] } }],
               }),
             ]),
           })
@@ -2289,9 +2296,9 @@ describe("FeaturesModule", () => {
     expect(results.violations).toHaveLength(0)
   })
 
-  // Hit Points, Creature Type, Size, Speed and Languages: every character has exactly one of each
+  // Hit Points, Creature Type and Size: every character has exactly one of each
   describe("required features", () => {
-    const REQUIRED_TYPES = ["Hit Points", "Creature Type", "Size", "Speed", "Language"]
+    const REQUIRED_TYPES = ["Hit Points", "Creature Type", "Size"]
 
     it.each(["add class feature", "add species trait", "add feat", "add background feature"])("does not offer a required type from %s", (button) => {
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
@@ -2299,30 +2306,43 @@ describe("FeaturesModule", () => {
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
       const offered = within(modal).getAllByRole("option").map((option) => option.textContent)
-      expect(offered).toContain("Senses")
+      // Speed and languages can come from several features, so they stay on offer
+      expect(offered).toEqual(expect.arrayContaining(["Senses", "Speed", "Language"]))
       for (const type of REQUIRED_TYPES) expect(offered).not.toContain(type)
       expect(offered.some((label) => label?.includes("(legacy)"))).toBe(false)
     })
 
-    it("has no Delete button on a required feature, but keeps it on the others", () => {
+    it("has no Delete button on a required feature, but keeps it on the others, the starter Speed and Languages included", () => {
       const rage = makeFeature({ id: "rage", name: "Rage", featureType: "" })
       const character = makeCharacter()
       render(() => <FeaturesModule character={{ ...character, classFeatures: [...character.classFeatures!, rage] }} onUpdate={vi.fn()} />)
-      for (const feature of [...character.classFeatures!, ...character.speciesTraits!]) {
+      const features = [...character.classFeatures!, ...character.speciesTraits!]
+      const required = features.filter((f) => REQUIRED_TYPES.includes(f.featureType ?? ""))
+      expect(required.map((f) => f.featureType)).toEqual(REQUIRED_TYPES)
+      for (const feature of required) {
         expect(screen.queryByTestId(`feature-delete-${feature.id}`)).not.toBeInTheDocument()
         expect(screen.getByRole("button", { name: `Edit ${feature.name}` })).toBeInTheDocument()
       }
-      expect(screen.getByTestId("feature-delete-rage")).toBeInTheDocument()
+      for (const feature of [...features.filter((f) => !required.includes(f)), rage]) {
+        expect(screen.getByTestId(`feature-delete-${feature.id}`)).toBeInTheDocument()
+      }
     })
 
-    it("locks a required feature's type, and says why", () => {
+    it("titles a required feature's form with its type, in place of a Feature Type field", () => {
+      render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /edit hit points/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByRole("heading", { name: "Edit Hit Points" })).toBeInTheDocument()
+      expect(within(modal).queryByRole("combobox", { name: /feature type/i })).not.toBeInTheDocument()
+      expect(within(modal).getByRole("combobox", { name: /^hit die$/i })).toBeInTheDocument()
+    })
+
+    it("keeps the section title and Feature Type field for any other feature", () => {
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /edit speed/i }))
       const modal = screen.getByRole("dialog")
-      const typeSelect = within(modal).getByRole("combobox", { name: /feature type/i })
-      expect(typeSelect).toBeDisabled()
-      expect(typeSelect).toHaveTextContent("Speed")
-      expect(within(modal).getByText(/every character has this feature/i)).toBeInTheDocument()
+      expect(within(modal).getByRole("heading", { name: "Edit Species Trait" })).toBeInTheDocument()
+      expect(within(modal).getByRole("combobox", { name: /feature type/i })).toHaveTextContent("Speed")
     })
 
     it("shows the required Creature Type on its card and saves a changed one", () => {
@@ -2345,28 +2365,29 @@ describe("FeaturesModule", () => {
 
     describe("a legacy feature", () => {
       const legacy = makeFeature({
-        id: "boots", name: "Boots of Striding", source: "feat", featureType: "Speed (legacy)",
-        levelEffects: [{ level: 1, effects: { speed: 40 } }],
+        id: "giant", name: "Giant Heritage", source: "feat", featureType: "Size (legacy)",
+        levelEffects: [{ level: 1, effects: { size: "Large" } }],
       })
 
       it("shows its legacy type and what it grants, and can be deleted", () => {
         render(() => <FeaturesModule character={makeCharacter({ feats: [legacy] })} onUpdate={vi.fn()} />)
-        expect(screen.getByText("Speed (legacy)")).toBeInTheDocument()
-        expect(screen.getByText("Speed: 40 ft")).toBeInTheDocument()
-        expect(screen.getByTestId("feature-delete-boots")).toBeInTheDocument()
+        expect(screen.getByText("Size (legacy)")).toBeInTheDocument()
+        expect(screen.getByText("Size: Large")).toBeInTheDocument()
+        expect(screen.getByTestId("feature-delete-giant")).toBeInTheDocument()
       })
 
       it("edits like its required type, and keeps its legacy type on saving", () => {
         const onUpdate = vi.fn()
         render(() => <FeaturesModule character={makeCharacter({ feats: [legacy] })} onUpdate={onUpdate} />)
-        fireEvent.click(screen.getByRole("button", { name: /edit boots of striding/i }))
+        fireEvent.click(screen.getByRole("button", { name: /edit giant heritage/i }))
         const modal = screen.getByRole("dialog")
-        expect(within(modal).getByRole("combobox", { name: /feature type/i })).not.toBeDisabled()
-        fireEvent.input(within(modal).getByLabelText(/^walk$/i), { target: { value: "45" } })
-        fireEvent.keyDown(within(modal).getByLabelText(/^walk$/i), { key: "Enter" })
+        expect(within(modal).getByRole("heading", { name: "Edit Feat" })).toBeInTheDocument()
+        expect(within(modal).getByRole("combobox", { name: /feature type/i })).toHaveTextContent("Size (legacy)")
+        fireEvent.click(within(modal).getByRole("combobox", { name: /^size$/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Huge" }))
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
-          feats: [expect.objectContaining({ id: "boots", featureType: "Speed (legacy)", levelEffects: [{ level: 1, effects: { speed: 45 } }] })],
+          feats: [expect.objectContaining({ id: "giant", featureType: "Size (legacy)", levelEffects: [{ level: 1, effects: { size: "Huge" } }] })],
         }))
       })
     })

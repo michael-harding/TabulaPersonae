@@ -56,12 +56,10 @@ export const MODALS: ModalCase[] = [
   { name: "feature-add-type-open", tab: "Features", open: openFeatureType },
   { name: "feature-edit", tab: "Features", open: (page) => click(page, "feature-edit-cf3") },
   // The required features (src/lib/required-features.ts). Their types aren't in the Add menu, so
-  // their forms open from Edit, with the Feature Type locked.
+  // their forms open from Edit, titled with the type in place of a Feature Type field.
   { name: "feature-edit-hit-points", tab: "Features", open: (page) => editFeature(page, "Hit Points") },
   { name: "feature-edit-creature-type", tab: "Features", open: (page) => editFeature(page, "Creature Type") },
   { name: "feature-edit-size", tab: "Features", open: (page) => editFeature(page, "Size"), coveredBy: "feature-edit-creature-type" }, // one select
-  { name: "feature-edit-speed", tab: "Features", open: (page) => editFeature(page, "Speed") },
-  { name: "feature-edit-languages", tab: "Features", open: (page) => editFeature(page, "Languages") },
   { name: "spell-add", tab: "Spells", open: (page) => click(page, "add-spell-button") },
   { name: "spell-edit", tab: "Spells", open: (page) => click(page, "edit-spell-sp3") },
   { name: "spell-slots", tab: "Spells", open: (page) => click(page, "edit-spell-slots-button") },
@@ -123,11 +121,13 @@ const FEATURE_TYPE_COVERED_BY: Record<string, string | null> = {
   "Max HP Bonus": null,
   "Saving Throw Proficiency": null,
   "Skill Proficiency": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"), // a chip-list row per level
-  "Other Proficiency": null,
-  "Senses": null,
+  "Other Proficiency": featureTypeBaseline("Language"), // a text input and Add per level
+  "Speed": null,
+  "Senses": featureTypeBaseline("Speed"), // a grid of number inputs per level
   "Damage Resistance/Immunity/Vulnerability": null,
   "Condition Immunity": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"),
-  "Carrying Capacity": featureTypeBaseline("Senses"), // a grid of number inputs per level
+  "Language": null,
+  "Carrying Capacity": featureTypeBaseline("Speed"),
   "Ability Scores": null,
 }
 

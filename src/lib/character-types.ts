@@ -1,6 +1,6 @@
 // D&D Character Data Types
 
-import { createRequiredFeatures } from "./required-features"
+import { createStartingFeatures } from "./required-features"
 
 export interface CharacterEntry {
   id: string
@@ -221,7 +221,7 @@ export interface FeatureLevelEffect {
 }
 
 /** The types every character has exactly one feature of (see required-features.ts). */
-export type RequiredFeatureType = 'Hit Points' | 'Creature Type' | 'Size' | 'Speed' | 'Language'
+export type RequiredFeatureType = 'Hit Points' | 'Creature Type' | 'Size'
 
 // Values double as their own display labels. They're persisted, so they stay human-readable
 // strings rather than short codes like "skill-proficiency". A "<type> (legacy)" value is a feature
@@ -555,8 +555,8 @@ export function createDefaultCharacter(): Character {
 
     subclass: "",
     useCalculatedSenses: { darkvision: true, blindsight: true, tremorsense: true, truesight: true },
-    // Hit Points, Creature Type, Size, Speed and Languages
-    ...createRequiredFeatures(),
+    // The required Hit Points, Creature Type and Size, and a starter Speed and Languages
+    ...createStartingFeatures(),
     feats: [],
     backgroundFeatures: [],
 

@@ -388,7 +388,7 @@ export function seedLocalStorage(characters: Character[]) {
  *     `consumedUses` (consumable);
  *   - damage resistances typed as free text;
  *   - Exhaustion as a plain condition, before it had levels;
- *   - no species traits, from before Creature Type, Size, Speed and Languages were required ones.
+ *   - no species traits, from before Creature Type and Size were required ones.
  * Not typed as Character: it is deliberately not one.
  */
 export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Record<string, unknown> {
