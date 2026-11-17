@@ -253,25 +253,65 @@ describe("FeaturesModule", () => {
     })
 
     // With no type and no name the Name field is hidden, so the message points at Feature Type
-    it("does not save a feature with no type or name, and asks for a Feature Type", () => {
+    it("starts a new feature as Custom, with its Name, Highlights and Description and no effect fields", () => {
+      render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      expect(within(modal).getByRole("combobox", { name: /feature type/i })).toHaveTextContent("Custom")
+      expect(within(modal).getByLabelText(/^name$/i)).toHaveValue("")
+      expect(within(modal).getByLabelText(/^highlights$/i)).toBeInTheDocument()
+      expect(within(modal).getByLabelText(/^description$/i)).toBeInTheDocument()
+      expect(within(modal).queryByRole("button", { name: /add level/i })).not.toBeInTheDocument()
+      expect(within(modal).queryByTestId("feature-action-kind-select")).not.toBeInTheDocument()
+    })
+
+    it("saves a Custom feature with its name, highlights and description, and no effects", () => {
+      const onUpdate = vi.fn()
+      render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /add feat/i }))
+      const modal = screen.getByRole("dialog")
+      fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Lucky" } })
+      fireEvent.input(within(modal).getByLabelText(/^highlights$/i), { target: { value: "**3** luck points" } })
+      fireEvent.input(within(modal).getByLabelText(/^description$/i), { target: { value: "Reroll a d20." } })
+      fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+      const saved = onUpdate.mock.calls[0][0].feats.at(-1)
+      expect(saved).toEqual(expect.objectContaining({
+        name: "Lucky", highlights: "**3** luck points", description: "Reroll a d20.", featureType: "Custom", levelEffects: undefined, actionKind: undefined,
+      }))
+    })
+
+    it("does not save a new feature with no name, and asks for one", () => {
       const onUpdate = vi.fn()
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
       fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
       expect(onUpdate).not.toHaveBeenCalled()
-      expect(within(modal).getByTestId("feature-type-select")).toHaveAccessibleDescription("Choose a Feature Type")
+      expect(within(modal).getByTestId("feature-name-input")).toHaveAccessibleDescription("Name is required")
       expect(within(modal).getByTestId("form-error-summary")).toHaveFocus()
     })
 
-    it("explains the required asterisk only while the Name field shows", () => {
+    it("does not name a feature 'Custom' when Custom is picked again", () => {
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
-      expect(within(modal).queryByTestId("required-legend")).not.toBeInTheDocument()
       fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
-      fireEvent.click(within(modal).getByRole("option", { name: "Other Proficiency" }))
-      expect(within(modal).getByTestId("required-legend")).toBeInTheDocument()
+      fireEvent.click(within(modal).getByRole("option", { name: "Senses" }))
+      fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "" } })
+      fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Custom" }))
+      expect(within(modal).getByLabelText(/^name$/i)).toHaveValue("")
+    })
+
+    it("explains the required asterisk only while the Name field shows", () => {
+      const hitPoints = makeFeature({ id: "hp", name: "Hit Points", featureType: "Hit Points", levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }] })
+      render(() => <FeaturesModule character={makeCharacter({ classFeatures: [hitPoints] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      expect(within(screen.getByRole("dialog")).getByTestId("required-legend")).toBeInTheDocument()
+      fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /cancel/i }))
+      // Hit Points has no Name field: the type is its name
+      fireEvent.click(screen.getByRole("button", { name: "Edit Hit Points" }))
+      expect(within(screen.getByRole("dialog")).queryByTestId("required-legend")).not.toBeInTheDocument()
     })
 
     it("does not save a typed feature whose name was cleared, and says why", () => {
@@ -439,14 +479,13 @@ describe("FeaturesModule", () => {
       expect(screen.getByText("Edit Class Feature")).toBeInTheDocument()
     })
 
-    it("shows Name and Description when editing a feature with no mechanical type (name/description only)", () => {
-      // makeFeature()'s default has no actionKind and no levelEffects, so inferFeatureType
-      // returns '' — Name/Description must still be reachable, or a purely descriptive feature
-      // (no mechanical effect) could never be viewed or edited again once saved.
+    it("opens a feature with no type as Custom, with its Name and Description", () => {
+      // makeFeature()'s default has no featureType: before migrateCharacter backfills one, it is
+      // shown as the Custom feature migration would make it.
       const feature = makeFeature({ name: "Backstory Note", description: "A bit of flavor text." })
       render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /edit backstory note/i }))
-      expect(screen.getByRole("combobox", { name: /feature type/i })).toHaveTextContent("None")
+      expect(screen.getByRole("combobox", { name: /feature type/i })).toHaveTextContent("Custom")
       expect(screen.getByLabelText(/^name$/i)).toHaveValue("Backstory Note")
       expect(screen.getByLabelText(/^description$/i)).toHaveValue("A bit of flavor text.")
     })
@@ -581,7 +620,7 @@ describe("FeaturesModule", () => {
       render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /edit lay on hands/i }))
       fireEvent.click(screen.getByRole("combobox", { name: /feature type/i }))
-      fireEvent.click(screen.getByRole("option", { name: "None" }))
+      fireEvent.click(screen.getByRole("option", { name: "Custom" }))
       fireEvent.click(screen.getByRole("button", { name: /save/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -729,7 +768,7 @@ describe("FeaturesModule", () => {
 
     it("drops action fields when the feature has no action kind", () => {
       const feature = featureFromForm({
-        ...actionForm, featureType: "", actionKind: "", attackBonus: 4, damage: "2d6", damageRecurring: true, gain: "1d10",
+        ...actionForm, featureType: "Custom", actionKind: "", attackBonus: 4, damage: "2d6", damageRecurring: true, gain: "1d10",
       }, { source: "class-feature" })
       expect(feature.attackBonus).toBeUndefined()
       expect(feature.damage).toBeUndefined()
@@ -772,18 +811,16 @@ describe("FeaturesModule", () => {
       expect(within(modal).queryByRole("combobox", { name: /max hp calculation/i })).not.toBeInTheDocument()
     })
 
-    it("does not persist levelEffects when no Feature Type is selected", () => {
+    it("does not persist levelEffects after switching back to Custom", () => {
       const onUpdate = vi.fn()
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
       const modal = screen.getByRole("dialog")
-      // Name is only visible while a type is picked — set it, then revert to None to exercise
-      // the "no Feature Type selected" state at save time
       fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
       fireEvent.click(within(modal).getByRole("option", { name: "Saving Throw Proficiency" }))
       fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Second Wind" } })
       fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
-      fireEvent.click(within(modal).getByRole("option", { name: "None" }))
+      fireEvent.click(within(modal).getByRole("option", { name: "Custom" }))
       fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
       expect(onUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1488,6 +1525,115 @@ describe("FeaturesModule", () => {
         expect(screen.getByText("Spellcasting Ability: WIS").textContent).toBe("Spellcasting Ability: WIS")
         expect(screen.getByText("Spell Slots: 2 × 1st").textContent).toBe("Level 1: Spell Slots: 2 × 1st")
         expect(screen.getByText("Spell Slots: 4 × 1st, 2 × 2nd").textContent).toBe("Level 3: Spell Slots: 4 × 1st, 2 × 2nd")
+      })
+    })
+
+    describe("Prepared Spells (a count by level)", () => {
+      const pickPreparedSpells = () => {
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Prepared Spells" }))
+        return modal
+      }
+      const setCount = (modal: HTMLElement, tier: number, value: string) => {
+        const input = within(modal).getByTestId(`level-effect-${tier}-prepared-spells`)
+        fireEvent.input(input, { target: { value } })
+        fireEvent.keyDown(input, { key: "Enter" })
+      }
+      const saved = (onUpdate: ReturnType<typeof vi.fn>) => (onUpdate.mock.calls[0][0] as Character).classFeatures!.at(-1)!
+
+      it("is offered, named after its type, with the hint and a level 1 row", () => {
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        const modal = pickPreparedSpells()
+        expect(within(modal).getByLabelText(/^name$/i)).toHaveValue("Prepared Spells")
+        expect(within(modal).getByTestId("prepared-spells-hint")).toBeInTheDocument()
+        expect(within(modal).getByTestId("level-effect-0-level-input")).toHaveValue(1)
+        expect(within(modal).getByTestId("level-effect-0-prepared-spells")).toHaveValue(0)
+      })
+
+      it("starts a new level as the next row of the table, and saves every row", () => {
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        const modal = pickPreparedSpells()
+        setCount(modal, 0, "4")
+        fireEvent.click(within(modal).getByRole("button", { name: /add level/i }))
+        expect(within(modal).getByTestId("level-effect-1-level-input")).toHaveValue(2)
+        expect(within(modal).getByTestId("level-effect-1-prepared-spells")).toHaveValue(4)
+        setCount(modal, 1, "5")
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate)).toEqual(expect.objectContaining({
+          featureType: "Prepared Spells",
+          levelEffects: [{ level: 1, effects: { preparedSpells: 4 } }, { level: 2, effects: { preparedSpells: 5 } }],
+        }))
+      })
+
+      it("shows each row's count on its card", () => {
+        const feature = makeFeature({
+          name: "Prepared Spells",
+          featureType: "Prepared Spells",
+          levelEffects: [{ level: 1, effects: { preparedSpells: 4 } }, { level: 2, effects: { preparedSpells: 5 } }],
+        })
+        render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("Prepared Spells: 4")).toBeInTheDocument()
+        expect(screen.getByText("Prepared Spells: 5")).toBeInTheDocument()
+      })
+    })
+
+    describe("Ability Score Improvement (required: a list of levels)", () => {
+      const asi = (levels: number[]) => makeFeature({
+        id: "asi", name: "Ability Score Improvement", featureType: "Ability Score Improvement",
+        levelEffects: [{ level: 1, effects: { abilityScoreImprovementLevels: levels } }],
+      })
+      const openAsi = (levels: number[], onUpdate = vi.fn()) => {
+        render(() => <FeaturesModule character={makeCharacter({ classFeatures: [asi(levels)] })} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: "Edit Ability Score Improvement" }))
+        return screen.getByRole("dialog")
+      }
+      const savedLevels = (onUpdate: ReturnType<typeof vi.fn>) =>
+        (onUpdate.mock.calls[0][0] as Character).classFeatures!.find((f) => f.id === "asi")!.levelEffects
+
+      it("lists its levels on its card", () => {
+        render(() => <FeaturesModule character={makeCharacter({ classFeatures: [asi([4, 8, 12, 16, 19])] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("Levels: 4, 8, 12, 16, 19")).toBeInTheDocument()
+      })
+
+      it("is titled with its type and has no Name, Feature Type or level rows", () => {
+        const modal = openAsi([4, 8, 12, 16, 19])
+        expect(within(modal).getByRole("heading", { name: "Edit Ability Score Improvement" })).toBeInTheDocument()
+        expect(within(modal).queryByTestId("feature-name-input")).not.toBeInTheDocument()
+        expect(within(modal).queryByTestId("feature-type-select")).not.toBeInTheDocument()
+        expect(within(modal).queryByTestId("level-effect-0-level-input")).not.toBeInTheDocument()
+        for (const level of [4, 8, 12, 16, 19]) {
+          expect(within(modal).getByRole("button", { name: `Remove level ${level}` })).toBeInTheDocument()
+        }
+      })
+
+      it("adds a level in order, so a Fighter's extra levels fit between the others", async () => {
+        const user = userEvent.setup()
+        const onUpdate = vi.fn()
+        const modal = openAsi([4, 8, 12, 16, 19], onUpdate)
+        await pickFromAddMenu(user, within(modal).getByRole("button", { name: "Add level" }), "6")
+        await pickFromAddMenu(user, within(modal).getByRole("button", { name: "Add level" }), "14")
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(savedLevels(onUpdate)).toEqual([{ level: 1, effects: { abilityScoreImprovementLevels: [4, 6, 8, 12, 14, 16, 19] } }])
+      })
+
+      it("removes a level", () => {
+        const onUpdate = vi.fn()
+        const modal = openAsi([4, 8, 12, 16, 19], onUpdate)
+        fireEvent.click(within(modal).getByRole("button", { name: "Remove level 19" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(savedLevels(onUpdate)).toEqual([{ level: 1, effects: { abilityScoreImprovementLevels: [4, 8, 12, 16] } }])
+      })
+    })
+
+    describe("Custom", () => {
+      it("shows no type chip on a Custom feature's card", () => {
+        const feature = makeFeature({ id: "lucky", name: "Lucky", featureType: "Custom", description: "Reroll." })
+        render(() => <FeaturesModule character={makeCharacter({ feats: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText("Lucky")).toBeInTheDocument()
+        expect(screen.queryByText("Custom")).not.toBeInTheDocument()
       })
     })
 
@@ -2391,9 +2537,9 @@ describe("FeaturesModule", () => {
     expect(results.violations).toHaveLength(0)
   })
 
-  // Hit Points, Creature Type and Size: every character has exactly one of each
+  // Hit Points, Ability Score Improvement, Creature Type and Size: every character has exactly one of each
   describe("required features", () => {
-    const REQUIRED_TYPES = ["Hit Points", "Creature Type", "Size"]
+    const REQUIRED_TYPES = ["Hit Points", "Ability Score Improvement", "Creature Type", "Size"]
 
     it.each(["add class feature", "add species trait", "add feat", "add background feature"])("does not offer a required type from %s", (button) => {
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
@@ -2408,7 +2554,7 @@ describe("FeaturesModule", () => {
     })
 
     it("has no Delete button on a required feature, but keeps it on the others, the starter Speed and Languages included", () => {
-      const rage = makeFeature({ id: "rage", name: "Rage", featureType: "" })
+      const rage = makeFeature({ id: "rage", name: "Rage", featureType: "Custom" })
       const character = makeCharacter()
       render(() => <FeaturesModule character={{ ...character, classFeatures: [...character.classFeatures!, rage] }} onUpdate={vi.fn()} />)
       const features = [...character.classFeatures!, ...character.speciesTraits!]

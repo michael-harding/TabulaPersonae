@@ -183,6 +183,6 @@ test.describe("Add Feature dialog", () => {
     await seedGuest(page, testCharacter)
     await openSheet(page, testCharacter.id, "Features")
     await byName("feature-add-type-open").open(page)
-    await expect(page.getByRole("dialog").getByRole("option")).toHaveText(["None", ...FEATURE_TYPES])
+    await expect(page.getByRole("dialog").getByRole("option")).toHaveText(FEATURE_TYPES)
   })
 })

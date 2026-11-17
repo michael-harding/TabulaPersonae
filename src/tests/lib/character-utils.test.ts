@@ -70,6 +70,7 @@ import {
   spellsEndedByRest,
   activeSpellIdsAfterRest,
   getSpellSlots,
+  getPreparedSpellsLimit,
   withSpentSpellSlots,
   findSpellcastingFeature,
   makeSpellcastingFeature,
@@ -2112,8 +2113,8 @@ describe("inferFeatureType", () => {
     expect(inferFeatureType("action", undefined)).toBe("Action")
   })
 
-  it("returns '' when there is no actionKind and no levelEffects", () => {
-    expect(inferFeatureType(undefined, undefined)).toBe("")
+  it("returns Custom when there is no actionKind and no levelEffects", () => {
+    expect(inferFeatureType(undefined, undefined)).toBe("Custom")
   })
 
   it("infers 'Hit Points' from an explicit hitDiceSize of 0", () => {
@@ -2137,7 +2138,7 @@ describe("inferFeatureType", () => {
   it("treats null effect values from external JSON as unset rather than as a grant", () => {
     const effects = { speed: null, hpBonusPerLevel: null, carryingCapacityBonus: null, senses: { darkvision: null }, abilityScoreFloors: { strength: null } }
     // @ts-expect-error null is outside FeatureEffects, but external JSON can hold it where the type says "absent" (CONSTITUTION §6.7)
-    expect(inferFeatureType(undefined, [{ level: 1, effects }])).toBe("")
+    expect(inferFeatureType(undefined, [{ level: 1, effects }])).toBe("Custom")
   })
 
   it("checks spellcastingAbility before hitDiceSize when both are somehow present", () => {
@@ -2613,6 +2614,54 @@ describe("spell slots from Spellcasting features", () => {
     const character = atLevel(5, { spentSpellSlots: { 2: 1 } })
     expect(withSpentSpellSlots(character, 1, 3).spentSpellSlots).toEqual({ 1: 3, 2: 1 })
     expect(withSpentSpellSlots(character, 1, -1).spentSpellSlots).toEqual({ 1: 0, 2: 1 })
+  })
+})
+
+describe("getPreparedSpellsLimit", () => {
+  // A Cleric-style table: each row is how many spells can be prepared from its level on
+  const cleric = makeFeature({
+    id: "prepared",
+    name: "Prepared Spells",
+    featureType: "Prepared Spells",
+    levelEffects: [
+      { level: 1, effects: { preparedSpells: 4 } },
+      { level: 2, effects: { preparedSpells: 5 } },
+      { level: 4, effects: { preparedSpells: 7 } },
+    ],
+  })
+  const atLevel = (level: number, overrides: Partial<Character> = {}): Character => ({ ...createDefaultCharacter(), level, classFeatures: [cleric], ...overrides })
+
+  it.each([
+    [1, 4],
+    [3, 5],
+    [4, 7],
+    [20, 7],
+  ])("at level %i, gives the highest row reached, not the rows added up", (level, expected) => {
+    expect(getPreparedSpellsLimit(atLevel(level))?.total).toBe(expected)
+  })
+
+  it("names the feature in the breakdown", () => {
+    expect(getPreparedSpellsLimit(atLevel(1))?.breakdown).toBe("4 (Prepared Spells Class Feature)")
+  })
+
+  it("adds up separate Prepared Spells features, naming each", () => {
+    const initiate = makeFeature({ id: "mi", name: "Magic Initiate", source: "feat", featureType: "Prepared Spells", levelEffects: [{ level: 1, effects: { preparedSpells: 1 } }] })
+    expect(getPreparedSpellsLimit(atLevel(4, { feats: [initiate] }))).toEqual({
+      total: 8,
+      breakdown: "7 (Prepared Spells Class Feature) + 1 (Magic Initiate Feat)",
+    })
+  })
+
+  it("is undefined with no Prepared Spells feature, or before its first row's level", () => {
+    expect(getPreparedSpellsLimit(createDefaultCharacter())).toBeUndefined()
+    const later = makeFeature({ ...cleric, levelEffects: [{ level: 3, effects: { preparedSpells: 2 } }] })
+    expect(getPreparedSpellsLimit(atLevel(2, { classFeatures: [later] }))).toBeUndefined()
+  })
+
+  it("ignores negative or non-numeric counts from external JSON", () => {
+    // @ts-expect-error a string is outside FeatureEffects, but a hand-edited import file can hold one
+    const odd = makeFeature({ id: "odd", featureType: "Prepared Spells", levelEffects: [{ level: 1, effects: { preparedSpells: "x" } }, { level: 2, effects: { preparedSpells: -3 } }] })
+    expect(getPreparedSpellsLimit(atLevel(2, { classFeatures: [odd] }))).toBeUndefined()
   })
 })
 

@@ -19,6 +19,10 @@ function expectMigrated(character: Character) {
   // The legacy spellcasting ability and hit die each became exactly one granting Feature
   expect(features.filter((f) => f.featureType === "Spellcasting")).toHaveLength(1)
   expect(features.filter((f) => f.name === "Hit Points")).toHaveLength(1)
+  // The required Ability Score Improvement, with the usual levels
+  expect(features.filter((f) => f.featureType === "Ability Score Improvement").map((f) => f.levelEffects)).toEqual([
+    [{ level: 1, effects: { abilityScoreImprovementLevels: [4, 8, 12, 16, 19] } }],
+  ])
   // The entered spell slots joined it as a row from the character's level (3) on, with its ability,
   // keeping the slot already spent; the old field is gone
   expect(features.find((f) => f.name === "Spellcasting")?.levelEffects).toEqual([
@@ -26,8 +30,8 @@ function expectMigrated(character: Character) {
     { level: 3, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4, 2: 2 } } },
   ])
   expect(features.find((f) => f.name === "Hit Points")?.levelEffects?.[0].effects).toEqual({ hitDiceSize: 8 })
-  // A Feature from before featureType has one now
-  expect(features.find((f) => f.name === "Channel Divinity")).toHaveProperty("featureType")
+  // A Feature from before featureType has one now: with no effects, it is Custom
+  expect(features.find((f) => f.name === "Channel Divinity")?.featureType).toBe("Custom")
   // The required species traits, one of each. Speed and Languages aren't required, so none are added.
   expect(character.speciesTraits?.map((f) => f.featureType)).toEqual(["Creature Type", "Size"])
   // The single `uses` field moved to where each kind of item keeps it

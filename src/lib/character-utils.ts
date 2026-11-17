@@ -131,7 +131,7 @@ export function featureSourceLabel(feature: Pick<Feature, "name" | "source">): s
 // effects shape, for backfilling the persisted featureType field onto records that predate it (see
 // character-migrations.ts). The live UI never calls this — once a Feature has a persisted
 // featureType, that's the source of truth, not a re-guess from its current effects.
-export function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue | '' {
+export function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue {
   if (actionKind) return 'Action'
   const effects = levelEffects?.[0]?.effects
   if (effects?.spellcastingAbility || effects?.spellSlots) return 'Spellcasting'
@@ -164,7 +164,7 @@ export function inferFeatureType(actionKind: ActionKind | undefined, levelEffect
   if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v != null)) return 'Ability Scores'
   if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v != null)) return 'Ability Scores'
   if (effects?.hpBonusPerLevel != null) return 'Max HP Bonus'
-  return ''
+  return 'Custom'
 }
 
 export const ZERO_ABILITY_SCORES: Record<keyof AbilityScores, number> = {
@@ -346,6 +346,9 @@ export interface FeatureEffectTotals {
   hpBonusPerLevelGrants: SourcedBonus[]
   /** How many slots of each level the character has, summed over its Spellcasting features. */
   spellSlots: Record<SpellSlotLevel, number>
+  /** How many spells the character can prepare, summed over its Prepared Spells features; 0 with none. */
+  preparedSpells: number
+  preparedSpellsGrants: SourcedBonus[]
 }
 
 export const SPELL_SLOT_LEVELS: readonly SpellSlotLevel[] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -405,6 +408,8 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     hpBonusPerLevel: 0,
     hpBonusPerLevelGrants: [],
     spellSlots: { ...ZERO_SPELL_SLOTS },
+    preparedSpells: 0,
+    preparedSpellsGrants: [],
   }
   const level = character.level ?? 1
 
@@ -530,9 +535,16 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
       // Not folded like the rest: each Spellcasting tier is a whole row of the slot table, so only the
       // highest one reached counts (tiers are in level order), and a row without slots gives none.
       // Separate features still add up.
-      const slotRow = tiers[tiers.length - 1].spellSlots
+      const highestTier = tiers[tiers.length - 1]
+      const slotRow = highestTier.spellSlots
       for (const slotLevel of SPELL_SLOT_LEVELS) {
         totals.spellSlots[slotLevel] += Math.max(0, Number(slotRow?.[slotLevel] ?? 0))
+      }
+      // The same for Prepared Spells: each tier is a row of the class's table
+      const prepared = Math.max(0, Number(highestTier.preparedSpells ?? 0))
+      if (prepared) {
+        totals.preparedSpells += prepared
+        totals.preparedSpellsGrants.push({ source: sourceLabel, amount: prepared })
       }
     }
   }
@@ -560,6 +572,19 @@ export function getSpellSlots(
     slots[slotLevel] = { total, used: Math.min(total, Math.max(0, character.spentSpellSlots?.[slotLevel] ?? 0)) }
   }
   return slots
+}
+
+/**
+ * How many spells the character can prepare, from its Prepared Spells features, and the tooltip
+ * naming each one, e.g. "4 (Prepared Spells Class Feature) + 2 (Magic Initiate Feat)". Undefined
+ * when no Prepared Spells feature applies at the character's level.
+ */
+export function getPreparedSpellsLimit(character: FeatureEffectCharacter): { total: number; breakdown: string } | undefined {
+  const { preparedSpells, preparedSpellsGrants } = getActiveFeatureEffects(character)
+  if (preparedSpellsGrants.length === 0) return undefined
+  const [first, ...rest] = preparedSpellsGrants
+  const breakdown = `${first.amount} (${first.source})` + rest.map((grant) => formatTerm(grant.amount, grant.source)).join("")
+  return { total: preparedSpells, breakdown }
 }
 
 /** The character with `used` of its slots of `slotLevel` spent. */

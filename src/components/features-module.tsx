@@ -111,6 +111,12 @@ function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: Featur
     case 'Max HP Bonus':
       if (effects.hpBonusPerLevel) parts.push(`+${effects.hpBonusPerLevel} Max HP per level`)
       break
+    case 'Ability Score Improvement':
+      if ((effects.abilityScoreImprovementLevels?.length ?? 0) > 0) parts.push(`Levels: ${effects.abilityScoreImprovementLevels!.join(', ')}`)
+      break
+    case 'Prepared Spells':
+      if (effects.preparedSpells) parts.push(`Prepared Spells: ${effects.preparedSpells}`)
+      break
     case 'Saving Throw Proficiency':
       if ((effects.savingThrowProficiencies?.length ?? 0) > 0) {
         parts.push(`Saving Throws: ${effects.savingThrowProficiencies!.map((a) => ABILITY_ABBREVIATIONS[a]).join(', ')}`)
@@ -185,11 +191,12 @@ function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: Featur
 
 // Builds the display lines for a feature's levelEffects — one line per tier that has anything
 // populated (a tier added and never filled in is dropped silently rather than rendering blank).
-// 'Action' and '' never reach here (see card JSX, which only calls this for other featureTypes).
+// 'Action' never reaches here (see card JSX, which only calls this for other featureTypes), and
+// 'Custom' has no tiers.
 // `level` is null for a line about the whole feature rather than one tier: a Spellcasting
 // feature's ability, which every tier carries.
 function featureEffectLines(feature: Feature): { level: number | null; text: string }[] {
-  const type = effectFeatureType(feature.featureType ?? '') as FeatureTypeValue
+  const type = effectFeatureType(feature.featureType ?? 'Custom')
   const tierLines = (feature.levelEffects ?? [])
     .map((tier) => ({ level: tier.level, text: formatFeatureEffectsLine(type, tier.effects) }))
     .filter((line) => line.text !== '')
@@ -219,28 +226,35 @@ const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
 // granting trait/feat can be picked up at any level, it needs no editable level either: a feature is
 // only ever added once actually gained, and amount × current-level is already algebraically
 // equivalent to 5e RAW (e.g. Tough) for any level at or after that, regardless of which level it was.
-const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Hit Points', 'Size', 'Creature Type', 'Max HP Bonus']
+// Ability Score Improvement is single-tier because its one value is itself a list of levels.
+const SINGLE_EFFECT_TYPES: FeatureTypeValue[] = ['Hit Points', 'Ability Score Improvement', 'Size', 'Creature Type', 'Max HP Bonus']
 // The Name field is hidden entirely for these — the feature type itself is already the name
 // (see changeFeatureType, which fills formData.name with the type string so the hidden field still
 // has a value to submit/display). Max HP Bonus is deliberately excluded even though it's also a
 // SINGLE_EFFECT_TYPE: a character can gain HP-bonus-per-level from more than one source, so its Name
 // stays visible and user-editable to tell those sources apart.
-const NAMELESS_FEATURE_TYPES: FeatureTypeValue[] = ['Hit Points', 'Size', 'Creature Type']
+const NAMELESS_FEATURE_TYPES: FeatureTypeValue[] = ['Hit Points', 'Ability Score Improvement', 'Size', 'Creature Type']
 const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
-  'Spellcasting',
+  'Spellcasting', 'Prepared Spells',
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
   'Ability Scores',
 ]
+// Table types: each tier is a whole row of the class's table, so only the highest tier reached counts
+// (see getActiveFeatureEffects), and a new tier starts as a copy of the row before it.
+const TABLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting', 'Prepared Spells']
 // Required types aren't offered: every character already has its one feature of each (see
-// required-features.ts), and that feature's type is locked.
-const FEATURE_TYPES: FeatureTypeValue[] = (['Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES] as FeatureTypeValue[]).filter((t) => !isRequiredFeatureType(t))
-const FEATURE_TYPE_OPTIONS = [{ value: '', label: 'None' }, ...FEATURE_TYPES.map((t) => ({ value: t, label: t }))]
+// required-features.ts), and that feature's type is locked. Custom, a feature with no mechanical
+// effect, comes first: it's what a new feature starts as.
+const FEATURE_TYPES: FeatureTypeValue[] = (['Custom', 'Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES] as FeatureTypeValue[]).filter((t) => !isRequiredFeatureType(t))
+const FEATURE_TYPE_OPTIONS = FEATURE_TYPES.map((t) => ({ value: t, label: t }))
+// The levels an Ability Score Improvement can be gained at, for its "+ Add" menu
+const CHARACTER_LEVEL_OPTIONS = Array.from({ length: 20 }, (_, i) => String(i + 1))
 const CREATURE_TYPE_OPTIONS = [{ value: '', label: 'None' }, ...CREATURE_TYPES.map((t) => ({ value: t, label: t }))]
 const HIT_DIE_OPTIONS = [{ value: '', label: 'None' }, ...DIE_SIZES.map((s) => ({ value: String(s), label: `d${s}` }))]
 const SIZE_OPTIONS = [{ value: '', label: 'None' }, ...SIZES.map((s) => ({ value: s, label: s }))]
 
-function isTieredEffectType(t: FeatureTypeValue | ''): boolean {
+function isTieredEffectType(t: FeatureTypeValue): boolean {
   return (TIERED_EFFECT_TYPES as string[]).includes(t)
 }
 
@@ -248,7 +262,7 @@ export interface FeatureFormData extends DamageValues, GainValues {
   name: string
   highlights: string
   description: string
-  featureType: FeatureTypeValue | ''
+  featureType: FeatureTypeValue
   actionKind: ActionKind | ''
   type: string
   range: string
@@ -271,7 +285,7 @@ const ACTION_FIELD_DEFAULTS = {
 } satisfies Partial<FeatureFormData>
 
 export const defaultFeatureForm: FeatureFormData = {
-  name: '', highlights: '', description: '', featureType: '', actionKind: '', ...ACTION_FIELD_DEFAULTS, level: 1, levelEffects: [],
+  name: '', highlights: '', description: '', featureType: 'Custom', actionKind: '', ...ACTION_FIELD_DEFAULTS, level: 1, levelEffects: [],
 }
 
 /** The form's fields for an existing feature. */
@@ -280,7 +294,7 @@ export function featureToForm(feature: Feature): FeatureFormData {
     name: feature.name,
     highlights: feature.highlights ?? '',
     description: feature.description,
-    featureType: feature.featureType ?? '',
+    featureType: feature.featureType ?? 'Custom',
     actionKind: feature.actionKind ?? '',
     type: feature.type ?? '',
     range: feature.range ?? '',
@@ -338,7 +352,7 @@ export function featureFromForm(form: FeatureFormData, base: Partial<Feature> & 
 }
 
 /** The form with `type` picked as its Feature Type: what picking it from the menu does. */
-export function withFeatureType(form: FeatureFormData, type: FeatureTypeValue | ''): FeatureFormData {
+export function withFeatureType(form: FeatureFormData, type: FeatureTypeValue): FeatureFormData {
   if (type === form.featureType) return form
   return {
     ...form,
@@ -346,7 +360,7 @@ export function withFeatureType(form: FeatureFormData, type: FeatureTypeValue | 
     // A blank Name defaults to the newly picked type's name — the only way NAMELESS_FEATURE_TYPES
     // ever get a name (their Name field is hidden), and a visible starting point for every other
     // type that the user can overwrite. Never overwrites a name the user already typed.
-    name: form.name.trim() === '' && type !== '' ? defaultFeatureName(type) : form.name,
+    name: form.name.trim() === '' ? defaultFeatureName(type) : form.name,
     actionKind: type === 'Action' ? 'action' : '',
     ...ACTION_FIELD_DEFAULTS,
     level: 1,
@@ -354,18 +368,24 @@ export function withFeatureType(form: FeatureFormData, type: FeatureTypeValue | 
   }
 }
 
-/** The name a new feature of this type starts with: the type's own, but for Spellcasting's. */
+/**
+ * The name a new feature of this type starts with: the type's own, but for Spellcasting's, and none
+ * for Custom, whose name is the player's to give.
+ */
 function defaultFeatureName(type: FeatureTypeValue): string {
+  if (type === 'Custom') return ''
   return type === 'Spellcasting' ? SPELLCASTING_FEATURE_NAME : type
 }
 
-// A new Spellcasting level is the next row of the slot table: one level after the highest so far,
-// starting from that row (its slots, and the feature's ability), since a row usually adds a slot or
-// two to the one before it.
-function nextSpellcastingTier(tiers: FeatureLevelEffect[]): FeatureLevelEffect {
+// A new level of a table type is the table's next row: one level after the highest so far, starting
+// from that row (a Spellcasting row's slots and the feature's ability, a Prepared Spells row's
+// count), since a row usually adds a little to the one before it.
+function nextTableTier(tiers: FeatureLevelEffect[]): FeatureLevelEffect {
   if (tiers.length === 0) return { level: 1, effects: {} }
   const highest = tiers.reduce((top, tier) => (tier.level > top.level ? tier : top))
-  return { level: Math.min(20, highest.level + 1), effects: { ...highest.effects, spellSlots: { ...highest.effects.spellSlots } } }
+  const effects = { ...highest.effects }
+  if (effects.spellSlots) effects.spellSlots = { ...effects.spellSlots }
+  return { level: Math.min(20, highest.level + 1), effects }
 }
 
 interface FeatureFormProps {
@@ -397,7 +417,7 @@ function computeInitialEffectGroups(effects: FeatureEffects): Record<EffectGroup
 type TieredEffectType =
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-  | 'Ability Scores' | 'Spellcasting'
+  | 'Ability Scores' | 'Spellcasting' | 'Prepared Spells'
 
 function LevelEffectRow(props: {
   featureType: TieredEffectType
@@ -737,6 +757,21 @@ function LevelEffectRow(props: {
         </div>
       </Show>
 
+      <Show when={props.featureType === 'Prepared Spells'}>
+        <div class="space-y-1">
+          <Label for={`fx-prepared-spells-${props.index}`} class="text-xs">Prepared Spells</Label>
+          <NumericInput
+            id={`fx-prepared-spells-${props.index}`}
+            data-test={`level-effect-${props.index}-prepared-spells`}
+            class="w-24"
+            min={0}
+            max={99}
+            value={effects().preparedSpells ?? 0}
+            onChange={(v) => update({ preparedSpells: v || undefined })}
+          />
+        </div>
+      </Show>
+
       <Show when={props.featureType === 'Spellcasting'}>
         <div class="space-y-1">
           <Label class="text-xs">Spell Slots</Label>
@@ -771,9 +806,9 @@ function FeatureForm(props: FeatureFormProps) {
   // A required feature keeps its type: its form has no Feature Type field, and the modal's title
   // names the type instead (see FeatureEditModal). A feature opened with a type that isn't offered
   // (a legacy one) still lists it, so the menu shows it and can return to it.
-  const initialType = untrack(() => props.initialData?.featureType ?? '')
+  const initialType = untrack(() => props.initialData?.featureType ?? 'Custom')
   const typeFixed = isRequiredFeatureType(initialType)
-  const typeOptions = initialType === '' || FEATURE_TYPES.includes(initialType)
+  const typeOptions = FEATURE_TYPES.includes(initialType)
     ? FEATURE_TYPE_OPTIONS
     : [...FEATURE_TYPE_OPTIONS, { value: initialType, label: initialType }]
 
@@ -854,7 +889,7 @@ function FeatureForm(props: FeatureFormProps) {
 
   const addLevelEffect = () => {
     const newIndex = formData().levelEffects.length
-    const tier = effectType() === 'Spellcasting' ? nextSpellcastingTier(formData().levelEffects) : { level: 1, effects: {} }
+    const tier = TABLE_EFFECT_TYPES.includes(effectType()) ? nextTableTier(formData().levelEffects) : { level: 1, effects: {} }
     setFormData((d) => ({ ...d, levelEffects: [...d.levelEffects, tier] }))
     setEffectGroupsOpen((g) => ({ ...g, [newIndex]: computeInitialEffectGroups({}) }))
   }
@@ -871,26 +906,19 @@ function FeatureForm(props: FeatureFormProps) {
     })
   }
 
-  const changeFeatureType = (value: string) => setFormData((d) => withFeatureType(d, value as FeatureTypeValue | ''))
+  const changeFeatureType = (value: string) => setFormData((d) => withFeatureType(d, value as FeatureTypeValue))
 
-  // Name, Highlights and Description show once a type is picked, or once a name exists
-  // even with no type: otherwise editing a pre-existing untyped feature (name/description only, no
-  // mechanical effect) would hide the very fields needed to see or change it.
-  const detailsShown = createMemo(() => formData().featureType !== '' || formData().name.trim() !== '')
-  const isNameless = createMemo(() => NAMELESS_FEATURE_TYPES.includes(effectType() as FeatureTypeValue))
-  // Name shows with the other details, except for the types that take their name from the type
-  // instead. The required-field legend explains Name's asterisk, so it follows this too.
-  const nameShown = createMemo(() => detailsShown() && !isNameless())
+  const isNameless = createMemo(() => NAMELESS_FEATURE_TYPES.includes(effectType()))
+  // Name shows for every type but those that take their name from the type instead. The
+  // required-field legend explains Name's asterisk, so it follows this too.
+  const nameShown = createMemo(() => !isNameless())
 
-  // A feature needs a name. With no type picked and no name, the Name field is hidden: picking a type
-  // is the way to it, so the issue goes on Feature Type instead. A nameless type has no Name field and
-  // needs none, since a blank name is filled from the type on saving (see handleSubmit).
+  // A feature needs a name. A nameless type has no Name field and needs none, since a blank name is
+  // filled from the type on saving (see handleSubmit).
   const validation = useFormValidation(() => {
     const data = formData()
     if (data.name.trim() || isNameless()) return []
-    return data.featureType === ''
-      ? [{ fieldId: 'feature-type-select', message: 'Choose a Feature Type' }]
-      : [requiredText('feature-name', 'Name', data.name)]
+    return [requiredText('feature-name', 'Name', data.name)]
   })
 
   const handleSubmit = (e: Event) => {
@@ -913,54 +941,51 @@ function FeatureForm(props: FeatureFormProps) {
           <div class="space-y-1">
             <Label for="feature-type-select">Feature Type</Label>
             <Select options={typeOptions} value={formData().featureType} onValueChange={changeFeatureType}>
-              <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type" {...validation.controlProps('feature-type-select')}>
-                <SelectValue placeholder="None" />
+              <SelectTrigger id="feature-type-select" data-test="feature-type-select" aria-label="Feature Type">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent />
             </Select>
-            <FieldError validation={validation} fieldId="feature-type-select" />
           </div>
         </Show>
 
-        <Show when={detailsShown()}>
-          <Show when={nameShown()}>
-            <div class="space-y-1">
-              <Label for="feature-name" required>Name</Label>
-              <Input
-                id="feature-name"
-                data-test="feature-name-input"
-                value={formData().name}
-                onInput={(e) => setFormData((d) => ({ ...d, name: e.currentTarget.value }))}
-                {...validation.controlProps('feature-name')}
-                placeholder="Feature name"
-                required
-              />
-              <FieldError validation={validation} fieldId="feature-name" />
-            </div>
-          </Show>
+        <Show when={nameShown()}>
           <div class="space-y-1">
-            <Label for="feature-highlights">Highlights</Label>
-            <Textarea
-              id="feature-highlights"
-              data-test="feature-highlights-input"
-              value={formData().highlights}
-              onInput={(e) => setFormData((d) => ({ ...d, highlights: e.currentTarget.value }))}
-              placeholder="Shown on the action card (Markdown)"
-              rows={2}
+            <Label for="feature-name" required>Name</Label>
+            <Input
+              id="feature-name"
+              data-test="feature-name-input"
+              value={formData().name}
+              onInput={(e) => setFormData((d) => ({ ...d, name: e.currentTarget.value }))}
+              {...validation.controlProps('feature-name')}
+              placeholder="Feature name"
+              required
             />
-          </div>
-          <div class="space-y-1">
-            <Label for="feature-description">Description</Label>
-            <Textarea
-              id="feature-description"
-              data-test="feature-description-input"
-              value={formData().description}
-              onInput={(e) => setFormData((d) => ({ ...d, description: e.currentTarget.value }))}
-              placeholder="Describe the feature..."
-              rows={4}
-            />
+            <FieldError validation={validation} fieldId="feature-name" />
           </div>
         </Show>
+        <div class="space-y-1">
+          <Label for="feature-highlights">Highlights</Label>
+          <Textarea
+            id="feature-highlights"
+            data-test="feature-highlights-input"
+            value={formData().highlights}
+            onInput={(e) => setFormData((d) => ({ ...d, highlights: e.currentTarget.value }))}
+            placeholder="Shown on the action card (Markdown)"
+            rows={2}
+          />
+        </div>
+        <div class="space-y-1">
+          <Label for="feature-description">Description</Label>
+          <Textarea
+            id="feature-description"
+            data-test="feature-description-input"
+            value={formData().description}
+            onInput={(e) => setFormData((d) => ({ ...d, description: e.currentTarget.value }))}
+            placeholder="Describe the feature..."
+            rows={4}
+          />
+        </div>
 
         <Show when={formData().featureType === 'Action'}>
           <div class="space-y-4 border rounded-md p-3">
@@ -1166,6 +1191,21 @@ function FeatureForm(props: FeatureFormProps) {
           </div>
         </Show>
 
+        <Show when={effectType() === 'Ability Score Improvement'}>
+          <ChipListEditor
+            label="Levels"
+            itemLabel="level"
+            data-test="feature-asi-level"
+            options={CHARACTER_LEVEL_OPTIONS}
+            values={(singleTierEffects().abilityScoreImprovementLevels ?? []).map(String)}
+            onChange={(next) => setSingleTierEffects({
+              ...singleTierEffects(),
+              abilityScoreImprovementLevels: next.map(Number).sort((a, b) => a - b),
+            })}
+            emptyText="No levels"
+          />
+        </Show>
+
         <Show when={effectType() === 'Max HP Bonus'}>
           <div class="space-y-1">
             <Label for="feature-hp-bonus-per-level" class="text-xs">Max HP Bonus (per level)</Label>
@@ -1194,6 +1234,11 @@ function FeatureForm(props: FeatureFormProps) {
               </div>
               <p data-test="spellcasting-hint" class="text-xs text-muted-foreground">
                 Each level lists all the spell slots the character has from that level on, like a row of your class's spell slot table. The highest level the character has reached applies. The spellcasting ability applies from the first level.
+              </p>
+            </Show>
+            <Show when={effectType() === 'Prepared Spells'}>
+              <p data-test="prepared-spells-hint" class="text-xs text-muted-foreground">
+                Each level gives the number of spells the character can prepare from that level on, like a row of your class's table. The highest level the character has reached applies.
               </p>
             </Show>
             <Index each={formData().levelEffects}>
@@ -1325,7 +1370,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                           <div class="flex items-start justify-between gap-2">
                             <div class="flex items-center gap-2 flex-wrap">
                               <span class="font-medium">{feature.name}</span>
-                              <Show when={feature.featureType && feature.featureType !== 'Action'}>
+                              <Show when={feature.featureType && feature.featureType !== 'Action' && feature.featureType !== 'Custom'}>
                                 <Chip variant="outline" class="text-xs">{feature.featureType}</Chip>
                               </Show>
                               <Show when={feature.actionKind}>

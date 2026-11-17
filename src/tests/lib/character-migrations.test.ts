@@ -147,14 +147,14 @@ describe("migrateCharacter", () => {
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("intelligence")
       // Named plainly, not "Legacy Spellcasting" — it's meant to be a normal, permanent Feature,
       // not a disposable placeholder a player might delete and lose spellcasting functionality.
-      // Alongside it, the required Hit Points feature every character gets.
-      expect(migrated.classFeatures!.map((f) => f.name)).toEqual(["Hit Points", "Spellcasting"])
+      // Alongside it, the required class features every character gets.
+      expect(migrated.classFeatures!.map((f) => f.name)).toEqual(["Hit Points", "Ability Score Improvement", "Spellcasting"])
     })
 
     it("does not synthesize a Spellcasting Feature from a legacy value that is not an ability", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "Intelligence (INT)", hitDice: "" }
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
-      expect(migrateCharacter(raw).classFeatures!.map((f) => f.featureType)).toEqual(["Hit Points"])
+      expect(migrateCharacter(raw).classFeatures!.map((f) => f.featureType)).toEqual(["Hit Points", "Ability Score Improvement"])
     })
 
     it("synthesizes a Feature granting the legacy hit die size when nothing else grants one", () => {
@@ -162,10 +162,11 @@ describe("migrateCharacter", () => {
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
       expect(getEffectiveHitDiceSize(migrated)).toBe(10)
-      // spellcastingAbility defaults to "" on a fresh character, so no spellcasting Feature is added
-      expect(migrated.classFeatures).toHaveLength(1)
+      // spellcastingAbility defaults to "" on a fresh character, so no spellcasting Feature is added:
+      // just Hit Points and the required Ability Score Improvement
+      expect(migrated.classFeatures).toHaveLength(2)
       // Named plainly, not "Legacy Hit Points" — see note on the spellcasting case above.
-      expect(migrated.classFeatures![0].name).toBe("Hit Points")
+      expect(migrated.classFeatures!.find((f) => f.featureType === "Hit Points")?.name).toBe("Hit Points")
     })
 
     it("prefers an explicit legacy hitDiceSize over parsing hitDice", () => {
@@ -179,7 +180,7 @@ describe("migrateCharacter", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], spellcastingAbility: "wisdom", hitDice: "1d8" }
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       const migrated = migrateCharacter(raw)
-      expect(migrated.classFeatures).toHaveLength(2)
+      expect(migrated.classFeatures).toHaveLength(3)
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("wisdom")
       expect(getEffectiveHitDiceSize(migrated)).toBe(8)
     })
@@ -209,7 +210,7 @@ describe("migrateCharacter", () => {
       const migrated = migrateCharacter(raw)
       expect(getEffectiveSpellcastingAbility(migrated)).toBe("charisma")
       expect(getEffectiveHitDiceSize(migrated)).toBe(8)
-      expect(migrated.classFeatures).toHaveLength(3)
+      expect(migrated.classFeatures).toHaveLength(4)
     })
 
     it("normalizes a legacy string-shaped classFeatures instead of spreading it character-by-character", () => {
@@ -222,9 +223,9 @@ describe("migrateCharacter", () => {
       delete raw.useCalculatedArmorClass // saved before the calculated-value flags: a legacy character
       expect(() => migrateCharacter(raw)).not.toThrow()
       const migrated = migrateCharacter(raw)
-      // Only the synthesized "Spellcasting" Feature and the required Hit Points — the legacy string
-      // was discarded via safeFeatures(), not spread into ~35 one-character entries.
-      expect(migrated.classFeatures!.map((f) => f.name)).toEqual(["Hit Points", "Spellcasting"])
+      // Only the synthesized "Spellcasting" Feature and the required ones — the legacy string was
+      // discarded via safeFeatures(), not spread into ~35 one-character entries.
+      expect(migrated.classFeatures!.map((f) => f.name)).toEqual(["Hit Points", "Ability Score Improvement", "Spellcasting"])
     })
   })
 
@@ -238,7 +239,7 @@ describe("migrateCharacter", () => {
       }
       delete raw.useCalculatedArmorClass // also exercises the CALCULATED_VALUE_FLAGS-gated path
       const migrated = migrateCharacter(raw)
-      expect(migrated.classFeatures![0].featureType).toBe("Saving Throw Proficiency")
+      expect(migrated.classFeatures!.find((f) => f.id === "f1")?.featureType).toBe("Saving Throw Proficiency")
     })
 
     it("backfills featureType even when every CALCULATED_VALUE_FLAGS key is already present (the PDF-import merge path)", () => {
@@ -256,15 +257,26 @@ describe("migrateCharacter", () => {
       expect(migrated.classFeatures!.find((f) => f.name === "Bardic Inspiration")?.featureType).toBe("Action")
     })
 
-    it("does not touch a Feature that already has a featureType, including ''", () => {
+    it("does not re-infer the type of a Feature that already has one", () => {
+      // An Action feature whose action kind was cleared would infer as Custom
       const raw = {
         ...createDefaultCharacter(),
         classFeatures: [
-          { id: "f1", name: "Custom", description: "", source: "class-feature", featureType: "" },
+          { id: "f1", name: "Second Wind", description: "", source: "class-feature", featureType: "Action" },
         ],
       }
       const migrated = migrateCharacter(raw)
-      expect(migrated.classFeatures!.find((f) => f.id === "f1")?.featureType).toBe("")
+      expect(migrated.classFeatures!.find((f) => f.id === "f1")?.featureType).toBe("Action")
+    })
+
+    // '' was the type of a feature with no mechanical effect, before Custom
+    it("retypes a Feature stored with featureType '' as Custom, keeping the rest of it", () => {
+      const untyped = { id: "f1", name: "Font of Magic", description: "Sorcery points.", highlights: "**2** points", source: "class-feature", featureType: "" }
+      const raw = { ...createDefaultCharacter(), feats: [untyped] }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.feats).toEqual([{ ...untyped, featureType: "Custom" }])
+      // Run again on its own result, nothing changes
+      expect(migrateCharacter(migrated)).toBe(migrated)
     })
 
     it("gives a legacy-synthesized Spellcasting Feature the correct featureType", () => {
@@ -284,7 +296,7 @@ describe("migrateCharacter", () => {
       const migrated = migrateCharacter(raw)
       expect(migrated.speciesTraits!.find((f) => f.id === "f1")?.featureType).toBe("Senses")
       expect(migrated.feats![0].featureType).toBe("Max HP Bonus")
-      expect(migrated.backgroundFeatures![0].featureType).toBe("")
+      expect(migrated.backgroundFeatures![0].featureType).toBe("Custom")
     })
   })
 
@@ -407,7 +419,7 @@ describe("migrateCharacter", () => {
 
     it("adds the feature after the character's own class features", () => {
       const migrated = migrateCharacter(legacyCharacter({ spellSlots: legacySlots({ 1: { total: 2, used: 0 } }) }))
-      expect(migrated.classFeatures?.map((f) => f.featureType)).toEqual(["Hit Points", "Spellcasting"])
+      expect(migrated.classFeatures?.map((f) => f.featureType)).toEqual(["Hit Points", "Ability Score Improvement", "Spellcasting"])
     })
 
     it("adds the slots to the character's Spellcasting class feature as a row with its ability", () => {
@@ -484,7 +496,8 @@ describe("migrateCharacter", () => {
 
     it("gives a character saved before they existed every required feature, with the starting values", () => {
       const migrated = migrateCharacter({ ...createDefaultCharacter(), classFeatures: [], speciesTraits: [] })
-      expect(types(migrated.classFeatures)).toEqual(["Hit Points"])
+      expect(types(migrated.classFeatures)).toEqual(["Hit Points", "Ability Score Improvement"])
+      expect(migrated.classFeatures![1].levelEffects).toEqual([{ level: 1, effects: { abilityScoreImprovementLevels: [4, 8, 12, 16, 19] } }])
       // Speed and Languages are not required: a new character starts with them, an older one doesn't
       expect(types(migrated.speciesTraits)).toEqual(["Creature Type", "Size"])
       expect(getEffectiveHitDiceSize(migrated)).toBe(8)

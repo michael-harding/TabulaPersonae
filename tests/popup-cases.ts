@@ -58,6 +58,7 @@ export const MODALS: ModalCase[] = [
   // The required features (src/lib/required-features.ts). Their types aren't in the Add menu, so
   // their forms open from Edit, titled with the type in place of a Feature Type field.
   { name: "feature-edit-hit-points", tab: "Features", open: (page) => editFeature(page, "Hit Points") },
+  { name: "feature-edit-ability-score-improvement", tab: "Features", open: (page) => editFeature(page, "Ability Score Improvement") },
   { name: "feature-edit-creature-type", tab: "Features", open: (page) => editFeature(page, "Creature Type") },
   { name: "feature-edit-size", tab: "Features", open: (page) => editFeature(page, "Size"), coveredBy: "feature-edit-creature-type" }, // one select
   { name: "spell-add", tab: "Spells", open: (page) => click(page, "add-spell-button") },
@@ -117,9 +118,11 @@ export const featureTypeBaseline = (type: string) => `feature-add-type-${slug(ty
 // "lists every feature type" test (tests/e2e/character-sheet.spec.ts) fails when this and the app's
 // list drift, so a new type can't ship until it is given a baseline or mapped to one.
 const FEATURE_TYPE_COVERED_BY: Record<string, string | null> = {
+  "Custom": "feature-add", // a new feature starts as Custom
   "Action": "feature-edit", // the edit case opens an Action feature
   "Max HP Bonus": null,
   "Spellcasting": "spell-slots", // the Edit Slots case opens the fixture's Spellcasting feature
+  "Prepared Spells": null,
   "Saving Throw Proficiency": null,
   "Skill Proficiency": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"), // a chip-list row per level
   "Other Proficiency": featureTypeBaseline("Language"), // a text input and Add per level

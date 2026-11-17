@@ -12,7 +12,7 @@ import BookOpen from "lucide-solid/icons/book-open"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Feature, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells, getSpellSlots, withSpentSpellSlots, findSpellcastingFeature, withFeatureSaved, SPELL_SLOT_LEVELS } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells, getSpellSlots, withSpentSpellSlots, findSpellcastingFeature, withFeatureSaved, getPreparedSpellsLimit, SPELL_SLOT_LEVELS } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -104,6 +104,7 @@ export function SpellsModule(props: SpellsModuleProps) {
   // Must be called inside a reactive context (JSX, effect, memo) — reads spellsByLevelMap()
   const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? EMPTY_SPELLS
   const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0))
+  const preparedSpellsLimit = createMemo(() => getPreparedSpellsLimit(props.character))
   const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
   const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
 
@@ -228,9 +229,22 @@ export function SpellsModule(props: SpellsModuleProps) {
                   format={formatModifier}
                 />
               </div>
-              <div class="text-center">
+              <div class="text-center" data-test="prepared-spells">
                 <div class="text-sm font-medium mb-1">Prepared Spells</div>
-                <div class="text-2xl font-bold text-primary">{preparedSpells().length}</div>
+                <Show
+                  when={preparedSpellsLimit()}
+                  fallback={<div class="text-2xl font-bold text-primary">{preparedSpells().length}</div>}
+                >
+                  {(limit) => (
+                    <Tooltip
+                      content={limit().breakdown}
+                      triggerFocusable
+                      triggerLabel={`Prepared Spells: ${preparedSpells().length} of ${limit().total}`}
+                    >
+                      <div class="text-2xl font-bold text-primary">{preparedSpells().length} / {limit().total}</div>
+                    </Tooltip>
+                  )}
+                </Show>
               </div>
             </div>
           </div>

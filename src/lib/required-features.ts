@@ -14,9 +14,12 @@ interface FeatureSpec<Type extends FeatureTypeValue = FeatureTypeValue> {
   effects: () => FeatureEffects
 }
 
+/** The levels most classes give an Ability Score Improvement (or another feat) at. */
+export const DEFAULT_ABILITY_SCORE_IMPROVEMENT_LEVELS: readonly number[] = [4, 8, 12, 16, 19]
+
 /**
  * The features every character has exactly one of: those a character can only get from its class
- * (the hit die) or species (creature type, size). Required-ness comes from the Feature Type alone:
+ * (the hit die, its Ability Score Improvement levels) or species (creature type, size). Required-ness comes from the Feature Type alone:
  * these types are not offered in the Feature Type menu, a required feature's form has no Feature Type
  * field (the type is its title), and it cannot be deleted, so the one feature of each type in its
  * list is the required one. Any other
@@ -30,6 +33,14 @@ const REQUIRED_FEATURES: FeatureSpec<RequiredFeatureType>[] = [
     name: "Hit Points",
     description: "Grants this character's hit die, used to calculate Max HP and spend Hit Dice on a short rest. Update the die size to match your class.",
     effects: () => ({ hitDiceSize: 8 }),
+  },
+  {
+    type: "Ability Score Improvement",
+    field: "classFeatures",
+    source: "class-feature",
+    name: "Ability Score Improvement",
+    description: "The levels at which this character gains an Ability Score Improvement or another feat. Add any other levels your class gives one.",
+    effects: () => ({ abilityScoreImprovementLevels: [...DEFAULT_ABILITY_SCORE_IMPROVEMENT_LEVELS] }),
   },
   {
     type: "Creature Type",
@@ -90,7 +101,7 @@ export function isRequiredFeature(feature: Pick<Feature, "featureType">): boolea
  * The type whose effect fields a feature edits and displays: a legacy type behaves exactly like the
  * required type it was relabelled from.
  */
-export function effectFeatureType(type: FeatureTypeValue | ""): FeatureTypeValue | "" {
+export function effectFeatureType(type: FeatureTypeValue): FeatureTypeValue {
   if (!type.endsWith(LEGACY_SUFFIX)) return type
   const base = type.slice(0, -LEGACY_SUFFIX.length)
   return isRequiredFeatureType(base) ? base : type

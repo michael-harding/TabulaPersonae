@@ -105,6 +105,28 @@ describe("SpellsModule", () => {
       expect(screen.getByText("Prepared Spells")).toBeInTheDocument()
     })
 
+    it("shows the prepared count alone when no Prepared Spells feature applies", () => {
+      const spells = [makeSpell({ id: "a", level: 1, prepared: true }), makeSpell({ id: "b", level: 1, prepared: false })]
+      render(() => <SpellsModule character={makeCharacter({ spells })} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("prepared-spells")).toHaveTextContent(/^Prepared Spells1$/)
+    })
+
+    it("shows the prepared count against the Prepared Spells features' total, naming each in its tooltip", async () => {
+      const prepared = (id: string, name: string, source: "class-feature" | "feat", count: number) => ({
+        id, name, description: "", source, featureType: "Prepared Spells" as const, levelEffects: [{ level: 1, effects: { preparedSpells: count } }],
+      })
+      const character = makeCharacter({
+        spells: [makeSpell({ id: "a", level: 1, prepared: true }), makeSpell({ id: "b", level: 2, prepared: true }), makeSpell({ id: "c", level: 0, prepared: true })],
+        classFeatures: [prepared("p1", "Prepared Spells", "class-feature", 4)],
+        feats: [prepared("p2", "Magic Initiate", "feat", 1)],
+      })
+      render(() => <SpellsModule character={character} onUpdate={vi.fn()} />)
+      // Cantrips are never prepared spells
+      expect(screen.getByTestId("prepared-spells")).toHaveTextContent(/^Prepared Spells2 \/ 5$/)
+      const trigger = screen.getByRole("group", { name: "Prepared Spells: 2 of 5" })
+      await expectTapTooltip(trigger, "4 (Prepared Spells Class Feature) + 1 (Magic Initiate Feat)")
+    })
+
     it("does not show stat bar when there are no spells", () => {
       render(() => <SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Spell Save DC")).not.toBeInTheDocument()

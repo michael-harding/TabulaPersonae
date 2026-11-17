@@ -177,6 +177,16 @@ function retypeSpellcastingAbility(features: Feature[]): Feature[] | undefined {
 }
 
 /**
+ * A feature with no mechanical type was stored with featureType '' before the Custom type took that
+ * role. Its name, highlights and description are all it has, which is exactly a Custom feature.
+ */
+function retypeUntypedFeatures(features: Feature[]): Feature[] | undefined {
+  const isUntyped = (feature: Feature) => (feature.featureType as string | undefined) === ""
+  if (!features.some(isUntyped)) return undefined
+  return features.map((feature) => (isUntyped(feature) ? { ...feature, featureType: "Custom" } : feature))
+}
+
+/**
  * Backfills the persisted featureType onto any Feature that predates the field, using the same
  * inference the live edit-modal used to run on every open (see inferFeatureType in
  * character-utils.ts) — but exactly once, here, rather than as permanent runtime machinery. Runs
@@ -276,7 +286,8 @@ export function migrateCharacter(raw: unknown): Character {
   for (const field of FEATURE_LIST_FIELDS) {
     const current = safeFeatures((patch[field] as Feature[] | undefined) ?? raw[field])
     const backfilled = backfillFeatureTypes(current) ?? current
-    const retyped = retypeSpellcastingAbility(backfilled) ?? backfilled
+    const untypedRetyped = retypeUntypedFeatures(backfilled) ?? backfilled
+    const retyped = retypeSpellcastingAbility(untypedRetyped) ?? untypedRetyped
     if (retyped !== current) patch[field] = retyped
     featureLists[field] = retyped
   }

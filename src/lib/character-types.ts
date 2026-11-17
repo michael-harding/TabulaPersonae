@@ -223,6 +223,16 @@ export interface FeatureEffects {
    * tier the character has reached gives the totals, none when it has none (see getActiveFeatureEffects).
    */
   spellSlots?: Partial<Record<SpellSlotLevel, number>>
+  /**
+   * 'Prepared Spells': how many spells the character can prepare. Like spellSlots, each tier is a row
+   * of the class's table, so only the highest tier reached counts; separate features add up.
+   */
+  preparedSpells?: number
+  /**
+   * 'Ability Score Improvement': the character levels at which it gains an Ability Score Improvement
+   * or another feat, in ascending order. Set once for the whole feature, on its single tier.
+   */
+  abilityScoreImprovementLevels?: number[]
 }
 
 export interface FeatureLevelEffect {
@@ -231,14 +241,15 @@ export interface FeatureLevelEffect {
 }
 
 /** The types every character has exactly one feature of (see required-features.ts). */
-export type RequiredFeatureType = 'Hit Points' | 'Creature Type' | 'Size'
+export type RequiredFeatureType = 'Hit Points' | 'Ability Score Improvement' | 'Creature Type' | 'Size'
 
 // Values double as their own display labels. They're persisted, so they stay human-readable
 // strings rather than short codes like "skill-proficiency". A "<type> (legacy)" value is a feature
 // of a required type other than the required one, from before that type was required; it works
-// exactly like its required type but can't be picked for a new feature.
+// exactly like its required type but can't be picked for a new feature. 'Custom' has no mechanical
+// effect: just a name, highlights and description.
 export type FeatureTypeValue =
-  | 'Action' | 'Spellcasting' | 'Hit Points' | 'Size' | 'Creature Type'
+  | 'Custom' | 'Action' | 'Spellcasting' | 'Prepared Spells' | 'Hit Points' | 'Ability Score Improvement' | 'Size' | 'Creature Type'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
   | 'Ability Scores' | 'Max HP Bonus'
@@ -258,12 +269,10 @@ export interface Feature extends UseableEntry, DamageFields, GainFields {
   // read time rather than baked in, so leveling up never requires manually editing the feature.
   maxUsesMode?: 'flat' | 'per-level'
   maxUsesPerLevel?: number
-  // '' means "migrated; determined to have no mechanical type" — distinct from the key being
-  // absent ("not yet migrated"). JSON.stringify drops undefined-valued keys (characters persist
-  // via localStorage.setItem(key, JSON.stringify(...))), so `featureType: undefined` would be
-  // indistinguishable from "never set" after a save/reload, breaking the migration's
-  // `'featureType' in feature` idempotency check.
-  featureType?: FeatureTypeValue | ''
+  // Absent only on a feature from before the field existed, until migrateCharacter backfills it.
+  // A feature with no mechanical type is 'Custom' (stored data from before Custom may still hold
+  // '', which migrateCharacter retypes).
+  featureType?: FeatureTypeValue
   // Every tier whose level threshold the character has reached contributes to the totals in
   // getActiveFeatureEffects — not just the highest one. A tier at level 1 and another at level 4
   // both apply once the character is level 4 or higher (see getQualifyingLevelEffects).
