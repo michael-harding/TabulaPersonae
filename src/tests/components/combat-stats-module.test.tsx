@@ -1083,6 +1083,14 @@ describe("CombatStatsModule", () => {
       )
     })
 
+    it("keeps a custom proficiency bonus of 0 as 0 when saving the form", () => {
+      const onUpdate = vi.fn()
+      render(() => <CombatStatsModule character={makeCharacter({ useCalculatedProficiencyBonus: false, proficiencyBonus: 0 })} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ proficiencyBonus: 0 }))
+    })
+
     it("shows effective proficiency bonus in view mode when flag is set", () => {
       const char = makeCharacter({
         level: 9,

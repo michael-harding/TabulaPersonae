@@ -80,6 +80,14 @@ import {
   withFeatureSaved,
   ordinal,
   setsMaxHitPoints,
+  clampCharacterLevel,
+  isCalculated,
+  getCustomValue,
+  getEffectiveValue,
+  getCalculatedPassiveScore,
+  isSenseCalculated,
+  getCustomSense,
+  isAbilityScoreCalculated,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type Character, type Equipment, type Feature, type Spell } from "@/lib/character-types"
 
@@ -2757,6 +2765,89 @@ describe("withFeatureSaved / featureListField", () => {
     const saved = withFeatureSaved(character, makeFeature({ id: "new", source: "class-feature" }))
     expect(saved.classFeatures?.map((f) => f.id)).toEqual([...character.classFeatures!.map((f) => f.id), "new"])
     expect(saved.speciesTraits).toBe(character.speciesTraits)
+  })
+  it("replaces the feature in the list holding it, even when its source names another list", () => {
+    const character = { ...createDefaultCharacter(), feats: [makeFeature({ id: "a", source: "class-feature" })] }
+    const saved = withFeatureSaved(character, makeFeature({ id: "a", source: "class-feature", name: "Renamed" }))
+    expect(saved.feats?.map((f) => f.name)).toEqual(["Renamed"])
+    expect(saved.classFeatures).toEqual(character.classFeatures)
+  })
+})
+
+describe("clampCharacterLevel", () => {
+  it.each([[0, 1], [1, 1], [7.6, 7], [20, 20], [25, 20], [Number.NaN, 1]])("keeps %d within 1–20 as %d", (level, expected) => {
+    expect(clampCharacterLevel(level)).toBe(expected)
+  })
+})
+
+describe("CUSTOMIZABLE_VALUES", () => {
+  // No toggles or custom values stored: what an old record, or one from an import, can look like
+  const bare = (overrides: Partial<Character> = {}): Character => {
+    const character: Character = { ...createDefaultCharacter(), ...overrides }
+    for (const key of [
+      "useCalculatedMaximumHp", "useCalculatedProficiencyBonus", "useCalculatedArmorClass", "useCalculatedInitiative",
+      "useCalculatedSpeed", "useCalculatedFlySpeed", "useCalculatedCarryingCapacity", "useCalculatedSpellSaveDC",
+      "speed", "flySpeed", "carryingCapacity", "passivePerception",
+    ] as const) {
+      if (!(key in overrides)) delete character[key]
+    }
+    return character
+  }
+
+  it("treats a missing toggle as each value's default", () => {
+    const character = bare()
+    expect(isCalculated(character, "maximumHp")).toBe(false)
+    expect(isCalculated(character, "proficiencyBonus")).toBe(false)
+    expect(isCalculated(character, "initiative")).toBe(false)
+    expect(isCalculated(character, "armorClass")).toBe(true)
+    expect(isCalculated(character, "speed")).toBe(true)
+    expect(isCalculated(character, "carryingCapacity")).toBe(true)
+    expect(isCalculated(character, "spellSaveDC")).toBe(true)
+  })
+
+  it("uses a stored toggle over the default", () => {
+    expect(isCalculated(bare({ useCalculatedArmorClass: false }), "armorClass")).toBe(false)
+    expect(isCalculated(bare({ useCalculatedProficiencyBonus: true }), "proficiencyBonus")).toBe(true)
+  })
+
+  it("keeps a stored custom value of 0 as 0", () => {
+    const character = bare({ proficiencyBonus: 0, armorClass: 0, initiative: 0 })
+    expect(getCustomValue(character, "proficiencyBonus")).toBe(0)
+    expect(getCustomValue(character, "armorClass")).toBe(0)
+    expect(getEffectiveValue(character, "proficiencyBonus")).toBe(0)
+  })
+
+  it("falls back to what the sheet shows when no custom value is stored", () => {
+    const character = bare()
+    expect(getCustomValue(character, "speed")).toBe(30)
+    expect(getCustomValue(character, "flySpeed")).toBe(0)
+    expect(getCustomValue(character, "carryingCapacity")).toBe(getEffectiveValue(character, "carryingCapacity"))
+    expect(getCustomValue(character, "passivePerception")).toBe(getCalculatedPassiveScore(character, "perception"))
+  })
+
+  it("shows the calculated or the custom value, as the toggle says", () => {
+    const character = bare({ level: 5, proficiencyBonus: 7 })
+    expect(getEffectiveValue(character, "proficiencyBonus")).toBe(7)
+    expect(getEffectiveValue({ ...character, useCalculatedProficiencyBonus: true }, "proficiencyBonus")).toBe(3)
+  })
+
+  it("calculates a passive score with a feature-granted proficiency", () => {
+    const character = bare({
+      level: 1,
+      abilityScores: { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 14, charisma: 10 },
+      useCalculatedProficiencyBonus: true,
+      feats: [makeFeature({ source: "feat", featureType: "Skill Proficiency", levelEffects: [{ level: 1, effects: { skillProficiencies: [{ skill: "perception" }] } }] })],
+    })
+    // 10 + 2 (Wisdom) + 2 (proficiency)
+    expect(getCalculatedPassiveScore(character, "perception")).toBe(14)
+  })
+
+  it("treats a missing per-sense and per-ability toggle as calculated, and a missing custom sense as 0", () => {
+    const character = bare({ useCalculatedSenses: undefined, useCalculatedAbilityScores: undefined, senses: undefined })
+    expect(isSenseCalculated(character, "darkvision")).toBe(true)
+    expect(getCustomSense(character, "darkvision")).toBe(0)
+    expect(isAbilityScoreCalculated(character, "strength")).toBe(true)
+    expect(isAbilityScoreCalculated({ useCalculatedAbilityScores: { strength: false } }, "strength")).toBe(false)
   })
 })
 

@@ -4,8 +4,15 @@ import { axe } from "vitest-axe"
 import { LevelUpModal } from "@/components/level-up-modal"
 import { createDefaultCharacter, type Character, type FeatureEffects } from "@/lib/character-types"
 import { getEffectiveMaxHp } from "@/lib/character-utils"
+import { getLevelUpSummary } from "@/lib/level-up"
 
 import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
+
+// The real implementation, watched: to check a closed modal works nothing out
+vi.mock("@/lib/level-up", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/level-up")>()
+  return { ...actual, getLevelUpSummary: vi.fn(actual.getLevelUpSummary) }
+})
 
 // createDefaultCharacter: level 1, CON 10, calculated Max HP and proficiency bonus, a Hit Points
 // feature giving a d8 (per level) and Ability Score Improvements at 4, 8, 12, 16, 19.
@@ -54,6 +61,29 @@ describe("LevelUpModal", () => {
     fireEvent.blur(input)
   }
   const confirm = () => fireEvent.click(byTest("level-up-confirm-button"))
+
+  it("works nothing out while closed, however the character changes", () => {
+    vi.mocked(getLevelUpSummary).mockClear()
+    const [character, setCharacter] = createSignal(makeCharacter({ level: 3 }))
+    const [open, setOpen] = createSignal(false)
+    render(() => <LevelUpModal character={character()} open={open()} onOpenChange={setOpen} onLevelUp={vi.fn()} />)
+    setCharacter(makeCharacter({ level: 3, hitPoints: { current: 2, maximum: 8, temporary: 0 } }))
+    expect(getLevelUpSummary).not.toHaveBeenCalled()
+    setOpen(true)
+    expect(getLevelUpSummary).toHaveBeenCalled()
+    setOpen(false)
+    vi.mocked(getLevelUpSummary).mockClear()
+    setCharacter(makeCharacter({ level: 3, hitPoints: { current: 5, maximum: 8, temporary: 0 } }))
+    expect(getLevelUpSummary).not.toHaveBeenCalled()
+  })
+
+  it("starts afresh each time it opens", () => {
+    openModal(makeCharacter({ level: 3 }))
+    enterNumber(within(dialog()).getByLabelText("New Level"), 6)
+    fireEvent.click(byTest("level-up-cancel-button"))
+    fireEvent.click(screen.getByRole("button", { name: "Open" }))
+    expect((within(dialog()).getByLabelText("New Level") as HTMLInputElement).value).toBe("4")
+  })
 
   it("has no accessibility violations", async () => {
     openModal(makeCharacter({ level: 3 }))
@@ -114,6 +144,20 @@ describe("LevelUpModal", () => {
     it("asks for the new HP, starting from the current value", () => {
       openModal(flat())
       expect((within(dialog()).getByLabelText("New HP") as HTMLInputElement).value).toBe("12")
+    })
+
+    it("requires a new HP of at least 1", () => {
+      const { onLevelUp } = openModal(withHitPoints(makeCharacter(), { hitDiceSize: 8, hitPointsMode: "flat" }))
+      const newHp = within(dialog()).getByLabelText("New HP")
+      expect(newHp).toBeRequired()
+      expect(newHp).toHaveAttribute("min", "1")
+      confirm()
+      expect(onLevelUp).not.toHaveBeenCalled()
+      expect(byTest("form-error-summary")).toHaveTextContent("New HP must be at least 1")
+      expect(newHp).toHaveAttribute("aria-invalid", "true")
+      enterNumber(newHp, 9)
+      confirm()
+      expect(hitPointsEffects(onLevelUp.mock.calls[0][0])?.hitPointsFlatValue).toBe(9)
     })
 
     it("previews and saves the new HP", () => {

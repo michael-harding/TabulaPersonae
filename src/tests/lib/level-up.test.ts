@@ -2,7 +2,6 @@ import { createDefaultCharacter, type Character, type Feature, type FeatureEffec
 import { getEffectiveMaxHp } from "@/lib/character-utils"
 import {
   applyLevelUp,
-  clampCharacterLevel,
   findHitPointsSource,
   getLevelUpSummary,
   levelsGained,
@@ -35,12 +34,6 @@ const hitPointsEffects = (character: Character) =>
 function makeInput(overrides: Partial<LevelUpInput> = {}): LevelUpInput {
   return { level: 2, flatHitPoints: 0, rolledHitPoints: {}, ...overrides }
 }
-
-describe("clampCharacterLevel", () => {
-  it.each([[0, 1], [1, 1], [7.6, 7], [20, 20], [25, 20], [Number.NaN, 1]])("keeps %d within 1–20 as %d", (level, expected) => {
-    expect(clampCharacterLevel(level)).toBe(expected)
-  })
-})
 
 describe("levelsGained", () => {
   it("lists every level after the current one up to the new one", () => {
@@ -88,6 +81,12 @@ describe("applyLevelUp", () => {
     expect(hitPointsEffects(leveled)).toEqual({ hitDiceSize: 8, hitPointsMode: "flat", hitPointsFlatValue: 17 })
     expect(getEffectiveMaxHp(leveled)).toBe(17)
     expect(leveled.hitPoints.current).toBe(17)
+  })
+
+  it("stores a new single value of at least 1, the lowest Max HP there is", () => {
+    const character = withHitPoints(makeCharacter(), { hitDiceSize: 8, hitPointsMode: "flat", hitPointsFlatValue: 10 })
+    const leveled = applyLevelUp(character, makeInput({ flatHitPoints: 0 }))
+    expect(hitPointsEffects(leveled)?.hitPointsFlatValue).toBe(1)
   })
 
   it("records each gained level's roll, keeping the earlier ones", () => {
