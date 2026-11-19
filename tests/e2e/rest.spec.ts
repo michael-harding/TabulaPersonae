@@ -41,7 +41,7 @@ test.describe("Short rest", () => {
     const stored = await storedCharacter(page, resting.id)
     expect(usesOf(stored, "Second Wind")).toBe(0)
     expect(usesOf(stored, "Speak with Animals")).toBe(3)
-    expect(stored.spellSlots[1].used).toBe(1)
+    expect(stored.spentSpellSlots).toEqual({ 1: 1 })
     expect(stored.hitPoints).toMatchObject({ current: 38, temporary: 5 })
   })
 
@@ -95,7 +95,7 @@ test.describe("Long rest", () => {
     const stored = await storedCharacter(page, resting.id)
     expect(stored.hitPoints).toMatchObject({ current: 44, temporary: 0 })
     expect(stored.spentHitDice).toBe(0)
-    expect(Object.values(stored.spellSlots).map((slot) => slot.used)).toEqual(Array(9).fill(0))
+    expect(stored.spentSpellSlots).toEqual({})
     expect(usesOf(stored, "Second Wind")).toBe(0)
     expect(usesOf(stored, "Speak with Animals")).toBe(0)
   })

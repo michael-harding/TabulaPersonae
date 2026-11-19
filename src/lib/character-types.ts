@@ -1,5 +1,7 @@
 // D&D Character Data Types
 
+import { createStartingFeatures } from "./required-features"
+
 export interface CharacterEntry {
   id: string
   name: string
@@ -172,7 +174,11 @@ export type ActionKind = 'action' | 'bonus-action' | 'reaction' | 'other'
 /** How a "Hit Points" feature's Max HP contribution is computed — see FeatureEffects.hitPointsMode. */
 export type HitPointsMode = 'flat' | 'per-level' | 'rolled'
 
+/** A spell slot's level, 1st to 9th. */
+export type SpellSlotLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
 export interface FeatureEffects {
+  /** 'Spellcasting': set once for the whole feature, so every row carries it (see the Spellcasting form). */
   spellcastingAbility?: keyof AbilityScores
   hitDiceSize?: number
   hitPointsMode?: HitPointsMode
@@ -191,6 +197,8 @@ export interface FeatureEffects {
   skillDisadvantage?: (keyof Skills)[]
   otherProficiencies?: string[]
   size?: string
+  /** e.g. "Humanoid" (see CREATURE_TYPES); a homebrew type is kept as written. */
+  creatureType?: string
   speed?: number
   flySpeed?: number
   swimSpeed?: number
@@ -209,6 +217,22 @@ export interface FeatureEffects {
   abilityScoreMaxCaps?: Partial<Record<keyof AbilityScores, number>>
   abilityScoreBaseMax?: Partial<Record<keyof AbilityScores, number>>
   hpBonusPerLevel?: number
+  /**
+   * 'Spellcasting': how many slots of each level the character has. Unlike every other effect, a
+   * feature's tiers don't add up: each one is a row of the class's spell slot table, so the highest
+   * tier the character has reached gives the totals, none when it has none (see getActiveFeatureEffects).
+   */
+  spellSlots?: Partial<Record<SpellSlotLevel, number>>
+  /**
+   * 'Prepared Spells': how many spells the character can prepare. Like spellSlots, each tier is a row
+   * of the class's table, so only the highest tier reached counts; separate features add up.
+   */
+  preparedSpells?: number
+  /**
+   * 'Ability Score Improvement': the character levels at which it gains an Ability Score Improvement
+   * or another feat, in ascending order. Set once for the whole feature, on its single tier.
+   */
+  abilityScoreImprovementLevels?: number[]
 }
 
 export interface FeatureLevelEffect {
@@ -216,13 +240,23 @@ export interface FeatureLevelEffect {
   effects: FeatureEffects
 }
 
+/** The types every character has exactly one feature of (see required-features.ts). */
+export type RequiredFeatureType = 'Hit Points' | 'Ability Score Improvement' | 'Creature Type' | 'Size'
+
 // Values double as their own display labels. They're persisted, so they stay human-readable
-// strings rather than short codes like "skill-proficiency".
+// strings rather than short codes like "skill-proficiency". A "<type> (legacy)" value is a feature
+// of a required type other than the required one, from before that type was required; it works
+// exactly like its required type but can't be picked for a new feature. 'Custom' has no mechanical
+// effect: just a name, highlights and description.
 export type FeatureTypeValue =
-  | 'Action' | 'Spellcasting Ability' | 'Hit Points' | 'Size'
+  | 'Custom' | 'Action' | 'Spellcasting' | 'Prepared Spells' | 'Hit Points' | 'Ability Score Improvement' | 'Size' | 'Creature Type'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
   | 'Ability Scores' | 'Max HP Bonus'
+  | `${RequiredFeatureType} (legacy)`
+
+/** How a feature's max uses are counted; absent means 'flat'. */
+export type MaxUsesMode = 'flat' | 'per-level' | 'proficiency-bonus'
 
 export interface Feature extends UseableEntry, DamageFields, GainFields {
   source: FeatureKind
@@ -236,14 +270,14 @@ export interface Feature extends UseableEntry, DamageFields, GainFields {
   // 'per-level' means maxUses is ignored and the effective cap is maxUsesPerLevel * character.level
   // — same "rate × current total level" math as FeatureEffects.hpBonusPerLevel, computed fresh at
   // read time rather than baked in, so leveling up never requires manually editing the feature.
-  maxUsesMode?: 'flat' | 'per-level'
+  // 'proficiency-bonus' likewise ignores maxUses: the cap is the character's effective proficiency
+  // bonus (getEffectiveProficiencyBonus), read fresh so it follows level-ups and a custom bonus.
+  maxUsesMode?: MaxUsesMode
   maxUsesPerLevel?: number
-  // '' means "migrated; determined to have no mechanical type" — distinct from the key being
-  // absent ("not yet migrated"). JSON.stringify drops undefined-valued keys (characters persist
-  // via localStorage.setItem(key, JSON.stringify(...))), so `featureType: undefined` would be
-  // indistinguishable from "never set" after a save/reload, breaking the migration's
-  // `'featureType' in feature` idempotency check.
-  featureType?: FeatureTypeValue | ''
+  // Absent only on a feature from before the field existed, until migrateCharacter backfills it.
+  // A feature with no mechanical type is 'Custom' (stored data from before Custom may still hold
+  // '', which migrateCharacter retypes).
+  featureType?: FeatureTypeValue
   // Every tier whose level threshold the character has reached contributes to the totals in
   // getActiveFeatureEffects — not just the highest one. A tier at level 1 and another at level 4
   // both apply once the character is level 4 or higher (see getQualifyingLevelEffects).
@@ -344,17 +378,11 @@ export interface Character {
   useCalculatedSpellSaveDC?: boolean
   spellAttackBonus: number
   useCalculatedSpellAttackBonus?: boolean
-  spellSlots: {
-    1: { total: number; used: number }
-    2: { total: number; used: number }
-    3: { total: number; used: number }
-    4: { total: number; used: number }
-    5: { total: number; used: number }
-    6: { total: number; used: number }
-    7: { total: number; used: number }
-    8: { total: number; used: number }
-    9: { total: number; used: number }
-  }
+  /**
+   * Slots spent at each level since the last long rest. How many the character has comes from its
+   * Spellcasting features, so a level it has no slots of has none spent (see getSpellSlots).
+   */
+  spentSpellSlots?: Partial<Record<SpellSlotLevel, number>>
 
   languages: string[]
   otherProficiencies: string[]
@@ -476,6 +504,7 @@ export function createDefaultCharacter(): Character {
       maximum: 8,
       temporary: 0,
     },
+    useCalculatedMaximumHp: true,
     deathSaves: {
       successes: 0,
       failures: 0,
@@ -489,6 +518,7 @@ export function createDefaultCharacter(): Character {
     useCalculatedBurrowSpeed: true,
     initiative: 0,
     proficiencyBonus: 2,
+    useCalculatedProficiencyBonus: true,
 
     equipment: [],
     useCalculatedCarryingCapacity: true,
@@ -496,17 +526,7 @@ export function createDefaultCharacter(): Character {
     spellcastingAbility: "",
     spellSaveDC: 8,
     spellAttackBonus: 0,
-    spellSlots: {
-      1: { total: 0, used: 0 },
-      2: { total: 0, used: 0 },
-      3: { total: 0, used: 0 },
-      4: { total: 0, used: 0 },
-      5: { total: 0, used: 0 },
-      6: { total: 0, used: 0 },
-      7: { total: 0, used: 0 },
-      8: { total: 0, used: 0 },
-      9: { total: 0, used: 0 },
-    },
+    spentSpellSlots: {},
 
     languages: [],
     otherProficiencies: [],
@@ -543,19 +563,8 @@ export function createDefaultCharacter(): Character {
 
     subclass: "",
     useCalculatedSenses: { darkvision: true, blindsight: true, tremorsense: true, truesight: true },
-    // Every character has a hit die, unlike spellcasting — so a starter grant is created up front
-    // rather than left for the player to add, matching what every class already provides at level 1.
-    classFeatures: [
-      {
-        id: crypto.randomUUID(),
-        name: "Hit Points",
-        description: "Grants this character's hit die, used to calculate Max HP and spend Hit Dice on a short rest. Update the die size to match your class.",
-        source: "class-feature",
-        featureType: "Hit Points",
-        levelEffects: [{ level: 1, effects: { hitDiceSize: 8 } }],
-      },
-    ],
-    speciesTraits: [],
+    // The required Hit Points, Creature Type and Size, and a starter Speed and Languages
+    ...createStartingFeatures(),
     feats: [],
     backgroundFeatures: [],
 

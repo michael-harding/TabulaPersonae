@@ -8,7 +8,7 @@ import CheckCircle from "lucide-solid/icons/check-circle"
 import XCircle from "lucide-solid/icons/x-circle"
 
 import type { Character } from "@/lib/character-types"
-import { getAbilityModifier, getProficiencyBonus, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, formatLeadingTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, speciesGrantTooltip, ABILITY_TITLE_CASE, EXHAUSTION, MAX_EXHAUSTION_LEVEL, getExhaustionEffects } from "@/lib/character-utils"
+import { getAbilityModifier, getProficiencyBonus, getEffectiveProficiencyBonus, getCustomValue, isCalculated, getPassiveScore, calculateEquippedAC, calculateInitiative, calculateMaxHitPoints, getEffectiveAbilityScore, getEffectiveSkillProficiency, formatModifier, formatTerm, formatLeadingTerm, getEffectiveMaxHp, CONDITIONS, getEffectiveMovementSpeeds, getMovementSpeedGrants, getEffectiveConditionImmunities, speciesGrantTooltip, ABILITY_TITLE_CASE, EXHAUSTION, MAX_EXHAUSTION_LEVEL, getExhaustionEffects } from "@/lib/character-utils"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { useModuleEdit } from "@/hooks/use-module-edit"
@@ -30,41 +30,33 @@ interface CombatStatsModuleProps {
 
 // The fields this module's edit form shows (see useModuleEdit for how Save writes them).
 // Conditions, exhaustion, condition immunities and death saves save as they change, in either mode.
-const toDraft = (c: Character) => {
-  const percSkill = c.skills?.perception
-  return {
-    hitPoints: {
-      current: c.hitPoints?.current ?? 0,
-      maximum: c.hitPoints?.maximum ?? 1,
-      temporary: c.hitPoints?.temporary ?? 0,
-      temporaryMaximum: c.hitPoints?.temporaryMaximum ?? 0,
-    },
-    useCalculatedMaximumHp: c.useCalculatedMaximumHp ?? false,
-    armorClass: c.armorClass || 10,
-    initiative: c.initiative || 0,
-    speed: c.speed ?? 30,
-    flySpeed: c.flySpeed ?? 0,
-    swimSpeed: c.swimSpeed ?? 0,
-    climbSpeed: c.climbSpeed ?? 0,
-    burrowSpeed: c.burrowSpeed ?? 0,
-    proficiencyBonus: c.proficiencyBonus || 2,
-    useCalculatedInitiative: c.useCalculatedInitiative ?? false,
-    useCalculatedProficiencyBonus: c.useCalculatedProficiencyBonus ?? false,
-    useCalculatedArmorClass: c.useCalculatedArmorClass ?? true,
-    useCalculatedPassivePerception: c.useCalculatedPassivePerception ?? true,
-    useCalculatedSpeed: c.useCalculatedSpeed ?? true,
-    useCalculatedFlySpeed: c.useCalculatedFlySpeed ?? true,
-    useCalculatedSwimSpeed: c.useCalculatedSwimSpeed ?? true,
-    useCalculatedClimbSpeed: c.useCalculatedClimbSpeed ?? true,
-    useCalculatedBurrowSpeed: c.useCalculatedBurrowSpeed ?? true,
-    passivePerception: c.passivePerception ?? getPassiveScore(
-      c.abilityScores?.wisdom ?? 10,
-      c.proficiencyBonus ?? 2,
-      percSkill?.proficient ?? false,
-      percSkill?.expertise ?? false,
-    ),
-  }
-}
+const toDraft = (c: Character) => ({
+  hitPoints: {
+    current: c.hitPoints?.current ?? 0,
+    maximum: getCustomValue(c, "maximumHp"),
+    temporary: c.hitPoints?.temporary ?? 0,
+    temporaryMaximum: c.hitPoints?.temporaryMaximum ?? 0,
+  },
+  useCalculatedMaximumHp: isCalculated(c, "maximumHp"),
+  armorClass: getCustomValue(c, "armorClass"),
+  initiative: getCustomValue(c, "initiative"),
+  speed: getCustomValue(c, "speed"),
+  flySpeed: getCustomValue(c, "flySpeed"),
+  swimSpeed: getCustomValue(c, "swimSpeed"),
+  climbSpeed: getCustomValue(c, "climbSpeed"),
+  burrowSpeed: getCustomValue(c, "burrowSpeed"),
+  proficiencyBonus: getCustomValue(c, "proficiencyBonus"),
+  useCalculatedInitiative: isCalculated(c, "initiative"),
+  useCalculatedProficiencyBonus: isCalculated(c, "proficiencyBonus"),
+  useCalculatedArmorClass: isCalculated(c, "armorClass"),
+  useCalculatedPassivePerception: isCalculated(c, "passivePerception"),
+  useCalculatedSpeed: isCalculated(c, "speed"),
+  useCalculatedFlySpeed: isCalculated(c, "flySpeed"),
+  useCalculatedSwimSpeed: isCalculated(c, "swimSpeed"),
+  useCalculatedClimbSpeed: isCalculated(c, "climbSpeed"),
+  useCalculatedBurrowSpeed: isCalculated(c, "burrowSpeed"),
+  passivePerception: getCustomValue(c, "passivePerception"),
+})
 
 
 export function CombatStatsModule(props: CombatStatsModuleProps) {
@@ -171,14 +163,14 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
 
   const passivePerceptionCalc = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
-    const prof = current().proficiencyBonus ?? 2
+    const prof = getEffectiveProficiencyBonus(current())
     const percSkill = getEffectiveSkillProficiency(current(), "perception")
     return getPassiveScore(wis, prof, percSkill.proficient, percSkill.expertise)
   })
 
   const passivePerceptionTooltip = createMemo(() => {
     const wis = getEffectiveAbilityScore(current(), "wisdom")
-    const prof = current().proficiencyBonus ?? 2
+    const prof = getEffectiveProficiencyBonus(current())
     const percSkill = getEffectiveSkillProficiency(current(), "perception")
     const wisMod = getAbilityModifier(wis)
     let formula = formatTerm(wisMod, ABILITY_TITLE_CASE.wisdom)
@@ -202,9 +194,9 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const acTooltip = createMemo(() => equippedAC().breakdown)
 
   const acField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedArmorClass ?? true,
+    useCalculated: () => isCalculated(current(), "armorClass"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedArmorClass: v })),
-    manualValue: () => current().armorClass ?? 10,
+    manualValue: () => getCustomValue(current(), "armorClass"),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, armorClass: v })),
     calculatedValue: () => equippedAC().ac,
     calculatedTooltip: acTooltip,
@@ -213,79 +205,79 @@ export function CombatStatsModule(props: CombatStatsModuleProps) {
   const maxHpCalc = createMemo(() => calculateMaxHitPoints(current()))
 
   const maximumHpField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedMaximumHp ?? false,
+    useCalculated: () => isCalculated(current(), "maximumHp"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedMaximumHp: v })),
-    manualValue: () => current().hitPoints?.maximum ?? 1,
+    manualValue: () => getCustomValue(current(), "maximumHp"),
     setManualValue: (v) => updateHP("maximum", v),
     calculatedValue: () => maxHpCalc().hp,
     calculatedTooltip: () => maxHpCalc().breakdown,
   })
 
   const speedField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedSpeed ?? true,
+    useCalculated: () => isCalculated(current(), "speed"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpeed: v })),
-    manualValue: () => current().speed ?? 30,
+    manualValue: () => getCustomValue(current(), "speed"),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, speed: v })),
     calculatedValue: () => effectiveMovement().walk,
     calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().walk, movementGrants().walk),
   })
 
   const flySpeedField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedFlySpeed ?? true,
+    useCalculated: () => isCalculated(current(), "flySpeed"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedFlySpeed: v })),
-    manualValue: () => current().flySpeed ?? 0,
+    manualValue: () => getCustomValue(current(), "flySpeed"),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, flySpeed: v })),
     calculatedValue: () => effectiveMovement().fly,
     calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().fly, movementGrants().fly),
   })
 
   const swimSpeedField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedSwimSpeed ?? true,
+    useCalculated: () => isCalculated(current(), "swimSpeed"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSwimSpeed: v })),
-    manualValue: () => current().swimSpeed ?? 0,
+    manualValue: () => getCustomValue(current(), "swimSpeed"),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, swimSpeed: v })),
     calculatedValue: () => effectiveMovement().swim,
     calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().swim, movementGrants().swim),
   })
 
   const climbSpeedField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedClimbSpeed ?? true,
+    useCalculated: () => isCalculated(current(), "climbSpeed"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedClimbSpeed: v })),
-    manualValue: () => current().climbSpeed ?? 0,
+    manualValue: () => getCustomValue(current(), "climbSpeed"),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, climbSpeed: v })),
     calculatedValue: () => effectiveMovement().climb,
     calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().climb, movementGrants().climb),
   })
 
   const burrowSpeedField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedBurrowSpeed ?? true,
+    useCalculated: () => isCalculated(current(), "burrowSpeed"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedBurrowSpeed: v })),
-    manualValue: () => current().burrowSpeed ?? 0,
+    manualValue: () => getCustomValue(current(), "burrowSpeed"),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, burrowSpeed: v })),
     calculatedValue: () => effectiveMovement().burrow,
     calculatedTooltip: () => speciesGrantTooltip(effectiveMovement().burrow, movementGrants().burrow),
   })
 
   const initiativeField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedInitiative ?? false,
+    useCalculated: () => isCalculated(current(), "initiative"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedInitiative: v })),
-    manualValue: () => current().initiative ?? 0,
+    manualValue: () => getCustomValue(current(), "initiative"),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, initiative: v })),
     calculatedValue: calcInitiative,
     calculatedTooltip: initiativeTooltip,
   })
 
   const profBonusField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedProficiencyBonus ?? false,
+    useCalculated: () => isCalculated(current(), "proficiencyBonus"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedProficiencyBonus: v })),
-    manualValue: () => current().proficiencyBonus ?? 2,
+    manualValue: () => getCustomValue(current(), "proficiencyBonus"),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, proficiencyBonus: v })),
     calculatedValue: calcProfBonus,
     calculatedTooltip: profBonusTooltip,
   })
 
   const passivePerceptionField = useCalculatedValue({
-    useCalculated: () => current().useCalculatedPassivePerception ?? true,
+    useCalculated: () => isCalculated(current(), "passivePerception"),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedPassivePerception: v })),
     manualValue: () => current().passivePerception ?? passivePerceptionCalc(),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, passivePerception: v })),

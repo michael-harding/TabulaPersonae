@@ -17,6 +17,7 @@ function makeCharacter(overrides: Partial<Character> = {}) {
       wisdom: 8,
       charisma: 13,
     },
+    level: 5,
     proficiencyBonus: 3,
     savingThrows: {
       strength: true,
@@ -285,6 +286,14 @@ describe("AbilityScoresModule", () => {
       await waitFor(() => expect(screen.getByRole("tooltip")).toBeInTheDocument())
       // STR 16 → +3, Prof +3 → total +6
       expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 3 (Prof)")
+    })
+
+    it("adds the level's proficiency bonus to a saving throw when it is calculated, not the stored one", async () => {
+      render(() => <AbilityScoresModule character={makeCharacter({ level: 9, proficiencyBonus: 3, useCalculatedProficiencyBonus: true })} onUpdate={vi.fn()} />)
+      const trigger = screen.getByTestId("strength-saving-throw-value").closest('[data-sem="tooltip-trigger"]')!
+      expect(trigger).toHaveAccessibleName("Strength saving throw +7, proficient")
+      fireEvent.focus(trigger)
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("+3 (Str) + 4 (Prof)"))
     })
 
     it("renders one focusable effective-score tooltip trigger per ability in edit mode", () => {

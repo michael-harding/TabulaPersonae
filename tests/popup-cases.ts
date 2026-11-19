@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
 import type { Character } from "../src/lib/character-types"
-import { testCharacter } from "./visual/fixtures"
+import { testCharacter, withHitPointsMode } from "./visual/fixtures"
 
 // Every modal and every popup above the page, and how to open it. The test suites share this one
 // list, so that none of them can miss one.
@@ -9,14 +9,24 @@ import { testCharacter } from "./visual/fixtures"
 const click = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`).click()
 const dialog = (page: Page) => page.getByRole("dialog")
 
+/** Opens a feature's edit form by its Edit button, which is named after the feature. */
+const editFeature = (page: Page, name: string) => page.getByRole("button", { name: `Edit ${name}`, exact: true }).click()
+
 async function openFeatureType(page: Page) {
   await click(page, "add-feature-class-feature")
   await dialog(page).locator('[data-test="feature-type-select"]').click()
 }
 
+async function openLevelUp(page: Page) {
+  await click(page, "character-basic-info-module-edit")
+  await click(page, "level-up-button")
+}
+
 export interface ModalCase {
   name: string
   tab?: string
+  /** Defaults to testCharacter. */
+  character?: Character
   open: (page: Page) => Promise<void>
   /**
    * The modal whose visual baseline also shows this one, because the two have the same layout
@@ -52,8 +62,15 @@ export const MODALS: ModalCase[] = [
   // clipped by it (e001998). Only a screenshot with the list open can catch that.
   { name: "feature-add-type-open", tab: "Features", open: openFeatureType },
   { name: "feature-edit", tab: "Features", open: (page) => click(page, "feature-edit-cf3") },
+  // The required features (src/lib/required-features.ts). Their types aren't in the Add menu, so
+  // their forms open from Edit, titled with the type in place of a Feature Type field.
+  { name: "feature-edit-hit-points", tab: "Features", open: (page) => editFeature(page, "Hit Points") },
+  { name: "feature-edit-ability-score-improvement", tab: "Features", open: (page) => editFeature(page, "Ability Score Improvement") },
+  { name: "feature-edit-creature-type", tab: "Features", open: (page) => editFeature(page, "Creature Type") },
+  { name: "feature-edit-size", tab: "Features", open: (page) => editFeature(page, "Size"), coveredBy: "feature-edit-creature-type" }, // one select
   { name: "spell-add", tab: "Spells", open: (page) => click(page, "add-spell-button") },
   { name: "spell-edit", tab: "Spells", open: (page) => click(page, "edit-spell-sp3") },
+  // Edit Slots opens the Spellcasting class feature's form: its ability, and the fixture's three level rows
   { name: "spell-slots", tab: "Spells", open: (page) => click(page, "edit-spell-slots-button") },
   { name: "item-add", tab: "Inventory", open: (page) => click(page, "add-equipment-button") },
   {
@@ -85,6 +102,21 @@ export const MODALS: ModalCase[] = [
       await click(page, "rest-type-long-button")
     },
   },
+  // Level Up opens from beside the Level field in Character Information's edit form. Its Hit Points
+  // input depends on how the Hit Points feature calculates Max HP: none per level (testCharacter's
+  // default), a New HP field for a single value, a roll for each level gained for rolled values.
+  { name: "level-up", tab: "Character", open: openLevelUp },
+  { name: "level-up-flat-hp", tab: "Character", character: withHitPointsMode("flat", { hitPointsFlatValue: 44 }), open: openLevelUp },
+  // Three levels at once: a roll for each, and the Ability Score Improvement at 8
+  {
+    name: "level-up-rolled-hp", tab: "Character", character: withHitPointsMode("rolled", { hitPointsRolledLevels: [10, 6, 8, 7, 5] }), open: async (page) => {
+      await openLevelUp(page)
+      const level = dialog(page).getByLabel("New Level")
+      await level.fill("8")
+      await level.press("Enter")
+      await expect(dialog(page).getByLabel("Rolled HP (Level 8)")).toBeVisible()
+    },
+  },
   {
     name: "import", open: async (page) => {
       await click(page, "header-menu-trigger")
@@ -100,17 +132,19 @@ export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").r
 /** The name of the visual baseline (and of the screenshot) for a feature type's form. */
 export const featureTypeBaseline = (type: string) => `feature-add-type-${slug(type)}`
 
-// Every feature type, in the order of FEATURE_TYPES in src/components/features-module.tsx, mapped to
+// Every feature type the Add menu offers, in the order of FEATURE_TYPES in
+// src/components/features-module.tsx (the required types are not offered: see the feature-edit-*
+// modals above for their forms), mapped to
 // the baseline that shows its form: null for a form with a layout of its own, which gets its own
 // baseline, or the name of a baseline that already shows the same layout (TESTING.md §9). The
 // "lists every feature type" test (tests/e2e/character-sheet.spec.ts) fails when this and the app's
 // list drift, so a new type can't ship until it is given a baseline or mapped to one.
 const FEATURE_TYPE_COVERED_BY: Record<string, string | null> = {
+  "Custom": "feature-add", // a new feature starts as Custom
   "Action": "feature-edit", // the edit case opens an Action feature
-  "Spellcasting Ability": featureTypeBaseline("Size"), // one select
-  "Hit Points": null,
-  "Size": null,
   "Max HP Bonus": null,
+  "Spellcasting": "spell-slots", // the Edit Slots case opens the fixture's Spellcasting feature
+  "Prepared Spells": null,
   "Saving Throw Proficiency": null,
   "Skill Proficiency": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"), // a chip-list row per level
   "Other Proficiency": featureTypeBaseline("Language"), // a text input and Add per level
@@ -144,7 +178,7 @@ for (const [name, coveredBy] of coverage) {
 }
 
 /** The modals also checked at phone width. The visual suite's modal shell baselines show rest-short. */
-export const PHONE_MODALS = ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "import"]
+export const PHONE_MODALS = ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "level-up", "import"]
 
 const byTest = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`)
 

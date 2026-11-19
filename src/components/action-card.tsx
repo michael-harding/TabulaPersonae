@@ -12,15 +12,9 @@ import { StepperInput } from "@/components/ui/stepper-input"
 import { Popover, PopoverTrigger, PopoverContent, PopoverTitle } from "@/components/ui/popover"
 import { Select, SelectContent, SelectTrigger, SelectValue, type SelectOption } from "@/components/ui/select"
 import { MarkdownContent } from "@/components/ui/markdown-content"
-import { formatModifier, remainingUses, spellDurationLabel, spentFromRemaining, TEMP_HP_GAIN_TYPE, RECHARGE_ON_LABELS } from "@/lib/character-utils"
+import { formatModifier, ordinal, remainingUses, spellDurationLabel, spentFromRemaining, TEMP_HP_GAIN_TYPE, RECHARGE_ON_LABELS } from "@/lib/character-utils"
 import { scaleDiceExpression } from "@/lib/dice"
 import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
-
-function getOrdinalSuffix(num: number): string {
-  const suffixes = ["th", "st", "nd", "rd"]
-  const v = num % 100
-  return num + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0])
-}
 
 /**
  * The list every set of action cards sits in: a grid, two cards to a row on phones and four from md
@@ -180,7 +174,7 @@ export function ActionCard(props: ActionCardProps) {
 
   const spellLevelLabel = () => {
     if (props.spellLevel == null) return null
-    return props.spellLevel === 0 ? "Cantrip" : getOrdinalSuffix(props.spellLevel)
+    return props.spellLevel === 0 ? "Cantrip" : ordinal(props.spellLevel)
   }
   const badgeText = () => spellLevelLabel() ?? props.badgeLabel
 
@@ -235,7 +229,7 @@ export function ActionCard(props: ActionCardProps) {
 
   const slotOptions = (): SelectOption[] => slotChoices().map((l) => ({
     value: String(l.level),
-    label: getOrdinalSuffix(l.level),
+    label: ordinal(l.level),
     ...(l.remaining > 0 ? { icon: WandSparkles } : { muted: true, srHint: "no slots" }),
   }))
 
@@ -246,7 +240,7 @@ export function ActionCard(props: ActionCardProps) {
     if (!base || !perLevel || upcastSteps() <= 0) return { value: base ?? "", tooltip: undefined }
     const { value, added } = scaleDiceExpression(base, perLevel, upcastSteps())
     if (!added) return { value: base, tooltip: undefined }
-    const tooltip = `${base} (${getOrdinalSuffix(props.spellLevel ?? 0)} Level) + ${added} (Upcast to ${getOrdinalSuffix(selectedLevel())})`
+    const tooltip = `${base} (${ordinal(props.spellLevel ?? 0)} Level) + ${added} (Upcast to ${ordinal(selectedLevel())})`
     return { value, tooltip }
   }
   const shownDamage = () => scaled(props.damage, props.damagePerLevel)

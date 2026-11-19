@@ -6,10 +6,11 @@ A D&D 5e/5.5e character sheet web app built with SolidJS and Firebase.
 
 - **Character management** — create, edit, and switch between multiple characters
 - **Full 5e sheet** — ability scores, combat stats, skills, spells, equipment/inventory (including magic items with rarity, attunement, and modifiers), actions, features, and notes
-- **Feature-driven grants** — class features, species traits, backgrounds, and feats can grant spellcasting ability, hit dice/hit points, saving throw/skill/other proficiencies, size, movement speeds, senses, resistances/immunities, languages, carrying capacity, ability score bonuses, and Max HP bonuses, with level-tiered effects and tooltips naming each contributing feature
+- **Feature-driven grants** — class features, species traits, backgrounds, and feats can grant spellcasting ability and spell slots, prepared spell limits, hit dice/hit points, Ability Score Improvement levels, saving throw/skill/other proficiencies, creature type, size, movement speeds, senses, resistances/immunities, languages, carrying capacity, ability score bonuses, and Max HP bonuses, with level-tiered effects and tooltips naming each contributing feature
 - **Action cards** — weapons, spells, features, items, and custom actions as cards grouped by action type, with attack/save/damage/gain badges, spell slot casting and upcasting, tracking of concentration and other spells in effect, and a per-character card order with a collapsible "More" list
 - **Customizable tabs** — arrange sheet content into user-defined tabs, each with its own set of modules, reordered by drag and drop or keyboard-accessible move controls
 - **Calculated stats with manual override** — initiative, proficiency bonus, armor class, movement speed, Max HP, passive perception/insight/investigation, spell save DC, and spell attack bonus are auto-derived from character data, each with a per-field toggle for a manual value
+- **Level up** — raise a character's level with a preview of every calculated value that changes, the features gained, and the values to update by hand, with HP entry that follows the class's hit point mode
 - **Short & long rest** — track HP, hit dice, spell slot recovery, Exhaustion levels, and equipment recharge (e.g. wands, charged items), ending spells the rest outlasts
 - **Markdown notes** — character notes, description fields, and action/spell descriptions render as sanitized Markdown
 - **Public character sharing** — generate a read-only `/share/:id` link and QR code that works without an account

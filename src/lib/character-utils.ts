@@ -1,5 +1,6 @@
-import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell, UseableEntry } from "./character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell, SpellSlotLevel, UseableEntry } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
+import type { FeatureListField } from "./required-features"
 
 export function getAbilityModifier(score: number): number {
   return Math.floor((Math.max(0, score) - 10) / 2)
@@ -7,6 +8,19 @@ export function getAbilityModifier(score: number): number {
 
 export function getProficiencyBonus(level: number): number {
   return Math.ceil(Math.max(1, level) / 4) + 1
+}
+
+type ProficiencyBonusCharacter = Partial<Pick<Character, "level" | "proficiencyBonus" | "useCalculatedProficiencyBonus">>
+
+/**
+ * The proficiency bonus every roll adds: the level's when calculated, the stored value as-is when
+ * custom. The stored value of a calculated bonus is only rewritten when Combat Stats is saved, so it
+ * goes stale after a level change; nothing may read character.proficiencyBonus directly. A
+ * character saved before new characters started out calculated has no toggle, and stays custom.
+ */
+export function getEffectiveProficiencyBonus(character: ProficiencyBonusCharacter): number {
+  const spec = CUSTOMIZABLE_VALUES.proficiencyBonus
+  return isCalculated(character, "proficiencyBonus") ? spec.calculated(character) : spec.custom(character)
 }
 
 export function getSkillModifier(
@@ -116,10 +130,10 @@ export function featureSourceLabel(feature: Pick<Feature, "name" | "source">): s
 // effects shape, for backfilling the persisted featureType field onto records that predate it (see
 // character-migrations.ts). The live UI never calls this — once a Feature has a persisted
 // featureType, that's the source of truth, not a re-guess from its current effects.
-export function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue | '' {
+export function inferFeatureType(actionKind: ActionKind | undefined, levelEffects: FeatureLevelEffect[] | undefined): FeatureTypeValue {
   if (actionKind) return 'Action'
   const effects = levelEffects?.[0]?.effects
-  if (effects?.spellcastingAbility) return 'Spellcasting Ability'
+  if (effects?.spellcastingAbility || effects?.spellSlots) return 'Spellcasting'
   if (
     effects?.hitDiceSize ||
     effects?.hitPointsMode != null ||
@@ -128,6 +142,7 @@ export function inferFeatureType(actionKind: ActionKind | undefined, levelEffect
     (effects?.hitPointsRolledLevels?.length ?? 0) > 0
   ) return 'Hit Points'
   if (effects?.size) return 'Size'
+  if (effects?.creatureType) return 'Creature Type'
   if (effects?.savingThrowProficiencies?.length) return 'Saving Throw Proficiency'
   if (effects?.skillProficiencies?.length) return 'Skill Proficiency'
   if (effects?.otherProficiencies?.length) return 'Other Proficiency'
@@ -148,7 +163,7 @@ export function inferFeatureType(actionKind: ActionKind | undefined, levelEffect
   if (effects?.abilityScoreMaxCaps && Object.values(effects.abilityScoreMaxCaps).some((v) => v != null)) return 'Ability Scores'
   if (effects?.abilityScoreBaseMax && Object.values(effects.abilityScoreBaseMax).some((v) => v != null)) return 'Ability Scores'
   if (effects?.hpBonusPerLevel != null) return 'Max HP Bonus'
-  return ''
+  return 'Custom'
 }
 
 export const ZERO_ABILITY_SCORES: Record<keyof AbilityScores, number> = {
@@ -328,6 +343,24 @@ export interface FeatureEffectTotals {
   carryingCapacityMultiplier: number
   hpBonusPerLevel: number
   hpBonusPerLevelGrants: SourcedBonus[]
+  /** How many slots of each level the character has, summed over its Spellcasting features. */
+  spellSlots: Record<SpellSlotLevel, number>
+  /** How many spells the character can prepare, summed over its Prepared Spells features; 0 with none. */
+  preparedSpells: number
+  preparedSpellsGrants: SourcedBonus[]
+  /** The levels at which the character gains an Ability Score Improvement or a feat, ascending, from its Ability Score Improvement features. */
+  abilityScoreImprovementLevels: number[]
+}
+
+export const SPELL_SLOT_LEVELS: readonly SpellSlotLevel[] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+const ZERO_SPELL_SLOTS: Record<SpellSlotLevel, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 }
+
+/** A spell slot level as it's read aloud: 1 → "1st", 2 → "2nd", 3 → "3rd", 4 → "4th". */
+export function ordinal(level: number): string {
+  const suffixes = ["th", "st", "nd", "rd"]
+  const v = level % 100
+  return level + (suffixes[(v - 20) % 10] ?? suffixes[v] ?? suffixes[0])
 }
 
 // Every tier whose level threshold has been reached, oldest first — not just the highest one.
@@ -340,6 +373,17 @@ function getQualifyingLevelEffects(feature: Feature, level: number): FeatureEffe
     .filter((tier) => tier.level <= level)
     .sort((a, b) => a.level - b.level)
     .map((tier) => tier.effects)
+}
+
+/**
+ * Whether a tier sets how Max HP is calculated (a Hit Points feature's mode and its values). The
+ * last qualifying tier that does is the one calculateMaxHitPoints reads (see getActiveFeatureEffects).
+ */
+export function setsMaxHitPoints(effects: FeatureEffects): boolean {
+  return effects.hitPointsMode != null ||
+    effects.hitPointsFlatValue != null ||
+    effects.hitPointsPerLevelAmount != null ||
+    (effects.hitPointsRolledLevels?.length ?? 0) > 0
 }
 
 export function getActiveLevelEffect(feature: Feature, level: number): FeatureEffects | undefined {
@@ -375,6 +419,10 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     carryingCapacityMultiplier: 1,
     hpBonusPerLevel: 0,
     hpBonusPerLevelGrants: [],
+    spellSlots: { ...ZERO_SPELL_SLOTS },
+    preparedSpells: 0,
+    preparedSpellsGrants: [],
+    abilityScoreImprovementLevels: [],
   }
   const level = character.level ?? 1
 
@@ -395,16 +443,14 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
           totals.hitDiceSizeSource = sourceLabel
           totals.hitDiceSizeSourceFeatureId = feature.id
         }
-        if (
-          effects.hitPointsMode != null ||
-          effects.hitPointsFlatValue != null ||
-          effects.hitPointsPerLevelAmount != null ||
-          (effects.hitPointsRolledLevels?.length ?? 0) > 0
-        ) {
+        if (setsMaxHitPoints(effects)) {
           totals.hitPointsMode = effects.hitPointsMode
           totals.hitPointsFlatValue = effects.hitPointsFlatValue
           totals.hitPointsPerLevelAmount = effects.hitPointsPerLevelAmount
           totals.hitPointsRolledLevels = effects.hitPointsRolledLevels
+        }
+        for (const asiLevel of effects.abilityScoreImprovementLevels ?? []) {
+          if (!totals.abilityScoreImprovementLevels.includes(asiLevel)) totals.abilityScoreImprovementLevels.push(asiLevel)
         }
         if (effects.size) {
           totals.size = effects.size
@@ -496,10 +542,151 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
           totals.hpBonusPerLevelGrants.push({ source: sourceLabel, amount: hpBonusPerLevelAmount })
         }
       }
+
+      // Not folded like the rest: each Spellcasting tier is a whole row of the slot table, so only the
+      // highest one reached counts (tiers are in level order), and a row without slots gives none.
+      // Separate features still add up.
+      const highestTier = tiers[tiers.length - 1]
+      const slotRow = highestTier.spellSlots
+      for (const slotLevel of SPELL_SLOT_LEVELS) {
+        totals.spellSlots[slotLevel] += Math.max(0, Number(slotRow?.[slotLevel] ?? 0))
+      }
+      // The same for Prepared Spells: each tier is a row of the class's table
+      const prepared = Math.max(0, Number(highestTier.preparedSpells ?? 0))
+      if (prepared) {
+        totals.preparedSpells += prepared
+        totals.preparedSpellsGrants.push({ source: sourceLabel, amount: prepared })
+      }
     }
   }
 
+  totals.abilityScoreImprovementLevels.sort((a, b) => a - b)
   return totals
+}
+
+export interface SpellSlotState {
+  total: number
+  used: number
+}
+
+/**
+ * The character's spell slots at each level: how many its Spellcasting features give it, and how
+ * many of those are spent. A spent count above the total (the feature was edited, or the character's
+ * level lowered) counts as all of them spent.
+ */
+export function getSpellSlots(
+  character: FeatureEffectCharacter & Pick<Character, "spentSpellSlots">,
+): Record<SpellSlotLevel, SpellSlotState> {
+  const totals = getActiveFeatureEffects(character).spellSlots
+  const slots = {} as Record<SpellSlotLevel, SpellSlotState>
+  for (const slotLevel of SPELL_SLOT_LEVELS) {
+    const total = totals[slotLevel]
+    slots[slotLevel] = { total, used: Math.min(total, Math.max(0, character.spentSpellSlots?.[slotLevel] ?? 0)) }
+  }
+  return slots
+}
+
+/**
+ * How many spells the character can prepare, from its Prepared Spells features, and the tooltip
+ * naming each one, e.g. "4 (Prepared Spells Class Feature) + 2 (Magic Initiate Feat)". Undefined
+ * when no Prepared Spells feature applies at the character's level.
+ */
+export function getPreparedSpellsLimit(character: FeatureEffectCharacter): { total: number; breakdown: string } | undefined {
+  const { preparedSpells, preparedSpellsGrants } = getActiveFeatureEffects(character)
+  if (preparedSpellsGrants.length === 0) return undefined
+  const [first, ...rest] = preparedSpellsGrants
+  const breakdown = `${first.amount} (${first.source})` + rest.map((grant) => formatTerm(grant.amount, grant.source)).join("")
+  return { total: preparedSpells, breakdown }
+}
+
+/** The character with `used` of its slots of `slotLevel` spent. */
+export function withSpentSpellSlots(character: Character, slotLevel: SpellSlotLevel, used: number): Character {
+  return { ...character, spentSpellSlots: { ...character.spentSpellSlots, [slotLevel]: Math.max(0, used) } }
+}
+
+const FEATURE_LIST_BY_KIND: Record<FeatureKind, FeatureListField> = {
+  "class-feature": "classFeatures",
+  "species-trait": "speciesTraits",
+  "background": "backgroundFeatures",
+  "feat": "feats",
+}
+
+/** The list a feature of this kind lives in. */
+export function featureListField(kind: FeatureKind): FeatureListField {
+  return FEATURE_LIST_BY_KIND[kind]
+}
+
+/** The name a new Spellcasting feature starts with. */
+export const SPELLCASTING_FEATURE_NAME = "Spellcasting & Spell Slots"
+
+/** Whether any of the feature's rows gives a spell slot. */
+export function givesSpellSlots(feature: Feature): boolean {
+  return (feature.levelEffects ?? []).some((tier) => Object.values(tier.effects.spellSlots ?? {}).some((count) => (count ?? 0) > 0))
+}
+
+/**
+ * The feature the Spells module's Edit Slots button opens, in the Features tab's order: the first
+ * Spellcasting feature giving slots, else the first Spellcasting class feature (a species trait or
+ * feat granting only a spellcasting ability isn't where a class's slots go).
+ */
+export function findSpellcastingFeature(character: FeatureEffectCharacter): Feature | undefined {
+  const spellcasting = Object.values(FEATURE_LIST_BY_KIND)
+    .flatMap((field) => safeFeatures(character[field]))
+    .filter((feature) => feature.featureType === "Spellcasting")
+  return spellcasting.find(givesSpellSlots) ?? spellcasting.find((feature) => feature.source === "class-feature")
+}
+
+/** The highest character level the sheet supports. */
+export const MAX_CHARACTER_LEVEL = 20
+
+/** A level within 1–MAX_CHARACTER_LEVEL: a character's level, or the level a feature row applies from. */
+export function clampCharacterLevel(level: number): number {
+  return Math.min(MAX_CHARACTER_LEVEL, Math.max(1, Math.floor(level) || 1))
+}
+
+/**
+ * A Spellcasting Class Feature giving this ability and these slots from `level` on: what
+ * spellcasting from outside the Features tab becomes. Either may be absent.
+ */
+export function makeSpellcastingFeature(
+  effects: Pick<FeatureEffects, "spellcastingAbility" | "spellSlots">,
+  level: number,
+  description: string,
+): Feature {
+  return {
+    id: crypto.randomUUID(),
+    name: SPELLCASTING_FEATURE_NAME,
+    description,
+    source: "class-feature",
+    featureType: "Spellcasting",
+    levelEffects: [{
+      level: clampCharacterLevel(level),
+      effects: {
+        ...(effects.spellcastingAbility ? { spellcastingAbility: effects.spellcastingAbility } : {}),
+        ...(effects.spellSlots ? { spellSlots: effects.spellSlots } : {}),
+      },
+    }],
+  }
+}
+
+/**
+ * The character with `feature` saved: replacing the feature with its id in whichever list holds it,
+ * or, when no list does, added at the end of the list for its source.
+ */
+export function withFeatureSaved(character: Character, feature: Feature): Character {
+  const next = { ...character }
+  let found = false
+  for (const field of Object.values(FEATURE_LIST_BY_KIND)) {
+    const list = safeFeatures(character[field])
+    if (!list.some((f) => f.id === feature.id)) continue
+    next[field] = list.map((f) => (f.id === feature.id ? feature : f))
+    found = true
+  }
+  if (!found) {
+    const field = featureListField(feature.source)
+    next[field] = [...safeFeatures(character[field]), feature]
+  }
+  return next
 }
 
 // Spellcasting ability is only ever set via a Class Feature/Species Trait/Feat grant — the raw
@@ -616,8 +803,12 @@ function getEffectiveAbilityScoreFromTotals(
   featureTotals: FeatureEffectTotals,
 ): number {
   const calculated = getCalculatedAbilityScoreFromTotals(character, ability, itemTotals, featureTotals)
-  const useCalculated = character.useCalculatedAbilityScores?.[ability] ?? true
-  return useCalculated ? calculated : (character.abilityScoreOverrides?.[ability] ?? calculated)
+  return isAbilityScoreCalculated(character, ability) ? calculated : (character.abilityScoreOverrides?.[ability] ?? calculated)
+}
+
+/** Whether the sheet shows the calculated score for this ability, as it does when no toggle is stored. */
+export function isAbilityScoreCalculated(character: Pick<Character, "useCalculatedAbilityScores">, ability: keyof AbilityScores): boolean {
+  return character.useCalculatedAbilityScores?.[ability] ?? true
 }
 
 export function getCalculatedAbilityScore(character: AbilityScoreCharacter, ability: keyof AbilityScores): number {
@@ -667,6 +858,16 @@ export function getEffectiveSenses(character: SensesCharacter): Record<SenseType
     result[sense] = itemTotals[sense] + featureTotals[sense]
   }
   return result
+}
+
+/** Whether the sheet shows the calculated range for this sense, as it does when no toggle is stored. */
+export function isSenseCalculated(character: Pick<Character, "useCalculatedSenses">, sense: SenseType): boolean {
+  return character.useCalculatedSenses?.[sense] ?? true
+}
+
+/** The range the player entered for this sense: what the sheet shows while it is custom. */
+export function getCustomSense(character: Pick<Character, "senses">, sense: SenseType): number {
+  return character.senses?.[sense] ?? 0
 }
 
 export interface MovementSpeeds {
@@ -920,24 +1121,38 @@ type MaxHpCharacter = { hitPoints?: { maximum?: number; temporaryMaximum?: numbe
 // is not part of this calculated/custom split — it's a directly-edited field (its own Stepper in
 // combat-stats-module.tsx) representing a temporary buff/curse, so it stays additive either way.
 export function getEffectiveMaxHp(character?: MaxHpCharacter): number {
-  const hitPoints = character?.hitPoints
-  const useCalculated = character?.useCalculatedMaximumHp ?? false
-  const baseHp = useCalculated && character ? calculateMaxHitPoints(character).hp : (hitPoints?.maximum ?? 1)
-  return Math.max(1, baseHp + (hitPoints?.temporaryMaximum ?? 0))
+  if (!character) return 1
+  const spec = CUSTOMIZABLE_VALUES.maximumHp
+  const baseHp = isCalculated(character, "maximumHp") ? spec.calculated(character) : spec.custom(character)
+  return Math.max(1, baseHp + (character.hitPoints?.temporaryMaximum ?? 0))
+}
+
+/**
+ * `next` with its current HP moved by the maximum HP its level change gained or lost: a level up
+ * heals by what it adds, a level down takes it away again. Losing a level is not damage, so it never
+ * drops a conscious character to 0. A custom maximum doesn't follow the level, so nothing moves.
+ */
+export function applyLevelChange(previous: Character, next: Character): Character {
+  if ((previous.level ?? 1) === (next.level ?? 1)) return next
+  const change = getEffectiveMaxHp(next) - getEffectiveMaxHp(previous)
+  if (change === 0) return next
+  const current = next.hitPoints?.current ?? 0
+  const floor = Math.min(current, 1)
+  return { ...next, hitPoints: { ...next.hitPoints, current: Math.max(floor, Math.min(current + change, getEffectiveMaxHp(next))) } }
 }
 
 export function getSpellSaveDC(character: Character): number {
   const ability = getEffectiveSpellcastingAbility(character)
   if (!ability) return 8
   const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
-  return 8 + (character.proficiencyBonus || 2) + abilityMod
+  return 8 + getEffectiveProficiencyBonus(character) + abilityMod
 }
 
 export function getSpellAttackBonus(character: Character): number {
   const ability = getEffectiveSpellcastingAbility(character)
   if (!ability) return 0
   const abilityMod = getAbilityModifier(getEffectiveAbilityScore(character, ability))
-  return (character.proficiencyBonus || 2) + abilityMod
+  return getEffectiveProficiencyBonus(character) + abilityMod
 }
 
 export function computeSpellModifier(character: Character): number {
@@ -950,34 +1165,164 @@ export function computeSpellModifier(character: Character): number {
 export function getSpellAttackBreakdown(character: Character): string {
   const ability = getEffectiveSpellcastingAbility(character)
   if (!ability) return "No spellcasting ability set"
-  return `${formatLeadingTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}${formatTerm(character.proficiencyBonus || 2, "Prof")}`
+  return `${formatLeadingTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}${formatTerm(getEffectiveProficiencyBonus(character), "Prof")}`
 }
 
 /** The tooltip breakdown of getSpellSaveDC. */
 export function getSpellSaveDCBreakdown(character: Character): string {
   const ability = getEffectiveSpellcastingAbility(character)
   if (!ability) return "No spellcasting ability set"
-  return `8${formatTerm(character.proficiencyBonus || 2, "Prof")}${formatTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}`
+  return `8${formatTerm(getEffectiveProficiencyBonus(character), "Prof")}${formatTerm(computeSpellModifier(character), ABILITY_TITLE_CASE[ability])}`
 }
 
 /** The spell save DC the sheet shows: the custom value when one is set, the calculated one otherwise. */
 export function getEffectiveSpellSaveDC(character: Character): number {
-  return (character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDC(character) : character.spellSaveDC
+  return getEffectiveValue(character, "spellSaveDC")
 }
 
 /** The spell attack bonus the sheet shows: the custom value when one is set, the calculated one otherwise. */
 export function getEffectiveSpellAttackBonus(character: Character): number {
-  return (character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBonus(character) : character.spellAttackBonus
+  return getEffectiveValue(character, "spellAttackBonus")
 }
 
 /** The tooltip of getEffectiveSpellSaveDC: its breakdown, or "Custom" for a custom value. */
 export function getEffectiveSpellSaveDCTooltip(character: Character): string {
-  return (character.useCalculatedSpellSaveDC ?? true) ? getSpellSaveDCBreakdown(character) : "Custom"
+  return isCalculated(character, "spellSaveDC") ? getSpellSaveDCBreakdown(character) : "Custom"
 }
 
 /** The tooltip of getEffectiveSpellAttackBonus: its breakdown, or "Custom" for a custom value. */
 export function getEffectiveSpellAttackTooltip(character: Character): string {
-  return (character.useCalculatedSpellAttackBonus ?? true) ? getSpellAttackBreakdown(character) : "Custom"
+  return isCalculated(character, "spellAttackBonus") ? getSpellAttackBreakdown(character) : "Custom"
+}
+
+/** A passive score as the sheet calculates it: 10 + the skill's modifier, with any feature-granted proficiency. */
+export function getCalculatedPassiveScore(character: Character, skill: keyof Skills): number {
+  const proficiency = getEffectiveSkillProficiency(character, skill)
+  return getPassiveScore(
+    getEffectiveAbilityScore(character, SKILL_ABILITY_MAP[skill]),
+    getEffectiveProficiencyBonus(character),
+    proficiency.proficient,
+    proficiency.expertise,
+  )
+}
+
+/**
+ * A value the sheet shows that has a calculated/custom toggle stored as one boolean. Every reader of
+ * these values goes through this table (isCalculated, getCustomValue, getEffectiveValue), so the
+ * modules, the stats bar, import reconciliation and the Level Up summary agree on what the sheet shows.
+ */
+interface CustomizableValue<C> {
+  /** The calculated/custom toggle's field. */
+  toggle: keyof Character
+  /** Whether a character with no toggle stored counts as calculated. */
+  calculatedByDefault: boolean
+  calculated: (character: C) => number
+  /** The value the player entered, which the sheet shows while the value is custom; a fallback when none is stored. */
+  custom: (character: C) => number
+}
+
+export const CUSTOMIZABLE_VALUES = {
+  maximumHp: {
+    toggle: "useCalculatedMaximumHp", calculatedByDefault: false,
+    // Before temporaryMaximum, which getEffectiveMaxHp adds to either
+    calculated: (c: BaseHitPointsCharacter) => calculateMaxHitPoints(c).hp,
+    custom: (c: Pick<MaxHpCharacter, "hitPoints">) => c.hitPoints?.maximum ?? 1,
+  },
+  proficiencyBonus: {
+    toggle: "useCalculatedProficiencyBonus", calculatedByDefault: false,
+    calculated: (c: ProficiencyBonusCharacter) => getProficiencyBonus(c.level ?? 1),
+    custom: (c: ProficiencyBonusCharacter) => c.proficiencyBonus ?? 2,
+  },
+  armorClass: {
+    toggle: "useCalculatedArmorClass", calculatedByDefault: true,
+    calculated: (c: Character) => calculateEquippedAC(c).ac,
+    custom: (c: Character) => c.armorClass ?? 10,
+  },
+  initiative: {
+    toggle: "useCalculatedInitiative", calculatedByDefault: false,
+    calculated: (c: Character) => calculateInitiative(c).initiative,
+    custom: (c: Character) => c.initiative ?? 0,
+  },
+  speed: {
+    toggle: "useCalculatedSpeed", calculatedByDefault: true,
+    calculated: (c: Character) => getEffectiveMovementSpeeds(c).walk,
+    custom: (c: Character) => c.speed ?? 30,
+  },
+  flySpeed: {
+    toggle: "useCalculatedFlySpeed", calculatedByDefault: true,
+    calculated: (c: Character) => getEffectiveMovementSpeeds(c).fly,
+    custom: (c: Character) => c.flySpeed ?? 0,
+  },
+  swimSpeed: {
+    toggle: "useCalculatedSwimSpeed", calculatedByDefault: true,
+    calculated: (c: Character) => getEffectiveMovementSpeeds(c).swim,
+    custom: (c: Character) => c.swimSpeed ?? 0,
+  },
+  climbSpeed: {
+    toggle: "useCalculatedClimbSpeed", calculatedByDefault: true,
+    calculated: (c: Character) => getEffectiveMovementSpeeds(c).climb,
+    custom: (c: Character) => c.climbSpeed ?? 0,
+  },
+  burrowSpeed: {
+    toggle: "useCalculatedBurrowSpeed", calculatedByDefault: true,
+    calculated: (c: Character) => getEffectiveMovementSpeeds(c).burrow,
+    custom: (c: Character) => c.burrowSpeed ?? 0,
+  },
+  passivePerception: {
+    toggle: "useCalculatedPassivePerception", calculatedByDefault: true,
+    calculated: (c: Character) => getCalculatedPassiveScore(c, "perception"),
+    custom: (c: Character) => c.passivePerception ?? getCalculatedPassiveScore(c, "perception"),
+  },
+  passiveInsight: {
+    toggle: "useCalculatedPassiveInsight", calculatedByDefault: true,
+    calculated: (c: Character) => getCalculatedPassiveScore(c, "insight"),
+    custom: (c: Character) => c.passiveInsight ?? getCalculatedPassiveScore(c, "insight"),
+  },
+  passiveInvestigation: {
+    toggle: "useCalculatedPassiveInvestigation", calculatedByDefault: true,
+    calculated: (c: Character) => getCalculatedPassiveScore(c, "investigation"),
+    custom: (c: Character) => c.passiveInvestigation ?? getCalculatedPassiveScore(c, "investigation"),
+  },
+  attunementLimit: {
+    toggle: "useCalculatedAttunementLimit", calculatedByDefault: true,
+    calculated: () => BASE_ATTUNEMENT_LIMIT,
+    custom: (c: Character) => c.attunementLimit ?? BASE_ATTUNEMENT_LIMIT,
+  },
+  carryingCapacity: {
+    toggle: "useCalculatedCarryingCapacity", calculatedByDefault: true,
+    calculated: (c: Character) => getEffectiveCarryingCapacity(c),
+    custom: (c: Character) => c.carryingCapacity ?? getEffectiveCarryingCapacity(c),
+  },
+  spellSaveDC: {
+    toggle: "useCalculatedSpellSaveDC", calculatedByDefault: true,
+    calculated: (c: Character) => getSpellSaveDC(c),
+    custom: (c: Character) => c.spellSaveDC ?? getSpellSaveDC(c),
+  },
+  spellAttackBonus: {
+    toggle: "useCalculatedSpellAttackBonus", calculatedByDefault: true,
+    calculated: (c: Character) => getSpellAttackBonus(c),
+    custom: (c: Character) => c.spellAttackBonus ?? getSpellAttackBonus(c),
+  },
+} as const satisfies Record<string, CustomizableValue<never>>
+
+export type CustomizableValueKey = keyof typeof CUSTOMIZABLE_VALUES
+
+type CalculatedToggles = Partial<Pick<Character, (typeof CUSTOMIZABLE_VALUES)[CustomizableValueKey]["toggle"]>>
+
+/** Whether the sheet shows the calculated value: the stored toggle, or the value's default when none is stored. */
+export function isCalculated(character: CalculatedToggles, key: CustomizableValueKey): boolean {
+  const spec = CUSTOMIZABLE_VALUES[key]
+  return character[spec.toggle] ?? spec.calculatedByDefault
+}
+
+/** The value the player entered (see CustomizableValue.custom). */
+export function getCustomValue(character: Character, key: CustomizableValueKey): number {
+  return CUSTOMIZABLE_VALUES[key].custom(character)
+}
+
+/** The value the sheet shows: calculated or custom, as its toggle says. */
+export function getEffectiveValue(character: Character, key: CustomizableValueKey): number {
+  return isCalculated(character, key) ? CUSTOMIZABLE_VALUES[key].calculated(character) : getCustomValue(character, key)
 }
 
 const SAVE_ABILITY_START = /^(str|dex|con|int|wis|cha|strength|dexterity|constitution|intelligence|wisdom|charisma)\b/i
@@ -1266,6 +1611,11 @@ export const SENSE_LABELS: Record<SenseType, string> = {
 
 export const SIZES = ["Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"]
 
+export const CREATURE_TYPES = [
+  "Aberration", "Beast", "Celestial", "Construct", "Dragon", "Elemental", "Fey",
+  "Fiend", "Giant", "Humanoid", "Monstrosity", "Ooze", "Plant", "Undead",
+]
+
 export const BASE_ATTUNEMENT_LIMIT = 3
 
 export interface DerivedWeaponAttack {
@@ -1287,11 +1637,11 @@ export interface DerivedWeaponAttack {
 }
 
 export function getEquippedWeaponAttacks(
-  character: Pick<Character, "equipment" | "abilityScores" | "proficiencyBonus" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
-    & FeatureEffectCharacter
+  character: Pick<Character, "equipment" | "abilityScores" | "abilityScoreOverrides" | "useCalculatedAbilityScores">
+    & ProficiencyBonusCharacter & FeatureEffectCharacter
 ): DerivedWeaponAttack[] {
   const equipment = character.equipment ?? []
-  const profBonus = character.proficiencyBonus ?? 2
+  const profBonus = getEffectiveProficiencyBonus(character)
   const itemTotals = getEquipmentModifierTotals(equipment)
   const featureTotals = getActiveFeatureEffects(character)
   const strMod = getAbilityModifier(getEffectiveAbilityScoreFromTotals(character, "strength", itemTotals, featureTotals))
@@ -1427,11 +1777,13 @@ export function spentFromRemaining(remaining: number, max: number | undefined): 
   return (max ?? 0) - remaining
 }
 
-export function effectiveMaxUses(feature: Feature, characterLevel: number): number {
-  if (feature.maxUsesMode === 'per-level') {
-    return (feature.maxUsesPerLevel ?? 0) * characterLevel
+/** A feature's max uses for this character right now: its flat count, or one scaled by level or proficiency bonus. */
+export function effectiveMaxUses(feature: Feature, character: ProficiencyBonusCharacter): number {
+  switch (feature.maxUsesMode) {
+    case 'per-level': return (feature.maxUsesPerLevel ?? 0) * (character.level ?? 1)
+    case 'proficiency-bonus': return getEffectiveProficiencyBonus(character)
+    default: return feature.maxUses ?? 0
   }
-  return feature.maxUses ?? 0
 }
 
 export function hasChargesTracking(item: Pick<Equipment, "magic" | "maxUses">): boolean {

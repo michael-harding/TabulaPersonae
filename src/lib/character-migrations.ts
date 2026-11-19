@@ -1,5 +1,6 @@
-import type { Character, Equipment, Feature, SenseType } from "./character-types"
-import { ABILITY_KEYS, calculateEquippedAC, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, hasChargesTracking, inferFeatureType, makeSizeTrait, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES } from "./character-utils"
+import type { Character, Equipment, Feature, SenseType, SpellSlotLevel } from "./character-types"
+import { ABILITY_KEYS, calculateEquippedAC, clampCharacterLevel, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, givesSpellSlots, hasChargesTracking, inferFeatureType, makeSizeTrait, makeSpellcastingFeature, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME } from "./character-utils"
+import { ensureRequiredFeatures, FEATURE_LIST_FIELDS, type FeatureListField } from "./required-features"
 
 // Exported for the legacy-character test fixtures, which must leave out exactly these keys
 export const CALCULATED_VALUE_FLAGS = [
@@ -15,8 +16,6 @@ export const CALCULATED_VALUE_FLAGS = [
   "useCalculatedSenses",
 ] as const
 
-const FEATURE_LIST_FIELDS = ["classFeatures", "speciesTraits", "feats", "backgroundFeatures"] as const
-
 // Free text until these became a menu of the standard damage types plus custom entries.
 const DAMAGE_TYPE_LIST_FIELDS = ["damageResistances", "damageImmunities", "damageVulnerabilities"] as const
 
@@ -28,8 +27,10 @@ interface RetiredFields {
   /** Before size was a Species Trait: a custom size, used when `useCalculatedSize` was false. */
   size?: unknown
   useCalculatedSize?: unknown
+  /** Before spell slots were a Class Feature: `{ 1: { total, used }, ..., 9: { total, used } }`. */
+  spellSlots?: unknown
 }
-const RETIRED_FIELDS: (keyof RetiredFields)[] = ["size", "useCalculatedSize"]
+const RETIRED_FIELDS: (keyof RetiredFields)[] = ["size", "useCalculatedSize", "spellSlots"]
 
 /**
  * A character record as read back from storage or an import file. Any earlier version of the app
@@ -107,6 +108,82 @@ function importCustomSize(raw: StoredCharacter): Feature | undefined {
   const entered = raw.useCalculatedSize !== true && size !== OLD_DEFAULT_SIZE
   if (!entered || FEATURE_LIST_FIELDS.some((field) => safeFeatures(raw[field]).some(grantsSize))) return undefined
   return makeSizeTrait(size, "Grants this character's size, carried over from when size was entered directly.")
+}
+
+/**
+ * Spell slots entered on the character, before a Spellcasting feature gave them: the levels with
+ * slots, and how many of those were spent. A character with none has nothing to carry over: every
+ * new character was saved with nine empty levels.
+ */
+function readLegacySpellSlots(raw: StoredCharacter): { totals: Partial<Record<SpellSlotLevel, number>>; spent: Partial<Record<SpellSlotLevel, number>> } | undefined {
+  // `unknown` entries: the retired field is read straight from storage or an import file
+  const stored = raw.spellSlots
+  if (typeof stored !== "object" || stored == null) return undefined
+  const entries = stored as Record<string, unknown>
+  const totals: Partial<Record<SpellSlotLevel, number>> = {}
+  const spent: Partial<Record<SpellSlotLevel, number>> = {}
+  for (const slotLevel of SPELL_SLOT_LEVELS) {
+    const entry = entries[slotLevel]
+    if (typeof entry !== "object" || entry == null) continue
+    const { total, used } = entry as { total?: unknown; used?: unknown }
+    const count = typeof total === "number" && Number.isFinite(total) ? Math.floor(total) : 0
+    if (count <= 0) continue
+    totals[slotLevel] = count
+    const usedCount = typeof used === "number" && Number.isFinite(used) ? Math.min(count, Math.floor(used)) : 0
+    if (usedCount > 0) spent[slotLevel] = usedCount
+  }
+  return Object.keys(totals).length > 0 ? { totals, spent } : undefined
+}
+
+/**
+ * Spell slots are given by the Spellcasting class feature, no longer entered on the character. The
+ * stored totals become a row of that feature from the character's current level on: the only level
+ * they are known to be right for. A character with a Spellcasting class feature (for its ability)
+ * gets the row added to it, with the same ability; one without gets a new feature. Nothing is added
+ * when a feature already gives slots.
+ */
+function withLegacySpellSlots(lists: Record<FeatureListField, Feature[]>, totals: Partial<Record<SpellSlotLevel, number>>, characterLevel: number): Feature[] | undefined {
+  if (FEATURE_LIST_FIELDS.some((field) => lists[field].some(givesSpellSlots))) return undefined
+  const classFeatures = lists.classFeatures
+  const index = classFeatures.findIndex((feature) => feature.featureType === "Spellcasting")
+  if (index === -1) {
+    return [...classFeatures, makeSpellcastingFeature({ spellSlots: totals }, characterLevel, "Grants this character's spell slots, carried over from when they were entered directly. Add a level for each change in your class's spell slot table.")]
+  }
+  const target = classFeatures[index]
+  const tiers = target.levelEffects ?? []
+  const rowLevel = clampCharacterLevel(characterLevel)
+  const ability = [...tiers].reverse().find((tier) => tier.effects.spellcastingAbility)?.effects.spellcastingAbility
+  const levelEffects = tiers.some((tier) => tier.level === rowLevel)
+    ? tiers.map((tier) => (tier.level === rowLevel ? { ...tier, effects: { ...tier.effects, spellSlots: totals } } : tier))
+    : [...tiers, { level: rowLevel, effects: { ...(ability ? { spellcastingAbility: ability } : {}), spellSlots: totals } }]
+  return classFeatures.map((feature, i) => (i === index ? { ...target, levelEffects } : feature))
+}
+
+// What the Spellcasting type was called when it only granted the ability. Its Name field was hidden
+// then, so a feature carrying this name got it from the type, not from the player.
+const OLD_SPELLCASTING_TYPE = "Spellcasting Ability"
+
+/**
+ * The Spellcasting Ability type became Spellcasting, which also gives the spell slots. Its features
+ * keep their ability; one still named after the old type takes the new type's default name.
+ */
+function retypeSpellcastingAbility(features: Feature[]): Feature[] | undefined {
+  // A stored type the current FeatureTypeValue no longer has
+  const isOld = (feature: Feature) => (feature.featureType as string | undefined) === OLD_SPELLCASTING_TYPE
+  if (!features.some(isOld)) return undefined
+  return features.map((feature) => isOld(feature)
+    ? { ...feature, featureType: "Spellcasting", name: feature.name === OLD_SPELLCASTING_TYPE ? SPELLCASTING_FEATURE_NAME : feature.name }
+    : feature)
+}
+
+/**
+ * A feature with no mechanical type was stored with featureType '' before the Custom type took that
+ * role. Its name, highlights and description are all it has, which is exactly a Custom feature.
+ */
+function retypeUntypedFeatures(features: Feature[]): Feature[] | undefined {
+  const isUntyped = (feature: Feature) => (feature.featureType as string | undefined) === ""
+  if (!features.some(isUntyped)) return undefined
+  return features.map((feature) => (isUntyped(feature) ? { ...feature, featureType: "Custom" } : feature))
 }
 
 /**
@@ -205,11 +282,29 @@ export function migrateCharacter(raw: unknown): Character {
   const sizeTrait = importCustomSize(raw)
   if (sizeTrait) patch.speciesTraits = [...safeFeatures(raw.speciesTraits), sizeTrait]
 
+  const featureLists = {} as Record<FeatureListField, Feature[]>
   for (const field of FEATURE_LIST_FIELDS) {
     const current = safeFeatures((patch[field] as Feature[] | undefined) ?? raw[field])
-    const backfilled = backfillFeatureTypes(current)
-    if (backfilled) patch[field] = backfilled
+    const backfilled = backfillFeatureTypes(current) ?? current
+    const untypedRetyped = retypeUntypedFeatures(backfilled) ?? backfilled
+    const retyped = retypeSpellcastingAbility(untypedRetyped) ?? untypedRetyped
+    if (retyped !== current) patch[field] = retyped
+    featureLists[field] = retyped
   }
+
+  // After the types are settled, which it relies on: the slots join the Spellcasting class feature
+  const legacySlots = readLegacySpellSlots(raw)
+  if (legacySlots) {
+    const classFeatures = withLegacySpellSlots(featureLists, legacySlots.totals, raw.level ?? 1)
+    if (classFeatures) featureLists.classFeatures = patch.classFeatures = classFeatures
+    if (raw.spentSpellSlots == null && Object.keys(legacySlots.spent).length > 0) patch.spentSpellSlots = legacySlots.spent
+  }
+
+  // After the backfill, which it relies on: a feature's type is what makes it the required one.
+  // Runs on every load, not once: an imported file can lack a required feature at any time. The
+  // starting values go even to a character saved before these were required, since every character
+  // has these features; nothing the character already has is overwritten (see ensureRequiredFeatures).
+  Object.assign(patch, ensureRequiredFeatures(featureLists))
 
   // Exhaustion was an on/off condition before it had levels. The stored condition proves level 1
   // and nothing more, so that is what it becomes; a stored level is never second-guessed.

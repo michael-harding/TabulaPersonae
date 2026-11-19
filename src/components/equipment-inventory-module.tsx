@@ -26,6 +26,8 @@ import {
   formatModifier,
   getEffectiveCarryingCapacity,
   getCarryingCapacityBreakdown,
+  getCustomValue,
+  isCalculated,
   ACTION_KIND_LABELS,
 } from "@/lib/character-utils"
 import { useCalculatedValue } from "@/hooks/use-calculated-value"
@@ -66,12 +68,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const attunedCount = () => safeEquipment().filter((item) => item.attuned).length
 
   const attunementLimitField = useCalculatedValue({
-    useCalculated: () => props.character.useCalculatedAttunementLimit ?? true,
+    useCalculated: () => isCalculated(props.character, "attunementLimit"),
     setUseCalculated: (v) => {
       const updated = { ...props.character, useCalculatedAttunementLimit: v }
       props.onUpdate(updated)
     },
-    manualValue: () => props.character.attunementLimit ?? BASE_ATTUNEMENT_LIMIT,
+    manualValue: () => getCustomValue(props.character, "attunementLimit"),
     setManualValue: (v) => {
       const updated = { ...props.character, attunementLimit: v }
       props.onUpdate(updated)
@@ -82,12 +84,12 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
   const overAttunementLimit = () => attunedCount() > attunementLimitField.resolvedValue()
 
   const carryingCapacityField = useCalculatedValue({
-    useCalculated: () => props.character.useCalculatedCarryingCapacity ?? true,
+    useCalculated: () => isCalculated(props.character, "carryingCapacity"),
     setUseCalculated: (v) => {
       const updated = { ...props.character, useCalculatedCarryingCapacity: v }
       props.onUpdate(updated)
     },
-    manualValue: () => props.character.carryingCapacity ?? getEffectiveCarryingCapacity(props.character),
+    manualValue: () => getCustomValue(props.character, "carryingCapacity"),
     setManualValue: (v) => {
       const updated = { ...props.character, carryingCapacity: v }
       props.onUpdate(updated)

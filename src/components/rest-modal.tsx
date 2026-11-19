@@ -102,14 +102,11 @@ export function RestModal(props: RestModalProps) {
       })
       if (spent === 0) handleClose()
     } else {
-      const resetSpellSlots = Object.fromEntries(
-        Object.entries(char.spellSlots).map(([k, v]) => [k, { ...v, used: 0 }])
-      ) as typeof char.spellSlots
       props.onRest({
         ...char,
         hitPoints: { ...char.hitPoints, current: getEffectiveMaxHp(char), temporary: 0 },
         spentHitDice: 0,
-        spellSlots: resetSpellSlots,
+        spentSpellSlots: {},
         // A long rest removes one level of Exhaustion. 2014 adds "if the creature also ate and drank",
         // which the sheet takes as given for every long rest.
         ...((char.exhaustionLevel ?? 0) > 0 ? { exhaustionLevel: (char.exhaustionLevel ?? 0) - 1 } : {}),

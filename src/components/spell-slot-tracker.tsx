@@ -1,21 +1,15 @@
 import { For, Show } from "solid-js"
 import WandSparkles from "lucide-solid/icons/wand-sparkles"
 
-import type { Character } from "@/lib/character-types"
+import type { SpellSlotLevel } from "@/lib/character-types"
+import { ordinal, SPELL_SLOT_LEVELS, type SpellSlotState } from "@/lib/character-utils"
 import { PipTracker } from "@/components/ui/pip-tracker"
 import { useReadOnly } from "@/lib/read-only-context"
 
-type SpellSlots = Character["spellSlots"]
-
 interface SpellSlotTrackerProps {
-  spellSlots: SpellSlots
-  onToggle: (level: number, used: number) => void
-}
-
-function getOrdinalSuffix(num: number): string {
-  const suffixes = ["th", "st", "nd", "rd"]
-  const v = num % 100
-  return num + (suffixes[(v - 20) % 10] ?? suffixes[v] ?? suffixes[0])
+  /** The character's slots at each level (see getSpellSlots). */
+  slots: Record<SpellSlotLevel, SpellSlotState>
+  onToggle: (level: SpellSlotLevel, used: number) => void
 }
 
 export function SpellSlotTracker(props: SpellSlotTrackerProps) {
@@ -23,13 +17,13 @@ export function SpellSlotTracker(props: SpellSlotTrackerProps) {
 
   return (
     <div data-sem="spell-slot-tracker" class="flex flex-wrap gap-2">
-      <For each={[1, 2, 3, 4, 5, 6, 7, 8, 9]}>
+      <For each={SPELL_SLOT_LEVELS}>
         {(level) => {
-          const slots = () => props.spellSlots[level as keyof SpellSlots]
+          const slots = () => props.slots[level]
           return (
-            <Show when={slots() && slots().total > 0}>
+            <Show when={slots().total > 0}>
               <div data-test={`spell-slot-level-${level}`} class="flex items-center gap-1 px-2 border rounded-lg">
-                <span class="font-medium text-xs text-muted-foreground pr-1">{getOrdinalSuffix(level)}</span>
+                <span class="font-medium text-xs text-muted-foreground pr-1">{ordinal(level)}</span>
                 <PipTracker
                   data-test={`spell-slot-level-${level}-pips`}
                   icon={WandSparkles}

@@ -4,9 +4,10 @@ import { createStore, reconcile } from "solid-js/store"
 import { SpellsModule } from "@/components/spells-module"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character, Spell, Equipment } from "@/lib/character-types"
+import { makeSpellcastingFeature } from "@/lib/character-utils"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { render, screen, fireEvent, within, cleanupPortals, confirmClick, expectTapTooltip } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals, confirmClick, expectTapTooltip, withSpellSlots } from "../test-utils"
 
 function makeSpell(overrides: Partial<Spell> = {}): Spell {
   return {
@@ -104,6 +105,28 @@ describe("SpellsModule", () => {
       expect(screen.getByText("Prepared Spells")).toBeInTheDocument()
     })
 
+    it("shows the prepared count alone when no Prepared Spells feature applies", () => {
+      const spells = [makeSpell({ id: "a", level: 1, prepared: true }), makeSpell({ id: "b", level: 1, prepared: false })]
+      render(() => <SpellsModule character={makeCharacter({ spells })} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("prepared-spells")).toHaveTextContent(/^Prepared Spells1$/)
+    })
+
+    it("shows the prepared count against the Prepared Spells features' total, naming each in its tooltip", async () => {
+      const prepared = (id: string, name: string, source: "class-feature" | "feat", count: number) => ({
+        id, name, description: "", source, featureType: "Prepared Spells" as const, levelEffects: [{ level: 1, effects: { preparedSpells: count } }],
+      })
+      const character = makeCharacter({
+        spells: [makeSpell({ id: "a", level: 1, prepared: true }), makeSpell({ id: "b", level: 2, prepared: true }), makeSpell({ id: "c", level: 0, prepared: true })],
+        classFeatures: [prepared("p1", "Prepared Spells", "class-feature", 4)],
+        feats: [prepared("p2", "Magic Initiate", "feat", 1)],
+      })
+      render(() => <SpellsModule character={character} onUpdate={vi.fn()} />)
+      // Cantrips are never prepared spells
+      expect(screen.getByTestId("prepared-spells")).toHaveTextContent(/^Prepared Spells2 \/ 5$/)
+      const trigger = screen.getByRole("group", { name: "Prepared Spells: 2 of 5" })
+      await expectTapTooltip(trigger, "4 (Prepared Spells Class Feature) + 1 (Magic Initiate Feat)")
+    })
+
     it("does not show stat bar when there are no spells", () => {
       render(() => <SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
       expect(screen.queryByText("Spell Save DC")).not.toBeInTheDocument()
@@ -151,6 +174,7 @@ describe("SpellsModule", () => {
           levelEffects: [{ level: 1, effects: { spellcastingAbility: "intelligence" } }],
         }],
         abilityScores: { ...createDefaultCharacter().abilityScores, intelligence: 16 },
+        level: 5,
         proficiencyBonus: 3,
         spells: [makeSpell()],
         ...overrides,
@@ -297,27 +321,30 @@ describe("SpellsModule", () => {
 
   describe("SpellSlotTracker integration", () => {
     it("renders slot circles when a level has total > 0", () => {
-      const spellSlots = {
-        ...createDefaultCharacter().spellSlots,
-        1: { total: 2, used: 0 },
-      }
-      render(() => <SpellsModule character={makeCharacter({ spellSlots })} onUpdate={vi.fn()} />)
+      render(() => <SpellsModule character={withSpellSlots(makeCharacter(), { 1: { total: 2 } })} onUpdate={vi.fn()} />)
       expect(screen.getAllByLabelText("Available slot (click to use)")).toHaveLength(2)
+      expect(screen.queryByText("No spell slots configured.")).not.toBeInTheDocument()
     })
 
-    it("calls onUpdate with incremented used count when a slot circle is clicked", () => {
+    it("calls onUpdate with the slot spent when a slot circle is clicked", () => {
       const onUpdate = vi.fn()
-      const spellSlots = {
-        ...createDefaultCharacter().spellSlots,
-        1: { total: 2, used: 0 },
-      }
-      render(() => <SpellsModule character={makeCharacter({ spellSlots })} onUpdate={onUpdate} />)
+      render(() => <SpellsModule character={withSpellSlots(makeCharacter(), { 1: { total: 2 } })} onUpdate={onUpdate} />)
       fireEvent.click(screen.getAllByLabelText("Available slot (click to use)")[0])
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spellSlots: expect.objectContaining({ 1: expect.objectContaining({ used: 1 }) }),
-        })
-      )
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentSpellSlots: { 1: 1 } }))
+    })
+
+    // The feature's rows are a slot table: the character's level picks the row
+    it("shows the slots of the highest Spell Slots level the character has reached", () => {
+      const feature = makeSpellcastingFeature({ spellSlots: { 1: 2 } }, 1, "")
+      feature.levelEffects = [
+        { level: 1, effects: { spellSlots: { 1: 2 } } },
+        { level: 3, effects: { spellSlots: { 1: 4, 2: 2 } } },
+        { level: 5, effects: { spellSlots: { 1: 4, 2: 3, 3: 2 } } },
+      ]
+      render(() => <SpellsModule character={makeCharacter({ level: 4, classFeatures: [feature] })} onUpdate={vi.fn()} />)
+      expect(within(screen.getByTestId("spell-slot-level-1")).getAllByLabelText("Available slot (click to use)")).toHaveLength(4)
+      expect(within(screen.getByTestId("spell-slot-level-2")).getAllByLabelText("Available slot (click to use)")).toHaveLength(2)
+      expect(screen.queryByTestId("spell-slot-level-3")).not.toBeInTheDocument()
     })
   })
 
@@ -486,40 +513,103 @@ describe("SpellsModule", () => {
     })
   })
 
-  describe("Edit Spell Slots modal", () => {
-    it("opens the Edit Spell Slots modal when Edit Slots is clicked", () => {
+  // Spell slots are the Spellcasting class feature's, so Edit Slots opens the form the Features tab uses
+  describe("Edit Slots", () => {
+    const editSlots = () => fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
+    const setSlots = (tier: number, slotLevel: number, value: string) => {
+      const input = within(screen.getByRole("dialog")).getByTestId(`level-effect-${tier}-spell-slots-${slotLevel}`)
+      fireEvent.input(input, { target: { value } })
+      fireEvent.blur(input)
+    }
+    const save = () => fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Save" }))
+
+    it("adds a Spellcasting class feature when the character has none", () => {
+      const onUpdate = vi.fn()
+      const character = makeCharacter()
+      render(() => <SpellsModule character={character} onUpdate={onUpdate} />)
+      editSlots()
+      const dialog = screen.getByRole("dialog")
+      expect(within(dialog).getByText("Add Class Feature")).toBeInTheDocument()
+      expect(within(dialog).getByTestId("feature-type-select")).toHaveTextContent("Spellcasting")
+      setSlots(0, 1, "2")
+      save()
+      const saved: Character = onUpdate.mock.calls[0][0]
+      // Added after the character's own class features, which are kept
+      expect(saved.classFeatures?.slice(0, -1)).toEqual(character.classFeatures)
+      expect(saved.classFeatures?.at(-1)).toMatchObject({
+        name: "Spellcasting & Spell Slots",
+        source: "class-feature",
+        featureType: "Spellcasting",
+        levelEffects: [{ level: 1, effects: { spellSlots: { 1: 2 } } }],
+      })
+    })
+
+    it("edits the character's Spellcasting feature in place", () => {
+      const onUpdate = vi.fn()
+      const character = withSpellSlots(makeCharacter(), { 1: { total: 2 } })
+      const feature = character.classFeatures!.at(-1)!
+      render(() => <SpellsModule character={character} onUpdate={onUpdate} />)
+      editSlots()
+      const dialog = screen.getByRole("dialog")
+      expect(within(dialog).getByText("Edit Class Feature")).toBeInTheDocument()
+      expect(within(dialog).getByTestId("level-effect-0-spell-slots-1")).toHaveValue(2)
+      setSlots(0, 2, "1")
+      save()
+      const saved: Character = onUpdate.mock.calls[0][0]
+      expect(saved.classFeatures).toHaveLength(character.classFeatures!.length)
+      expect(saved.classFeatures?.find((f) => f.id === feature.id)?.levelEffects).toEqual([{ level: 1, effects: { spellSlots: { 1: 2, 2: 1 } } }])
+    })
+
+    it("changes nothing on Cancel", () => {
+      const onUpdate = vi.fn()
+      render(() => <SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
+      editSlots()
+      setSlots(0, 1, "2")
+      fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }))
+      expect(onUpdate).not.toHaveBeenCalled()
+    })
+
+    it("explains that each level lists all the slots from that level on", () => {
       render(() => <SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
-      expect(screen.getByText("Edit Spell Slots")).toBeInTheDocument()
+      editSlots()
+      expect(within(screen.getByRole("dialog")).getByTestId("spellcasting-hint")).toHaveTextContent(/highest level the character has reached applies/i)
     })
 
-    it("calls onUpdate when a slot total is changed in the modal", () => {
-      const onUpdate = vi.fn()
-      render(() => <SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
-      const modal = screen.getByRole("dialog")
-      // First spinbutton is the Level 1 total
-      const spinbutton = within(modal).getAllByRole("spinbutton")[0]
-      fireEvent.input(spinbutton, { target: { value: "3" } })
-      fireEvent.blur(spinbutton)
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spellSlots: expect.objectContaining({ 1: expect.objectContaining({ total: 3 }) }),
-        })
-      )
+    // A species trait granting only an ability is innate spellcasting, not where a class's slots go
+    it("adds a class feature rather than editing a species trait that only grants an ability", () => {
+      const drowMagic = { ...makeSpellcastingFeature({ spellcastingAbility: "charisma" }, 1, ""), name: "Drow Magic", source: "species-trait" as const }
+      render(() => <SpellsModule character={makeCharacter({ speciesTraits: [drowMagic] })} onUpdate={vi.fn()} />)
+      editSlots()
+      expect(within(screen.getByRole("dialog")).getByText("Add Class Feature")).toBeInTheDocument()
     })
 
-    it("uses the shared stepper: + raises a level's slot total by one", () => {
+    it("edits a Spellcasting class feature that grants only the ability so far", () => {
       const onUpdate = vi.fn()
-      render(() => <SpellsModule character={makeCharacter()} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /edit slots/i }))
-      fireEvent.click(screen.getByTestId("spell-slot-level-1-total-increase"))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spellSlots: expect.objectContaining({ 1: expect.objectContaining({ total: 1 }) }),
-        })
-      )
-      expect(screen.getByRole("spinbutton", { name: "Level 1 total slots" })).toBeInTheDocument()
+      const feature = makeSpellcastingFeature({ spellcastingAbility: "intelligence" }, 1, "")
+      const character = makeCharacter({ classFeatures: [...makeCharacter().classFeatures!, feature] })
+      render(() => <SpellsModule character={character} onUpdate={onUpdate} />)
+      editSlots()
+      expect(within(screen.getByRole("dialog")).getByRole("combobox", { name: /^spellcasting ability$/i })).toHaveTextContent("Intelligence")
+      setSlots(0, 1, "2")
+      save()
+      const saved: Character = onUpdate.mock.calls[0][0]
+      expect(saved.classFeatures?.find((f) => f.id === feature.id)?.levelEffects).toEqual([{ level: 1, effects: { spellcastingAbility: "intelligence", spellSlots: { 1: 2 } } }])
+    })
+
+    it("has no accessibility violations with the form open", async () => {
+      render(() => <SpellsModule character={withSpellSlots(makeCharacter(), { 1: { total: 2 } })} onUpdate={vi.fn()} />)
+      editSlots()
+      const results = await axe(screen.getByRole("dialog"))
+      expect(results.violations).toHaveLength(0)
+    })
+
+    it("is not offered on a read-only sheet", () => {
+      render(() => (
+        <ReadOnlyProvider value={true}>
+          <SpellsModule character={withSpellSlots(makeCharacter(), { 1: { total: 2 } })} onUpdate={vi.fn()} />
+        </ReadOnlyProvider>
+      ))
+      expect(screen.queryByRole("button", { name: /edit slots/i })).not.toBeInTheDocument()
     })
   })
 

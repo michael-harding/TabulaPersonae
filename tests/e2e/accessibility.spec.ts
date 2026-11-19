@@ -120,8 +120,9 @@ test.describe("A menu opened inside a dialog", () => {
 // Every modal and popup is scanned (see tests/popup-cases.ts). The chromium and chromium-dark projects
 // cover the themes, and the mobile project the ones tagged for a phone.
 async function openModal(page: Page, modal: ModalCase) {
-  await seedGuest(page, testCharacter, { expandSections: true })
-  await openSheet(page, testCharacter.id, modal.tab)
+  const character = modal.character ?? testCharacter
+  await seedGuest(page, character, { expandSections: true })
+  await openSheet(page, character.id, modal.tab)
   await modal.open(page)
   await expect(page.getByRole("dialog")).toBeVisible()
   await page.mouse.move(0, 0)

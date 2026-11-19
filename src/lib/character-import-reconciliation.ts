@@ -1,16 +1,10 @@
 import type { AbilityScores, Character } from "./character-types"
 import {
-  calculateEquippedAC,
-  calculateInitiative,
   getCalculatedAbilityScore,
-  getEffectiveAbilityScore,
-  getEffectiveCarryingCapacity,
-  getPassiveScore,
-  getProficiencyBonus,
-  getSpellAttackBonus,
-  getSpellSaveDC,
-  BASE_ATTUNEMENT_LIMIT,
+  isCalculated,
   ABILITY_KEYS,
+  CUSTOMIZABLE_VALUES,
+  type CustomizableValueKey,
 } from "./character-utils"
 
 function isFiniteNumber(value: unknown): value is number {
@@ -35,68 +29,44 @@ function reconcileAbilityScoreOverrides(character: Character): Character {
   return touched ? { ...character, useCalculatedAbilityScores: nextFlags } : character
 }
 
-interface ScalarFieldSpec {
-  valueKey: keyof Character
-  toggleKey: keyof Character
-  compute: (character: Character) => number
-  // Mirrors this field's own `useCalculatedX ?? <default>` fallback in the module that owns its
-  // editing UI (combat-stats-module.tsx / actions-module.tsx / skills-proficiencies-module.tsx /
-  // equipment-inventory-module.tsx) — needed by freshenCalculatedFields below to know whether an
-  // *absent* toggle should be treated as calculated or custom, matching what the UI already shows.
-  defaultCalculated: boolean
+// The values with a calculated/custom toggle stored at the top level of the character, under the
+// same name as their CUSTOMIZABLE_VALUES key. Maximum HP is nested in hitPoints, so it has its own
+// functions below; the movement speeds are left to character-migrations.ts.
+const SCALAR_FIELDS = [
+  "armorClass",
+  "initiative",
+  "proficiencyBonus",
+  "passivePerception",
+  "passiveInsight",
+  "passiveInvestigation",
+  "attunementLimit",
+  "carryingCapacity",
+  "spellSaveDC",
+  "spellAttackBonus",
+] as const satisfies (CustomizableValueKey & keyof Character)[]
+
+type ScalarField = (typeof SCALAR_FIELDS)[number]
+
+function reconcileScalarField(character: Character, field: ScalarField): Character {
+  const value = character[field]
+  if (!isFiniteNumber(value)) return character
+  const spec = CUSTOMIZABLE_VALUES[field]
+  return { ...character, [spec.toggle]: value === spec.calculated(character) }
 }
 
-const SCALAR_FIELD_SPECS: ScalarFieldSpec[] = [
-  { valueKey: "armorClass", toggleKey: "useCalculatedArmorClass", compute: (c) => calculateEquippedAC(c).ac, defaultCalculated: true },
-  { valueKey: "initiative", toggleKey: "useCalculatedInitiative", compute: (c) => calculateInitiative(c).initiative, defaultCalculated: false },
-  { valueKey: "proficiencyBonus", toggleKey: "useCalculatedProficiencyBonus", compute: (c) => getProficiencyBonus(c.level ?? 1), defaultCalculated: false },
-  {
-    valueKey: "passivePerception",
-    toggleKey: "useCalculatedPassivePerception",
-    compute: (c) =>
-      getPassiveScore(
-        getEffectiveAbilityScore(c, "wisdom"),
-        c.proficiencyBonus ?? 2,
-        c.skills?.perception?.proficient ?? false,
-        c.skills?.perception?.expertise ?? false,
-      ),
-    defaultCalculated: true,
-  },
-  {
-    valueKey: "passiveInsight",
-    toggleKey: "useCalculatedPassiveInsight",
-    compute: (c) =>
-      getPassiveScore(
-        getEffectiveAbilityScore(c, "wisdom"),
-        c.proficiencyBonus ?? 2,
-        c.skills?.insight?.proficient ?? false,
-        c.skills?.insight?.expertise ?? false,
-      ),
-    defaultCalculated: true,
-  },
-  {
-    valueKey: "passiveInvestigation",
-    toggleKey: "useCalculatedPassiveInvestigation",
-    compute: (c) =>
-      getPassiveScore(
-        getEffectiveAbilityScore(c, "intelligence"),
-        c.proficiencyBonus ?? 2,
-        c.skills?.investigation?.proficient ?? false,
-        c.skills?.investigation?.expertise ?? false,
-      ),
-    defaultCalculated: true,
-  },
-  { valueKey: "attunementLimit", toggleKey: "useCalculatedAttunementLimit", compute: () => BASE_ATTUNEMENT_LIMIT, defaultCalculated: true },
-  { valueKey: "carryingCapacity", toggleKey: "useCalculatedCarryingCapacity", compute: (c) => getEffectiveCarryingCapacity(c), defaultCalculated: true },
-  { valueKey: "spellSaveDC", toggleKey: "useCalculatedSpellSaveDC", compute: (c) => getSpellSaveDC(c), defaultCalculated: true },
-  { valueKey: "spellAttackBonus", toggleKey: "useCalculatedSpellAttackBonus", compute: (c) => getSpellAttackBonus(c), defaultCalculated: true },
-]
+// Maximum HP is nested in hitPoints, so it can't be a ScalarFieldSpec. Compared without
+// temporaryMaximum, which calculateMaxHitPoints leaves out as well.
+function reconcileMaximumHp(character: Character): Character {
+  const maximum = character.hitPoints?.maximum
+  if (!isFiniteNumber(maximum)) return character
+  return { ...character, useCalculatedMaximumHp: maximum === CUSTOMIZABLE_VALUES.maximumHp.calculated(character) }
+}
 
-function reconcileScalarField(character: Character, spec: ScalarFieldSpec): Character {
-  const value = character[spec.valueKey]
-  if (!isFiniteNumber(value)) return character
-  const calculated = spec.compute(character)
-  return { ...character, [spec.toggleKey]: value === calculated }
+function freshenMaximumHp(character: Character): Character {
+  if (!isCalculated(character, "maximumHp")) return character
+  const calculated = CUSTOMIZABLE_VALUES.maximumHp.calculated(character)
+  if (character.hitPoints?.maximum === calculated) return character
+  return { ...character, hitPoints: { ...character.hitPoints, maximum: calculated } }
 }
 
 /**
@@ -114,14 +84,13 @@ function reconcileScalarField(character: Character, spec: ScalarFieldSpec): Char
  */
 export function freshenCalculatedFields(character: Character): Character {
   let next = character
-  for (const spec of SCALAR_FIELD_SPECS) {
-    const useCalculated = (next[spec.toggleKey] as boolean | undefined) ?? spec.defaultCalculated
-    if (!useCalculated) continue
-    const calculated = spec.compute(next)
-    if (next[spec.valueKey] === calculated) continue
-    next = { ...next, [spec.valueKey]: calculated }
+  for (const field of SCALAR_FIELDS) {
+    if (!isCalculated(next, field)) continue
+    const calculated = CUSTOMIZABLE_VALUES[field].calculated(next)
+    if (next[field] === calculated) continue
+    next = { ...next, [field]: calculated }
   }
-  return next
+  return freshenMaximumHp(next)
 }
 
 /**
@@ -137,10 +106,10 @@ export function freshenCalculatedFields(character: Character): Character {
 export function reconcileImportedCharacter(imported: Character): Character {
   try {
     let character = reconcileAbilityScoreOverrides(imported)
-    for (const spec of SCALAR_FIELD_SPECS) {
-      character = reconcileScalarField(character, spec)
+    for (const field of SCALAR_FIELDS) {
+      character = reconcileScalarField(character, field)
     }
-    return character
+    return reconcileMaximumHp(character)
   } catch (error) {
     console.error("Failed to reconcile calculated fields on imported character:", error)
     return imported

@@ -182,9 +182,7 @@ test.describe("Combat tab", () => {
     await expect(card.getByRole("combobox", { name: "Cast Ensnaring Strike at level" })).toHaveText("1st")
 
     await reload(page)
-    const slots = (await storedCharacter(page, id)).spellSlots
-    expect(slots[2].used).toBe(1)
-    expect(slots[1].used).toBe(testCharacter.spellSlots[1].used)
+    expect((await storedCharacter(page, id)).spentSpellSlots).toEqual({ ...testCharacter.spentSpellSlots, 2: 1 })
   })
 })
 
@@ -219,19 +217,25 @@ test.describe("Spells tab", () => {
 
     await reload(page, "Spells")
     await expect(page.getByLabel("Used slot (click to restore)")).toHaveCount(2)
-    expect((await storedCharacter(page, id)).spellSlots[1]).toEqual({ total: 4, used: 2 })
+    expect((await storedCharacter(page, id)).spentSpellSlots).toEqual({ 1: 2 })
   })
 
+  // Spell slots are the Spellcasting class feature's: Edit Slots opens its form
   test("changing the number of spell slots", async ({ page }) => {
     await open(page, "Spells")
     await page.locator('[data-test="edit-spell-slots-button"]').click()
-    // Each change applies at once; the dialog has no Save button
-    await page.locator('[data-test="spell-slot-level-3-total-increase"]').click()
-    await page.locator('[data-test="spell-slot-level-3-total-increase"]').click()
-    await page.keyboard.press("Escape")
+    const dialog = page.getByRole("dialog")
+    // testCharacter is level 5: its slots come from the feature's level 5 row, the third
+    await expect(dialog.locator('[data-test="level-effect-2-level-input"]')).toHaveValue("5")
+    await dialog.locator('[data-test="level-effect-2-spell-slots-3"]').fill("2")
+    await dialog.locator('[data-test="level-effect-2-spell-slots-3"]').blur()
+    await dialog.getByRole("button", { name: "Save" }).click()
+    await expect(dialog).toBeHidden()
 
     await reload(page, "Spells")
-    expect((await storedCharacter(page, id)).spellSlots[3]).toMatchObject({ total: 2 })
+    await expect(page.locator('[data-test="spell-slot-level-3"]').getByLabel("Available slot (click to use)")).toHaveCount(2)
+    const feature = (await storedCharacter(page, id)).classFeatures?.find((f) => f.id === "cf5")
+    expect(feature?.levelEffects?.[2]).toEqual({ level: 5, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4, 2: 2, 3: 2 } } })
   })
 })
 

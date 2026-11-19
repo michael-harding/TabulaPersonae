@@ -82,6 +82,7 @@ describe("Home character list", () => {
       id: "char-1",
       name: "Testy",
       hitPoints: { current: 10, maximum: 10, temporary: 0, temporaryMaximum: 5 },
+      useCalculatedMaximumHp: false,
     }
     await renderAndLoad([character])
     expect(screen.getByText("HP: 10/15")).toBeInTheDocument()

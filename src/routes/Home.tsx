@@ -6,7 +6,7 @@ import Sword from "lucide-solid/icons/sword"
 import Trash2 from "lucide-solid/icons/trash-2"
 
 import { type Character, createDefaultCharacter } from "@/lib/character-types"
-import { calculateEquippedAC, getEffectiveMaxHp } from "@/lib/character-utils"
+import { getEffectiveMaxHp, getEffectiveValue } from "@/lib/character-utils"
 import { sheetColorAttributes } from "@/lib/sheet-color"
 import { useStorageManager } from "@/lib/storage-manager"
 import { cn, HOVER_ACCENT } from "@/lib/utils"
@@ -114,7 +114,7 @@ export default function Home() {
                 <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <For each={characters()}>
                     {(character) => {
-                      const ac = createMemo(() => calculateEquippedAC(character).ac)
+                      const ac = createMemo(() => getEffectiveValue(character, "armorClass"))
                       return (
                       // Each card in its character's sheet colour: the border, name and icon are primary
                       <Card
@@ -155,7 +155,7 @@ export default function Home() {
                             <div class="space-y-2 text-sm text-muted-foreground group-hover/link:text-accent-foreground">
                               <p>Level {character.level} {character.race} {character.class}</p>
                               <p>HP: {character.hitPoints?.current ?? 0}/{getEffectiveMaxHp(character)}</p>
-                              <p>AC: {(character.useCalculatedArmorClass ?? true) ? ac() : (character.armorClass ?? 10)}</p>
+                              <p>AC: {ac()}</p>
                             </div>
                           </CardContent>
                         </A>

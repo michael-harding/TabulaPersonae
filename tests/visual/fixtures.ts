@@ -1,5 +1,5 @@
 import { CALCULATED_VALUE_FLAGS } from "../../src/lib/character-migrations"
-import { createDefaultCharacter, type Character } from "../../src/lib/character-types"
+import { createDefaultCharacter, type Character, type FeatureEffects, type HitPointsMode } from "../../src/lib/character-types"
 
 export const testCharacter: Character = {
   id: "visual-test-char-1",
@@ -63,17 +63,8 @@ export const testCharacter: Character = {
   spellcastingAbility: "wisdom",
   spellSaveDC: 14,
   spellAttackBonus: 6,
-  spellSlots: {
-    1: { total: 4, used: 1 },
-    2: { total: 2, used: 0 },
-    3: { total: 0, used: 0 },
-    4: { total: 0, used: 0 },
-    5: { total: 0, used: 0 },
-    6: { total: 0, used: 0 },
-    7: { total: 0, used: 0 },
-    8: { total: 0, used: 0 },
-    9: { total: 0, used: 0 },
-  },
+  // The slots themselves are the Spellcasting class feature's (cf5)
+  spentSpellSlots: { 1: 1 },
   spells: [
     {
       id: "sp1",
@@ -276,6 +267,18 @@ export const testCharacter: Character = {
       source: "class-feature",
       description: "Your tenacity can wear down the most resilient foes. Once per turn, when you hit a creature with a weapon attack, you deal an extra 1d8 damage if it's below its hit point maximum.",
     },
+    {
+      id: "cf5",
+      name: "Spellcasting & Spell Slots",
+      source: "class-feature",
+      featureType: "Spellcasting",
+      description: "The Ranger's spellcasting, from 2nd level.",
+      levelEffects: [
+        { level: 2, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 2 } } },
+        { level: 3, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 3 } } },
+        { level: 5, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4, 2: 2 } } },
+      ],
+    },
   ],
   speciesTraits: [
     {
@@ -327,6 +330,29 @@ export const testCharacter: Character = {
   heroicInspiration: false,
   alliesAndOrganizations: "Order of the Emerald Enclave — a network of rangers and druids who protect the natural world.",
   treasure: "A locket containing a miniature portrait of her parents, before the raid.",
+}
+
+/**
+ * testCharacter with a Hit Points feature that calculates Max HP the given way, and Max HP
+ * calculated: what the Level Up modal's HP inputs depend on.
+ */
+export function withHitPointsMode(mode: HitPointsMode, values: FeatureEffects = {}): Character {
+  return {
+    ...testCharacter,
+    id: `visual-test-char-hp-${mode}`,
+    useCalculatedMaximumHp: true,
+    classFeatures: [
+      {
+        id: "cf-hit-points",
+        name: "Hit Points",
+        source: "class-feature",
+        featureType: "Hit Points",
+        description: "Grants this character's hit die.",
+        levelEffects: [{ level: 1, effects: { hitDiceSize: 10, hitPointsMode: mode, ...values } }],
+      },
+      ...(testCharacter.classFeatures ?? []),
+    ],
+  }
 }
 
 export const secondCharacter: Character = {
@@ -387,12 +413,19 @@ export function seedLocalStorage(characters: Character[]) {
  *   - items with the single `uses` field that became `charges` (magic item with charges) and
  *     `consumedUses` (consumable);
  *   - damage resistances typed as free text;
- *   - Exhaustion as a plain condition, before it had levels.
+ *   - Exhaustion as a plain condition, before it had levels;
+ *   - spell slots entered on the character, before the Spellcasting feature gave them;
+ *   - no species traits, from before Creature Type and Size were required ones.
  * Not typed as Character: it is deliberately not one.
  */
 export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const current: Record<string, unknown> = { ...createDefaultCharacter() }
   for (const flag of CALCULATED_VALUE_FLAGS) delete current[flag]
+  // New characters start with these calculated; an older save has neither, which leaves both custom
+  delete current.useCalculatedProficiencyBonus
+  delete current.useCalculatedMaximumHp
+  // Spent slots were kept in spellSlots (below) before they had a field of their own
+  delete current.spentSpellSlots
   return {
     ...current,
     id: "legacy-char-1",
@@ -405,6 +438,7 @@ export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Re
     classFeatures: [
       { id: "lf-channel", name: "Channel Divinity", description: "Turn Undead.", source: "class-feature" },
     ],
+    speciesTraits: [],
     equipment: [
       { id: "le-wand", name: "Wand of Magic Missiles", quantity: 1, weight: 1, description: "", equipped: true, type: "other", magic: true, maxUses: 7, uses: 2 },
       { id: "le-potion", name: "Potion of Healing", quantity: 3, weight: 0.5, description: "", equipped: false, type: "consumable", uses: 1 },
@@ -412,6 +446,12 @@ export function makeLegacyCharacter(overrides: Record<string, unknown> = {}): Re
     damageResistances: ["poison"],
     // Before exhaustion had levels it was an on/off condition
     conditions: ["Exhaustion"],
+    // Before spell slots were a class feature: totals and spent slots, at every level
+    spellSlots: {
+      1: { total: 4, used: 1 }, 2: { total: 2, used: 0 }, 3: { total: 0, used: 0 },
+      4: { total: 0, used: 0 }, 5: { total: 0, used: 0 }, 6: { total: 0, used: 0 },
+      7: { total: 0, used: 0 }, 8: { total: 0, used: 0 }, 9: { total: 0, used: 0 },
+    },
     ...overrides,
   }
 }

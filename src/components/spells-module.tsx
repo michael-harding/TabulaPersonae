@@ -11,8 +11,8 @@ import Settings from "lucide-solid/icons/settings"
 import BookOpen from "lucide-solid/icons/book-open"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { Character, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells } from "@/lib/character-utils"
+import type { Character, Feature, Spell } from "@/lib/character-types"
+import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells, getSpellSlots, withSpentSpellSlots, findSpellcastingFeature, withFeatureSaved, getPreparedSpellsLimit, SPELL_SLOT_LEVELS, getEffectiveProficiencyBonus, isCalculated, getCustomValue, getEffectiveValue } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -20,15 +20,14 @@ import { useCalculatedValue } from "@/hooks/use-calculated-value"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { Input } from "@/components/ui/input"
-import { StepperInput } from "@/components/ui/stepper-input"
 import { Chip } from "@/components/ui/chip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip } from "@/components/ui/tooltip"
-import { Modal, ModalContent, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Collapsible, CollapsibleChevron, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { SpellEditModal, SPELL_LEVELS } from "@/components/spell-edit-modal"
+import { FeatureEditModal } from "@/components/features-module"
 import { useReadOnly } from "@/lib/read-only-context"
 import { cn, HOVER_ACCENT } from "@/lib/utils"
 
@@ -47,16 +46,12 @@ interface SpellsDraft {
   spellSaveDC: number
 }
 
-const toDraft = (c: Character): SpellsDraft => {
-  const useCalculatedSpellAttackBonus = c.useCalculatedSpellAttackBonus ?? true
-  const useCalculatedSpellSaveDC = c.useCalculatedSpellSaveDC ?? true
-  return {
-    useCalculatedSpellAttackBonus,
-    spellAttackBonus: useCalculatedSpellAttackBonus ? getSpellAttackBonus(c) : (c.spellAttackBonus ?? getSpellAttackBonus(c)),
-    useCalculatedSpellSaveDC,
-    spellSaveDC: useCalculatedSpellSaveDC ? getSpellSaveDC(c) : (c.spellSaveDC ?? getSpellSaveDC(c)),
-  }
-}
+const toDraft = (c: Character): SpellsDraft => ({
+  useCalculatedSpellAttackBonus: isCalculated(c, "spellAttackBonus"),
+  spellAttackBonus: getEffectiveValue(c, "spellAttackBonus"),
+  useCalculatedSpellSaveDC: isCalculated(c, "spellSaveDC"),
+  spellSaveDC: getEffectiveValue(c, "spellSaveDC"),
+})
 
 export function SpellsModule(props: SpellsModuleProps) {
   const isReadOnly = useReadOnly()
@@ -77,8 +72,9 @@ export function SpellsModule(props: SpellsModuleProps) {
     () => `dnd-collapsible-spells-${props.character.id}`,
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
   )
-  const [isSpellSlotsModalOpen, setIsSpellSlotsModalOpen] = createSignal(false)
-
+  // Edit Slots edits the Spellcasting feature, or adds one when the character has none. The feature is
+  // taken when the button is pressed, so the form isn't reset by the character changing under it.
+  const [slotsFeatureModal, setSlotsFeatureModal] = createSignal<{ feature: Feature | null } | null>(null)
 
   const safeSpells = createMemo(() => props.character.spells || [])
   const magicItems = createMemo(() => (props.character.equipment ?? []).filter((item) => item.magic))
@@ -104,22 +100,23 @@ export function SpellsModule(props: SpellsModuleProps) {
   // Must be called inside a reactive context (JSX, effect, memo) — reads spellsByLevelMap()
   const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? EMPTY_SPELLS
   const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0))
+  const preparedSpellsLimit = createMemo(() => getPreparedSpellsLimit(props.character))
   const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
   const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
 
   const spellAttackField = useCalculatedValue({
-    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellAttackBonus : (props.character.useCalculatedSpellAttackBonus ?? true)),
+    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellAttackBonus : isCalculated(props.character, "spellAttackBonus")),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellAttackBonus: v })),
-    manualValue: () => (edit.isEditing() ? edit.draft().spellAttackBonus : (props.character.spellAttackBonus ?? spellAttackBonus())),
+    manualValue: () => (edit.isEditing() ? edit.draft().spellAttackBonus : getCustomValue(props.character, "spellAttackBonus")),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellAttackBonus: v })),
     calculatedValue: spellAttackBonus,
     calculatedTooltip: () => getSpellAttackBreakdown(props.character),
   })
 
   const spellSaveDCField = useCalculatedValue({
-    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellSaveDC : (props.character.useCalculatedSpellSaveDC ?? true)),
+    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellSaveDC : isCalculated(props.character, "spellSaveDC")),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellSaveDC: v })),
-    manualValue: () => (edit.isEditing() ? edit.draft().spellSaveDC : (props.character.spellSaveDC ?? spellSaveDC())),
+    manualValue: () => (edit.isEditing() ? edit.draft().spellSaveDC : getCustomValue(props.character, "spellSaveDC")),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellSaveDC: v })),
     calculatedValue: spellSaveDC,
     calculatedTooltip: () => getSpellSaveDCBreakdown(props.character),
@@ -134,20 +131,13 @@ export function SpellsModule(props: SpellsModuleProps) {
     })
   }
 
-  const updateSpellSlots = (level: number, field: "total" | "used", value: number) => {
-    props.onUpdate({
-      ...props.character,
-      spellSlots: {
-        ...props.character.spellSlots,
-        [level]: {
-          ...props.character.spellSlots[level as keyof typeof props.character.spellSlots],
-          [field]: Math.max(0, value),
-        },
-      },
-    })
-  }
+  const spellSlots = createMemo(() => getSpellSlots(props.character))
 
-  const updateSpellSlotUsed = (level: number, used: number) => updateSpellSlots(level, "used", used)
+  const handleSaveSpellSlotsFeature = (saved: Feature) => {
+    if (isReadOnly) return
+    props.onUpdate(withFeatureSaved(props.character, saved))
+    setSlotsFeatureModal(null)
+  }
 
   const handleSaveSpell = (saved: Spell) => {
     if (isReadOnly) return
@@ -178,9 +168,7 @@ export function SpellsModule(props: SpellsModuleProps) {
     )))
   }
 
-  const allSlotsEmpty = createMemo(() => [1,2,3,4,5,6,7,8,9].every(
-    (level) => props.character.spellSlots[level as keyof typeof props.character.spellSlots].total === 0
-  ))
+  const allSlotsEmpty = createMemo(() => SPELL_SLOT_LEVELS.every((level) => spellSlots()[level].total === 0))
 
   return (
     <EditableModule data-test="spells-module"
@@ -237,9 +225,22 @@ export function SpellsModule(props: SpellsModuleProps) {
                   format={formatModifier}
                 />
               </div>
-              <div class="text-center">
+              <div class="text-center" data-test="prepared-spells">
                 <div class="text-sm font-medium mb-1">Prepared Spells</div>
-                <div class="text-2xl font-bold text-primary">{preparedSpells().length}</div>
+                <Show
+                  when={preparedSpellsLimit()}
+                  fallback={<div class="text-2xl font-bold text-primary">{preparedSpells().length}</div>}
+                >
+                  {(limit) => (
+                    <Tooltip
+                      content={limit().breakdown}
+                      triggerFocusable
+                      triggerLabel={`Prepared Spells: ${preparedSpells().length} of ${limit().total}`}
+                    >
+                      <div class="text-2xl font-bold text-primary">{preparedSpells().length} / {limit().total}</div>
+                    </Tooltip>
+                  )}
+                </Show>
               </div>
             </div>
           </div>
@@ -253,14 +254,14 @@ export function SpellsModule(props: SpellsModuleProps) {
               Spell Slots
             </h2>
             <Show when={!isReadOnly}>
-              <Button data-test="edit-spell-slots-button" variant="outline" size="sm" class="gap-1" onClick={() => setIsSpellSlotsModalOpen(true)}>
+              <Button data-test="edit-spell-slots-button" variant="outline" size="sm" class="gap-1" onClick={() => setSlotsFeatureModal({ feature: findSpellcastingFeature(props.character) ?? null })}>
                 <Settings class="h-3 w-3" aria-hidden="true" />
                 Edit Slots
               </Button>
             </Show>
           </div>
 
-          <SpellSlotTracker spellSlots={props.character.spellSlots} onToggle={updateSpellSlotUsed} />
+          <SpellSlotTracker slots={spellSlots()} onToggle={(level, used) => props.onUpdate(withSpentSpellSlots(props.character, level, used))} />
 
           <Show when={allSlotsEmpty()}>
             <div class="text-center py-4 text-muted-foreground">
@@ -450,36 +451,17 @@ export function SpellsModule(props: SpellsModuleProps) {
         onCancel={() => { setIsAddModalOpen(false); setEditingSpell(null) }}
       />
 
-      {/* Spell Slots Modal */}
-      <Modal open={isSpellSlotsModalOpen()} onOpenChange={setIsSpellSlotsModalOpen}>
-        <ModalContent class="max-w-2xl">
-          <ModalHeader><ModalTitle>Edit Spell Slots</ModalTitle></ModalHeader>
-          <div class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <For each={[1,2,3,4,5,6,7,8,9]}>
-                {(level) => {
-                  const slots = () => props.character.spellSlots[level as keyof typeof props.character.spellSlots]
-                  return (
-                    <div class="flex items-center justify-between p-3 border rounded-lg">
-                      <span class="font-medium">Level {level}</span>
-                      <div class="flex items-center gap-2">
-                        <StepperInput
-                          data-test={`spell-slot-level-${level}-total`}
-                          min={0} max={20}
-                          value={slots().total}
-                          onChange={(v) => updateSpellSlots(level, "total", v)}
-                          aria-label={`Level ${level} total slots`}
-                        />
-                        <span class="text-sm text-muted-foreground">slots</span>
-                      </div>
-                    </div>
-                  )
-                }}
-              </For>
-            </div>
-          </div>
-        </ModalContent>
-      </Modal>
+      {/* Spell slots are the Spellcasting class feature's: Edit Slots opens the form the Features tab uses */}
+      <FeatureEditModal
+        open={slotsFeatureModal() != null}
+        kind="class-feature"
+        feature={slotsFeatureModal()?.feature ?? null}
+        initialType="Spellcasting"
+        characterLevel={props.character.level ?? 1}
+        proficiencyBonus={getEffectiveProficiencyBonus(props.character)}
+        onSave={handleSaveSpellSlotsFeature}
+        onCancel={() => setSlotsFeatureModal(null)}
+      />
     </EditableModule>
   )
 }

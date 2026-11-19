@@ -148,7 +148,7 @@ export const SCENES: Scene[] = [
     },
   },
   {
-    name: "Edit Spell Slots modal",
+    name: "Spell Slots feature form, from Edit Slots",
     within: DIALOG,
     open: async (page) => {
       await openGuestSheet(page, "Spells")
@@ -164,6 +164,16 @@ export const SCENES: Scene[] = [
       await page.locator('[data-test="take-a-rest-button"]').click()
       await page.locator('[data-test="rest-type-short-button"]').click()
       await expect(page.locator('[data-test="rest-hit-dice"]')).toBeVisible()
+    },
+  },
+  {
+    name: "level up modal",
+    within: DIALOG,
+    open: async (page) => {
+      await openGuestSheet(page, "Character")
+      await page.locator('[data-test="character-basic-info-module-edit"]').click()
+      await page.locator('[data-test="level-up-button"]').click()
+      await expect(page.getByRole("dialog", { name: "Level Up" })).toBeVisible()
     },
   },
   {

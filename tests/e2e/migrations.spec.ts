@@ -17,12 +17,23 @@ const legacy = makeLegacyCharacter() as unknown as Character
 function expectMigrated(character: Character) {
   const features = character.classFeatures ?? []
   // The legacy spellcasting ability and hit die each became exactly one granting Feature
-  expect(features.filter((f) => f.name === "Spellcasting")).toHaveLength(1)
+  expect(features.filter((f) => f.featureType === "Spellcasting")).toHaveLength(1)
   expect(features.filter((f) => f.name === "Hit Points")).toHaveLength(1)
-  expect(features.find((f) => f.name === "Spellcasting")?.levelEffects?.[0].effects).toEqual({ spellcastingAbility: "wisdom" })
+  // The required Ability Score Improvement, with the usual levels
+  expect(features.filter((f) => f.featureType === "Ability Score Improvement").map((f) => f.levelEffects)).toEqual([
+    [{ level: 1, effects: { abilityScoreImprovementLevels: [4, 8, 12, 16, 19] } }],
+  ])
+  // The entered spell slots joined it as a row from the character's level (3) on, with its ability,
+  // keeping the slot already spent; the old field is gone
+  expect(features.find((f) => f.name === "Spellcasting")?.levelEffects).toEqual([
+    { level: 1, effects: { spellcastingAbility: "wisdom" } },
+    { level: 3, effects: { spellcastingAbility: "wisdom", spellSlots: { 1: 4, 2: 2 } } },
+  ])
   expect(features.find((f) => f.name === "Hit Points")?.levelEffects?.[0].effects).toEqual({ hitDiceSize: 8 })
-  // A Feature from before featureType has one now
-  expect(features.find((f) => f.name === "Channel Divinity")).toHaveProperty("featureType")
+  // A Feature from before featureType has one now: with no effects, it is Custom
+  expect(features.find((f) => f.name === "Channel Divinity")?.featureType).toBe("Custom")
+  // The required species traits, one of each. Speed and Languages aren't required, so none are added.
+  expect(character.speciesTraits?.map((f) => f.featureType)).toEqual(["Creature Type", "Size"])
   // The single `uses` field moved to where each kind of item keeps it
   const wand = character.equipment.find((e) => e.name === "Wand of Magic Missiles")!
   const potion = character.equipment.find((e) => e.name === "Potion of Healing")!
@@ -35,6 +46,8 @@ function expectMigrated(character: Character) {
   expect(character.exhaustionLevel).toBe(1)
   expect(character.conditions ?? []).not.toContain("Exhaustion")
   expect(character).toHaveProperty("useCalculatedArmorClass")
+  expect(character.spentSpellSlots).toEqual({ 1: 1 })
+  expect(character).not.toHaveProperty("spellSlots")
 }
 
 /** The generated features are listed on the Features tab. */
@@ -69,6 +82,7 @@ test.describe("A character saved by an older version", () => {
     const savedAgain = await storedCharacter(page, legacy.id)
     expectMigrated(savedAgain)
     expect(savedAgain.classFeatures?.map((f) => f.id)).toEqual(saved.classFeatures?.map((f) => f.id))
+    expect(savedAgain.speciesTraits?.map((f) => f.id)).toEqual(saved.speciesTraits?.map((f) => f.id))
     await expectFeaturesListed(page)
   })
 
@@ -82,7 +96,8 @@ test.describe("A character saved by an older version", () => {
     await makeAnEdit(page)
     await reload(page)
     const saved = await storedCharacter(page, character.id)
-    expect(saved.speciesTraits?.map((trait) => trait.levelEffects?.[0].effects)).toEqual([{ size: "Small" }])
+    // The required Size trait, holding the size that was entered
+    expect(saved.speciesTraits?.filter((trait) => trait.featureType === "Size").map((trait) => trait.levelEffects?.[0].effects)).toEqual([{ size: "Small" }])
     // Size is a Species Trait: the old size fields are gone from the saved character
     expect(saved).not.toHaveProperty("size")
     expect(saved).not.toHaveProperty("useCalculatedSize")
@@ -122,5 +137,6 @@ test.describe("A character saved by an older version", () => {
     const savedAgain = (await readCharacter(character.id))!
     expectMigrated(savedAgain)
     expect(savedAgain.classFeatures?.map((f) => f.id)).toEqual(saved.classFeatures?.map((f) => f.id))
+    expect(savedAgain.speciesTraits?.map((f) => f.id)).toEqual(saved.speciesTraits?.map((f) => f.id))
   })
 })
