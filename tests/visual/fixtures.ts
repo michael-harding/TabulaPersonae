@@ -1,5 +1,5 @@
 import { CALCULATED_VALUE_FLAGS } from "../../src/lib/character-migrations"
-import { createDefaultCharacter, type Character } from "../../src/lib/character-types"
+import { createDefaultCharacter, type Character, type FeatureEffects, type HitPointsMode } from "../../src/lib/character-types"
 
 export const testCharacter: Character = {
   id: "visual-test-char-1",
@@ -330,6 +330,29 @@ export const testCharacter: Character = {
   heroicInspiration: false,
   alliesAndOrganizations: "Order of the Emerald Enclave — a network of rangers and druids who protect the natural world.",
   treasure: "A locket containing a miniature portrait of her parents, before the raid.",
+}
+
+/**
+ * testCharacter with a Hit Points feature that calculates Max HP the given way, and Max HP
+ * calculated: what the Level Up modal's HP inputs depend on.
+ */
+export function withHitPointsMode(mode: HitPointsMode, values: FeatureEffects = {}): Character {
+  return {
+    ...testCharacter,
+    id: `visual-test-char-hp-${mode}`,
+    useCalculatedMaximumHp: true,
+    classFeatures: [
+      {
+        id: "cf-hit-points",
+        name: "Hit Points",
+        source: "class-feature",
+        featureType: "Hit Points",
+        description: "Grants this character's hit die.",
+        levelEffects: [{ level: 1, effects: { hitDiceSize: 10, hitPointsMode: mode, ...values } }],
+      },
+      ...(testCharacter.classFeatures ?? []),
+    ],
+  }
 }
 
 export const secondCharacter: Character = {

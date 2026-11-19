@@ -79,6 +79,7 @@ import {
   featureListField,
   withFeatureSaved,
   ordinal,
+  setsMaxHitPoints,
 } from "@/lib/character-utils"
 import { createDefaultCharacter, type Character, type Equipment, type Feature, type Spell } from "@/lib/character-types"
 
@@ -2762,5 +2763,33 @@ describe("withFeatureSaved / featureListField", () => {
 describe("ordinal", () => {
   it.each([[1, "1st"], [2, "2nd"], [3, "3rd"], [4, "4th"], [9, "9th"], [11, "11th"], [12, "12th"], [13, "13th"], [21, "21st"]])("reads %i as %s", (n, expected) => {
     expect(ordinal(n)).toBe(expected)
+  })
+})
+
+describe("setsMaxHitPoints", () => {
+  it("is false for a tier giving only a hit die, and true once it sets a mode or a value", () => {
+    expect(setsMaxHitPoints({ hitDiceSize: 8 })).toBe(false)
+    expect(setsMaxHitPoints({ hitDiceSize: 8, hitPointsMode: "per-level" })).toBe(true)
+    expect(setsMaxHitPoints({ hitPointsFlatValue: 0 })).toBe(true)
+    expect(setsMaxHitPoints({ hitPointsPerLevelAmount: 5 })).toBe(true)
+    expect(setsMaxHitPoints({ hitPointsRolledLevels: [] })).toBe(false)
+    expect(setsMaxHitPoints({ hitPointsRolledLevels: [8] })).toBe(true)
+  })
+})
+
+describe("getActiveFeatureEffects abilityScoreImprovementLevels", () => {
+  const asiFeature = (id: string, levels: number[], tierLevel = 1): Feature => ({
+    id, name: "Ability Score Improvement", description: "", source: "class-feature", featureType: "Ability Score Improvement",
+    levelEffects: [{ level: tierLevel, effects: { abilityScoreImprovementLevels: levels } }],
+  })
+
+  it("lists the levels of every active Ability Score Improvement feature once, in order", () => {
+    const character = { ...createDefaultCharacter(), classFeatures: [asiFeature("a", [8, 4]), asiFeature("b", [4, 6])] }
+    expect(getActiveFeatureEffects(character).abilityScoreImprovementLevels).toEqual([4, 6, 8])
+  })
+
+  it("leaves out a feature whose tier the character hasn't reached", () => {
+    const character = { ...createDefaultCharacter(), level: 2, classFeatures: [asiFeature("a", [10], 3)] }
+    expect(getActiveFeatureEffects(character).abilityScoreImprovementLevels).toEqual([])
   })
 })

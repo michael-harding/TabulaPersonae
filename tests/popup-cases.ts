@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
 import type { Character } from "../src/lib/character-types"
-import { testCharacter } from "./visual/fixtures"
+import { testCharacter, withHitPointsMode } from "./visual/fixtures"
 
 // Every modal and every popup above the page, and how to open it. The test suites share this one
 // list, so that none of them can miss one.
@@ -17,9 +17,16 @@ async function openFeatureType(page: Page) {
   await dialog(page).locator('[data-test="feature-type-select"]').click()
 }
 
+async function openLevelUp(page: Page) {
+  await click(page, "character-basic-info-module-edit")
+  await click(page, "level-up-button")
+}
+
 export interface ModalCase {
   name: string
   tab?: string
+  /** Defaults to testCharacter. */
+  character?: Character
   open: (page: Page) => Promise<void>
   /**
    * The modal whose visual baseline also shows this one, because the two have the same layout
@@ -95,6 +102,21 @@ export const MODALS: ModalCase[] = [
       await click(page, "rest-type-long-button")
     },
   },
+  // Level Up opens from beside the Level field in Character Information's edit form. Its Hit Points
+  // input depends on how the Hit Points feature calculates Max HP: none per level (testCharacter's
+  // default), a New HP field for a single value, a roll for each level gained for rolled values.
+  { name: "level-up", tab: "Character", open: openLevelUp },
+  { name: "level-up-flat-hp", tab: "Character", character: withHitPointsMode("flat", { hitPointsFlatValue: 44 }), open: openLevelUp },
+  // Three levels at once: a roll for each, and the Ability Score Improvement at 8
+  {
+    name: "level-up-rolled-hp", tab: "Character", character: withHitPointsMode("rolled", { hitPointsRolledLevels: [10, 6, 8, 7, 5] }), open: async (page) => {
+      await openLevelUp(page)
+      const level = dialog(page).getByLabel("New Level")
+      await level.fill("8")
+      await level.press("Enter")
+      await expect(dialog(page).getByLabel("Rolled HP (Level 8)")).toBeVisible()
+    },
+  },
   {
     name: "import", open: async (page) => {
       await click(page, "header-menu-trigger")
@@ -156,7 +178,7 @@ for (const [name, coveredBy] of coverage) {
 }
 
 /** The modals also checked at phone width. The visual suite's modal shell baselines show rest-short. */
-export const PHONE_MODALS = ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "import"]
+export const PHONE_MODALS = ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "level-up", "import"]
 
 const byTest = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`)
 

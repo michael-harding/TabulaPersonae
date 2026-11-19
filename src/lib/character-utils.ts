@@ -349,6 +349,8 @@ export interface FeatureEffectTotals {
   /** How many spells the character can prepare, summed over its Prepared Spells features; 0 with none. */
   preparedSpells: number
   preparedSpellsGrants: SourcedBonus[]
+  /** The levels at which the character gains an Ability Score Improvement or a feat, ascending, from its Ability Score Improvement features. */
+  abilityScoreImprovementLevels: number[]
 }
 
 export const SPELL_SLOT_LEVELS: readonly SpellSlotLevel[] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -372,6 +374,17 @@ function getQualifyingLevelEffects(feature: Feature, level: number): FeatureEffe
     .filter((tier) => tier.level <= level)
     .sort((a, b) => a.level - b.level)
     .map((tier) => tier.effects)
+}
+
+/**
+ * Whether a tier sets how Max HP is calculated (a Hit Points feature's mode and its values). The
+ * last qualifying tier that does is the one calculateMaxHitPoints reads (see getActiveFeatureEffects).
+ */
+export function setsMaxHitPoints(effects: FeatureEffects): boolean {
+  return effects.hitPointsMode != null ||
+    effects.hitPointsFlatValue != null ||
+    effects.hitPointsPerLevelAmount != null ||
+    (effects.hitPointsRolledLevels?.length ?? 0) > 0
 }
 
 export function getActiveLevelEffect(feature: Feature, level: number): FeatureEffects | undefined {
@@ -410,6 +423,7 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     spellSlots: { ...ZERO_SPELL_SLOTS },
     preparedSpells: 0,
     preparedSpellsGrants: [],
+    abilityScoreImprovementLevels: [],
   }
   const level = character.level ?? 1
 
@@ -430,16 +444,14 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
           totals.hitDiceSizeSource = sourceLabel
           totals.hitDiceSizeSourceFeatureId = feature.id
         }
-        if (
-          effects.hitPointsMode != null ||
-          effects.hitPointsFlatValue != null ||
-          effects.hitPointsPerLevelAmount != null ||
-          (effects.hitPointsRolledLevels?.length ?? 0) > 0
-        ) {
+        if (setsMaxHitPoints(effects)) {
           totals.hitPointsMode = effects.hitPointsMode
           totals.hitPointsFlatValue = effects.hitPointsFlatValue
           totals.hitPointsPerLevelAmount = effects.hitPointsPerLevelAmount
           totals.hitPointsRolledLevels = effects.hitPointsRolledLevels
+        }
+        for (const asiLevel of effects.abilityScoreImprovementLevels ?? []) {
+          if (!totals.abilityScoreImprovementLevels.includes(asiLevel)) totals.abilityScoreImprovementLevels.push(asiLevel)
         }
         if (effects.size) {
           totals.size = effects.size
@@ -549,6 +561,7 @@ export function getActiveFeatureEffects(character: FeatureEffectCharacter): Feat
     }
   }
 
+  totals.abilityScoreImprovementLevels.sort((a, b) => a - b)
   return totals
 }
 

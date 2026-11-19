@@ -1,10 +1,14 @@
-import { Show } from "solid-js"
+import { createSignal, Show } from "solid-js"
 import User from "lucide-solid/icons/user"
+import ArrowBigUpDash from "lucide-solid/icons/arrow-big-up-dash"
 
 import type { Character } from "@/lib/character-types"
 import { applyLevelChange } from "@/lib/character-utils"
+import { MAX_CHARACTER_LEVEL } from "@/lib/level-up"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { EditableModule } from "@/components/editable-module"
+import { LevelUpModal } from "@/components/level-up-modal"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { Label } from "@/components/ui/label"
@@ -62,6 +66,13 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
     edit.setDraft((prev) => ({ ...prev, [field]: value }))
   }
 
+  const [levelUpOpen, setLevelUpOpen] = createSignal(false)
+  // The level up is saved at once; the form shows the new level, keeping the rest of what's in it
+  const handleLevelUp = (updated: Character) => {
+    props.onUpdate(updated)
+    updateField("level", updated.level)
+  }
+
   return (
     <EditableModule
       data-sem="character-basic-info-module"
@@ -84,7 +95,19 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
               </div>
               <div>
                 <Label for="level">Level</Label>
-                <NumericInput id="level" min={1} max={20} value={edit.draft().level || 1} onChange={(v) => updateField("level", v)} />
+                <div class="flex items-center gap-2">
+                  <NumericInput id="level" class="flex-1" min={1} max={MAX_CHARACTER_LEVEL} value={edit.draft().level || 1} onChange={(v) => updateField("level", v)} />
+                  <Button
+                    data-test="level-up-button"
+                    variant="outline"
+                    class="h-11 gap-1"
+                    disabled={(props.character.level ?? 1) >= MAX_CHARACTER_LEVEL}
+                    onClick={() => setLevelUpOpen(true)}
+                  >
+                    <ArrowBigUpDash aria-hidden="true" />
+                    Level Up
+                  </Button>
+                </div>
               </div>
               <div>
                 <Label for="race">{raceLabel()}</Label>
@@ -139,6 +162,7 @@ export function CharacterBasicInfoModule(props: CharacterBasicInfoModuleProps) {
             </div>
           </>
         )}
+      <LevelUpModal character={props.character} open={levelUpOpen()} onOpenChange={setLevelUpOpen} onLevelUp={handleLevelUp} />
     </EditableModule>
   )
 }

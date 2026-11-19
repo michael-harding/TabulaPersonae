@@ -6,7 +6,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
-import { cleanup, render, screen, fireEvent } from "../test-utils"
+import { cleanup, cleanupPortals, render, screen, fireEvent, within } from "../test-utils"
 
 const emptyCharacter = createDefaultCharacter()
 
@@ -178,6 +178,50 @@ describe("CharacterBasicInfoModule", () => {
       clickEditButton()
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
       expect(screen.queryByLabelText(/character name/i)).not.toBeInTheDocument()
+    })
+  })
+
+  describe("Level Up", () => {
+    afterEach(() => {
+      cleanup()
+      cleanupPortals()
+    })
+
+    it("is only offered in edit mode", () => {
+      render(() => <CharacterBasicInfoModule character={emptyCharacter} onUpdate={vi.fn()} />)
+      expect(screen.queryByTestId("level-up-button")).not.toBeInTheDocument()
+      clickEditButton()
+      expect(screen.getByTestId("level-up-button")).toBeEnabled()
+    })
+
+    it("is disabled at level 20", () => {
+      render(() => <CharacterBasicInfoModule character={{ ...emptyCharacter, level: 20 }} onUpdate={vi.fn()} />)
+      clickEditButton()
+      expect(screen.getByTestId("level-up-button")).toBeDisabled()
+    })
+
+    it("opens the Level Up modal at the next level", () => {
+      render(() => <CharacterBasicInfoModule character={{ ...emptyCharacter, level: 3 }} onUpdate={vi.fn()} />)
+      clickEditButton()
+      fireEvent.click(screen.getByTestId("level-up-button"))
+      expect(within(screen.getByRole("dialog", { name: "Level Up" })).getByLabelText("New Level")).toHaveValue(4)
+    })
+
+    it("saves the level up at once and shows the new level in the form, keeping its other edits", () => {
+      const [character, setCharacter] = createStore<Character>({ ...emptyCharacter, level: 3, name: "Aria" })
+      const onUpdate = vi.fn((updated: Character) => setCharacter(updated))
+      render(() => <CharacterBasicInfoModule character={character} onUpdate={onUpdate} />)
+      clickEditButton()
+      fireEvent.input(screen.getByLabelText(/character name/i), { target: { value: "Strider" } })
+      fireEvent.click(screen.getByTestId("level-up-button"))
+      fireEvent.click(screen.getByTestId("level-up-confirm-button"))
+
+      expect(onUpdate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ level: 4, name: "Aria" }))
+      expect(screen.getByLabelText(/^level$/i)).toHaveValue(4)
+      expect(screen.getByLabelText(/character name/i)).toHaveValue("Strider")
+
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+      expect(onUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ level: 4, name: "Strider" }))
     })
   })
 

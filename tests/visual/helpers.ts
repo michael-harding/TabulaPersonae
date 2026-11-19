@@ -45,9 +45,9 @@ export function dialog(page: Page) {
   return page.getByRole("dialog")
 }
 
-/** Opens the test character's sheet and the given modal, with the pointer parked. */
+/** Opens the modal's character's sheet (testCharacter's by default) and the modal, with the pointer parked. */
 export async function openModal(page: Page, modal: ModalCase, theme?: Theme) {
-  await openSheet(page, testCharacter, { tab: modal.tab, theme })
+  await openSheet(page, modal.character ?? testCharacter, { tab: modal.tab, theme })
   await modal.open(page)
   await expect(dialog(page)).toBeVisible()
   await parkPointer(page)

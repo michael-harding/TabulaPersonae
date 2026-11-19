@@ -167,6 +167,16 @@ export const SCENES: Scene[] = [
     },
   },
   {
+    name: "level up modal",
+    within: DIALOG,
+    open: async (page) => {
+      await openGuestSheet(page, "Character")
+      await page.locator('[data-test="character-basic-info-module-edit"]').click()
+      await page.locator('[data-test="level-up-button"]').click()
+      await expect(page.getByRole("dialog", { name: "Level Up" })).toBeVisible()
+    },
+  },
+  {
     name: "action editor",
     within: DIALOG,
     open: async (page) => {
