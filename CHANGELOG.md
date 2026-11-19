@@ -5,6 +5,22 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.10.0] - 2026-11-19
+
+### Added
+- **Level Up** — a Level Up button beside the Level field in edit mode opens a dialog for raising the character's level, up to 20. It previews every calculated value that changes, lists the features gained, flags custom and hand-entered values that need updating by hand, and reminds you of Ability Score Improvement and spell choices. Hit points follow the Hit Points feature: nothing to enter for per-level HP, a New HP field for a single value, or a checked roll for each level gained when HP is rolled. Current HP rises by the Max HP gained, and the level up is saved at once
+- **Spell slots from the Spellcasting feature** — the Spellcasting Ability feature type is now Spellcasting, and it gives the spell slots as well as the ability, as a table of slots by character level. The highest row the character has reached sets the totals. Edit Slots on the Spells tab opens that feature's form. Slots entered on an existing character become a row of a Spellcasting class feature from its current level on, with any Spellcasting Ability feature keeping its ability, and a PDF import's ability and slots become a Spellcasting feature too
+- **Prepared Spells feature type** — gives how many spells the character can prepare, as a table by character level. The Spells tab shows "prepared / limit", with a tooltip naming each feature it comes from
+- **Required features** — every character now has exactly one Hit Points, Ability Score Improvement, Creature Type and Size feature. They can't be deleted or change type, aren't offered in the Feature Type menu, and their dialog is titled by type (e.g. "Edit Hit Points"). Ability Score Improvement lists the levels the character gains one at, starting from 4, 8, 12, 16 and 19, and Creature Type is a new feature type. Existing characters get any they lack with starting values, without overwriting anything they already have; an extra feature of a required type is relabeled "<type> (legacy)" and keeps its effects
+- **Custom feature type** — the default for a new feature, with a name, highlights and description and no mechanical effect. It replaces the empty "None" type, and features saved with no type become Custom
+- **Proficiency Bonus uses scaling** — a feature's max uses can follow the character's proficiency bonus, including after a level up or with a custom bonus
+- New characters start with Speed and Languages species traits, which can be edited or deleted like any other feature
+
+### Changed
+- New characters calculate their proficiency bonus and Max HP by default. Characters saved with a custom value keep it
+- Changing the level in Character Information now moves current HP by the Max HP gained or lost, never dropping a conscious character to 0
+- Importing a character, or exporting one, now brings a calculated Max HP up to date, as it already did for other calculated values
+
 ## [v1.9.0] - 2026-11-15
 
 ### Added
