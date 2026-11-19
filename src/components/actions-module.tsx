@@ -9,7 +9,7 @@ import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionKind, ActionType, ActionSectionKey, ActionSectionLayout, Attack, Equipment, Feature, Spell, SpellSlotLevel, OtherAction } from "@/lib/character-types"
-import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, ACTION_KIND_LABELS, RECHARGE_ON_OPTIONS, activeSpells, isSustainedSpell, withSpellActivated, withSpellEnded, withSpells, isSpellReady, getSpellSlots, withSpentSpellSlots, withFeatureSaved, featureListField, SPELL_SLOT_LEVELS, type SpellSlotState } from "@/lib/character-utils"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, ACTION_KIND_LABELS, RECHARGE_ON_OPTIONS, activeSpells, isSustainedSpell, withSpellActivated, withSpellEnded, withSpells, isSpellReady, getSpellSlots, withSpentSpellSlots, withFeatureSaved, featureListField, SPELL_SLOT_LEVELS, type SpellSlotState, getEffectiveProficiencyBonus } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { Button } from "@/components/ui/button"
@@ -710,7 +710,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       highlights={feature.highlights}
       description={feature.description}
       uses={feature.uses ?? 0}
-      maxUses={effectiveMaxUses(feature, props.character.level ?? 1)}
+      maxUses={effectiveMaxUses(feature, props.character)}
       rechargeOn={feature.rechargeOn}
       onUsesChange={(v) => handleFeatureUsesChange(feature, v)}
       onEdit={() => setEditingFeature(feature)}
@@ -1018,6 +1018,7 @@ export function ActionsModule(props: ActionsModuleProps) {
         kind={editingFeature()?.source ?? 'class-feature'}
         feature={editingFeature()}
         characterLevel={props.character.level ?? 1}
+        proficiencyBonus={getEffectiveProficiencyBonus(props.character)}
         onSave={handleSaveFeature}
         onCancel={() => setEditingFeature(null)}
       />

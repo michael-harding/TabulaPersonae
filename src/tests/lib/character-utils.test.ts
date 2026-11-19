@@ -56,6 +56,7 @@ import {
   getAbilityScoreBaseMax,
   inferFeatureType,
   effectiveEquipmentMaxUses,
+  effectiveMaxUses,
   effectiveEquipmentUses,
   reconcileEquipmentRest,
   spellDurationLabel,
@@ -2246,6 +2247,27 @@ describe("spell calculations with a feature-granted spellcasting ability", () =>
     expect(getSpellSaveDC(character)).toBe(14) // 8 + 3 prof + 3 WIS mod
     expect(getSpellAttackBonus(character)).toBe(6) // 3 prof + 3 WIS mod
     expect(computeSpellModifier(character)).toBe(3)
+  })
+})
+
+describe("effectiveMaxUses", () => {
+  it("uses the flat maxUses when no scaling is set", () => {
+    expect(effectiveMaxUses(makeFeature({ maxUses: 3 }), { level: 9 })).toBe(3)
+  })
+
+  it("multiplies maxUsesPerLevel by the character level in 'per-level' mode", () => {
+    expect(effectiveMaxUses(makeFeature({ maxUses: 3, maxUsesMode: "per-level", maxUsesPerLevel: 5 }), { level: 4 })).toBe(20)
+  })
+
+  it("uses the calculated proficiency bonus in 'proficiency-bonus' mode, ignoring maxUses", () => {
+    const feature = makeFeature({ maxUses: 7, maxUsesMode: "proficiency-bonus" })
+    expect(effectiveMaxUses(feature, { level: 1, useCalculatedProficiencyBonus: true })).toBe(2)
+    expect(effectiveMaxUses(feature, { level: 9, useCalculatedProficiencyBonus: true })).toBe(4)
+  })
+
+  it("uses a custom proficiency bonus as-is in 'proficiency-bonus' mode", () => {
+    const feature = makeFeature({ maxUsesMode: "proficiency-bonus" })
+    expect(effectiveMaxUses(feature, { level: 1, useCalculatedProficiencyBonus: false, proficiencyBonus: 5 })).toBe(5)
   })
 })
 

@@ -1608,11 +1608,13 @@ export function spentFromRemaining(remaining: number, max: number | undefined): 
   return (max ?? 0) - remaining
 }
 
-export function effectiveMaxUses(feature: Feature, characterLevel: number): number {
-  if (feature.maxUsesMode === 'per-level') {
-    return (feature.maxUsesPerLevel ?? 0) * characterLevel
+/** A feature's max uses for this character right now: its flat count, or one scaled by level or proficiency bonus. */
+export function effectiveMaxUses(feature: Feature, character: ProficiencyBonusCharacter): number {
+  switch (feature.maxUsesMode) {
+    case 'per-level': return (feature.maxUsesPerLevel ?? 0) * (character.level ?? 1)
+    case 'proficiency-bonus': return getEffectiveProficiencyBonus(character)
+    default: return feature.maxUses ?? 0
   }
-  return feature.maxUses ?? 0
 }
 
 export function hasChargesTracking(item: Pick<Equipment, "magic" | "maxUses">): boolean {

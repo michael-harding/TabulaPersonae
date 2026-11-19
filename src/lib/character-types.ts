@@ -255,6 +255,9 @@ export type FeatureTypeValue =
   | 'Ability Scores' | 'Max HP Bonus'
   | `${RequiredFeatureType} (legacy)`
 
+/** How a feature's max uses are counted; absent means 'flat'. */
+export type MaxUsesMode = 'flat' | 'per-level' | 'proficiency-bonus'
+
 export interface Feature extends UseableEntry, DamageFields, GainFields {
   source: FeatureKind
   actionKind?: ActionKind
@@ -267,7 +270,9 @@ export interface Feature extends UseableEntry, DamageFields, GainFields {
   // 'per-level' means maxUses is ignored and the effective cap is maxUsesPerLevel * character.level
   // — same "rate × current total level" math as FeatureEffects.hpBonusPerLevel, computed fresh at
   // read time rather than baked in, so leveling up never requires manually editing the feature.
-  maxUsesMode?: 'flat' | 'per-level'
+  // 'proficiency-bonus' likewise ignores maxUses: the cap is the character's effective proficiency
+  // bonus (getEffectiveProficiencyBonus), read fresh so it follows level-ups and a custom bonus.
+  maxUsesMode?: MaxUsesMode
   maxUsesPerLevel?: number
   // Absent only on a feature from before the field existed, until migrateCharacter backfills it.
   // A feature with no mechanical type is 'Custom' (stored data from before Custom may still hold

@@ -1,4 +1,4 @@
-import { createMemo, createSignal, untrack, For, Index, Show } from "solid-js"
+import { createMemo, createSignal, untrack, For, Index, Match, Show, Switch } from "solid-js"
 import BookOpen from "lucide-solid/icons/book-open"
 import Leaf from "lucide-solid/icons/leaf"
 import Star from "lucide-solid/icons/star"
@@ -11,8 +11,8 @@ import Dices from "lucide-solid/icons/dices"
 import Layers from "lucide-solid/icons/layers"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, SpellSlotLevel, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, CREATURE_TYPES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, formatModifier, ordinal, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME, withFeatureSaved } from "@/lib/character-utils"
+import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, MaxUsesMode, SpellSlotLevel, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
+import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, getEffectiveProficiencyBonus, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, CREATURE_TYPES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, formatModifier, ordinal, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME, withFeatureSaved } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { effectFeatureType, isRequiredFeature, isRequiredFeatureType } from "@/lib/required-features"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -78,9 +78,10 @@ const HIT_POINTS_MODE_OPTIONS: { value: HitPointsMode; label: string }[] = [
   { value: 'rolled', label: 'Rolled Values' },
 ]
 
-const MAX_USES_MODE_OPTIONS: { value: 'flat' | 'per-level'; label: string }[] = [
+const MAX_USES_MODE_OPTIONS: { value: MaxUsesMode; label: string }[] = [
   { value: 'flat', label: 'Flat' },
   { value: 'per-level', label: 'Per Level' },
+  { value: 'proficiency-bonus', label: 'Proficiency Bonus' },
 ]
 
 // Formats one tier's effects into a single human-readable summary line for card display, keyed off
@@ -270,7 +271,7 @@ export interface FeatureFormData extends DamageValues, GainValues {
   attackSave: string
   uses: number
   maxUses: number
-  maxUsesMode: 'flat' | 'per-level'
+  maxUsesMode: MaxUsesMode
   maxUsesPerLevel: number
   rechargeOn: '' | 'short-rest' | 'long-rest'
   level: number
@@ -344,7 +345,7 @@ export function featureFromForm(form: FeatureFormData, base: Partial<Feature> & 
     level: action ? (form.level || undefined) : undefined,
     uses: (action && form.uses) ? form.uses : undefined,
     maxUses: (action && form.maxUsesMode === 'flat' && form.maxUses) ? form.maxUses : undefined,
-    maxUsesMode: (action && form.maxUsesMode === 'per-level') ? 'per-level' : undefined,
+    maxUsesMode: (action && form.maxUsesMode !== 'flat') ? form.maxUsesMode : undefined,
     maxUsesPerLevel: (action && form.maxUsesMode === 'per-level' && form.maxUsesPerLevel) ? form.maxUsesPerLevel : undefined,
     rechargeOn: (action && form.rechargeOn) ? form.rechargeOn : undefined,
     levelEffects: form.levelEffects.length > 0 ? form.levelEffects : undefined,
@@ -391,6 +392,8 @@ function nextTableTier(tiers: FeatureLevelEffect[]): FeatureLevelEffect {
 interface FeatureFormProps {
   initialData?: FeatureFormData
   characterLevel: number
+  /** The character's effective proficiency bonus, for the Proficiency Bonus uses scaling. */
+  proficiencyBonus: number
   onSubmit: (data: FeatureFormData) => void
   onCancel: () => void
 }
@@ -1045,32 +1048,37 @@ function FeatureForm(props: FeatureFormProps) {
                 <Select
                   options={MAX_USES_MODE_OPTIONS}
                   value={formData().maxUsesMode}
-                  onValueChange={(v) => setFormData((d) => ({ ...d, maxUsesMode: v as 'flat' | 'per-level' }))}
+                  onValueChange={(v) => setFormData((d) => ({ ...d, maxUsesMode: v as MaxUsesMode, uses: 0 }))}
                 >
                   <SelectTrigger id="feature-uses-scaling" data-test="feature-uses-scaling-select" aria-label="Uses Scaling"><SelectValue /></SelectTrigger>
                   <SelectContent />
                 </Select>
               </div>
             </div>
-            <Show
-              when={formData().maxUsesMode === 'per-level'}
-              fallback={
+            <Switch>
+              <Match when={formData().maxUsesMode === 'flat'}>
                 <div class="space-y-1">
                   <Label for="feature-max-uses">Max Uses (0 = unlimited)</Label>
                   <NumericInput id="feature-max-uses" data-test="feature-max-uses-input" min={0} value={formData().maxUses}
                     onChange={(v) => setFormData((d) => ({ ...d, maxUses: v, uses: 0 }))} />
                 </div>
-              }
-            >
-              <div class="space-y-1">
-                <Label for="feature-max-uses-per-level">Max Uses per Level</Label>
-                <NumericInput id="feature-max-uses-per-level" data-test="feature-max-uses-per-level-input" min={0} value={formData().maxUsesPerLevel}
-                  onChange={(v) => setFormData((d) => ({ ...d, maxUsesPerLevel: v, uses: 0 }))} />
-                <p class="text-xs text-muted-foreground">
-                  = {formData().maxUsesPerLevel * props.characterLevel} at Level {props.characterLevel}
+              </Match>
+              <Match when={formData().maxUsesMode === 'per-level'}>
+                <div class="space-y-1">
+                  <Label for="feature-max-uses-per-level">Max Uses per Level</Label>
+                  <NumericInput id="feature-max-uses-per-level" data-test="feature-max-uses-per-level-input" min={0} value={formData().maxUsesPerLevel}
+                    onChange={(v) => setFormData((d) => ({ ...d, maxUsesPerLevel: v, uses: 0 }))} />
+                  <p class="text-xs text-muted-foreground">
+                    = {formData().maxUsesPerLevel * props.characterLevel} at Level {props.characterLevel}
+                  </p>
+                </div>
+              </Match>
+              <Match when={formData().maxUsesMode === 'proficiency-bonus'}>
+                <p class="text-xs text-muted-foreground" data-test="feature-max-uses-proficiency-bonus">
+                  Max Uses = {props.proficiencyBonus} (Proficiency Bonus)
                 </p>
-              </div>
-            </Show>
+              </Match>
+            </Switch>
             <div class="space-y-1">
               <Label for="feature-recharge">Recharge On</Label>
               <Select options={RECHARGE_ON_OPTIONS} value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
@@ -1448,7 +1456,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                             <MarkdownContent text={feature.description!} class="text-muted-foreground" />
                           </Show>
                           {(() => {
-                            const maxUses = effectiveMaxUses(feature, props.character.level ?? 1)
+                            const maxUses = effectiveMaxUses(feature, props.character)
                             return (
                               <Show when={maxUses > 0}>
                                 <Show
@@ -1527,6 +1535,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
         kind={editingFeature()?.source ?? isAddOpen() ?? 'class-feature'}
         feature={editingFeature()}
         characterLevel={props.character.level ?? 1}
+        proficiencyBonus={getEffectiveProficiencyBonus(props.character)}
         onSave={handleSave}
         onCancel={() => { setIsAddOpen(null); setEditingFeature(null) }}
       />
@@ -1543,6 +1552,8 @@ interface FeatureEditModalProps {
   /** The Feature Type a new feature starts with; none picked when absent. */
   initialType?: FeatureTypeValue
   characterLevel: number
+  /** The character's effective proficiency bonus (getEffectiveProficiencyBonus). */
+  proficiencyBonus: number
   onSave: (feature: Feature) => void
   onCancel: () => void
 }
@@ -1568,6 +1579,7 @@ export function FeatureEditModal(props: FeatureEditModalProps) {
               <FeatureForm
                 initialData={feature ? featureToForm(feature) : props.initialType ? withFeatureType(defaultFeatureForm, props.initialType) : undefined}
                 characterLevel={props.characterLevel}
+                proficiencyBonus={props.proficiencyBonus}
                 onSubmit={(data) => props.onSave(featureFromForm(data, feature ?? { source: props.kind }))}
                 onCancel={props.onCancel}
               />

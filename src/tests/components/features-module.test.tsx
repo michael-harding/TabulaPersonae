@@ -694,6 +694,56 @@ describe("FeaturesModule", () => {
         expect(screen.getByRole("combobox", { name: /uses scaling/i })).toHaveTextContent("Per Level")
         expect(screen.getByLabelText(/max uses per level/i)).toHaveValue(5)
       })
+
+      it("shows the proficiency bonus as Max Uses, with no Max Uses input, when Proficiency Bonus is selected", () => {
+        render(() => <FeaturesModule character={makeCharacter({ level: 5, useCalculatedProficiencyBonus: true })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Action" }))
+        fireEvent.click(within(modal).getByRole("combobox", { name: /uses scaling/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Proficiency Bonus" }))
+
+        expect(within(modal).queryByLabelText(/max uses/i)).not.toBeInTheDocument()
+        expect(within(modal).getByText("Max Uses = 3 (Proficiency Bonus)")).toBeInTheDocument()
+      })
+
+      it("saves maxUsesMode 'proficiency-bonus' with no flat maxUses when Proficiency Bonus is selected", () => {
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={onUpdate} />)
+        fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Action" }))
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Second Wind" } })
+        const maxInput = within(modal).getByLabelText(/max uses/i)
+        fireEvent.input(maxInput, { target: { value: "4" } })
+        fireEvent.blur(maxInput)
+        fireEvent.click(within(modal).getByRole("combobox", { name: /uses scaling/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Proficiency Bonus" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(onUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classFeatures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "Second Wind",
+                maxUsesMode: "proficiency-bonus",
+                maxUses: undefined,
+                maxUsesPerLevel: undefined,
+              }),
+            ]),
+          })
+        )
+      })
+
+      it("pre-fills Uses Scaling when editing a proficiency-bonus feature", () => {
+        const feature = makeFeature({
+          name: "Second Wind", actionKind: "action", featureType: "Action", maxUsesMode: "proficiency-bonus",
+        })
+        render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        fireEvent.click(screen.getByRole("button", { name: /edit second wind/i }))
+        expect(screen.getByRole("combobox", { name: /uses scaling/i })).toHaveTextContent("Proficiency Bonus")
+      })
     })
   })
 
@@ -2260,6 +2310,20 @@ describe("FeaturesModule", () => {
         const feature = makeFeature({ actionKind: "action", maxUsesMode: "per-level", maxUsesPerLevel: 1, uses: 0 })
         render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 4 })} onUpdate={vi.fn()} />)
         expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(4)
+      })
+    })
+
+    describe("proficiency-bonus max uses", () => {
+      it("shows one pip per point of the calculated proficiency bonus", () => {
+        const feature = makeFeature({ actionKind: "action", maxUsesMode: "proficiency-bonus", uses: 0 })
+        render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 9, useCalculatedProficiencyBonus: true })} onUpdate={vi.fn()} />)
+        expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(4)
+      })
+
+      it("follows a custom proficiency bonus", () => {
+        const feature = makeFeature({ actionKind: "action", maxUsesMode: "proficiency-bonus", uses: 0 })
+        render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature], level: 1, useCalculatedProficiencyBonus: false, proficiencyBonus: 5 })} onUpdate={vi.fn()} />)
+        expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(5)
       })
     })
   })

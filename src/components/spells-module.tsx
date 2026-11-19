@@ -12,7 +12,7 @@ import BookOpen from "lucide-solid/icons/book-open"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Feature, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells, getSpellSlots, withSpentSpellSlots, findSpellcastingFeature, withFeatureSaved, getPreparedSpellsLimit, SPELL_SLOT_LEVELS } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells, getSpellSlots, withSpentSpellSlots, findSpellcastingFeature, withFeatureSaved, getPreparedSpellsLimit, SPELL_SLOT_LEVELS, getEffectiveProficiencyBonus } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -462,6 +462,7 @@ export function SpellsModule(props: SpellsModuleProps) {
         feature={slotsFeatureModal()?.feature ?? null}
         initialType="Spellcasting"
         characterLevel={props.character.level ?? 1}
+        proficiencyBonus={getEffectiveProficiencyBonus(props.character)}
         onSave={handleSaveSpellSlotsFeature}
         onCancel={() => setSlotsFeatureModal(null)}
       />

@@ -1062,6 +1062,20 @@ describe("ActionsModule", () => {
       expect(screen.getByDisplayValue("15")).toBeInTheDocument()
     })
 
+    it("renders the uses tracker for a proficiency-bonus max uses feature using the effective proficiency bonus", () => {
+      render(() => (
+        <ActionsModule
+          character={makeCharacter({
+            level: 5,
+            useCalculatedProficiencyBonus: true,
+            classFeatures: [makeFeature({ name: "Second Wind", actionKind: "action", maxUsesMode: "proficiency-bonus", uses: 0 })],
+          })}
+          onUpdate={vi.fn()}
+        />
+      ))
+      expect(screen.getAllByLabelText("Charge available (click to use)")).toHaveLength(3)
+    })
+
     it("feature description is shown in the card", () => {
       render(() => (
         <ActionsModule
