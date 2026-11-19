@@ -12,7 +12,7 @@ import Layers from "lucide-solid/icons/layers"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, MaxUsesMode, SpellSlotLevel, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, getEffectiveProficiencyBonus, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, CREATURE_TYPES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, ordinal, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME, withFeatureSaved } from "@/lib/character-utils"
+import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, getEffectiveProficiencyBonus, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, CREATURE_TYPES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, ordinal, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME, withFeatureSaved, MAX_CHARACTER_LEVEL } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
 import { featureEffectLines, spellcastingAbilityOf } from "@/lib/feature-effect-lines"
 import { effectFeatureType, isRequiredFeature, isRequiredFeatureType } from "@/lib/required-features"
@@ -261,7 +261,7 @@ function nextTableTier(tiers: FeatureLevelEffect[]): FeatureLevelEffect {
   const highest = tiers.reduce((top, tier) => (tier.level > top.level ? tier : top))
   const effects = { ...highest.effects }
   if (effects.spellSlots) effects.spellSlots = { ...effects.spellSlots }
-  return { level: Math.min(20, highest.level + 1), effects }
+  return { level: Math.min(MAX_CHARACTER_LEVEL, highest.level + 1), effects }
 }
 
 interface FeatureFormProps {
@@ -343,7 +343,7 @@ function LevelEffectRow(props: {
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">
           <Label class="text-xs whitespace-nowrap">At Level</Label>
-          <NumericInput data-test={`level-effect-${props.index}-level-input`} aria-label="At Level" class="w-20" min={1} max={20} value={props.tier.level} onChange={props.onLevelChange} />
+          <NumericInput data-test={`level-effect-${props.index}-level-input`} aria-label="At Level" class="w-20" min={1} max={MAX_CHARACTER_LEVEL} value={props.tier.level} onChange={props.onLevelChange} />
         </div>
         <ConfirmButton
           data-test={`level-effect-${props.index}-remove-button`}
@@ -869,7 +869,7 @@ function FeatureForm(props: FeatureFormProps) {
           <div class="space-y-4 border rounded-md p-3">
             <div class="flex items-center gap-2">
               <Label class="text-xs whitespace-nowrap">At Level</Label>
-              <NumericInput data-test="feature-action-level-input" aria-label="At Level" class="w-20" min={1} max={20} value={formData().level} onChange={(v) => setFormData((d) => ({ ...d, level: v }))} />
+              <NumericInput data-test="feature-action-level-input" aria-label="At Level" class="w-20" min={1} max={MAX_CHARACTER_LEVEL} value={formData().level} onChange={(v) => setFormData((d) => ({ ...d, level: v }))} />
             </div>
             <div class="space-y-1">
               <Label for="feature-action-kind">Action Kind</Label>

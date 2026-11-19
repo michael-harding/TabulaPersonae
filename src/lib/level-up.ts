@@ -2,6 +2,7 @@ import type { AbilityScores, Character, Feature, FeatureEffects, HitPointsMode, 
 import {
   ABILITY_DISPLAY_NAMES,
   ABILITY_KEYS,
+  CUSTOMIZABLE_VALUES,
   FEATURE_KIND_LABELS,
   SENSE_LABELS,
   SENSE_TYPES,
@@ -9,45 +10,38 @@ import {
   SKILL_DISPLAY_NAMES,
   SPELL_SLOT_LEVELS,
   applyLevelChange,
-  calculateEquippedAC,
-  calculateInitiative,
+  clampCharacterLevel,
   effectiveMaxUses,
   formatModifier,
   getActiveFeatureEffects,
   getCalculatedAbilityScore,
+  getCustomSense,
   getEffectiveAbilityScores,
-  getEffectiveCarryingCapacity,
   getEffectiveHitDiceSize,
   getEffectiveMaxHp,
-  getEffectiveMovementSpeeds,
   getEffectiveProficiencyBonus,
   getEffectiveSavingThrowProficiency,
   getEffectiveSenses,
   getEffectiveSkillProficiency,
   getEffectiveSpellcastingAbility,
+  getEffectiveValue,
   getEquipmentModifierTotals,
   getEquippedWeaponAttacks,
-  getPassiveScore,
   getPreparedSpellsLimit,
-  getProficiencyBonus,
   getSavingThrowModifier,
   getSkillModifier,
-  getSpellAttackBonus,
-  getSpellSaveDC,
   getSpellSlots,
+  isAbilityScoreCalculated,
+  isCalculated,
+  isSenseCalculated,
   ordinal,
   safeFeatures,
   setsMaxHitPoints,
+  withFeatureSaved,
+  type CustomizableValueKey,
 } from "./character-utils"
 import { formatFeatureEffectsLine } from "./feature-effect-lines"
 import { effectFeatureType, FEATURE_LIST_FIELDS } from "./required-features"
-
-export const MAX_CHARACTER_LEVEL = 20
-
-/** A level within 1–20, the character levels the sheet supports. */
-export function clampCharacterLevel(level: number): number {
-  return Math.min(MAX_CHARACTER_LEVEL, Math.max(1, Math.floor(level) || 1))
-}
 
 /** The levels a level up from `from` to `to` gains, in order: from + 1 through to. */
 export function levelsGained(from: number, to: number): number[] {
@@ -98,15 +92,6 @@ export interface LevelUpInput {
   rolledHitPoints: Record<number, number>
 }
 
-function withFeatureReplaced(character: Character, feature: Feature): Character {
-  const next = { ...character }
-  for (const field of FEATURE_LIST_FIELDS) {
-    const list = safeFeatures(character[field])
-    if (list.some((f) => f.id === feature.id)) next[field] = list.map((f) => (f.id === feature.id ? feature : f))
-  }
-  return next
-}
-
 function withTierEffects(feature: Feature, tierIndex: number, effects: FeatureEffects): Feature {
   return {
     ...feature,
@@ -126,9 +111,10 @@ export function applyLevelUp(character: Character, input: LevelUpInput): Charact
 
   const source = findHitPointsSource(next)
   if (source?.mode === "flat") {
-    next = withFeatureReplaced(next, withTierEffects(source.feature, source.tierIndex, {
+    next = withFeatureSaved(next, withTierEffects(source.feature, source.tierIndex, {
       ...source.effects,
-      hitPointsFlatValue: Math.max(0, input.flatHitPoints),
+      // Max HP is at least 1 (see getEffectiveMaxHp)
+      hitPointsFlatValue: Math.max(1, input.flatHitPoints),
     }))
   } else if (source?.mode === "rolled") {
     const rolls = [...(source.effects.hitPointsRolledLevels ?? [])]
@@ -137,7 +123,7 @@ export function applyLevelUp(character: Character, input: LevelUpInput): Charact
       const roll = input.rolledHitPoints[gained]
       if (roll != null) rolls[gained - 1] = Math.max(0, roll)
     }
-    next = withFeatureReplaced(next, withTierEffects(source.feature, source.tierIndex, { ...source.effects, hitPointsRolledLevels: rolls }))
+    next = withFeatureSaved(next, withTierEffects(source.feature, source.tierIndex, { ...source.effects, hitPointsRolledLevels: rolls }))
   }
 
   return applyLevelChange(character, next)
@@ -205,31 +191,40 @@ interface TrackedValue {
 
 const feet = (distance: number) => `${distance} ft`
 
-const MOVEMENT_FIELDS = [
-  { key: "walk", label: "Speed", value: "speed", flag: "useCalculatedSpeed" },
-  { key: "fly", label: "Fly Speed", value: "flySpeed", flag: "useCalculatedFlySpeed" },
-  { key: "swim", label: "Swim Speed", value: "swimSpeed", flag: "useCalculatedSwimSpeed" },
-  { key: "climb", label: "Climb Speed", value: "climbSpeed", flag: "useCalculatedClimbSpeed" },
-  { key: "burrow", label: "Burrow Speed", value: "burrowSpeed", flag: "useCalculatedBurrowSpeed" },
-] as const
+/**
+ * A value with a calculated/custom toggle, read through CUSTOMIZABLE_VALUES like everything else
+ * that shows it, so the summary and the sheet agree on which values are custom.
+ */
+function customizable(
+  key: CustomizableValueKey,
+  id: string,
+  group: LevelUpChangeGroup,
+  label: string,
+  format: (value: number) => string = String,
+): TrackedValue {
+  return {
+    id, group, label,
+    value: (c) => format(CUSTOMIZABLE_VALUES[key].calculated(c)),
+    custom: (c) => !isCalculated(c, key),
+    customValue: (c) => format(getEffectiveValue(c, key)),
+  }
+}
 
-const PASSIVE_FIELDS = [
-  { skill: "perception", value: "passivePerception", flag: "useCalculatedPassivePerception" },
-  { skill: "insight", value: "passiveInsight", flag: "useCalculatedPassiveInsight" },
-  { skill: "investigation", value: "passiveInvestigation", flag: "useCalculatedPassiveInvestigation" },
-] as const
+const MOVEMENT_VALUES = [
+  { key: "speed", id: "walk", label: "Speed" },
+  { key: "flySpeed", id: "fly", label: "Fly Speed" },
+  { key: "swimSpeed", id: "swim", label: "Swim Speed" },
+  { key: "climbSpeed", id: "climb", label: "Climb Speed" },
+  { key: "burrowSpeed", id: "burrow", label: "Burrow Speed" },
+] as const satisfies { key: CustomizableValueKey; id: string; label: string }[]
+
+const PASSIVE_VALUES = [
+  { key: "passivePerception", skill: "perception" },
+  { key: "passiveInsight", skill: "insight" },
+  { key: "passiveInvestigation", skill: "investigation" },
+] as const satisfies { key: CustomizableValueKey; skill: keyof Skills }[]
 
 const SKILL_KEYS = Object.keys(SKILL_DISPLAY_NAMES) as (keyof Skills)[]
-
-function passiveScore(character: Character, skill: keyof Skills): number {
-  const proficiency = getEffectiveSkillProficiency(character, skill)
-  return getPassiveScore(
-    getEffectiveAbilityScores(character)[SKILL_ABILITY_MAP[skill]],
-    getEffectiveProficiencyBonus(character),
-    proficiency.proficient,
-    proficiency.expertise,
-  )
-}
 
 function savingThrow(character: Character, ability: keyof AbilityScores): number {
   return getSavingThrowModifier(
@@ -250,14 +245,14 @@ function skillModifier(character: Character, skill: keyof Skills): number {
   )
 }
 
-// Each value is worked out with the same functions, and the same calculated/custom defaults, as the
+// Each value is worked out with the same getters, and the same calculated/custom defaults, as the
 // module that shows it, so the summary says what the sheet will show.
 function trackedValues(before: Character, after: Character): TrackedValue[] {
   const values: TrackedValue[] = [
     {
       id: "max-hp", group: "Hit Points", label: "Max HP",
       value: (c) => String(getEffectiveMaxHp({ ...c, useCalculatedMaximumHp: true })),
-      custom: (c) => !(c.useCalculatedMaximumHp ?? false),
+      custom: (c) => !isCalculated(c, "maximumHp"),
       customValue: (c) => String(getEffectiveMaxHp(c)),
     },
     { id: "current-hp", group: "Hit Points", label: "Current HP", value: (c) => String(c.hitPoints?.current ?? 0) },
@@ -268,34 +263,14 @@ function trackedValues(before: Character, after: Character): TrackedValue[] {
         return die == null ? "None" : `${c.level ?? 1}d${die}`
       },
     },
-    {
-      id: "proficiency-bonus", group: "Combat", label: "Proficiency Bonus",
-      value: (c) => formatModifier(getProficiencyBonus(c.level ?? 1)),
-      custom: (c) => !(c.useCalculatedProficiencyBonus ?? false),
-      customValue: (c) => formatModifier(getEffectiveProficiencyBonus(c)),
-    },
-    {
-      id: "armor-class", group: "Combat", label: "Armor Class",
-      value: (c) => String(calculateEquippedAC(c).ac),
-      custom: (c) => !(c.useCalculatedArmorClass ?? true),
-      customValue: (c) => String(c.armorClass ?? 10),
-    },
-    {
-      id: "initiative", group: "Combat", label: "Initiative",
-      value: (c) => formatModifier(calculateInitiative(c).initiative),
-      custom: (c) => !(c.useCalculatedInitiative ?? false),
-      customValue: (c) => formatModifier(c.initiative ?? 0),
-    },
-    ...MOVEMENT_FIELDS.map((field): TrackedValue => ({
-      id: `movement-${field.key}`, group: "Combat", label: field.label,
-      value: (c) => feet(getEffectiveMovementSpeeds(c)[field.key]),
-      custom: (c) => !(c[field.flag] ?? true),
-      customValue: (c) => feet(c[field.value] ?? 0),
-    })),
+    customizable("proficiencyBonus", "proficiency-bonus", "Combat", "Proficiency Bonus", formatModifier),
+    customizable("armorClass", "armor-class", "Combat", "Armor Class"),
+    customizable("initiative", "initiative", "Combat", "Initiative", formatModifier),
+    ...MOVEMENT_VALUES.map((field) => customizable(field.key, `movement-${field.id}`, "Combat", field.label, feet)),
     ...ABILITY_KEYS.map((ability): TrackedValue => ({
       id: `ability-${ability}`, group: "Ability Scores", label: ABILITY_DISPLAY_NAMES[ability],
       value: (c) => String(getCalculatedAbilityScore(c, ability)),
-      custom: (c) => !(c.useCalculatedAbilityScores?.[ability] ?? true),
+      custom: (c) => !isAbilityScoreCalculated(c, ability),
       customValue: (c) => String(getEffectiveAbilityScores(c)[ability]),
     })),
     ...ABILITY_KEYS.map((ability): TrackedValue => ({
@@ -306,17 +281,12 @@ function trackedValues(before: Character, after: Character): TrackedValue[] {
       id: `skill-${skill}`, group: "Skills", label: SKILL_DISPLAY_NAMES[skill],
       value: (c) => formatModifier(skillModifier(c, skill)),
     })),
-    ...PASSIVE_FIELDS.map((field): TrackedValue => ({
-      id: `passive-${field.skill}`, group: "Skills", label: `Passive ${SKILL_DISPLAY_NAMES[field.skill]}`,
-      value: (c) => String(passiveScore(c, field.skill)),
-      custom: (c) => !(c[field.flag] ?? true),
-      customValue: (c) => String(c[field.value] ?? passiveScore(c, field.skill)),
-    })),
+    ...PASSIVE_VALUES.map((field) => customizable(field.key, `passive-${field.skill}`, "Skills", `Passive ${SKILL_DISPLAY_NAMES[field.skill]}`)),
     ...SENSE_TYPES.map((sense: SenseType): TrackedValue => ({
       id: `sense-${sense}`, group: "Senses", label: SENSE_LABELS[sense],
       value: (c) => feet(getEffectiveSenses(c)[sense]),
-      custom: (c) => !(c.useCalculatedSenses?.[sense] ?? true),
-      customValue: (c) => feet(c.senses?.[sense] ?? 0),
+      custom: (c) => !isSenseCalculated(c, sense),
+      customValue: (c) => feet(getCustomSense(c, sense)),
     })),
     {
       id: "spellcasting-ability", group: "Spellcasting", label: "Spellcasting Ability",
@@ -325,29 +295,14 @@ function trackedValues(before: Character, after: Character): TrackedValue[] {
         return ability ? ABILITY_DISPLAY_NAMES[ability] : "None"
       },
     },
-    {
-      id: "spell-save-dc", group: "Spellcasting", label: "Spell Save DC",
-      value: (c) => String(getSpellSaveDC(c)),
-      custom: (c) => !(c.useCalculatedSpellSaveDC ?? true),
-      customValue: (c) => String(c.spellSaveDC),
-    },
-    {
-      id: "spell-attack-bonus", group: "Spellcasting", label: "Spell Attack Bonus",
-      value: (c) => formatModifier(getSpellAttackBonus(c)),
-      custom: (c) => !(c.useCalculatedSpellAttackBonus ?? true),
-      customValue: (c) => formatModifier(c.spellAttackBonus),
-    },
+    customizable("spellSaveDC", "spell-save-dc", "Spellcasting", "Spell Save DC"),
+    customizable("spellAttackBonus", "spell-attack-bonus", "Spellcasting", "Spell Attack Bonus", formatModifier),
     ...SPELL_SLOT_LEVELS.map((slotLevel): TrackedValue => ({
       id: `spell-slots-${slotLevel}`, group: "Spellcasting", label: `${ordinal(slotLevel)} Level Spell Slots`,
       value: (c) => String(getSpellSlots(c)[slotLevel].total),
     })),
     { id: "prepared-spells", group: "Spellcasting", label: "Prepared Spells", value: (c) => String(getPreparedSpellsLimit(c)?.total ?? 0) },
-    {
-      id: "carrying-capacity", group: "Inventory", label: "Carrying Capacity",
-      value: (c) => `${getEffectiveCarryingCapacity(c)} lb`,
-      custom: (c) => !(c.useCalculatedCarryingCapacity ?? true),
-      customValue: (c) => `${c.carryingCapacity ?? getEffectiveCarryingCapacity(c)} lb`,
-    },
+    customizable("carryingCapacity", "carrying-capacity", "Inventory", "Carrying Capacity", (lb) => `${lb} lb`),
   ]
 
   // A feature's max uses can follow level or proficiency bonus (see effectiveMaxUses)

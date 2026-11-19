@@ -4,7 +4,7 @@ import BookOpen from "lucide-solid/icons/book-open"
 import type { Character } from "@/lib/character-types"
 import { pickFields } from "@/lib/changes"
 import { useModuleEdit } from "@/hooks/use-module-edit"
-import { getSkillModifier, getAbilityModifier, getEffectiveProficiencyBonus, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, formatLeadingTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, SKILL_ABILITY_MAP, SKILL_DISPLAY_NAMES, ABILITY_DISPLAY_NAMES, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { getSkillModifier, getAbilityModifier, getEffectiveProficiencyBonus, isCalculated, isSenseCalculated, getCustomSense, CUSTOMIZABLE_VALUES, getPassiveScore, formatModifier, formatTerm, formatBonusTerm, formatLeadingTerm, getSavingThrowModifier, getEffectiveAbilityScores, getEquipmentModifierTotals, getActiveFeatureEffects, getEffectiveSenses, getEffectiveDamageResistances, getEffectiveDamageImmunities, getEffectiveDamageVulnerabilities, getEffectiveLanguages, getEffectiveProficiencies, getEffectiveSavingThrowProficiency, getEffectiveSkillProficiency, getEffectiveSkillAdvantage, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, SKILL_ABILITY_MAP, SKILL_DISPLAY_NAMES, ABILITY_DISPLAY_NAMES, ABILITY_TITLE_CASE as ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
 import type { SkillAdvantageState } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { ChipListEditor } from "@/components/ui/chip-list-editor"
@@ -128,7 +128,6 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
   const makePassiveStat = (
     skillKey: SkillKey,
     field: "passivePerception" | "passiveInsight" | "passiveInvestigation",
-    useField: "useCalculatedPassivePerception" | "useCalculatedPassiveInsight" | "useCalculatedPassiveInvestigation",
   ) => {
     const ability = SKILL_ABILITY_MAP[skillKey]
     const skill = () => getEffectiveSkillProficiency(current(), skillKey)
@@ -147,8 +146,8 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
       skillKey,
       label: `Passive ${SKILL_DISPLAY_NAMES[skillKey]}`,
       ...useCalculatedValue({
-        useCalculated: () => current()[useField] ?? true,
-        setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, [useField]: v })),
+        useCalculated: () => isCalculated(current(), field),
+        setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, [CUSTOMIZABLE_VALUES[field].toggle]: v })),
         manualValue: () => current()[field] ?? calc(),
         setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, [field]: v })),
         calculatedValue: calc,
@@ -157,9 +156,9 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
     }
   }
 
-  const passivePerceptionStat = makePassiveStat("perception", "passivePerception", "useCalculatedPassivePerception")
-  const passiveInsightStat = makePassiveStat("insight", "passiveInsight", "useCalculatedPassiveInsight")
-  const passiveInvestigationStat = makePassiveStat("investigation", "passiveInvestigation", "useCalculatedPassiveInvestigation")
+  const passivePerceptionStat = makePassiveStat("perception", "passivePerception")
+  const passiveInsightStat = makePassiveStat("insight", "passiveInsight")
+  const passiveInvestigationStat = makePassiveStat("investigation", "passiveInvestigation")
   const passiveStats = [passivePerceptionStat, passiveInsightStat, passiveInvestigationStat]
 
   const toggleSkillProf = (skill: SkillKey) => {
@@ -396,9 +395,9 @@ export function SkillsProficienciesModule(props: SkillsProficienciesModuleProps)
             <For each={SENSE_TYPES}>
               {(sense) => {
                 const senseField = useCalculatedValue({
-                  useCalculated: () => current().useCalculatedSenses?.[sense] ?? true,
+                  useCalculated: () => isSenseCalculated(current(), sense),
                   setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSenses: { ...prev.useCalculatedSenses, [sense]: v } })),
-                  manualValue: () => current().senses?.[sense] ?? 0,
+                  manualValue: () => getCustomSense(current(), sense),
                   setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, senses: { ...prev.senses, [sense]: v } })),
                   calculatedValue: () => effectiveSenses()[sense],
                   calculatedTooltip: () => {

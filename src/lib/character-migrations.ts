@@ -1,5 +1,5 @@
 import type { Character, Equipment, Feature, SenseType, SpellSlotLevel } from "./character-types"
-import { ABILITY_KEYS, calculateEquippedAC, clampFeatureLevel, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, givesSpellSlots, hasChargesTracking, inferFeatureType, makeSizeTrait, makeSpellcastingFeature, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME } from "./character-utils"
+import { ABILITY_KEYS, calculateEquippedAC, clampCharacterLevel, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, givesSpellSlots, hasChargesTracking, inferFeatureType, makeSizeTrait, makeSpellcastingFeature, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME } from "./character-utils"
 import { ensureRequiredFeatures, FEATURE_LIST_FIELDS, type FeatureListField } from "./required-features"
 
 // Exported for the legacy-character test fixtures, which must leave out exactly these keys
@@ -151,7 +151,7 @@ function withLegacySpellSlots(lists: Record<FeatureListField, Feature[]>, totals
   }
   const target = classFeatures[index]
   const tiers = target.levelEffects ?? []
-  const rowLevel = clampFeatureLevel(characterLevel)
+  const rowLevel = clampCharacterLevel(characterLevel)
   const ability = [...tiers].reverse().find((tier) => tier.effects.spellcastingAbility)?.effects.spellcastingAbility
   const levelEffects = tiers.some((tier) => tier.level === rowLevel)
     ? tiers.map((tier) => (tier.level === rowLevel ? { ...tier, effects: { ...tier.effects, spellSlots: totals } } : tier))

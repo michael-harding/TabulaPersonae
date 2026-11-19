@@ -5,7 +5,7 @@ import Sword from "lucide-solid/icons/sword"
 import Heart from "lucide-solid/icons/heart"
 
 import type { Character } from "@/lib/character-types"
-import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellAttackTooltip, getEffectiveSpellSaveDCTooltip, formatModifier, calculateEquippedAC, calculateInitiative, getEffectiveSpellcastingAbility, displayedConditions, activeSpells } from "@/lib/character-utils"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellAttackTooltip, getEffectiveSpellSaveDCTooltip, formatModifier, getEffectiveValue, getEffectiveSpellcastingAbility, displayedConditions, activeSpells } from "@/lib/character-utils"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { cn, SPELL_EFFECT_COLOR, TEMP_HP_COLOR } from "@/lib/utils"
@@ -20,12 +20,8 @@ interface StatsBarProps {
 export function StatsBar(props: StatsBarProps) {
   const { currentHp, maxHp, tempHp, hpPercentage, hpColor, tempHpWidth, tempHpLeft } = useHpDisplay(() => props.character)
 
-  const ac = createMemo(() =>
-    (props.character.useCalculatedArmorClass ?? true) ? calculateEquippedAC(props.character).ac : (props.character.armorClass ?? 10)
-  )
-  const initiative = createMemo(() =>
-    (props.character.useCalculatedInitiative ?? false) ? calculateInitiative(props.character).initiative : (props.character.initiative ?? 0)
-  )
+  const ac = createMemo(() => getEffectiveValue(props.character, "armorClass"))
+  const initiative = createMemo(() => getEffectiveValue(props.character, "initiative"))
   const hasSpellcasting = createMemo(() => !!getEffectiveSpellcastingAbility(props.character))
   const spellSaveDC = createMemo(() => getEffectiveSpellSaveDC(props.character))
   const hitBonus = createMemo(() => getEffectiveSpellAttackBonus(props.character))

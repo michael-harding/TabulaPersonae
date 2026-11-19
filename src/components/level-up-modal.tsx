@@ -1,18 +1,16 @@
-import { createEffect, createMemo, createSignal, For, Index, on, Show, untrack } from "solid-js"
+import { createMemo, createSignal, For, Index, Show, untrack } from "solid-js"
 import ArrowBigUpDash from "lucide-solid/icons/arrow-big-up-dash"
 import ArrowRight from "lucide-solid/icons/arrow-right"
 import TriangleAlert from "lucide-solid/icons/triangle-alert"
 
 import type { Character } from "@/lib/character-types"
-import { formatModifier, getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize } from "@/lib/character-utils"
+import { clampCharacterLevel, formatModifier, getAbilityModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, MAX_CHARACTER_LEVEL } from "@/lib/character-utils"
 import {
   applyLevelUp,
-  clampCharacterLevel,
   findHitPointsSource,
   getLevelUpSummary,
   levelsGained,
   LEVEL_UP_CHANGE_GROUPS,
-  MAX_CHARACTER_LEVEL,
   type LevelUpChange,
   type LevelUpInput,
 } from "@/lib/level-up"
@@ -32,6 +30,7 @@ interface LevelUpModalProps {
 }
 
 const rollFieldId = (level: number) => `level-up-rolled-hp-${level}`
+const NEW_HP_FIELD_ID = "level-up-new-hp"
 
 /** Value changes, each as "label: before → after". */
 function ChangeList(props: { changes: LevelUpChange[] }) {
@@ -55,10 +54,40 @@ function ChangeList(props: { changes: LevelUpChange[] }) {
 }
 
 export function LevelUpModal(props: LevelUpModalProps) {
+  return (
+    <Modal open={props.open} onOpenChange={props.onOpenChange}>
+      <ModalContent data-sem="level-up-modal" data-test="level-up-modal" class="max-w-lg">
+        {/* Only while open: the summary is worked out from the whole character, so a closed modal
+            mustn't redo it on every change to the sheet, and each opening starts afresh */}
+        <Show when={props.open}>
+          <LevelUpForm
+            character={props.character}
+            onCancel={() => props.onOpenChange(false)}
+            onLevelUp={(updated) => {
+              props.onLevelUp(updated)
+              props.onOpenChange(false)
+            }}
+          />
+        </Show>
+      </ModalContent>
+    </Modal>
+  )
+}
+
+interface LevelUpFormProps {
+  character: Character
+  onCancel: () => void
+  onLevelUp: (updated: Character) => void
+}
+
+function LevelUpForm(props: LevelUpFormProps) {
   const currentLevel = () => props.character.level ?? 1
   const minLevel = () => clampCharacterLevel(currentLevel() + 1)
   const [level, setLevel] = createSignal(untrack(minLevel))
-  const [flatHitPoints, setFlatHitPoints] = createSignal(0)
+  // Starts from the single value the Hit Points feature already has at the new level
+  const [flatHitPoints, setFlatHitPoints] = createSignal(
+    untrack(() => findHitPointsSource({ ...props.character, level: level() })?.effects.hitPointsFlatValue ?? 0),
+  )
   // Rolls entered for the levels gained, by level. A level with none entered keeps any roll the
   // Hit Points feature already has for it, so changing the new level doesn't lose what was typed.
   const [rolls, setRolls] = createSignal<Record<number, number>>({})
@@ -87,8 +116,11 @@ export function LevelUpModal(props: LevelUpModalProps) {
   )
   const hasChoices = () => summary().abilityScoreImprovementLevels.length > 0 || summary().spellcasting
 
-  // A roll is a die result: at least 1, and no more than the hit die
+  // Max HP is at least 1, and a roll is a die result: at least 1, and no more than the hit die
   const validation = useFormValidation(() => {
+    if (hitPointsMode() === "flat") {
+      return [flatHitPoints() < 1 && { fieldId: NEW_HP_FIELD_ID, message: "New HP must be at least 1" }]
+    }
     if (hitPointsMode() !== "rolled") return []
     const die = hitDie()
     return gained().map((gainedLevel) => {
@@ -99,187 +131,177 @@ export function LevelUpModal(props: LevelUpModalProps) {
     })
   })
 
-  // Each opening starts from the character as it is then
-  createEffect(on(() => props.open, (open) => {
-    if (!open) return
-    setLevel(minLevel())
-    setFlatHitPoints(hitPointsSource()?.effects.hitPointsFlatValue ?? 0)
-    setRolls({})
-    validation.reset()
-  }))
-
   const handleConfirm = () => {
     if (!validation.validate()) return
     props.onLevelUp(leveledUp())
-    props.onOpenChange(false)
   }
 
   return (
-    <Modal open={props.open} onOpenChange={props.onOpenChange}>
-      <ModalContent data-sem="level-up-modal" data-test="level-up-modal" class="max-w-lg">
-        <ModalHeader>
-          <ModalTitle class="flex items-center gap-2">
-            <ArrowBigUpDash class="h-5 w-5 text-primary" aria-hidden="true" />
-            Level Up
-          </ModalTitle>
-        </ModalHeader>
+    <>
+      <ModalHeader>
+        <ModalTitle class="flex items-center gap-2">
+          <ArrowBigUpDash class="h-5 w-5 text-primary" aria-hidden="true" />
+          Level Up
+        </ModalTitle>
+      </ModalHeader>
 
-        <div class="space-y-5">
-          <Show when={hitPointsMode() === "rolled"}>
-            <RequiredLegend />
-          </Show>
-          <FormErrorSummary validation={validation} />
+      <div class="space-y-5">
+        <Show when={hitPointsMode() !== "per-level"}>
+          <RequiredLegend />
+        </Show>
+        <FormErrorSummary validation={validation} />
 
-          <div class="space-y-1">
-            <Label for="level-up-level">New Level</Label>
-            <NumericInput
-              id="level-up-level"
-              data-test="level-up-level-input"
-              min={minLevel()}
-              max={MAX_CHARACTER_LEVEL}
-              value={level()}
-              onChange={setLevel}
-              aria-describedby="level-up-level-hint"
-            />
-            <p id="level-up-level-hint" class="text-xs text-muted-foreground">Currently level {currentLevel()}</p>
-          </div>
-
-          <section aria-labelledby="level-up-hit-points-heading" class="space-y-2">
-            <h3 id="level-up-hit-points-heading" class="text-sm font-medium">Hit Points</h3>
-
-            <Show when={hitPointsMode() === "flat"}>
-              <div class="space-y-1">
-                <Label for="level-up-new-hp">New HP</Label>
-                <NumericInput
-                  id="level-up-new-hp"
-                  data-test="level-up-new-hp-input"
-                  min={0}
-                  value={flatHitPoints()}
-                  onChange={setFlatHitPoints}
-                  aria-describedby="level-up-new-hp-hint"
-                />
-                <p id="level-up-new-hp-hint" class="text-xs text-muted-foreground">Your Max HP at level {level()}</p>
-              </div>
-            </Show>
-
-            <Show when={hitPointsMode() === "rolled"}>
-              <div class="space-y-3">
-                <Index each={gained()}>
-                  {(gainedLevel) => (
-                    <div class="space-y-1">
-                      <Label for={rollFieldId(gainedLevel())} required>Rolled HP (Level {gainedLevel()})</Label>
-                      <NumericInput
-                        id={rollFieldId(gainedLevel())}
-                        data-test={rollFieldId(gainedLevel())}
-                        required
-                        min={0}
-                        max={hitDie()}
-                        value={rollFor(gainedLevel())}
-                        onChange={(roll) => setRolls((prev) => ({ ...prev, [gainedLevel()]: roll }))}
-                        {...validation.controlProps(rollFieldId(gainedLevel()), "level-up-rolled-hp-hint")}
-                      />
-                      <FieldError validation={validation} fieldId={rollFieldId(gainedLevel())} />
-                    </div>
-                  )}
-                </Index>
-                <p id="level-up-rolled-hp-hint" class="text-xs text-muted-foreground">
-                  {hitDie() == null ? "Roll your hit die" : `Roll 1d${hitDie()}`} for each level. Your Constitution modifier ({formatModifier(conModifier())}) is added for you.
-                </p>
-              </div>
-            </Show>
-
-            <Show
-              when={hitPointChanges().length > 0}
-              fallback={<p class="text-sm italic text-muted-foreground">No change to Hit Points.</p>}
-            >
-              <ChangeList changes={hitPointChanges()} />
-            </Show>
-          </section>
-
-          <section aria-labelledby="level-up-changes-heading" class="space-y-2" data-test="level-up-changes">
-            <h3 id="level-up-changes-heading" class="text-sm font-medium">Calculated Values</h3>
-            <Show
-              when={changeGroups().length > 0}
-              fallback={<p class="text-sm italic text-muted-foreground">No other calculated values change.</p>}
-            >
-              <For each={changeGroups()}>
-                {(entry) => (
-                  <div class="space-y-1">
-                    <h4 class="text-xs font-medium text-muted-foreground">{entry.group}</h4>
-                    <ChangeList changes={entry.changes} />
-                  </div>
-                )}
-              </For>
-            </Show>
-          </section>
-
-          <Show when={summary().gainedFeatures.length > 0}>
-            <section aria-labelledby="level-up-features-heading" class="space-y-2" data-test="level-up-gained-features">
-              <h3 id="level-up-features-heading" class="text-sm font-medium">Features Gained</h3>
-              <ul class="space-y-2">
-                <For each={summary().gainedFeatures}>
-                  {(feature) => (
-                    <li data-test={`level-up-gained-${feature.id}`} class="space-y-0.5 text-sm">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span class="font-medium">{feature.name}</span>
-                        <Chip variant="outline">{feature.kind}</Chip>
-                      </div>
-                      <ul class="text-muted-foreground">
-                        <For each={feature.gains}>
-                          {(gain) => <li>Level {gain.level}: {gain.text}</li>}
-                        </For>
-                      </ul>
-                    </li>
-                  )}
-                </For>
-              </ul>
-            </section>
-          </Show>
-
-          <Show when={summary().manualValues.length > 0}>
-            <section aria-labelledby="level-up-manual-heading" class="space-y-2" data-test="level-up-manual-values">
-              <h3 id="level-up-manual-heading" class="flex items-center gap-2 text-sm font-medium">
-                <TriangleAlert class="h-4 w-4 text-primary" aria-hidden="true" />
-                Update by Hand
-              </h3>
-              <p class="text-xs text-muted-foreground">These were entered by hand, so they won't change with your level.</p>
-              <ul class="space-y-1">
-                <For each={summary().manualValues}>
-                  {(value) => (
-                    <li data-test={`level-up-manual-${value.id}`} class="flex items-center justify-between gap-4 text-sm">
-                      <span>{value.label}</span>
-                      <span class="whitespace-nowrap text-muted-foreground">{value.reason}: {value.value}</span>
-                    </li>
-                  )}
-                </For>
-              </ul>
-            </section>
-          </Show>
-
-          <Show when={hasChoices()}>
-            <section aria-labelledby="level-up-choices-heading" class="space-y-2" data-test="level-up-choices">
-              <h3 id="level-up-choices-heading" class="text-sm font-medium">Choices to Make</h3>
-              <ul class="list-inside list-disc space-y-0.5 text-sm text-muted-foreground">
-                <For each={summary().abilityScoreImprovementLevels}>
-                  {(asiLevel) => (
-                    <li data-test={`level-up-asi-${asiLevel}`}>
-                      Level {asiLevel}: choose an Ability Score Improvement or another feat, then add it to your Feats in the Features tab.
-                    </li>
-                  )}
-                </For>
-                <Show when={summary().spellcasting}>
-                  <li data-test="level-up-spells-reminder">Choose any new spells and cantrips, then add them in the Spells tab.</li>
-                </Show>
-              </ul>
-            </section>
-          </Show>
+        <div class="space-y-1">
+          <Label for="level-up-level">New Level</Label>
+          <NumericInput
+            id="level-up-level"
+            data-test="level-up-level-input"
+            min={minLevel()}
+            max={MAX_CHARACTER_LEVEL}
+            value={level()}
+            onChange={setLevel}
+            aria-describedby="level-up-level-hint"
+          />
+          <p id="level-up-level-hint" class="text-xs text-muted-foreground">Currently level {currentLevel()}</p>
         </div>
 
-        <ModalFooter>
-          <Button data-test="level-up-cancel-button" variant="outline" onClick={() => props.onOpenChange(false)}>Cancel</Button>
-          <Button data-test="level-up-confirm-button" onClick={handleConfirm}>Confirm Level Up</Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        <section aria-labelledby="level-up-hit-points-heading" class="space-y-2">
+          <h3 id="level-up-hit-points-heading" class="text-sm font-medium">Hit Points</h3>
+
+          <Show when={hitPointsMode() === "flat"}>
+            <div class="space-y-1">
+              <Label for={NEW_HP_FIELD_ID} required>New HP</Label>
+              <NumericInput
+                id={NEW_HP_FIELD_ID}
+                data-test="level-up-new-hp-input"
+                required
+                min={1}
+                value={flatHitPoints()}
+                onChange={setFlatHitPoints}
+                {...validation.controlProps(NEW_HP_FIELD_ID, "level-up-new-hp-hint")}
+              />
+              <FieldError validation={validation} fieldId={NEW_HP_FIELD_ID} />
+              <p id="level-up-new-hp-hint" class="text-xs text-muted-foreground">Your Max HP at level {level()}</p>
+            </div>
+          </Show>
+
+          <Show when={hitPointsMode() === "rolled"}>
+            <div class="space-y-3">
+              <Index each={gained()}>
+                {(gainedLevel) => (
+                  <div class="space-y-1">
+                    <Label for={rollFieldId(gainedLevel())} required>Rolled HP (Level {gainedLevel()})</Label>
+                    <NumericInput
+                      id={rollFieldId(gainedLevel())}
+                      data-test={rollFieldId(gainedLevel())}
+                      required
+                      min={0}
+                      max={hitDie()}
+                      value={rollFor(gainedLevel())}
+                      onChange={(roll) => setRolls((prev) => ({ ...prev, [gainedLevel()]: roll }))}
+                      {...validation.controlProps(rollFieldId(gainedLevel()), "level-up-rolled-hp-hint")}
+                    />
+                    <FieldError validation={validation} fieldId={rollFieldId(gainedLevel())} />
+                  </div>
+                )}
+              </Index>
+              <p id="level-up-rolled-hp-hint" class="text-xs text-muted-foreground">
+                {hitDie() == null ? "Roll your hit die" : `Roll 1d${hitDie()}`} for each level. Your Constitution modifier ({formatModifier(conModifier())}) is added for you.
+              </p>
+            </div>
+          </Show>
+
+          <Show
+            when={hitPointChanges().length > 0}
+            fallback={<p class="text-sm italic text-muted-foreground">No change to Hit Points.</p>}
+          >
+            <ChangeList changes={hitPointChanges()} />
+          </Show>
+        </section>
+
+        <section aria-labelledby="level-up-changes-heading" class="space-y-2" data-test="level-up-changes">
+          <h3 id="level-up-changes-heading" class="text-sm font-medium">Calculated Values</h3>
+          <Show
+            when={changeGroups().length > 0}
+            fallback={<p class="text-sm italic text-muted-foreground">No other calculated values change.</p>}
+          >
+            <For each={changeGroups()}>
+              {(entry) => (
+                <div class="space-y-1">
+                  <h4 class="text-xs font-medium text-muted-foreground">{entry.group}</h4>
+                  <ChangeList changes={entry.changes} />
+                </div>
+              )}
+            </For>
+          </Show>
+        </section>
+
+        <Show when={summary().gainedFeatures.length > 0}>
+          <section aria-labelledby="level-up-features-heading" class="space-y-2" data-test="level-up-gained-features">
+            <h3 id="level-up-features-heading" class="text-sm font-medium">Features Gained</h3>
+            <ul class="space-y-2">
+              <For each={summary().gainedFeatures}>
+                {(feature) => (
+                  <li data-test={`level-up-gained-${feature.id}`} class="space-y-0.5 text-sm">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="font-medium">{feature.name}</span>
+                      <Chip variant="outline">{feature.kind}</Chip>
+                    </div>
+                    <ul class="text-muted-foreground">
+                      <For each={feature.gains}>
+                        {(gain) => <li>Level {gain.level}: {gain.text}</li>}
+                      </For>
+                    </ul>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </section>
+        </Show>
+
+        <Show when={summary().manualValues.length > 0}>
+          <section aria-labelledby="level-up-manual-heading" class="space-y-2" data-test="level-up-manual-values">
+            <h3 id="level-up-manual-heading" class="flex items-center gap-2 text-sm font-medium">
+              <TriangleAlert class="h-4 w-4 text-primary" aria-hidden="true" />
+              Update by Hand
+            </h3>
+            <p class="text-xs text-muted-foreground">These were entered by hand, so they won't change with your level.</p>
+            <ul class="space-y-1">
+              <For each={summary().manualValues}>
+                {(value) => (
+                  <li data-test={`level-up-manual-${value.id}`} class="flex items-center justify-between gap-4 text-sm">
+                    <span>{value.label}</span>
+                    <span class="whitespace-nowrap text-muted-foreground">{value.reason}: {value.value}</span>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </section>
+        </Show>
+
+        <Show when={hasChoices()}>
+          <section aria-labelledby="level-up-choices-heading" class="space-y-2" data-test="level-up-choices">
+            <h3 id="level-up-choices-heading" class="text-sm font-medium">Choices to Make</h3>
+            <ul class="list-inside list-disc space-y-0.5 text-sm text-muted-foreground">
+              <For each={summary().abilityScoreImprovementLevels}>
+                {(asiLevel) => (
+                  <li data-test={`level-up-asi-${asiLevel}`}>
+                    Level {asiLevel}: choose an Ability Score Improvement or another feat, then add it to your Feats in the Features tab.
+                  </li>
+                )}
+              </For>
+              <Show when={summary().spellcasting}>
+                <li data-test="level-up-spells-reminder">Choose any new spells and cantrips, then add them in the Spells tab.</li>
+              </Show>
+            </ul>
+          </section>
+        </Show>
+      </div>
+
+      <ModalFooter>
+        <Button data-test="level-up-cancel-button" variant="outline" onClick={props.onCancel}>Cancel</Button>
+        <Button data-test="level-up-confirm-button" onClick={handleConfirm}>Confirm Level Up</Button>
+      </ModalFooter>
+    </>
   )
 }

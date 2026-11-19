@@ -12,7 +12,7 @@ import BookOpen from "lucide-solid/icons/book-open"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Feature, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells, getSpellSlots, withSpentSpellSlots, findSpellcastingFeature, withFeatureSaved, getPreparedSpellsLimit, SPELL_SLOT_LEVELS, getEffectiveProficiencyBonus } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells, getSpellSlots, withSpentSpellSlots, findSpellcastingFeature, withFeatureSaved, getPreparedSpellsLimit, SPELL_SLOT_LEVELS, getEffectiveProficiencyBonus, isCalculated, getCustomValue, getEffectiveValue } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -46,16 +46,12 @@ interface SpellsDraft {
   spellSaveDC: number
 }
 
-const toDraft = (c: Character): SpellsDraft => {
-  const useCalculatedSpellAttackBonus = c.useCalculatedSpellAttackBonus ?? true
-  const useCalculatedSpellSaveDC = c.useCalculatedSpellSaveDC ?? true
-  return {
-    useCalculatedSpellAttackBonus,
-    spellAttackBonus: useCalculatedSpellAttackBonus ? getSpellAttackBonus(c) : (c.spellAttackBonus ?? getSpellAttackBonus(c)),
-    useCalculatedSpellSaveDC,
-    spellSaveDC: useCalculatedSpellSaveDC ? getSpellSaveDC(c) : (c.spellSaveDC ?? getSpellSaveDC(c)),
-  }
-}
+const toDraft = (c: Character): SpellsDraft => ({
+  useCalculatedSpellAttackBonus: isCalculated(c, "spellAttackBonus"),
+  spellAttackBonus: getEffectiveValue(c, "spellAttackBonus"),
+  useCalculatedSpellSaveDC: isCalculated(c, "spellSaveDC"),
+  spellSaveDC: getEffectiveValue(c, "spellSaveDC"),
+})
 
 export function SpellsModule(props: SpellsModuleProps) {
   const isReadOnly = useReadOnly()
@@ -109,18 +105,18 @@ export function SpellsModule(props: SpellsModuleProps) {
   const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
 
   const spellAttackField = useCalculatedValue({
-    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellAttackBonus : (props.character.useCalculatedSpellAttackBonus ?? true)),
+    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellAttackBonus : isCalculated(props.character, "spellAttackBonus")),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellAttackBonus: v })),
-    manualValue: () => (edit.isEditing() ? edit.draft().spellAttackBonus : (props.character.spellAttackBonus ?? spellAttackBonus())),
+    manualValue: () => (edit.isEditing() ? edit.draft().spellAttackBonus : getCustomValue(props.character, "spellAttackBonus")),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellAttackBonus: v })),
     calculatedValue: spellAttackBonus,
     calculatedTooltip: () => getSpellAttackBreakdown(props.character),
   })
 
   const spellSaveDCField = useCalculatedValue({
-    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellSaveDC : (props.character.useCalculatedSpellSaveDC ?? true)),
+    useCalculated: () => (edit.isEditing() ? edit.draft().useCalculatedSpellSaveDC : isCalculated(props.character, "spellSaveDC")),
     setUseCalculated: (v) => edit.setDraft((prev) => ({ ...prev, useCalculatedSpellSaveDC: v })),
-    manualValue: () => (edit.isEditing() ? edit.draft().spellSaveDC : (props.character.spellSaveDC ?? spellSaveDC())),
+    manualValue: () => (edit.isEditing() ? edit.draft().spellSaveDC : getCustomValue(props.character, "spellSaveDC")),
     setManualValue: (v) => edit.setDraft((prev) => ({ ...prev, spellSaveDC: v })),
     calculatedValue: spellSaveDC,
     calculatedTooltip: () => getSpellSaveDCBreakdown(props.character),
