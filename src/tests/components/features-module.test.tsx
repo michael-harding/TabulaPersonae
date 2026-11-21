@@ -3,7 +3,7 @@ import { axe } from "vitest-axe"
 
 import { FeaturesModule, featureFromForm, featureToForm, defaultFeatureForm } from "@/components/features-module"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Feature } from "@/lib/character-types"
+import type { Character, Feature, Spell } from "@/lib/character-types"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 import { render, screen, fireEvent, within, waitFor, cleanupPortals, confirmClick } from "../test-utils"
@@ -1627,6 +1627,99 @@ describe("FeaturesModule", () => {
         render(() => <FeaturesModule character={makeCharacter({ classFeatures: [feature] })} onUpdate={vi.fn()} />)
         expect(screen.getByText("Prepared Spells: 4")).toBeInTheDocument()
         expect(screen.getByText("Prepared Spells: 5")).toBeInTheDocument()
+      })
+    })
+
+    describe("Spells (spells the feature gives, by level)", () => {
+      const spell = (id: string, name: string, level = 1): Spell => ({
+        id, name, level, school: "Evocation", castingTime: "1 action", range: "Self", components: "V", duration: "Instantaneous", description: "", prepared: false, known: true,
+      })
+      const spells = [spell("bless", "Bless"), spell("cure", "Cure Wounds"), spell("aid", "Aid", 2)]
+      const pickSpells = () => {
+        fireEvent.click(screen.getByRole("button", { name: /add feat$/i }))
+        const modal = screen.getByRole("dialog")
+        fireEvent.click(within(modal).getByRole("combobox", { name: /feature type/i }))
+        fireEvent.click(within(modal).getByRole("option", { name: "Spells" }))
+        return modal
+      }
+      const setFreeCasts = (modal: HTMLElement, tier: number, value: string) => {
+        const input = within(modal).getByTestId(`level-effect-${tier}-spells-free-casts`)
+        fireEvent.input(input, { target: { value } })
+        fireEvent.keyDown(input, { key: "Enter" })
+      }
+      const saved = (onUpdate: ReturnType<typeof vi.fn>) => (onUpdate.mock.calls[0][0] as Character).feats!.at(-1)!
+
+      it("is offered, with its hint and a level 1 row picking from the character's spells", async () => {
+        const user = userEvent.setup()
+        render(() => <FeaturesModule character={makeCharacter({ spells })} onUpdate={vi.fn()} />)
+        const modal = pickSpells()
+        expect(within(modal).getByTestId("spells-hint")).toBeInTheDocument()
+        expect(within(modal).getByTestId("level-effect-0-level-input")).toHaveValue(1)
+        await user.click(within(modal).getByTestId("level-effect-0-spells-add"))
+        await waitFor(() => expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Bless", "Cure Wounds", "Aid"]))
+      })
+
+      it("says to add spells first when the character has none", () => {
+        render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+        const modal = pickSpells()
+        expect(within(modal).getByText("Add spells on the Spells tab first")).toBeInTheDocument()
+      })
+
+      it("saves each level's spells, slot casting and free casts, and the recharge once free casts are given", async () => {
+        const user = userEvent.setup()
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter({ spells })} onUpdate={onUpdate} />)
+        const modal = pickSpells()
+        fireEvent.input(within(modal).getByLabelText(/^name$/i), { target: { value: "Fey Touched" } })
+        await pickFromAddMenu(user, within(modal).getByTestId("level-effect-0-spells-add"), "Bless")
+        await pickFromAddMenu(user, within(modal).getByTestId("level-effect-0-spells-add"), "Cure Wounds")
+        fireEvent.click(within(modal).getByRole("checkbox", { name: "Cast with spell slots (always prepared)" }))
+        expect(within(modal).queryByTestId("feature-spells-recharge-select")).not.toBeInTheDocument()
+        setFreeCasts(modal, 0, "1")
+        fireEvent.click(within(modal).getByTestId("feature-spells-recharge-select"))
+        fireEvent.click(screen.getByRole("option", { name: "Long Rest" }))
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate)).toEqual(expect.objectContaining({
+          name: "Fey Touched",
+          featureType: "Spells",
+          rechargeOn: "long-rest",
+          levelEffects: [{ level: 1, effects: { grantedSpells: ["bless", "cure"], grantedSpellsSlots: true, grantedSpellsFreeCasts: 1 } }],
+        }))
+      })
+
+      it("lists each level's spells on the card, by name", () => {
+        const feature = makeFeature({
+          id: "life", name: "Life Domain", featureType: "Spells",
+          levelEffects: [
+            { level: 1, effects: { grantedSpells: ["bless", "cure"], grantedSpellsSlots: true } },
+            { level: 3, effects: { grantedSpells: ["aid", "gone"], grantedSpellsFreeCasts: 2 } },
+          ],
+        })
+        render(() => <FeaturesModule character={makeCharacter({ spells, classFeatures: [feature] })} onUpdate={vi.fn()} />)
+        expect(screen.getByText(/Spells: Bless, Cure Wounds/).textContent).toBe("Level 1: Spells: Bless, Cure Wounds · Always prepared")
+        expect(screen.getByText(/Spells: Aid/).textContent).toBe("Level 3: Spells: Aid, Unknown spell · 2 free casts each")
+      })
+
+      it("tracks each spell's free casts on the card, spending and restoring them", () => {
+        const onUpdate = vi.fn()
+        const feature = makeFeature({
+          id: "fey", name: "Fey Touched", source: "feat", featureType: "Spells", rechargeOn: "long-rest", spellCastsSpent: { bless: 1 },
+          levelEffects: [{ level: 1, effects: { grantedSpells: ["bless", "cure"], grantedSpellsFreeCasts: 1 } }, { level: 9, effects: { grantedSpells: ["aid"], grantedSpellsFreeCasts: 1 } }],
+        })
+        render(() => <FeaturesModule character={makeCharacter({ level: 3, spells, feats: [feature] })} onUpdate={onUpdate} />)
+        expect(screen.getByTestId("feature-spell-casts-fey-bless")).toHaveTextContent("Bless")
+        expect(screen.getByTestId("feature-spell-casts-fey-cure")).toHaveTextContent("Cure Wounds")
+        // A tier not reached gives no free casts yet
+        expect(screen.queryByTestId("feature-spell-casts-fey-aid")).not.toBeInTheDocument()
+        fireEvent.click(within(screen.getByTestId("feature-spell-casts-fey-cure")).getByRole("button", { name: "Cure Wounds free cast available (click to use)" }))
+        expect((onUpdate.mock.calls[0][0] as Character).feats![0].spellCastsSpent).toEqual({ bless: 1, cure: 1 })
+      })
+
+      it("drops the spent free casts when the feature stops being a Spells feature", () => {
+        const base = makeFeature({ featureType: "Spells", spellCastsSpent: { bless: 1 } })
+        const saved = featureFromForm({ ...featureToForm(base), featureType: "Custom", levelEffects: [] }, base)
+        expect(saved).not.toHaveProperty("spellCastsSpent", expect.anything())
+        expect(featureFromForm(featureToForm(base), base).spellCastsSpent).toEqual({ bless: 1 })
       })
     })
 

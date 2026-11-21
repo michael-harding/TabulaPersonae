@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { createStore } from "solid-js/store"
 
 import { EquipmentItemModal, hasOtherModifierFields } from "@/components/equipment-item-modal"
-import type { Equipment, ItemModifiers } from "@/lib/character-types"
+import type { Equipment, ItemModifiers, Spell } from "@/lib/character-types"
 
 import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 
@@ -44,32 +44,32 @@ describe("EquipmentItemModal", () => {
       ["an item with list modifiers", { magic: true, modifiers: { languages: ["Elvish"], skillAdvantage: ["stealth" as const] } }],
     ])("opens the editor for %s", (_label, overrides) => {
       const [store] = createStore({ equipment: [makeItem({ name: "Proxied", ...overrides } as Partial<Equipment>)] })
-      render(() => <EquipmentItemModal open={true} editingItem={store.equipment[0]} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={store.equipment[0]} onSave={vi.fn()} onCancel={vi.fn()} />)
       expect(screen.getByTestId("item-name")).toHaveValue("Proxied")
     })
   })
 
   describe("open/closed rendering", () => {
     it("renders nothing when open is false", () => {
-      render(() => <EquipmentItemModal open={false} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={false} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
 
     it("shows 'Add New Item' and 'Add Item' submit label when adding", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       expect(screen.getByText("Add New Item")).toBeInTheDocument()
       expect(screen.getByTestId("equipment-modal-submit")).toHaveTextContent("Add Item")
     })
 
     it("shows 'Edit Item' and 'Update Item' submit label when editing", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={makeItem()} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={makeItem()} onSave={vi.fn()} onCancel={vi.fn()} />)
       expect(screen.getByText("Edit Item")).toBeInTheDocument()
       expect(screen.getByTestId("equipment-modal-submit")).toHaveTextContent("Update Item")
     })
   })
 
   it("keeps its actions in the sticky modal footer", () => {
-    render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+    render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
     const footer = screen.getByTestId("modal-footer")
     expect(footer).toContainElement(screen.getByTestId("equipment-modal-submit"))
     expect(footer).toContainElement(screen.getByTestId("equipment-modal-cancel"))
@@ -78,7 +78,7 @@ describe("EquipmentItemModal", () => {
   describe("cancel and validation", () => {
     it("calls onCancel when Cancel is clicked", () => {
       const onCancel = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={onCancel} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={onCancel} />)
       fireEvent.click(screen.getByTestId("equipment-modal-cancel"))
       expect(onCancel).toHaveBeenCalledTimes(1)
     })
@@ -88,7 +88,7 @@ describe("EquipmentItemModal", () => {
       { label: "only whitespace", value: "   " },
     ])("does not call onSave when the name is $label, and says why", ({ value }) => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value } })
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
       expect(onSave).not.toHaveBeenCalled()
@@ -101,7 +101,7 @@ describe("EquipmentItemModal", () => {
   describe("adding a new item", () => {
     it("saves a new mundane item with trimmed name and no magic/charges/modifier metadata", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "  Rope  " } })
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
       expect(onSave).toHaveBeenCalledWith(
@@ -130,7 +130,7 @@ describe("EquipmentItemModal", () => {
 
     it("assigns a generated id to a newly created item", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Torch" } })
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ id: expect.any(String) }))
@@ -141,6 +141,7 @@ describe("EquipmentItemModal", () => {
     it("pre-fills the form with the existing item's data", () => {
       render(() => (
         <EquipmentItemModal
+          spells={[]}
           open={true}
           editingItem={makeItem({ name: "Lantern", quantity: 2, description: "A simple lantern" })}
           onSave={vi.fn()}
@@ -156,6 +157,7 @@ describe("EquipmentItemModal", () => {
       const onSave = vi.fn()
       render(() => (
         <EquipmentItemModal
+          spells={[]}
           open={true}
           editingItem={makeItem({ id: "rope-42", name: "Rope" })}
           onSave={onSave}
@@ -170,7 +172,7 @@ describe("EquipmentItemModal", () => {
 
   describe("weapon sub-form", () => {
     it("defaults range, attack ability, and proficient when Weapon type is selected", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
       expect(screen.getByTestId("weapon-range")).toHaveValue("5 ft")
@@ -179,7 +181,7 @@ describe("EquipmentItemModal", () => {
 
     // Regression: the "Damage Type" label was not connected to its field, which had no name at all.
     it("names the damage type field by its visible label", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
 
@@ -187,7 +189,7 @@ describe("EquipmentItemModal", () => {
     })
 
     it("has no accessibility violations with the weapon fields shown and the damage type list open", async () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
       fireEvent.focus(screen.getByTestId("weapon-damage-type"))
@@ -199,7 +201,7 @@ describe("EquipmentItemModal", () => {
 
     it("saves entered weapon stats", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Longsword" } })
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
@@ -218,7 +220,7 @@ describe("EquipmentItemModal", () => {
 
     it("saves a magic weapon's attack and damage bonus entered in the Combat Bonuses group", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Longsword +1" } })
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
@@ -236,7 +238,7 @@ describe("EquipmentItemModal", () => {
         weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
         magic: true, requiresAttunement: false, rarity: "uncommon", modifiers: { weaponBonus: 1 },
       }
-      render(() => <EquipmentItemModal open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
       expect(screen.getByTestId("modifier-weapon-bonus")).toHaveValue(1)
       setNumericValue(screen.getByTestId("modifier-weapon-bonus"), "0")
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
@@ -244,7 +246,7 @@ describe("EquipmentItemModal", () => {
     })
 
     it("offers the attack and damage bonus only for weapons", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByText("This is a Magic Item"))
       fireEvent.click(screen.getByTestId("modifier-group-combat-bonuses"))
       expect(screen.queryByTestId("modifier-weapon-bonus")).not.toBeInTheDocument()
@@ -257,7 +259,7 @@ describe("EquipmentItemModal", () => {
         weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
         magic: true, requiresAttunement: false, rarity: "uncommon", modifiers: { weaponBonus: 1, armorClass: 1 },
       }
-      render(() => <EquipmentItemModal open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Other" }))
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
@@ -271,7 +273,7 @@ describe("EquipmentItemModal", () => {
         weaponStats: { damage: "1d8", damageType: "slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true },
         magic: true, requiresAttunement: false, rarity: "uncommon", modifiers: { weaponBonus: 1 },
       }
-      render(() => <EquipmentItemModal open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={item} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Other" }))
       fireEvent.click(screen.getByTestId("item-type"))
@@ -283,7 +285,7 @@ describe("EquipmentItemModal", () => {
 
     it("clears weaponStats when the type is changed away from Weapon before saving", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Torch" } })
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Weapon" }))
@@ -296,14 +298,14 @@ describe("EquipmentItemModal", () => {
 
   describe("armor sub-form", () => {
     it("defaults base AC and armor type when Armor type is selected", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Armor" }))
       expect(screen.getByTestId("armor-base-ac")).toHaveValue(11)
     })
 
     it("hides the Base AC input and shows the fixed +2 bonus for Shield armor type", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Armor" }))
       fireEvent.click(screen.getByTestId("armor-type"))
@@ -314,7 +316,7 @@ describe("EquipmentItemModal", () => {
 
     // Regression: "AC Bonus" was a <label> with nothing to label, since a shield's bonus is fixed text.
     it("connects the AC Bonus label to a shield's fixed bonus", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Armor" }))
       fireEvent.click(screen.getByTestId("armor-type"))
@@ -324,7 +326,7 @@ describe("EquipmentItemModal", () => {
     })
 
     it("has no accessibility violations with a shield's fixed bonus shown", async () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Armor" }))
       fireEvent.click(screen.getByTestId("armor-type"))
@@ -336,7 +338,7 @@ describe("EquipmentItemModal", () => {
 
     it("saves the selected armor type", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Buckler" } })
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Armor" }))
@@ -351,7 +353,7 @@ describe("EquipmentItemModal", () => {
 
   describe("magic item fields", () => {
     it("reveals Magic Item Details, defaulted to Common rarity and attunement required but not attuned", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       expect(screen.queryByText("Magic Item Details")).not.toBeInTheDocument()
       fireEvent.click(screen.getByText("This is a Magic Item"))
       expect(screen.getByText("Magic Item Details")).toBeInTheDocument()
@@ -363,7 +365,7 @@ describe("EquipmentItemModal", () => {
 
     it("hides the Attuned checkbox and omits attuned on save when Requires Attunement is unchecked", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Bag of Holding" } })
       fireEvent.click(screen.getByText("This is a Magic Item"))
       fireEvent.click(screen.getByRole("checkbox", { name: /requires attunement/i }))
@@ -376,7 +378,7 @@ describe("EquipmentItemModal", () => {
 
     it("saves the selected rarity", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Vorpal Sword" } })
       fireEvent.click(screen.getByText("This is a Magic Item"))
       fireEvent.click(screen.getByTestId("item-rarity"))
@@ -387,7 +389,7 @@ describe("EquipmentItemModal", () => {
 
     it("saves AC/initiative bonuses entered in the Combat Bonuses group", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Ring of Protection" } })
       fireEvent.click(screen.getByText("This is a Magic Item"))
       fireEvent.click(screen.getByTestId("modifier-group-combat-bonuses"))
@@ -406,7 +408,7 @@ describe("EquipmentItemModal", () => {
   describe("charges (magic item uses)", () => {
     it("only shows the Charges group's content once Max Charges is set, and includes charges/rechargeOn on save", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Wand of Magic Missiles" } })
       fireEvent.click(screen.getByText("This is a Magic Item"))
       fireEvent.click(screen.getByTestId("modifier-group-charges"))
@@ -422,7 +424,7 @@ describe("EquipmentItemModal", () => {
 
     it("omits charges/maxUses/rechargeOn for a non-magic item even if type would otherwise allow uses", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Mundane Wand" } })
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
       expect(onSave).toHaveBeenCalledWith(
@@ -431,9 +433,78 @@ describe("EquipmentItemModal", () => {
     })
   })
 
+  describe("granted spells", () => {
+    const spell = (id: string, name: string): Spell => ({
+      id, name, level: 1, school: "Evocation", castingTime: "1 action", range: "Self", components: "V", duration: "Instantaneous", description: "", prepared: false, known: true,
+    })
+    const spells = [spell("burning", "Burning Hands"), spell("fireball", "Fireball")]
+    const staff = (overrides: Partial<Equipment> = {}) => makeItem({ id: "staff", name: "Staff of Fire", magic: true, maxUses: 10, charges: 0, ...overrides })
+    const pick = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+      await user.click(screen.getByTestId("modifier-granted-spells-add"))
+      await waitFor(() => expect(screen.getByRole("menuitem", { name })).toBeInTheDocument())
+      await user.click(screen.getByRole("menuitem", { name }))
+    }
+
+    it("adds spells castable from the item for one charge, each with its own cost", async () => {
+      const user = userEvent.setup()
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff()} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("modifier-group-granted-spells"))
+      await pick(user, "Burning Hands")
+      await pick(user, "Fireball")
+      expect(screen.getByRole("checkbox", { name: "Cast Fireball from item" })).toBeChecked()
+      setNumericValue(screen.getByRole("spinbutton", { name: "Fireball Charges per cast" }), "3")
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+        modifiers: { grantedSpells: [{ spellId: "burning", charges: 1 }, { spellId: "fireball", charges: 3 }] },
+      }))
+    })
+
+    it("saves a spell not cast from the item as a source only", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }] } })} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByRole("checkbox", { name: "Cast Fireball from item" }))
+      expect(screen.queryByRole("spinbutton", { name: "Fireball Charges per cast" })).not.toBeInTheDocument()
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ modifiers: { grantedSpells: [{ spellId: "fireball" }] } }))
+    })
+
+    it("casts for free from an item without charges, with no cost to set", async () => {
+      const user = userEvent.setup()
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ maxUses: undefined, charges: undefined })} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("modifier-group-granted-spells"))
+      await pick(user, "Fireball")
+      expect(screen.queryByRole("spinbutton", { name: "Fireball Charges per cast" })).not.toBeInTheDocument()
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 0 }] } }))
+    })
+
+    it("removes a spell with its chip", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }] } })} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("modifier-granted-spells-remove-fireball"))
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave.mock.calls[0][0].modifiers).toBeUndefined()
+    })
+
+    it("drops the grants of an item no longer magic", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }] } })} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByText("This is a Magic Item"))
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave.mock.calls[0][0].modifiers).toBeUndefined()
+    })
+
+    it("has no accessibility violations with spells granted", async () => {
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }, { spellId: "burning" }] } })} onSave={vi.fn()} onCancel={vi.fn()} />)
+      expect((await axe(screen.getByRole("dialog"))).violations).toHaveLength(0)
+    })
+  })
+
   describe("consumable quantity-consumed tracking", () => {
     it("hides Quantity Consumed until the item is both Consumable and Used As an action", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Consumable" }))
       expect(screen.queryByTestId("item-uses-consumed")).not.toBeInTheDocument()
@@ -444,7 +515,7 @@ describe("EquipmentItemModal", () => {
 
     it("saves consumedUses only when greater than zero", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Potion of Healing" } })
       fireEvent.click(screen.getByTestId("item-type"))
       fireEvent.click(screen.getByRole("option", { name: "Consumable" }))
@@ -465,7 +536,7 @@ describe("EquipmentItemModal", () => {
     it("saves a granted skill advantage on a mundane item", async () => {
       const user = userEvent.setup()
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByTestId("item-name"), { target: { value: "Cloak of Elvenkind" } })
       fireEvent.click(screen.getByTestId("modifier-group-skill-effects"))
       await user.click(screen.getByTestId("modifier-skill-advantage-add"))
@@ -508,7 +579,7 @@ describe("EquipmentItemModal", () => {
 
   describe("accessibility", () => {
     it("has no accessibility violations when adding a new item", async () => {
-      const { container } = render(() => <EquipmentItemModal open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
+      const { container } = render(() => <EquipmentItemModal spells={[]} open={true} editingItem={null} onSave={vi.fn()} onCancel={vi.fn()} />)
       const results = await axe(container)
       expect(results.violations).toHaveLength(0)
     })
@@ -524,7 +595,7 @@ describe("EquipmentItemModal", () => {
         rarity: "rare",
         modifiers: { armorClass: 1, savingThrows: { wisdom: 2 }, senses: { darkvision: 60 } },
       })
-      const { container } = render(() => <EquipmentItemModal open={true} editingItem={item} onSave={vi.fn()} onCancel={vi.fn()} />)
+      const { container } = render(() => <EquipmentItemModal spells={[]} open={true} editingItem={item} onSave={vi.fn()} onCancel={vi.fn()} />)
       const results = await axe(container)
       expect(results.violations).toHaveLength(0)
     })
@@ -535,7 +606,7 @@ describe("EquipmentItemModal", () => {
 
     it("saves and pre-fills Highlights", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ highlights: "Old" })} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={makeItem({ highlights: "Old" })} onSave={onSave} onCancel={vi.fn()} />)
       expect(screen.getByLabelText("Highlights")).toHaveValue("Old")
       fireEvent.input(screen.getByLabelText("Highlights"), { target: { value: "  Glows *faintly*  " } })
       save()
@@ -545,7 +616,7 @@ describe("EquipmentItemModal", () => {
     it("saves a weapon's recurring damage flag in its weapon stats", () => {
       const onSave = vi.fn()
       const weapon = makeItem({ type: "weapon", weaponStats: { damage: "1d8", damageType: "Slashing", weaponRange: "5 ft", attackAbility: "str", proficient: true } })
-      render(() => <EquipmentItemModal open={true} editingItem={weapon} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={weapon} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByRole("checkbox", { name: "Damage recurs each turn" }))
       save()
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ weaponStats: expect.objectContaining({ damageRecurring: true }) }))
@@ -553,7 +624,7 @@ describe("EquipmentItemModal", () => {
 
     it("keeps an item's recurring flags only with an amount", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ type: "consumable", actionKind: "action" })} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={makeItem({ type: "consumable", actionKind: "action" })} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByRole("checkbox", { name: "Damage recurs each turn" }))
       fireEvent.click(screen.getByRole("checkbox", { name: "Gain recurs each turn" }))
       save()
@@ -561,7 +632,7 @@ describe("EquipmentItemModal", () => {
     })
 
     it("offers damage and gain only for a non-weapon item used as an action", () => {
-      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ type: "consumable" })} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={makeItem({ type: "consumable" })} onSave={vi.fn()} onCancel={vi.fn()} />)
       expect(screen.queryByLabelText("Gain")).not.toBeInTheDocument()
       fireEvent.click(screen.getByTestId("item-action-kind"))
       fireEvent.click(screen.getByRole("option", { name: "Action" }))
@@ -571,7 +642,7 @@ describe("EquipmentItemModal", () => {
 
     it("saves a potion's gain", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ type: "consumable", actionKind: "action" })} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={makeItem({ type: "consumable", actionKind: "action" })} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.input(screen.getByLabelText("Gain"), { target: { value: "2d4+2" } })
       save()
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ gain: "2d4+2", damage: undefined, damageRecurring: undefined }))
@@ -579,7 +650,7 @@ describe("EquipmentItemModal", () => {
 
     it("clears a non-weapon item's damage and gain once it's no longer used as an action", () => {
       const onSave = vi.fn()
-      render(() => <EquipmentItemModal open={true} editingItem={makeItem({ type: "consumable", actionKind: "action", damage: "1d4", gain: "2d4" })} onSave={onSave} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={[]} open={true} editingItem={makeItem({ type: "consumable", actionKind: "action", damage: "1d4", gain: "2d4" })} onSave={onSave} onCancel={vi.fn()} />)
       fireEvent.click(screen.getByTestId("item-action-kind"))
       fireEvent.click(screen.getByRole("option", { name: "None" }))
       save()

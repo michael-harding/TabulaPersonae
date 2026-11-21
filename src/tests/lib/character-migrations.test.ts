@@ -598,6 +598,47 @@ describe("migrateCharacter", () => {
     })
   })
 
+  describe("item spell links", () => {
+    const ring = { id: "ring", name: "Ring of Spell Storing", quantity: 1, weight: 0, description: "", equipped: true, type: "other", magic: true }
+    const spell = (overrides: Record<string, unknown>) => ({
+      id: "shield", name: "Shield", level: 1, school: "Abjuration", castingTime: "1 reaction", range: "Self", components: "V, S",
+      duration: "1 round", description: "", prepared: true, known: true, ...overrides,
+    })
+
+    it("moves a free cast link onto the item as a cast that spends no charges", () => {
+      const raw = { ...createDefaultCharacter(), equipment: [ring], spells: [spell({ grantedBy: "ring", freeCast: true })] }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.equipment[0].modifiers).toEqual({ grantedSpells: [{ spellId: "shield", charges: 0 }] })
+      expect(migrated.spells[0]).not.toHaveProperty("grantedBy")
+      expect(migrated.spells[0]).not.toHaveProperty("freeCast")
+    })
+
+    // Not castable from the item: casting it with slots still follows the spell's own Prepared box
+    it("moves any other link onto the item as a source only", () => {
+      const raw = { ...createDefaultCharacter(), equipment: [ring], spells: [spell({ grantedBy: "ring" }), spell({ id: "aid", grantedBy: "ring", freeCast: false })] }
+      expect(migrateCharacter(raw).equipment[0].modifiers).toEqual({ grantedSpells: [{ spellId: "shield" }, { spellId: "aid" }] })
+    })
+
+    it("keeps the item's other modifiers and grants, adding no second grant of a spell it already names", () => {
+      const withGrants = { ...ring, modifiers: { armorClass: 1, grantedSpells: [{ spellId: "shield", charges: 1 }] } }
+      const raw = { ...createDefaultCharacter(), equipment: [withGrants], spells: [spell({ grantedBy: "ring", freeCast: true }), spell({ id: "aid", grantedBy: "ring" })] }
+      expect(migrateCharacter(raw).equipment[0].modifiers).toEqual({ armorClass: 1, grantedSpells: [{ spellId: "shield", charges: 1 }, { spellId: "aid" }] })
+    })
+
+    // The old sheet showed nothing for a link to a deleted item, so there's nothing to keep
+    it("drops a link to an item that no longer exists, and an empty one", () => {
+      const raw = { ...createDefaultCharacter(), equipment: [ring], spells: [spell({ grantedBy: "gone", freeCast: true }), spell({ id: "aid", grantedBy: "", freeCast: false })] }
+      const migrated = migrateCharacter(raw)
+      expect(migrated.equipment[0]).toEqual(ring)
+      expect(migrated.spells.every((s) => !("grantedBy" in s) && !("freeCast" in s))).toBe(true)
+    })
+
+    it("leaves a character without links as it is", () => {
+      const character = { ...createDefaultCharacter(), equipment: [ring] as Character["equipment"], spells: [spell({}) as Character["spells"][number]] }
+      expect(migrateCharacter(character)).toBe(character)
+    })
+  })
+
   describe("useCalculatedSenses backfill", () => {
     it("backfills to true when the stored sense already matches the calculated total", () => {
       const raw = { ...createDefaultCharacter(), classFeatures: [], senses: { darkvision: 0 } }

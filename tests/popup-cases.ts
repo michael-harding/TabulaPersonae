@@ -155,6 +155,7 @@ const FEATURE_TYPE_COVERED_BY: Record<string, string | null> = {
   "Language": null,
   "Carrying Capacity": featureTypeBaseline("Speed"),
   "Ability Scores": null,
+  "Spells": null, // a spell chip list, a slots checkbox and a free casts count per level
 }
 
 export const FEATURE_TYPES = Object.keys(FEATURE_TYPE_COVERED_BY)

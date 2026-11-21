@@ -3,7 +3,7 @@ import { createStore, reconcile } from "solid-js/store"
 
 import { SpellsModule } from "@/components/spells-module"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Spell, Equipment } from "@/lib/character-types"
+import type { Character, Spell, Equipment, Feature } from "@/lib/character-types"
 import { makeSpellcastingFeature } from "@/lib/character-utils"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
@@ -681,89 +681,81 @@ describe("SpellsModule", () => {
     })
   })
 
-  describe("granted spells / free casts", () => {
+  describe("granted spells", () => {
     beforeEach(() => cleanupPortals())
 
-    it("does not show the Granted By field when the character has no magic items", () => {
-      render(() => <SpellsModule character={makeCharacter()} onUpdate={vi.fn()} />)
+    const lifeDomain = (overrides: Partial<Feature> = {}): Feature => ({
+      id: "life", name: "Life Domain", description: "", source: "class-feature", featureType: "Spells",
+      levelEffects: [{ level: 1, effects: { grantedSpells: ["bless"], grantedSpellsSlots: true } }],
+      ...overrides,
+    })
+    const bless = makeSpell({ id: "bless", name: "Bless", level: 1, prepared: false })
+    const shield = makeSpell({ id: "shield", name: "Shield", level: 1, prepared: true })
+
+    // Which features and items give a spell is set on them (see the Features and Equipment forms)
+    it("has no Granted By field in the add form", () => {
+      render(() => <SpellsModule character={makeCharacter({ equipment: [makeMagicItem()] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
       const modal = screen.getByRole("dialog")
       expect(within(modal).queryByText(/granted by/i)).not.toBeInTheDocument()
     })
 
-    it("saves grantedBy and freeCast when a magic item is selected", () => {
-      const item = makeMagicItem()
-      const onUpdate = vi.fn()
-      render(() => <SpellsModule character={makeCharacter({ equipment: [item] })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
-      const modal = screen.getByRole("dialog")
-      fireEvent.input(within(modal).getByLabelText(/spell name/i), { target: { value: "Magic Missile" } })
-      fireEvent.click(within(modal).getByLabelText(/granted by/i))
-      fireEvent.click(screen.getByRole("option", { name: "Ring of Spell Storing" }))
-      fireEvent.click(within(modal).getByText(/free cast/i))
-      fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spells: expect.arrayContaining([
-            expect.objectContaining({ name: "Magic Missile", grantedBy: "item-1", freeCast: true }),
-          ]),
-        })
-      )
-    })
-
-    it("shows a 'Granted:' badge on a spell tagged with grantedBy", () => {
-      const item = makeMagicItem()
-      const spell = makeSpell({ name: "Identify", level: 1, grantedBy: item.id })
-      render(() => <SpellsModule character={makeCharacter({ equipment: [item], spells: [spell] })} onUpdate={vi.fn()} />)
+    it("shows a chip for each feature and item that gives a spell", () => {
+      const ring = makeMagicItem({ modifiers: { grantedSpells: [{ spellId: "bless", charges: 0 }] } })
+      render(() => <SpellsModule character={makeCharacter({ spells: [bless], equipment: [ring], classFeatures: [lifeDomain()] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByText("1st Level"))
-      expect(screen.getByText(/granted: ring of spell storing/i)).toBeInTheDocument()
+      expect(screen.getByTestId("spell-granted-bless-feature:life")).toHaveTextContent("Granted: Life Domain Class Feature")
+      expect(screen.getByTestId("spell-granted-bless-item:item-1")).toHaveTextContent("Granted: Ring of Spell Storing")
     })
 
-    it("shows the Free Cast badge only when both grantedBy and freeCast are set", () => {
-      const item = makeMagicItem()
-      const spell = makeSpell({ name: "Identify", level: 1, grantedBy: item.id, freeCast: true })
-      render(() => <SpellsModule character={makeCharacter({ equipment: [item], spells: [spell] })} onUpdate={vi.fn()} />)
+    it("dims a source that doesn't give the spell now, with a tooltip saying why", () => {
+      const ring = makeMagicItem({ equipped: false, modifiers: { grantedSpells: [{ spellId: "shield" }] } })
+      render(() => <SpellsModule character={makeCharacter({ spells: [shield], equipment: [ring] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByText("1st Level"))
-      expect(screen.getByText("Free Cast")).toBeInTheDocument()
+      const chip = screen.getByTestId("spell-granted-shield-inactive-item:item-1")
+      expect(chip).toHaveClass("text-muted-foreground")
+      expect(chip.closest('[data-sem="tooltip-trigger"]')).toHaveAccessibleName("Granted: Ring of Spell Storing, Item not currently equipped/attuned")
     })
 
-    it("does not show a Granted badge when the granting item no longer exists", () => {
-      const spell = makeSpell({ name: "Identify", level: 1, grantedBy: "missing-item" })
-      render(() => <SpellsModule character={makeCharacter({ spells: [spell] })} onUpdate={vi.fn()} />)
+    it("shows no chip for a spell nothing gives", () => {
+      render(() => <SpellsModule character={makeCharacter({ spells: [shield] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByText("1st Level"))
       expect(screen.queryByText(/granted:/i)).not.toBeInTheDocument()
     })
 
-    it("resolves the correct item when two magic items share the same display name", () => {
-      const itemA = makeMagicItem({ id: "item-a", name: "Ring of Protection" })
-      const itemB = makeMagicItem({ id: "item-b", name: "Ring of Protection" })
-      const onUpdate = vi.fn()
-      render(() => <SpellsModule character={makeCharacter({ equipment: [itemA, itemB] })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
-      const modal = screen.getByRole("dialog")
-      fireEvent.input(within(modal).getByLabelText(/spell name/i), { target: { value: "Shield" } })
-      fireEvent.click(within(modal).getByLabelText(/granted by/i))
-      const options = screen.getAllByRole("option", { name: "Ring of Protection" })
-      fireEvent.click(options[1])
-      fireEvent.click(within(modal).getByRole("button", { name: /add spell/i }))
-      expect(onUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spells: expect.arrayContaining([expect.objectContaining({ name: "Shield", grantedBy: "item-b" })]),
-        })
-      )
+    it("locks Prepared, checked, on a spell a feature keeps prepared", () => {
+      render(() => <SpellsModule character={makeCharacter({ spells: [bless], classFeatures: [lifeDomain()] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      const prepared = screen.getByRole("checkbox", { name: /Prepared: Bless/ })
+      expect(prepared).toBeChecked()
+      expect(prepared).toBeDisabled()
     })
 
-    it("shows the 'Not item-granted' placeholder in the trigger after clearing a selection", () => {
-      const item = makeMagicItem()
-      render(() => <SpellsModule character={makeCharacter({ equipment: [item] })} onUpdate={vi.fn()} />)
-      fireEvent.click(screen.getByRole("button", { name: /add spell/i }))
-      const modal = screen.getByRole("dialog")
-      const trigger = within(modal).getByLabelText(/granted by/i)
-      fireEvent.click(trigger)
-      fireEvent.click(screen.getByRole("option", { name: "Ring of Spell Storing" }))
-      fireEvent.click(trigger)
-      fireEvent.click(screen.getByRole("option", { name: /not item-granted/i }))
-      expect(trigger).toHaveTextContent(/not item-granted/i)
+    it("counts an always-prepared spell in its level's prepared count, but not against the limit", () => {
+      render(() => <SpellsModule character={makeCharacter({ spells: [bless, shield], classFeatures: [lifeDomain()] })} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("prepared-spells")).toHaveTextContent("1")
+      expect(screen.getByTestId("spell-level-1-toggle")).toHaveTextContent("2 prepared")
+    })
+
+    it("leaves Prepared editable while the feature's tier isn't reached", () => {
+      const later = lifeDomain({ levelEffects: [{ level: 5, effects: { grantedSpells: ["bless"], grantedSpellsSlots: true } }] })
+      render(() => <SpellsModule character={makeCharacter({ level: 1, spells: [bless], classFeatures: [later] })} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      expect(screen.getByRole("checkbox", { name: /Prepared: Bless/ })).toBeEnabled()
+      expect(screen.getByTestId("spell-granted-bless-inactive-feature:life").closest('[data-sem="tooltip-trigger"]')).toHaveAccessibleName("Granted: Life Domain Class Feature, From level 5")
+    })
+
+    it("removes a deleted spell from the features and items that gave it, keeping them", () => {
+      const onUpdate = vi.fn()
+      const ring = makeMagicItem({ modifiers: { grantedSpells: [{ spellId: "bless", charges: 0 }] } })
+      render(() => <SpellsModule character={makeCharacter({ spells: [bless, shield], equipment: [ring], classFeatures: [lifeDomain({ spellCastsSpent: { bless: 1 } })] })} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByText("1st Level"))
+      confirmClick(screen.getByTestId("delete-spell-bless"))
+      const updated: Character = onUpdate.mock.calls[0][0]
+      expect(updated.spells.map((spell) => spell.id)).toEqual(["shield"])
+      expect(updated.classFeatures![0].levelEffects![0].effects.grantedSpells).toEqual([])
+      expect(updated.classFeatures![0].spellCastsSpent).toBeUndefined()
+      expect(updated.equipment[0]).toEqual(expect.objectContaining({ id: "item-1", modifiers: {} }))
     })
   })
 

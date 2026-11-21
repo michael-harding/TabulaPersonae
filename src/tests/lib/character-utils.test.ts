@@ -67,6 +67,16 @@ import {
   withSpellEnded,
   withSpells,
   isSpellReady,
+  getFeatureSpellGrants,
+  getSpellGrantSources,
+  isAlwaysPrepared,
+  freeCastSources,
+  canAffordFreeCast,
+  canCastWithSlots,
+  withFreeCastSpent,
+  withSpellCastsRecharged,
+  withSpellDeleted,
+  inactiveGrantReason,
   spellEndsOnRest,
   spellsEndedByRest,
   activeSpellIdsAfterRest,
@@ -2525,6 +2535,175 @@ describe("isSpellReady", () => {
   })
 })
 
+describe("spells granted by features and items", () => {
+  const character = (overrides: Partial<Character> = {}): Character => ({ ...createDefaultCharacter(), level: 5, ...overrides })
+  const spellsFeature = (levelEffects: Feature["levelEffects"], overrides: Partial<Feature> = {}): Feature => ({
+    id: "life", name: "Life Domain", description: "", source: "class-feature", featureType: "Spells", levelEffects, ...overrides,
+  })
+  const wand = (overrides: Partial<Equipment> = {}): Equipment => ({
+    id: "wand", name: "Wand of Healing", quantity: 1, weight: 1, description: "", equipped: true, type: "other", magic: true,
+    maxUses: 7, charges: 2, rechargeOn: "long-rest", modifiers: { grantedSpells: [{ spellId: "cure", charges: 2 }] },
+    ...overrides,
+  })
+
+  describe("getFeatureSpellGrants", () => {
+    it("adds up every tier reached, and lists a later tier's spells as not active yet", () => {
+      const feature = spellsFeature([
+        { level: 5, effects: { grantedSpells: ["revivify"], grantedSpellsSlots: true } },
+        { level: 1, effects: { grantedSpells: ["bless", "cure"], grantedSpellsSlots: true } },
+        { level: 7, effects: { grantedSpells: ["guardian"], grantedSpellsSlots: true } },
+      ])
+      expect(getFeatureSpellGrants(feature, 5)).toEqual([
+        { spellId: "bless", level: 1, active: true, slots: true, freeCasts: 0 },
+        { spellId: "cure", level: 1, active: true, slots: true, freeCasts: 0 },
+        { spellId: "revivify", level: 5, active: true, slots: true, freeCasts: 0 },
+        { spellId: "guardian", level: 7, active: false, slots: true, freeCasts: 0 },
+      ])
+    })
+
+    it("gives a spell named again in a later tier reached that tier's settings", () => {
+      const feature = spellsFeature([
+        { level: 1, effects: { grantedSpells: ["mark"], grantedSpellsSlots: true, grantedSpellsFreeCasts: 2 } },
+        { level: 5, effects: { grantedSpells: ["mark"], grantedSpellsSlots: true, grantedSpellsFreeCasts: 3 } },
+        { level: 9, effects: { grantedSpells: ["mark"], grantedSpellsSlots: true, grantedSpellsFreeCasts: 4 } },
+      ])
+      expect(getFeatureSpellGrants(feature, 6)).toEqual([{ spellId: "mark", level: 5, active: true, slots: true, freeCasts: 3 }])
+    })
+
+    it("has none for a feature without spells", () => {
+      expect(getFeatureSpellGrants(spellsFeature(undefined), 5)).toEqual([])
+    })
+  })
+
+  describe("getSpellGrantSources", () => {
+    it("names each feature and magic item giving a spell, features first", () => {
+      const sources = getSpellGrantSources(character({
+        classFeatures: [spellsFeature([{ level: 1, effects: { grantedSpells: ["cure"], grantedSpellsSlots: true } }])],
+        equipment: [wand()],
+      }))
+      expect(sources.get("cure")).toEqual([
+        { key: "feature:life", kind: "feature", sourceId: "life", name: "Life Domain Class Feature", active: true, alwaysPrepared: true },
+        { key: "item:wand", kind: "item", sourceId: "wand", name: "Wand of Healing", active: true, alwaysPrepared: false, free: { cost: 2, total: 7, remaining: 5 } },
+      ])
+    })
+
+    it("counts a feature's free casts per spell", () => {
+      const sources = getSpellGrantSources(character({
+        feats: [spellsFeature([{ level: 1, effects: { grantedSpells: ["misty", "bless"], grantedSpellsFreeCasts: 1 } }], { id: "fey", name: "Fey Touched", source: "feat", spellCastsSpent: { misty: 1 } })],
+      }))
+      expect(sources.get("misty")![0].free).toEqual({ cost: 1, total: 1, remaining: 0 })
+      expect(sources.get("bless")![0].free).toEqual({ cost: 1, total: 1, remaining: 1 })
+      expect(sources.get("misty")![0].alwaysPrepared).toBe(false)
+    })
+
+    it("marks a feature tier not reached as inactive, with its level", () => {
+      const sources = getSpellGrantSources(character({ level: 2, classFeatures: [spellsFeature([{ level: 3, effects: { grantedSpells: ["aid"], grantedSpellsSlots: true } }])] }))
+      expect(sources.get("aid")).toEqual([expect.objectContaining({ active: false, fromLevel: 3, alwaysPrepared: true })])
+      expect(isAlwaysPrepared(sources.get("aid"))).toBe(false)
+    })
+
+    it("marks an item whose modifiers don't apply as inactive", () => {
+      expect(getSpellGrantSources(character({ equipment: [wand({ equipped: false })] })).get("cure")![0].active).toBe(false)
+      expect(getSpellGrantSources(character({ equipment: [wand({ requiresAttunement: true, attuned: false })] })).get("cure")![0].active).toBe(false)
+    })
+
+    it("ignores the grants of an item no longer magic", () => {
+      expect(getSpellGrantSources(character({ equipment: [wand({ magic: false })] })).get("cure")).toBeUndefined()
+    })
+
+    it("lists an item spell that can't be cast from the item with no free cast", () => {
+      const sources = getSpellGrantSources(character({ equipment: [wand({ modifiers: { grantedSpells: [{ spellId: "cure" }] } })] }))
+      expect(sources.get("cure")![0].free).toBeUndefined()
+    })
+
+    it("doesn't count the casts of an item spell that spends no charges, or of an item without charges", () => {
+      expect(getSpellGrantSources(character({ equipment: [wand({ modifiers: { grantedSpells: [{ spellId: "cure", charges: 0 }] } })] })).get("cure")![0].free).toEqual({ cost: 0 })
+      expect(getSpellGrantSources(character({ equipment: [wand({ maxUses: undefined, charges: undefined })] })).get("cure")![0].free).toEqual({ cost: 0 })
+    })
+  })
+
+  describe("readiness", () => {
+    const spell = { level: 1, known: true, prepared: false }
+    const active = { key: "feature:x", kind: "feature" as const, sourceId: "x", name: "X", active: true, alwaysPrepared: false }
+
+    it("readies a spell an active feature keeps prepared, and one with an active free cast, spent or not", () => {
+      expect(isSpellReady(spell, [{ ...active, alwaysPrepared: true }])).toBe(true)
+      expect(isSpellReady(spell, [{ ...active, free: { cost: 1, remaining: 0, total: 1 } }])).toBe(true)
+    })
+
+    it("doesn't ready a spell whose only sources are inactive, or name it with no way to cast it", () => {
+      expect(isSpellReady(spell, [{ ...active, active: false, alwaysPrepared: true }])).toBe(false)
+      expect(isSpellReady(spell, [{ ...active, kind: "item" }])).toBe(false)
+    })
+
+    it("offers slots only to a spell that's prepared, by its own box or a feature", () => {
+      expect(canCastWithSlots({ level: 1, prepared: true })).toBe(true)
+      expect(canCastWithSlots({ level: 1, prepared: false }, [{ ...active, alwaysPrepared: true }])).toBe(true)
+      expect(canCastWithSlots({ level: 1, prepared: false }, [{ ...active, free: { cost: 1 } }])).toBe(false)
+      expect(canCastWithSlots({ level: 0, prepared: true })).toBe(false)
+    })
+
+    it("lists only active free casts, and affords one with enough left or none counted", () => {
+      const free = { cost: 3, remaining: 2, total: 10 }
+      expect(freeCastSources([{ ...active, free }, { ...active, active: false, free }])).toHaveLength(1)
+      expect(canAffordFreeCast(free)).toBe(false)
+      expect(canAffordFreeCast({ ...free, remaining: 3 })).toBe(true)
+      expect(canAffordFreeCast({ cost: 0 })).toBe(true)
+    })
+
+    it("explains an inactive source", () => {
+      expect(inactiveGrantReason({ ...active, kind: "item", active: false })).toBe("Item not currently equipped/attuned")
+      expect(inactiveGrantReason({ ...active, active: false, fromLevel: 7 })).toBe("From level 7")
+    })
+  })
+
+  describe("withFreeCastSpent", () => {
+    it("spends one of a feature's casts of that spell", () => {
+      const fey = spellsFeature([{ level: 1, effects: { grantedSpells: ["misty"], grantedSpellsFreeCasts: 2 } }], { id: "fey", source: "feat", spellCastsSpent: { misty: 1 } })
+      const after = withFreeCastSpent(character({ feats: [fey] }), { kind: "feature", sourceId: "fey" }, "misty")
+      expect(after.feats![0].spellCastsSpent).toEqual({ misty: 2 })
+    })
+
+    it("spends an item's charges for the cost, never past its maximum", () => {
+      expect(withFreeCastSpent(character({ equipment: [wand()] }), { kind: "item", sourceId: "wand", free: { cost: 2 } }, "cure").equipment[0].charges).toBe(4)
+      expect(withFreeCastSpent(character({ equipment: [wand({ charges: 6 })] }), { kind: "item", sourceId: "wand", free: { cost: 2 } }, "cure").equipment[0].charges).toBe(7)
+    })
+
+    it("changes nothing for a cast that spends no charges", () => {
+      const before = character({ equipment: [wand()] })
+      expect(withFreeCastSpent(before, { kind: "item", sourceId: "wand", free: { cost: 0 } }, "cure")).toBe(before)
+    })
+  })
+
+  it("restores a feature's free casts with withSpellCastsRecharged", () => {
+    const fey = spellsFeature([], { spellCastsSpent: { misty: 1 } })
+    expect(withSpellCastsRecharged(fey)).not.toHaveProperty("spellCastsSpent")
+    const fresh = spellsFeature([])
+    expect(withSpellCastsRecharged(fresh)).toBe(fresh)
+  })
+
+  describe("withSpellDeleted", () => {
+    const cure = { id: "cure", name: "Cure Wounds", level: 1, school: "Abjuration", castingTime: "1 action", range: "Touch", components: "V, S", duration: "Instantaneous", description: "", prepared: true, known: true }
+
+    it("removes the spell from the list, the features' tiers and spent casts, and the items, keeping them", () => {
+      const life = spellsFeature([{ level: 1, effects: { grantedSpells: ["bless", "cure"], grantedSpellsFreeCasts: 1 } }], { spellCastsSpent: { cure: 1, bless: 1 } })
+      const after = withSpellDeleted(character({ spells: [cure], classFeatures: [life], equipment: [wand()], activeSpellIds: ["cure"] }), "cure")
+      expect(after.spells).toEqual([])
+      expect(after.activeSpellIds).toEqual([])
+      expect(after.classFeatures![0].levelEffects![0].effects.grantedSpells).toEqual(["bless"])
+      expect(after.classFeatures![0].spellCastsSpent).toEqual({ bless: 1 })
+      expect(after.equipment[0].modifiers).toEqual({})
+      expect(after.equipment[0].id).toBe("wand")
+    })
+
+    it("leaves features and items that never named the spell as they were", () => {
+      const other = spellsFeature([{ level: 1, effects: { grantedSpells: ["bless"] } }])
+      const before = character({ spells: [cure], classFeatures: [other] })
+      expect(withSpellDeleted(before, "cure").classFeatures![0]).toBe(other)
+    })
+  })
+})
+
 describe("withSpells", () => {
   const character = (overrides: Partial<Character> = {}): Character => ({ ...createDefaultCharacter(), ...overrides })
   const prepared = (spell: Spell): Spell => ({ ...spell, prepared: true })
@@ -2541,6 +2720,12 @@ describe("withSpells", () => {
 
   it("adds no activeSpellIds to a character without them", () => {
     expect(withSpells(character(), [mageArmor])).not.toHaveProperty("activeSpellIds")
+  })
+
+  it("keeps in effect an unprepared spell a feature keeps prepared", () => {
+    const life: Feature = { id: "life", name: "Life Domain", description: "", source: "class-feature", featureType: "Spells", levelEffects: [{ level: 1, effects: { grantedSpells: ["bless"], grantedSpellsSlots: true } }] }
+    const before = character({ spells: [prepared(bless)], classFeatures: [life], activeSpellIds: ["bless"] })
+    expect(withSpells(before, [{ ...bless, prepared: false }]).activeSpellIds).toEqual(["bless"])
   })
 })
 

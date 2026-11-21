@@ -103,6 +103,33 @@ test.describe("A character saved by an older version", () => {
     expect(saved).not.toHaveProperty("useCalculatedSize")
   })
 
+  test("with spells linked to a magic item moves each link onto the item", async ({ page }) => {
+    // As saved before items named their spells: the spell named the item, and whether it was free
+    const ring = { id: "ring-1", name: "Ring of Spell Storing", quantity: 1, weight: 0, description: "", equipped: true, type: "other", magic: true }
+    const spell = (id: string, name: string, link: Record<string, unknown>) => ({
+      id, name, level: 1, school: "Abjuration", castingTime: "1 reaction", range: "Self", components: "V, S", duration: "1 round",
+      description: "", prepared: true, known: true, ...link,
+    })
+    const character = {
+      ...testCharacter, id: "item-spells", equipment: [ring],
+      spells: [spell("shield", "Shield", { grantedBy: "ring-1", freeCast: true }), spell("absorb", "Absorb Elements", { grantedBy: "ring-1" }), spell("lost", "Feather Fall", { grantedBy: "gone" })],
+    } as unknown as Character
+    await seedGuest(page, character)
+    // Every spell level starts expanded
+    await openSheet(page, character.id, "Spells")
+    await expect(page.locator(`[data-test="spell-granted-shield-item:ring-1"]`)).toHaveText("Granted: Ring of Spell Storing")
+    await expect(page.locator(`[data-test="spell-granted-absorb-item:ring-1"]`)).toHaveText("Granted: Ring of Spell Storing")
+
+    await makeAnEdit(page)
+    await reload(page)
+    const saved = await storedCharacter(page, character.id)
+    expect(saved.equipment[0].modifiers).toEqual({ grantedSpells: [{ spellId: "shield", charges: 0 }, { spellId: "absorb" }] })
+    for (const savedSpell of saved.spells) {
+      expect(savedSpell).not.toHaveProperty("grantedBy")
+      expect(savedSpell).not.toHaveProperty("freeCast")
+    }
+  })
+
   test("in an import file is brought up to date when it is imported", async ({ page }) => {
     await seedGuest(page, [])
     await page.goto("/")

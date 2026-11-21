@@ -2,6 +2,7 @@ import { axe } from "vitest-axe"
 
 import { SpellEditModal, spellFromForm, spellToForm, defaultSpellForm, type SpellFormData } from "@/components/spell-edit-modal"
 import type { Spell } from "@/lib/character-types"
+import type { SpellGrantSource } from "@/lib/character-utils"
 
 import { render, screen, fireEvent, cleanup, cleanupPortals } from "../test-utils"
 
@@ -20,6 +21,10 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
     known: true,
     ...overrides,
   }
+}
+
+function makeSource(overrides: Partial<SpellGrantSource> = {}): SpellGrantSource {
+  return { key: "feature:life", kind: "feature", sourceId: "life", name: "Life Domain Class Feature", active: true, alwaysPrepared: true, ...overrides }
 }
 
 function makeForm(overrides: Partial<SpellFormData> = {}): SpellFormData {
@@ -84,9 +89,11 @@ describe("spellFromForm", () => {
     expect(spellFromForm(makeForm({ attackRoll: true })).attackRoll).toBe(true)
   })
 
-  it("stores freeCast only for an item-granted spell", () => {
-    expect(spellFromForm(makeForm({ grantedBy: "", freeCast: true })).freeCast).toBeUndefined()
-    expect(spellFromForm(makeForm({ grantedBy: "item-1", freeCast: true })).freeCast).toBe(true)
+  // Which features and items give a spell is set on them, never stored on the spell
+  it("writes no source of the spell onto it", () => {
+    const spell = spellFromForm(makeForm())
+    expect(spell).not.toHaveProperty("grantedBy")
+    expect(spell).not.toHaveProperty("freeCast")
   })
 })
 
@@ -119,7 +126,7 @@ describe("SpellEditModal", () => {
 
   it("edits a spell, keeping its id", () => {
     const onSave = vi.fn()
-    render(() => <SpellEditModal open spell={makeSpell({ id: "s1" })} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
+    render(() => <SpellEditModal open spell={makeSpell({ id: "s1" })} grantSources={[]} onSave={onSave} onCancel={vi.fn()} />)
     expect(screen.getByRole("heading", { name: "Edit Spell" })).toBeInTheDocument()
     fireEvent.input(screen.getByLabelText("Highlights"), { target: { value: "Ranged spell attack" } })
     fireEvent.input(screen.getByLabelText("Damage"), { target: { value: "1d10" } })
@@ -132,7 +139,7 @@ describe("SpellEditModal", () => {
 
   it("edits the damage and gain added per higher slot level", () => {
     const onSave = vi.fn()
-    render(() => <SpellEditModal open spell={makeSpell({ level: 3, damagePerLevel: "1d6" })} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
+    render(() => <SpellEditModal open spell={makeSpell({ level: 3, damagePerLevel: "1d6" })} grantSources={[]} onSave={onSave} onCancel={vi.fn()} />)
     expect(screen.getByLabelText("Damage per Higher Level")).toHaveValue("1d6")
     fireEvent.input(screen.getByLabelText("Damage per Higher Level"), { target: { value: "2d6" } })
     fireEvent.input(screen.getByLabelText("Gain per Higher Level"), { target: { value: "1d8" } })
@@ -141,7 +148,7 @@ describe("SpellEditModal", () => {
   })
 
   it("keeps its actions in the sticky modal footer", () => {
-    render(() => <SpellEditModal open spell={null} magicItems={[]} onSave={vi.fn()} onCancel={vi.fn()} />)
+    render(() => <SpellEditModal open spell={null} grantSources={[]} onSave={vi.fn()} onCancel={vi.fn()} />)
     const footer = screen.getByTestId("modal-footer")
     expect(footer).toContainElement(screen.getByTestId("spell-form-submit"))
     expect(footer).toContainElement(screen.getByTestId("spell-form-cancel"))
@@ -149,7 +156,7 @@ describe("SpellEditModal", () => {
 
   it("adds a spell when given none", () => {
     const onSave = vi.fn()
-    render(() => <SpellEditModal open spell={null} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
+    render(() => <SpellEditModal open spell={null} grantSources={[]} onSave={onSave} onCancel={vi.fn()} />)
     expect(screen.getByRole("heading", { name: "Add New Spell" })).toBeInTheDocument()
     fireEvent.input(screen.getByLabelText("Spell Name"), { target: { value: "Shield" } })
     fireEvent.click(screen.getByTestId("spell-form-submit"))
@@ -157,7 +164,7 @@ describe("SpellEditModal", () => {
   })
 
   it("offers the six save abilities for Attack/Save", () => {
-    render(() => <SpellEditModal open spell={makeSpell()} magicItems={[]} onSave={vi.fn()} onCancel={vi.fn()} />)
+    render(() => <SpellEditModal open spell={makeSpell()} grantSources={[]} onSave={vi.fn()} onCancel={vi.fn()} />)
     fireEvent.focus(screen.getByRole("combobox", { name: "Attack/Save" }))
     const options = screen.getAllByRole("option").map((o) => o.textContent)
     expect(options).toEqual(["STR", "DEX", "CON", "INT", "WIS", "CHA"])
@@ -165,7 +172,7 @@ describe("SpellEditModal", () => {
 
   it("saves a chosen save ability and the attack roll checkbox", () => {
     const onSave = vi.fn()
-    render(() => <SpellEditModal open spell={makeSpell()} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
+    render(() => <SpellEditModal open spell={makeSpell()} grantSources={[]} onSave={onSave} onCancel={vi.fn()} />)
     fireEvent.focus(screen.getByRole("combobox", { name: "Attack/Save" }))
     fireEvent.click(screen.getByRole("option", { name: "WIS" }))
     fireEvent.click(screen.getByRole("checkbox", { name: "Has attack roll" }))
@@ -175,7 +182,7 @@ describe("SpellEditModal", () => {
 
   it("keeps Attack/Save text saved before the abilities were offered", () => {
     const onSave = vi.fn()
-    render(() => <SpellEditModal open spell={makeSpell({ attackSave: "Dex Save" })} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
+    render(() => <SpellEditModal open spell={makeSpell({ attackSave: "Dex Save" })} grantSources={[]} onSave={onSave} onCancel={vi.fn()} />)
     expect(screen.getByRole("combobox", { name: "Attack/Save" })).toHaveValue("Dex Save")
     fireEvent.click(screen.getByTestId("spell-form-submit"))
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ attackSave: "Dex Save" }))
@@ -183,7 +190,7 @@ describe("SpellEditModal", () => {
 
   it("does not save a spell without a name, and says why", () => {
     const onSave = vi.fn()
-    render(() => <SpellEditModal open spell={null} magicItems={[]} onSave={onSave} onCancel={vi.fn()} />)
+    render(() => <SpellEditModal open spell={null} grantSources={[]} onSave={onSave} onCancel={vi.fn()} />)
     fireEvent.click(screen.getByTestId("spell-form-submit"))
     expect(onSave).not.toHaveBeenCalled()
     expect(screen.getByTestId("spell-name")).toBeRequired()
@@ -192,7 +199,60 @@ describe("SpellEditModal", () => {
   })
 
   it("has no accessibility violations", async () => {
-    render(() => <SpellEditModal open spell={makeSpell()} magicItems={[]} onSave={vi.fn()} onCancel={vi.fn()} />)
+    render(() => <SpellEditModal open spell={makeSpell()} grantSources={[]} onSave={vi.fn()} onCancel={vi.fn()} />)
     expect((await axe(screen.getByRole("dialog"))).violations).toHaveLength(0)
+  })
+
+  describe("granted spells", () => {
+    const sources = [
+      makeSource(),
+      makeSource({ key: "item:wand", kind: "item", sourceId: "wand", name: "Wand of Healing", active: false, alwaysPrepared: false }),
+    ]
+
+    it("shows no Granted By for a spell nothing gives", () => {
+      render(() => <SpellEditModal open spell={makeSpell()} grantSources={[]} onSave={vi.fn()} onCancel={vi.fn()} />)
+      expect(screen.queryByTestId("spell-granted-by")).not.toBeInTheDocument()
+    })
+
+    it("shows each source as a display chip at the top, dimming one that doesn't give it now", () => {
+      render(() => <SpellEditModal open spell={makeSpell({ level: 1 })} grantSources={sources} onSave={vi.fn()} onCancel={vi.fn()} />)
+      const grantedBy = screen.getByTestId("spell-granted-by")
+      expect(screen.getByTestId("spell-granted-by-chip-feature:life")).toHaveTextContent("Granted: Life Domain Class Feature")
+      const inactive = screen.getByTestId("spell-granted-by-chip-inactive-item:wand")
+      expect(inactive).toHaveTextContent("Granted: Wand of Healing")
+      expect(inactive).toHaveClass("text-muted-foreground")
+      expect(screen.getByRole("group", { name: "Granted: Wand of Healing, Item not currently equipped/attuned" })).toBeInTheDocument()
+      // Above every field: it's where the spell comes from, not something to edit
+      expect(grantedBy.compareDocumentPosition(screen.getByTestId("spell-name")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(grantedBy.querySelector("select, input, [role=combobox]")).toBeNull()
+    })
+
+    it("locks Prepared, checked, while a feature keeps the spell prepared, and saves the spell's own choice", () => {
+      const onSave = vi.fn()
+      render(() => <SpellEditModal open spell={makeSpell({ level: 1, prepared: false })} grantSources={sources} onSave={onSave} onCancel={vi.fn()} />)
+      const prepared = screen.getByRole("checkbox", { name: "Prepared" })
+      expect(prepared).toBeChecked()
+      expect(prepared).toBeDisabled()
+      expect(screen.getByRole("group", { name: "Prepared, Always prepared (Life Domain Class Feature)" })).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId("spell-form-submit"))
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ prepared: false }))
+    })
+
+    it("locks Known for a cantrip a feature keeps known", () => {
+      render(() => <SpellEditModal open spell={makeSpell({ level: 0, known: false })} grantSources={[makeSource()]} onSave={vi.fn()} onCancel={vi.fn()} />)
+      const known = screen.getByRole("checkbox", { name: "Known" })
+      expect(known).toBeChecked()
+      expect(known).toBeDisabled()
+    })
+
+    it("leaves Prepared editable when the feature's tier isn't reached", () => {
+      render(() => <SpellEditModal open spell={makeSpell({ level: 1 })} grantSources={[makeSource({ active: false, fromLevel: 5 })]} onSave={vi.fn()} onCancel={vi.fn()} />)
+      expect(screen.getByRole("checkbox", { name: "Prepared" })).toBeEnabled()
+    })
+
+    it("has no accessibility violations", async () => {
+      render(() => <SpellEditModal open spell={makeSpell({ level: 1 })} grantSources={sources} onSave={vi.fn()} onCancel={vi.fn()} />)
+      expect((await axe(screen.getByRole("dialog"))).violations).toHaveLength(0)
+    })
   })
 })
