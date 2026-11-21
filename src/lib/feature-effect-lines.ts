@@ -1,4 +1,4 @@
-import type { AbilityScores, Feature, FeatureEffects, FeatureLevelEffect, FeatureTypeValue } from "./character-types"
+import type { AbilityScores, Feature, FeatureEffects, FeatureLevelEffect, FeatureTypeValue, Spell } from "./character-types"
 import { ABILITY_ABBREVIATIONS, ABILITY_KEYS, formatModifier, ordinal, SENSE_LABELS, SENSE_TYPES, SKILL_DISPLAY_NAMES, SPELL_SLOT_LEVELS } from "./character-utils"
 import { effectFeatureType } from "./required-features"
 
@@ -7,7 +7,16 @@ import { effectFeatureType } from "./required-features"
 // when nothing in this tier is populated (e.g. a freshly added, still-empty tier) so callers can
 // filter it out rather than rendering a blank line — mirrors the "only show populated fields" idiom
 // used by the Spell/Equipment cards' <Show when={field}> rows.
-export function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: FeatureEffects): string {
+/** Names a spell by id, for a 'Spells' feature's line. */
+export type SpellNameResolver = (spellId: string) => string
+
+/** The resolver for a character's spells. A spell no longer in the list (an imported file) is named as such. */
+export function spellNameResolver(spells: readonly Pick<Spell, "id" | "name">[] | undefined): SpellNameResolver {
+  const names = new Map((spells ?? []).map((spell) => [spell.id, spell.name]))
+  return (spellId) => names.get(spellId) ?? "Unknown spell"
+}
+
+export function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects: FeatureEffects, spellName?: SpellNameResolver): string {
   const parts: string[] = []
   switch (featureType) {
     case 'Hit Points': {
@@ -98,6 +107,15 @@ export function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects:
       fmtGroup('Base Max', effects.abilityScoreBaseMax, (v) => `${v}`)
       break
     }
+    case 'Spells': {
+      const ids = effects.grantedSpells ?? []
+      if (ids.length === 0) break
+      parts.push(`Spells: ${ids.map((id) => spellName?.(id) ?? "Unknown spell").join(', ')}`)
+      if (effects.grantedSpellsSlots) parts.push('Always prepared')
+      const freeCasts = effects.grantedSpellsFreeCasts ?? 0
+      if (freeCasts > 0) parts.push(`${freeCasts} free cast${freeCasts === 1 ? '' : 's'} each`)
+      break
+    }
     // The ability is the whole feature's, so it gets a line of its own (see featureEffectLines)
     case 'Spellcasting': {
       const slots = SPELL_SLOT_LEVELS.filter((level) => (effects.spellSlots?.[level] ?? 0) > 0)
@@ -114,10 +132,10 @@ export function formatFeatureEffectsLine(featureType: FeatureTypeValue, effects:
 // 'Custom' has no tiers.
 // `level` is null for a line about the whole feature rather than one tier: a Spellcasting
 // feature's ability, which every tier carries.
-export function featureEffectLines(feature: Feature): { level: number | null; text: string }[] {
+export function featureEffectLines(feature: Feature, spellName?: SpellNameResolver): { level: number | null; text: string }[] {
   const type = effectFeatureType(feature.featureType ?? 'Custom')
   const tierLines = (feature.levelEffects ?? [])
-    .map((tier) => ({ level: tier.level, text: formatFeatureEffectsLine(type, tier.effects) }))
+    .map((tier) => ({ level: tier.level, text: formatFeatureEffectsLine(type, tier.effects, spellName) }))
     .filter((line) => line.text !== '')
   const ability = type === 'Spellcasting' ? spellcastingAbilityOf(feature.levelEffects ?? []) : undefined
   return ability ? [{ level: null, text: `Spellcasting Ability: ${ABILITY_ABBREVIATIONS[ability]}` }, ...tierLines] : tierLines

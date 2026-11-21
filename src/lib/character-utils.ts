@@ -1,6 +1,6 @@
-import type { AbilityScores, ActionKind, Character, Equipment, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell, SpellSlotLevel, UseableEntry } from "./character-types"
+import type { AbilityScores, ActionKind, Character, Equipment, ItemModifiers, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, HitPointsMode, SenseType, Skills, Spell, SpellSlotLevel, UseableEntry } from "./character-types"
 import { rollMany, parseDiceString, type DieSize } from "./dice"
-import type { FeatureListField } from "./required-features"
+import { FEATURE_LIST_FIELDS, type FeatureListField } from "./required-features"
 
 export function getAbilityModifier(score: number): number {
   return Math.floor((Math.max(0, score) - 10) / 2)
@@ -1556,9 +1556,204 @@ export function withSpellEnded(character: Pick<Character, "activeSpellIds">, spe
   return (character.activeSpellIds ?? []).filter((id) => id !== spellId)
 }
 
-/** Whether a spell can be cast from its action card: a cantrip while known, any other spell while prepared. */
-export function isSpellReady(spell: Pick<Spell, "level" | "known" | "prepared">): boolean {
-  return spell.level === 0 ? (spell.known ?? true) : !!spell.prepared
+/** One spell a feature's tiers give, with the settings of the tier that gives it. */
+export interface FeatureSpellGrant {
+  spellId: string
+  /** The level of the tier whose settings apply: the last one reached, or the first one not yet reached. */
+  level: number
+  /** Whether the character has reached that tier. */
+  active: boolean
+  slots: boolean
+  /** Free casts per recharge; 0 when the spell can't be cast without a slot. */
+  freeCasts: number
+}
+
+/**
+ * The spells a 'Spells' feature gives, in the order its tiers name them. Tiers add up; a spell named
+ * again in a later tier the character has reached takes that tier's settings (so a feature can give
+ * more free casts at a higher level). A spell only named in tiers not reached yet is listed as not
+ * active, with the first of those tiers.
+ */
+export function getFeatureSpellGrants(feature: Feature, characterLevel: number): FeatureSpellGrant[] {
+  const grants = new Map<string, FeatureSpellGrant>()
+  const tiers = [...(feature.levelEffects ?? [])].sort((a, b) => a.level - b.level)
+  for (const tier of tiers) {
+    const active = tier.level <= characterLevel
+    for (const spellId of tier.effects.grantedSpells ?? []) {
+      // Tiers are in level order, so the reached ones come first: a tier not reached only lists a
+      // spell no earlier tier gives
+      if (!active && grants.has(spellId)) continue
+      grants.set(spellId, {
+        spellId,
+        level: tier.level,
+        active,
+        slots: !!tier.effects.grantedSpellsSlots,
+        freeCasts: Math.max(0, Math.floor(Number(tier.effects.grantedSpellsFreeCasts ?? 0))),
+      })
+    }
+  }
+  return [...grants.values()]
+}
+
+/** Free casts of a spell its feature has spent since it last recharged. */
+export function featureSpellCastsSpent(feature: Pick<Feature, "spellCastsSpent">, spellId: string): number {
+  return Math.max(0, Number(feature.spellCastsSpent?.[spellId] ?? 0))
+}
+
+/**
+ * How a source lets a spell be cast without a slot. `remaining`/`total` are absent when the casts
+ * aren't counted (an item that spends no charges).
+ */
+export interface FreeCast {
+  /** Uses spent per cast: 1 for a feature's free cast, the grant's charges for an item. */
+  cost: number
+  remaining?: number
+  total?: number
+}
+
+/** A feature or item that gives a spell, as the spell's cards and edit form show it. */
+export interface SpellGrantSource {
+  /** `feature:<id>` or `item:<id>`, unique among a spell's sources. */
+  key: string
+  kind: "feature" | "item"
+  sourceId: string
+  /** The name tooltips and chips show: the feature's name and kind, or the item's name. */
+  name: string
+  /** Whether the source gives the spell now: the feature tier is reached, or the item's modifiers apply. */
+  active: boolean
+  /** A feature tier not reached yet: the level it's gained at. */
+  fromLevel?: number
+  /** A feature's spell that is castable with slots, which makes it always prepared. */
+  alwaysPrepared: boolean
+  free?: FreeCast
+}
+
+type SpellGrantCharacter = FeatureEffectCharacter & Partial<Pick<Character, "equipment">>
+
+/**
+ * Every spell's sources, by spell id: the features whose tiers name it, then the magic items that
+ * give it. Inactive sources are included, so a spell can show where it will come from.
+ */
+export function getSpellGrantSources(character: SpellGrantCharacter): Map<string, SpellGrantSource[]> {
+  const sources = new Map<string, SpellGrantSource[]>()
+  const add = (spellId: string, source: SpellGrantSource) => {
+    const list = sources.get(spellId)
+    if (list) list.push(source)
+    else sources.set(spellId, [source])
+  }
+  const level = character.level ?? 1
+
+  for (const field of FEATURE_LIST_FIELDS) {
+    for (const feature of safeFeatures(character[field])) {
+      for (const grant of getFeatureSpellGrants(feature, level)) {
+        add(grant.spellId, {
+          key: `feature:${feature.id}`,
+          kind: "feature",
+          sourceId: feature.id,
+          name: featureSourceLabel(feature),
+          active: grant.active,
+          ...(grant.active ? {} : { fromLevel: grant.level }),
+          alwaysPrepared: grant.slots,
+          ...(grant.freeCasts > 0
+            ? { free: { cost: 1, total: grant.freeCasts, remaining: Math.max(0, grant.freeCasts - featureSpellCastsSpent(feature, grant.spellId)) } }
+            : {}),
+        })
+      }
+    }
+  }
+
+  for (const item of character.equipment ?? []) {
+    if (!item.magic) continue
+    for (const grant of item.modifiers?.grantedSpells ?? []) {
+      let free: FreeCast | undefined
+      if (grant.charges != null) {
+        const cost = Math.max(0, Math.floor(Number(grant.charges)))
+        free = hasChargesTracking(item) && cost > 0
+          ? { cost, total: item.maxUses ?? 0, remaining: Math.max(0, (item.maxUses ?? 0) - (item.charges ?? 0)) }
+          : { cost: 0 }
+      }
+      add(grant.spellId, {
+        key: `item:${item.id}`,
+        kind: "item",
+        sourceId: item.id,
+        name: item.name,
+        active: isItemModifierActive(item),
+        alwaysPrepared: false,
+        ...(free ? { free } : {}),
+      })
+    }
+  }
+  return sources
+}
+
+/** Whether an active feature makes the spell always prepared (a cantrip: always known). */
+export function isAlwaysPrepared(sources: readonly SpellGrantSource[] | undefined): boolean {
+  return (sources ?? []).some((source) => source.active && source.alwaysPrepared)
+}
+
+/** The active sources a spell can be cast from without a slot, spent or not. */
+export function freeCastSources(sources: readonly SpellGrantSource[] | undefined): (SpellGrantSource & { free: FreeCast })[] {
+  return (sources ?? []).filter((source): source is SpellGrantSource & { free: FreeCast } => source.active && !!source.free)
+}
+
+/** Whether a free cast has enough uses left to pay for one more cast. */
+export function canAffordFreeCast(free: FreeCast): boolean {
+  return free.remaining == null || free.remaining >= free.cost
+}
+
+/** The tooltip of an inactive source's chip: why it doesn't give the spell now. */
+export function inactiveGrantReason(source: SpellGrantSource): string {
+  return source.kind === "item" ? "Item not currently equipped/attuned" : `From level ${source.fromLevel}`
+}
+
+/**
+ * Whether a spell can be cast from its action card: a cantrip while known, any other spell while
+ * prepared, and any spell an active source makes always prepared or lets be cast without a slot.
+ */
+export function isSpellReady(spell: Pick<Spell, "level" | "known" | "prepared">, sources?: readonly SpellGrantSource[]): boolean {
+  if (spell.level === 0 ? (spell.known ?? true) : !!spell.prepared) return true
+  return isAlwaysPrepared(sources) || freeCastSources(sources).length > 0
+}
+
+/** Whether a spell of 1st level or higher can be cast with the character's slots: while it's prepared. */
+export function canCastWithSlots(spell: Pick<Spell, "level" | "prepared">, sources?: readonly SpellGrantSource[]): boolean {
+  return spell.level > 0 && (!!spell.prepared || isAlwaysPrepared(sources))
+}
+
+/**
+ * The character with one free cast of the spell spent from the source: one of a feature's casts of
+ * that spell, or the grant's charges from an item. An item cast that spends no charges changes nothing.
+ */
+export function withFreeCastSpent(character: Character, source: Pick<SpellGrantSource, "kind" | "sourceId" | "free">, spellId: string): Character {
+  if (source.kind === "feature") {
+    for (const field of FEATURE_LIST_FIELDS) {
+      const features = safeFeatures(character[field])
+      if (!features.some((feature) => feature.id === source.sourceId)) continue
+      return {
+        ...character,
+        [field]: features.map((feature) => feature.id === source.sourceId
+          ? { ...feature, spellCastsSpent: { ...feature.spellCastsSpent, [spellId]: featureSpellCastsSpent(feature, spellId) + 1 } }
+          : feature),
+      }
+    }
+    return character
+  }
+  const cost = source.free?.cost ?? 0
+  if (cost <= 0) return character
+  return {
+    ...character,
+    equipment: (character.equipment ?? []).map((item) => item.id === source.sourceId && hasChargesTracking(item)
+      ? { ...item, charges: Math.min(item.maxUses ?? 0, (item.charges ?? 0) + cost) }
+      : item),
+  }
+}
+
+/** The feature with its spells' free casts restored, as a rest matching its rechargeOn does. */
+export function withSpellCastsRecharged<T extends Pick<Feature, "spellCastsSpent">>(feature: T): T {
+  if (!feature.spellCastsSpent) return feature
+  const rest = { ...feature }
+  delete rest.spellCastsSpent
+  return rest
 }
 
 /**
@@ -1567,8 +1762,49 @@ export function isSpellReady(spell: Pick<Spell, "level" | "known" | "prepared">)
  */
 export function withSpells(character: Character, spells: Spell[]): Character {
   if (!character.activeSpellIds) return { ...character, spells }
-  const ready = new Set(spells.filter(isSpellReady).map((spell) => spell.id))
+  const sources = getSpellGrantSources(character)
+  const ready = new Set(spells.filter((spell) => isSpellReady(spell, sources.get(spell.id))).map((spell) => spell.id))
   return { ...character, spells, activeSpellIds: character.activeSpellIds.filter((id) => ready.has(id)) }
+}
+
+/**
+ * The character without the spell: it leaves the spell list, ends if in effect, and is no longer
+ * named by any feature or item that gave it. The features and items themselves stay.
+ */
+export function withSpellDeleted(character: Character, spellId: string): Character {
+  const next: Character = { ...character }
+  for (const field of FEATURE_LIST_FIELDS) {
+    const features = safeFeatures(character[field])
+    if (!features.some((feature) => namesSpell(feature, spellId))) continue
+    next[field] = features.map((feature) => {
+      if (!namesSpell(feature, spellId)) return feature
+      const levelEffects = feature.levelEffects?.map((tier) => tier.effects.grantedSpells?.includes(spellId)
+        ? { ...tier, effects: { ...tier.effects, grantedSpells: tier.effects.grantedSpells.filter((id) => id !== spellId) } }
+        : tier)
+      const spellCastsSpent = { ...feature.spellCastsSpent }
+      delete spellCastsSpent[spellId]
+      const rest: Feature = { ...feature, levelEffects }
+      if (Object.keys(spellCastsSpent).length > 0) rest.spellCastsSpent = spellCastsSpent
+      else delete rest.spellCastsSpent
+      return rest
+    })
+  }
+  if ((character.equipment ?? []).some((item) => item.modifiers?.grantedSpells?.some((grant) => grant.spellId === spellId))) {
+    next.equipment = character.equipment.map((item) => {
+      const grants = item.modifiers?.grantedSpells
+      if (!grants?.some((grant) => grant.spellId === spellId)) return item
+      const remaining = grants.filter((grant) => grant.spellId !== spellId)
+      const modifiers: ItemModifiers = { ...item.modifiers, grantedSpells: remaining }
+      if (remaining.length === 0) delete modifiers.grantedSpells
+      return { ...item, modifiers }
+    })
+  }
+  return withSpells(next, (character.spells ?? []).filter((spell) => spell.id !== spellId))
+}
+
+function namesSpell(feature: Feature, spellId: string): boolean {
+  return (feature.levelEffects ?? []).some((tier) => tier.effects.grantedSpells?.includes(spellId)) ||
+    feature.spellCastsSpent?.[spellId] != null
 }
 
 const PARSED_DURATION = /^(?:up to\s+)?(\d+)\s+(round|minute|hour)s?$/i

@@ -12,7 +12,7 @@ import BookOpen from "lucide-solid/icons/book-open"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, Feature, Spell } from "@/lib/character-types"
-import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, isItemModifierActive, withSpells, getSpellSlots, withSpentSpellSlots, findSpellcastingFeature, withFeatureSaved, getPreparedSpellsLimit, SPELL_SLOT_LEVELS, getEffectiveProficiencyBonus, isCalculated, getCustomValue, getEffectiveValue } from "@/lib/character-utils"
+import { getSpellSaveDC, getSpellAttackBonus, getSpellSaveDCBreakdown, getSpellAttackBreakdown, formatModifier, withSpells, withSpellDeleted, getSpellGrantSources, isAlwaysPrepared, getSpellSlots, withSpentSpellSlots, findSpellcastingFeature, withFeatureSaved, getPreparedSpellsLimit, SPELL_SLOT_LEVELS, getEffectiveProficiencyBonus, isCalculated, getCustomValue, getEffectiveValue } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { CalculatedValue } from "@/components/ui/calculated-value"
@@ -27,6 +27,7 @@ import { Collapsible, CollapsibleChevron, CollapsibleContent, CollapsibleTrigger
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
 import { SpellEditModal, SPELL_LEVELS } from "@/components/spell-edit-modal"
+import { alwaysPreparedTooltip, SpellGrantChips } from "@/components/spell-grant-chips"
 import { FeatureEditModal } from "@/components/features-module"
 import { useReadOnly } from "@/lib/read-only-context"
 import { cn, HOVER_ACCENT } from "@/lib/utils"
@@ -77,8 +78,11 @@ export function SpellsModule(props: SpellsModuleProps) {
   const [slotsFeatureModal, setSlotsFeatureModal] = createSignal<{ feature: Feature | null } | null>(null)
 
   const safeSpells = createMemo(() => props.character.spells || [])
-  const magicItems = createMemo(() => (props.character.equipment ?? []).filter((item) => item.magic))
-  const magicItemById = (id: string | undefined) => magicItems().find((item) => item.id === id)
+  // Which features and items give each spell; an active feature giving it with slots keeps it prepared
+  const grantSources = createMemo(() => getSpellGrantSources(props.character))
+  const sourcesOf = (spell: Spell) => grantSources().get(spell.id) ?? []
+  const alwaysPrepared = (spell: Spell) => isAlwaysPrepared(grantSources().get(spell.id))
+  const isPrepared = (spell: Spell) => !!spell.prepared || alwaysPrepared(spell)
   const filteredSpells = createMemo(() =>
     safeSpells().filter(
       (spell) =>
@@ -99,7 +103,8 @@ export function SpellsModule(props: SpellsModuleProps) {
   })
   // Must be called inside a reactive context (JSX, effect, memo) — reads spellsByLevelMap()
   const spellsByLevel = (levelValue: number) => spellsByLevelMap().get(levelValue) ?? EMPTY_SPELLS
-  const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0))
+  // Counted against the limit: an always-prepared spell doesn't take up one of the character's choices
+  const preparedSpells = createMemo(() => safeSpells().filter((spell) => spell.prepared && spell.level > 0 && !alwaysPrepared(spell)))
   const preparedSpellsLimit = createMemo(() => getPreparedSpellsLimit(props.character))
   const spellSaveDC = createMemo(() => getSpellSaveDC(props.character))
   const spellAttackBonus = createMemo(() => getSpellAttackBonus(props.character))
@@ -149,8 +154,8 @@ export function SpellsModule(props: SpellsModuleProps) {
 
   const handleDeleteSpell = (spellId: string) => {
     if (isReadOnly) return
-    // A deleted spell is no longer in effect
-    props.onUpdate(withSpells(props.character, safeSpells().filter((spell) => spell.id !== spellId)))
+    // A deleted spell is no longer in effect, nor named by the features and items that gave it
+    props.onUpdate(withSpellDeleted(props.character, spellId))
   }
 
   const togglePrepared = (spellId: string) => {
@@ -321,7 +326,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                             {/* An outline chip has no background of its own, so its text follows the
                                 header's colour and stays readable on the hover highlight. */}
                             <Chip variant="outline" class="text-xs text-inherit">
-                              {levelSpells().filter((s) => s.prepared).length} prepared
+                              {levelSpells().filter(isPrepared).length} prepared
                             </Chip>
                           </Show>
                         </div>
@@ -342,10 +347,12 @@ export function SpellsModule(props: SpellsModuleProps) {
                                           clicking it toggles Known (cantrips) or Prepared (leveled spells). */}
                                       <Show when={!isReadOnly} fallback={<h3 data-test={`spell-name-${spell.id}`} class="font-medium">{spell.name}</h3>}>
                                         <Show when={spell.level === 0}>
-                                          <Tooltip content="Known">
+                                          {/* Locked while a feature keeps the cantrip known */}
+                                          <Tooltip content={alwaysPrepared(spell) ? alwaysPreparedTooltip(sourcesOf(spell), true) : "Known"}>
                                             <Checkbox
                                               data-test={`spell-known-${spell.id}`}
-                                              checked={spell.known ?? true}
+                                              checked={alwaysPrepared(spell) || (spell.known ?? true)}
+                                              disabled={alwaysPrepared(spell)}
                                               onChange={() => toggleKnown(spell.id)}
                                               aria-label={`Known: ${spell.name}`}
                                               flush
@@ -357,11 +364,12 @@ export function SpellsModule(props: SpellsModuleProps) {
                                           </Tooltip>
                                         </Show>
                                         <Show when={spell.level > 0}>
-                                          <Tooltip content="Prepared">
+                                          {/* Locked while a feature keeps the spell prepared */}
+                                          <Tooltip content={alwaysPrepared(spell) ? alwaysPreparedTooltip(sourcesOf(spell), false) : "Prepared"}>
                                             <Checkbox
                                               data-test={`spell-prepared-${spell.id}`}
-                                              checked={spell.prepared || false}
-                                              disabled={!(spell.known ?? true)}
+                                              checked={isPrepared(spell)}
+                                              disabled={alwaysPrepared(spell) || !(spell.known ?? true)}
                                               onChange={() => togglePrepared(spell.id)}
                                               aria-label={`Prepared: ${spell.name}`}
                                               flush
@@ -380,22 +388,7 @@ export function SpellsModule(props: SpellsModuleProps) {
                                           <Chip data-test={`spell-ritual-${spell.id}`} variant="secondary" class="text-xs">R</Chip>
                                         </Tooltip>
                                       </Show>
-                                      <Show when={magicItemById(spell.grantedBy)}>
-                                        {(item) => (
-                                          <Show
-                                            when={!isItemModifierActive(item())}
-                                            fallback={<Chip variant="outline" class="text-xs">Granted: {item().name}</Chip>}
-                                          >
-                                            <Tooltip content="Item not currently equipped/attuned" triggerFocusable>
-                                              <Chip data-test={`spell-granted-inactive-${spell.id}`} variant="outline" class="text-xs text-muted-foreground italic">Granted: {item().name}</Chip>
-                                            </Tooltip>
-                                          </Show>
-                                        )}
-                                      </Show>
-                                      <Show when={spell.grantedBy && spell.freeCast}>
-                                        <Chip variant="secondary" class="text-xs">Free Cast</Chip>
-                                      </Show>
-
+                                      <SpellGrantChips data-test={`spell-granted-${spell.id}`} sources={sourcesOf(spell)} />
                                     </div>
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground mb-2">
                                       <Show when={spell.castingTime}><div><span class="font-medium">Time:</span> {spell.castingTime}</div></Show>
@@ -446,7 +439,7 @@ export function SpellsModule(props: SpellsModuleProps) {
       <SpellEditModal
         open={isAddModalOpen() || !!editingSpell()}
         spell={editingSpell()}
-        magicItems={magicItems()}
+        grantSources={editingSpell() ? sourcesOf(editingSpell()!) : []}
         onSave={handleSaveSpell}
         onCancel={() => { setIsAddModalOpen(false); setEditingSpell(null) }}
       />
@@ -459,6 +452,7 @@ export function SpellsModule(props: SpellsModuleProps) {
         initialType="Spellcasting"
         characterLevel={props.character.level ?? 1}
         proficiencyBonus={getEffectiveProficiencyBonus(props.character)}
+        spells={props.character.spells ?? []}
         onSave={handleSaveSpellSlotsFeature}
         onCancel={() => setSlotsFeatureModal(null)}
       />

@@ -32,6 +32,11 @@ export interface SelectOption {
   muted?: boolean
   /** Read by screen readers after the label, e.g. why the option is muted. */
   srHint?: string
+  /**
+   * A second line in the list only, never in the trigger, e.g. where a choice comes from and how
+   * many are left. Read with the option, so it's real text, not decoration.
+   */
+  detail?: string
 }
 
 interface SelectContextType {
@@ -348,7 +353,12 @@ function SelectItem(props: { option: SelectOption }) {
           <Check class="h-4 w-4" aria-hidden="true" />
         </span>
       )}
-      <span><OptionContent option={props.option} /></span>
+      <span>
+        <OptionContent option={props.option} />
+        <Show when={props.option.detail}>
+          {(detail) => <span class="block text-xs text-muted-foreground" data-test="select-option-detail">{detail()}</span>}
+        </Show>
+      </span>
     </li>
   )
 }

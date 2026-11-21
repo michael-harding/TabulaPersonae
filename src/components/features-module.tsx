@@ -11,10 +11,10 @@ import Dices from "lucide-solid/icons/dices"
 import Layers from "lucide-solid/icons/layers"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
-import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, MaxUsesMode, SpellSlotLevel, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
-import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, getEffectiveProficiencyBonus, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, CREATURE_TYPES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, ordinal, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME, withFeatureSaved, MAX_CHARACTER_LEVEL } from "@/lib/character-utils"
+import type { AbilityScores, Character, Feature, FeatureEffects, FeatureKind, FeatureLevelEffect, FeatureTypeValue, ActionKind, ActionType, Skills, HitPointsMode, MaxUsesMode, Spell, SpellSlotLevel, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
+import { safeFeatures, remainingUses, spentFromRemaining, effectiveMaxUses, getEffectiveProficiencyBonus, ABILITY_ABBREVIATIONS, SKILL_DISPLAY_NAMES, getActiveFeatureEffects, SENSE_TYPES, SENSE_LABELS, DAMAGE_TYPE_OPTIONS, CONDITIONS, SIZES, CREATURE_TYPES, RECHARGE_ON_OPTIONS, RECHARGE_ON_LABELS, ACTION_KIND_LABELS, ACTION_KIND_OPTIONS, ordinal, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME, withFeatureSaved, MAX_CHARACTER_LEVEL, getFeatureSpellGrants, featureSpellCastsSpent } from "@/lib/character-utils"
 import { DIE_SIZES } from "@/lib/dice"
-import { featureEffectLines, spellcastingAbilityOf } from "@/lib/feature-effect-lines"
+import { featureEffectLines, spellcastingAbilityOf, spellNameResolver } from "@/lib/feature-effect-lines"
 import { effectFeatureType, isRequiredFeature, isRequiredFeatureType } from "@/lib/required-features"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -114,7 +114,7 @@ const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
   'Spellcasting', 'Prepared Spells',
   'Saving Throw Proficiency', 'Skill Proficiency', 'Other Proficiency',
   'Speed', 'Senses', 'Damage Resistance/Immunity/Vulnerability', 'Condition Immunity', 'Language', 'Carrying Capacity',
-  'Ability Scores',
+  'Ability Scores', 'Spells',
 ]
 // Table types: each tier is a whole row of the class's table, so only the highest tier reached counts
 // (see getActiveFeatureEffects), and a new tier starts as a copy of the row before it.
@@ -199,6 +199,7 @@ export function featureToForm(feature: Feature): FeatureFormData {
  */
 export function featureFromForm(form: FeatureFormData, base: Partial<Feature> & Pick<Feature, 'source'>): Feature {
   const action = !!form.actionKind
+  const spells = form.featureType === 'Spells'
   return {
     ...base,
     id: base.id ?? crypto.randomUUID(),
@@ -222,8 +223,10 @@ export function featureFromForm(form: FeatureFormData, base: Partial<Feature> & 
     maxUses: (action && form.maxUsesMode === 'flat' && form.maxUses) ? form.maxUses : undefined,
     maxUsesMode: (action && form.maxUsesMode !== 'flat') ? form.maxUsesMode : undefined,
     maxUsesPerLevel: (action && form.maxUsesMode === 'per-level' && form.maxUsesPerLevel) ? form.maxUsesPerLevel : undefined,
-    rechargeOn: (action && form.rechargeOn) ? form.rechargeOn : undefined,
+    // A Spells feature's free casts recharge on its rest, like an Action feature's uses
+    rechargeOn: ((action || spells) && form.rechargeOn) ? form.rechargeOn : undefined,
     levelEffects: form.levelEffects.length > 0 ? form.levelEffects : undefined,
+    spellCastsSpent: spells ? base.spellCastsSpent : undefined,
   }
 }
 
@@ -269,6 +272,8 @@ interface FeatureFormProps {
   characterLevel: number
   /** The character's effective proficiency bonus, for the Proficiency Bonus uses scaling. */
   proficiencyBonus: number
+  /** The character's spells, which a Spells feature picks from. */
+  spells: readonly Spell[]
   onSubmit: (data: FeatureFormData) => void
   onCancel: () => void
 }
@@ -295,7 +300,7 @@ function computeInitialEffectGroups(effects: FeatureEffects): Record<EffectGroup
 type TieredEffectType =
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-  | 'Ability Scores' | 'Spellcasting' | 'Prepared Spells'
+  | 'Ability Scores' | 'Spellcasting' | 'Prepared Spells' | 'Spells'
 
 function LevelEffectRow(props: {
   featureType: TieredEffectType
@@ -306,6 +311,8 @@ function LevelEffectRow(props: {
   onLevelChange: (level: number) => void
   onEffectsChange: (effects: FeatureEffects) => void
   onRemove: () => void
+  /** The character's spells, which a Spells tier picks from. */
+  spells: readonly Spell[]
 }) {
   const effects = () => props.tier.effects
   const update = (patch: Partial<FeatureEffects>) => props.onEffectsChange({ ...effects(), ...patch })
@@ -632,6 +639,39 @@ function LevelEffectRow(props: {
               </For>
             </div>
           </ModifierGroup>
+        </div>
+      </Show>
+
+      <Show when={props.featureType === 'Spells'}>
+        <ChipListEditor
+          label="Spells"
+          itemLabel="spell"
+          data-test={`level-effect-${props.index}-spells`}
+          values={effects().grantedSpells ?? []}
+          options={props.spells.map((spell) => spell.id)}
+          optionLabel={spellNameResolver(props.spells)}
+          emptyText={props.spells.length === 0 ? "Add spells on the Spells tab first" : undefined}
+          onChange={(next) => update({ grantedSpells: next.length > 0 ? next : undefined })}
+        />
+        <Checkbox
+          data-test={`level-effect-${props.index}-spells-slots`}
+          checked={!!effects().grantedSpellsSlots}
+          onChange={(checked: boolean) => update({ grantedSpellsSlots: checked || undefined })}
+          label="Cast with spell slots (always prepared)"
+          labelClass="text-sm cursor-pointer"
+          containerClass="gap-3 min-h-[44px]"
+        />
+        <div class="space-y-1">
+          <Label for={`fx-spells-free-casts-${props.index}`} class="text-xs">Free casts per spell</Label>
+          <NumericInput
+            id={`fx-spells-free-casts-${props.index}`}
+            data-test={`level-effect-${props.index}-spells-free-casts`}
+            class="w-24"
+            min={0}
+            max={20}
+            value={effects().grantedSpellsFreeCasts ?? 0}
+            onChange={(v) => update({ grantedSpellsFreeCasts: v || undefined })}
+          />
         </div>
       </Show>
 
@@ -1119,6 +1159,11 @@ function FeatureForm(props: FeatureFormProps) {
                 Each level lists all the spell slots the character has from that level on, like a row of your class's spell slot table. The highest level the character has reached applies. The spellcasting ability applies from the first level.
               </p>
             </Show>
+            <Show when={effectType() === 'Spells'}>
+              <p data-test="spells-hint" class="text-xs text-muted-foreground">
+                Each level adds the spells the character gains from that level on. Spells cast with spell slots are always prepared. Free casts are counted for each spell and recharge on the rest chosen below.
+              </p>
+            </Show>
             <Show when={effectType() === 'Prepared Spells'}>
               <p data-test="prepared-spells-hint" class="text-xs text-muted-foreground">
                 Each level gives the number of spells the character can prepare from that level on, like a row of your class's table. The highest level the character has reached applies.
@@ -1135,6 +1180,7 @@ function FeatureForm(props: FeatureFormProps) {
                   onLevelChange={(level) => updateLevelEffect(i, { level })}
                   onEffectsChange={(effects) => updateLevelEffect(i, { effects })}
                   onRemove={() => removeLevelEffect(i)}
+                  spells={props.spells}
                 />
               )}
             </Index>
@@ -1142,6 +1188,15 @@ function FeatureForm(props: FeatureFormProps) {
               <Plus class="h-3 w-3" aria-hidden="true" />
               Add Level
             </Button>
+            <Show when={effectType() === 'Spells' && formData().levelEffects.some((tier) => (tier.effects.grantedSpellsFreeCasts ?? 0) > 0)}>
+              <div class="space-y-1">
+                <Label for="feature-spells-recharge">Free Casts Recharge On</Label>
+                <Select options={RECHARGE_ON_OPTIONS} value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>
+                  <SelectTrigger id="feature-spells-recharge" data-test="feature-spells-recharge-select"><SelectValue /></SelectTrigger>
+                  <SelectContent />
+                </Select>
+              </div>
+            </Show>
           </div>
         </Show>
       </div>
@@ -1177,6 +1232,15 @@ export function FeaturesModule(props: FeaturesModuleProps) {
     setIsAddOpen(null)
     setEditingFeature(null)
   }
+
+  // A Spells feature's free casts of one spell, spent or restored from its card
+  const handleSpellCastsSpentChange = (field: FeatureField, id: string, spellId: string, spent: number) => {
+    props.onUpdate({
+      ...props.character,
+      [field]: safeFeatures(props.character[field]).map((f) => f.id === id ? { ...f, spellCastsSpent: { ...f.spellCastsSpent, [spellId]: Math.max(0, spent) } } : f),
+    })
+  }
+  const spellName = () => spellNameResolver(props.character.spells)
 
   const handleFeatureUsesChange = (field: FeatureField, id: string, v: number) => {
     props.onUpdate({
@@ -1308,7 +1372,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                           </div>
                           <Show when={feature.featureType && feature.featureType !== 'Action'}>
                             {(() => {
-                              const lines = featureEffectLines(feature)
+                              const lines = featureEffectLines(feature, spellNameResolver(props.character.spells))
                               return (
                                 <Show when={lines.length > 0}>
                                   <div class="text-xs text-muted-foreground space-y-0.5">
@@ -1363,6 +1427,44 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                               </Show>
                             )
                           })()}
+                          {/* A Spells feature's free casts, one tracker per spell the character has it for: the
+                              only place they're spent and restored by hand (a spell card's Cast spends them too) */}
+                          <For each={getFeatureSpellGrants(feature, props.character.level ?? 1).filter((grant) => grant.active && grant.freeCasts > 0)}>
+                            {(grant) => {
+                              const spent = () => Math.min(grant.freeCasts, featureSpellCastsSpent(feature, grant.spellId))
+                              return (
+                                <div class="flex flex-wrap items-center justify-between gap-2" data-test={`feature-spell-casts-${feature.id}-${grant.spellId}`}>
+                                  <span class="text-xs text-muted-foreground">{spellName()(grant.spellId)}</span>
+                                  <Show
+                                    when={grant.freeCasts <= 5}
+                                    fallback={
+                                      // value/onChange are inverted: display shows remaining casts, storage tracks spent
+                                      <StepperInput data-test={`feature-spell-casts-stepper-${feature.id}-${grant.spellId}`}
+                                        value={remainingUses(spent(), grant.freeCasts)}
+                                        min={0}
+                                        max={grant.freeCasts}
+                                        onChange={(v) => handleSpellCastsSpentChange(section.field, feature.id, grant.spellId, spentFromRemaining(v, grant.freeCasts))}
+                                        readOnly={isReadOnly}
+                                        aria-label={`${spellName()(grant.spellId)} free casts remaining`}
+                                      />
+                                    }
+                                  >
+                                    <PipTracker
+                                      data-test={`feature-spell-casts-pips-${feature.id}-${grant.spellId}`}
+                                      total={grant.freeCasts}
+                                      used={spent()}
+                                      onToggle={(v) => handleSpellCastsSpentChange(section.field, feature.id, grant.spellId, v)}
+                                      usedTitle={`${spellName()(grant.spellId)} free cast spent (click to restore)`}
+                                      availableTitle={`${spellName()(grant.spellId)} free cast available (click to use)`}
+                                      usedLabel={`${spellName()(grant.spellId)} free cast spent`}
+                                      availableLabel={`${spellName()(grant.spellId)} free cast available`}
+                                      readOnly={isReadOnly}
+                                    />
+                                  </Show>
+                                </div>
+                              )
+                            }}
+                          </For>
                           <Show when={isActiveHitDieSource(feature)}>
                             <div class="space-y-1">
                               <Label class="text-xs text-muted-foreground">Spent Hit Dice</Label>
@@ -1411,6 +1513,7 @@ export function FeaturesModule(props: FeaturesModuleProps) {
         feature={editingFeature()}
         characterLevel={props.character.level ?? 1}
         proficiencyBonus={getEffectiveProficiencyBonus(props.character)}
+        spells={props.character.spells ?? []}
         onSave={handleSave}
         onCancel={() => { setIsAddOpen(null); setEditingFeature(null) }}
       />
@@ -1429,6 +1532,8 @@ interface FeatureEditModalProps {
   characterLevel: number
   /** The character's effective proficiency bonus (getEffectiveProficiencyBonus). */
   proficiencyBonus: number
+  /** The character's spells, which a Spells feature picks from. */
+  spells: readonly Spell[]
   onSave: (feature: Feature) => void
   onCancel: () => void
 }
@@ -1455,6 +1560,7 @@ export function FeatureEditModal(props: FeatureEditModalProps) {
                 initialData={feature ? featureToForm(feature) : props.initialType ? withFeatureType(defaultFeatureForm, props.initialType) : undefined}
                 characterLevel={props.characterLevel}
                 proficiencyBonus={props.proficiencyBonus}
+                spells={props.spells}
                 onSubmit={(data) => props.onSave(featureFromForm(data, feature ?? { source: props.kind }))}
                 onCancel={props.onCancel}
               />
