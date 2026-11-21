@@ -1,4 +1,5 @@
-import { createEffect, createSignal, on, onCleanup, Show, type JSX } from "solid-js"
+import { createEffect, createSignal, For, on, onCleanup, Show, type JSX } from "solid-js"
+import Gift from "lucide-solid/icons/gift"
 import RefreshCw from "lucide-solid/icons/refresh-cw"
 import WandSparkles from "lucide-solid/icons/wand-sparkles"
 import X from "lucide-solid/icons/x"
@@ -38,10 +39,46 @@ type At = "card" | "expanded"
 const AT: readonly At[] = ["card", "expanded"]
 const at = (inExpanded: boolean): At => (inExpanded ? "expanded" : "card")
 
-/** A spell slot level a spell can be cast with, and how many of its slots are left. */
-export interface SlotLevel {
+/**
+ * One way to pay for casting a spell: a slot of a level, or a free cast from a feature or item.
+ * A free cast is always at the spell's own level.
+ */
+export interface CastOption {
+  /** Unique among the spell's options, e.g. `slot:3` or `free:feature:<id>`. */
+  value: string
+  /** The level the spell is cast at. */
   level: number
-  remaining: number
+  /** Whether it can pay for a cast now: a slot left, or enough of the source's uses. */
+  available: boolean
+  /** A free cast: who pays for it, and with what. Absent for a slot. */
+  free?: {
+    sourceName: string
+    /** Uses spent per cast: 1 for a feature, the charges for an item (0 spends none). */
+    cost: number
+    /** Absent when the casts aren't counted. */
+    remaining?: number
+    total?: number
+  }
+}
+
+const isSlotAt = (option: CastOption, level: number) => !option.free && option.level === level
+
+/**
+ * The option a cast uses unless another is chosen: a free cast while one can be paid for, since a
+ * slot is the scarcer resource; otherwise a slot of the spell's own level.
+ */
+export function defaultCastOption(options: readonly CastOption[], spellLevel: number): CastOption | undefined {
+  return options.find((option) => option.free && option.available)
+    ?? options.find((option) => isSlotAt(option, spellLevel))
+    ?? options[0]
+}
+
+/** The list-only line under a free option: its source, its cost, and what's left. */
+function freeCastDetail(free: NonNullable<CastOption["free"]>): string {
+  const parts = [free.sourceName]
+  if (free.cost > 1) parts.push(`${free.cost} charges`)
+  if (free.remaining != null) parts.push(`${free.remaining} left`)
+  return parts.join(" · ")
 }
 
 // What a click on the card itself ignores: anything the user can operate or focus. Not data-sem,
@@ -65,10 +102,8 @@ export interface ActionCardProps {
   castingTime?: string
   components?: string
   atHigherLevel?: string
-  /** The name of the magic item that grants the spell. */
-  grantedBy?: string
-  /** Whether casting the spell spends no slot. */
-  freeCast?: boolean
+  /** The names of the features and items that give the spell, active or not. */
+  grantedBy?: string[]
 
   // Feature details, shown in the expanded view
   /** The character level the feature is gained at. */
@@ -124,12 +159,15 @@ export interface ActionCardProps {
   pipIcon?: PipIcon
 
   // Casting — mutually exclusive with the uses tracker
-  /** Whether the spell can be cast at its own level. */
+  /** Whether a spell with no cast options (a cantrip) can be cast. */
   castable?: () => boolean
-  /** Casts the spell with a slot of the given level. */
-  onCast?: (level: number) => void
-  /** The slot levels to choose from: the spell's own level and each higher one the character has. */
-  slotLevels?: () => SlotLevel[]
+  /** Casts the spell, paid for with the chosen option; undefined for a spell with none (a cantrip). */
+  onCast?: (option: CastOption | undefined) => void
+  /**
+   * How the spell can be paid for: its free casts first, then a slot of its own level and each higher
+   * one the character has. The card offers a choice when there's more than one.
+   */
+  castOptions?: () => CastOption[]
   /** Whether the spell is in effect: cast, lasting, and not yet ended. Its Cast button becomes an end button. */
   active?: boolean
   /** Ends the spell while it's in effect. */
@@ -159,9 +197,9 @@ export function ActionCard(props: ActionCardProps) {
   const isReadOnly = useReadOnly()
   const [expanded, setExpanded] = createSignal(false)
   const [cardWidth, setCardWidth] = createSignal(0)
-  // undefined means the spell's own level, which every cast resets to: a higher slot is only ever
-  // spent when chosen for that cast
-  const [chosenLevel, setChosenLevel] = createSignal<number>()
+  // undefined means the default option (see defaultCastOption), which every cast resets to: a higher
+  // slot, or a slot instead of a free cast, is only ever spent when chosen for that cast
+  const [chosenOption, setChosenOption] = createSignal<string>()
   // Set for a moment after a cast, while the Cast button shows it was pressed
   const [justCast, setJustCast] = createSignal(false)
   let castTimer: ReturnType<typeof setTimeout> | undefined
@@ -187,21 +225,26 @@ export function ActionCard(props: ActionCardProps) {
   const hasEndButton = () => hasCastButton() && !!props.active && !!props.onEnd && !justCast()
   const hasUsesTracker = () => (props.maxUses ?? 0) > 0 && !props.onCast
 
-  const selectedLevel = () => chosenLevel() ?? props.spellLevel ?? 0
-  const slotChoices = () => props.slotLevels?.() ?? []
-  const hasSlotSelect = () => hasCastButton() && slotChoices().length > 1
-  const canCast = () => hasSlotSelect()
-    ? (slotChoices().find((l) => l.level === selectedLevel())?.remaining ?? 0) > 0
-    : !!props.castable?.()
+  const castChoices = () => props.castOptions?.() ?? []
+  // A choice that's no longer offered (its source was unequipped, say) falls back to the default
+  const selectedOption = () => {
+    const choices = castChoices()
+    return choices.find((option) => option.value === chosenOption()) ?? defaultCastOption(choices, props.spellLevel ?? 0)
+  }
+  const selectedLevel = () => selectedOption()?.level ?? props.spellLevel ?? 0
+  const hasSlotSelect = () => hasCastButton() && castChoices().length > 1
+  const canCast = () => castChoices().length > 0 ? !!selectedOption()?.available : !!props.castable?.()
+  // The read-only counts of the spell's free casts; their trackers are on the feature or item card
+  const countedFreeCasts = () => castChoices().filter((option) => option.free?.remaining != null)
   const cast = () => {
     // A second press while the first one's feedback shows is ignored, so a double tap spends one slot
     if (justCast()) return
-    const level = selectedLevel()
+    const option = selectedOption()
     // The feedback starts first: a cast that puts the spell in effect would otherwise swap in the end
     // button for an instant, taking focus with the Cast button it removes
     setJustCast(true)
-    props.onCast?.(level)
-    setChosenLevel(undefined)
+    props.onCast?.(option)
+    setChosenOption(undefined)
     castTimer = setTimeout(() => {
       const focused = AT.find((at) => swapButtons[at].cast && document.activeElement === swapButtons[at].cast)
       setJustCast(false)
@@ -227,11 +270,20 @@ export function ActionCard(props: ActionCardProps) {
   }
   const castStatus = () => (justCast() ? `${props.name} cast` : justEnded() ? `${props.name} ended` : "")
 
-  const slotOptions = (): SelectOption[] => slotChoices().map((l) => ({
-    value: String(l.level),
-    label: ordinal(l.level),
-    ...(l.remaining > 0 ? { icon: WandSparkles } : { muted: true, srHint: "no slots" }),
-  }))
+  // The trigger shows what Cast will spend: "Free" or a slot level. Which source pays for a free
+  // cast, and what's left, is in the list.
+  const castSelectOptions = (): SelectOption[] => castChoices().map((option) => option.free
+    ? {
+        value: option.value,
+        label: "Free",
+        detail: freeCastDetail(option.free),
+        ...(option.available ? { icon: Gift } : { muted: true, srHint: "none left" }),
+      }
+    : {
+        value: option.value,
+        label: ordinal(option.level),
+        ...(option.available ? { icon: WandSparkles } : { muted: true, srHint: "no slots" }),
+      })
 
   // Damage and gain at the chosen slot level: each level above the spell's own adds its per-level
   // amount. The breakdown, shown as the badge's tooltip, exists only while a higher slot is chosen.
@@ -346,6 +398,24 @@ export function ActionCard(props: ActionCardProps) {
     </>
   )
 
+  // What's left of each counted free cast, as plain text: spent and restored on the feature or item
+  const freeCastChips = (inExpanded: boolean) => (
+    <Show when={countedFreeCasts().length > 0}>
+      <div class="flex flex-wrap gap-1" data-test={hook("free-casts", inExpanded)}>
+        <For each={countedFreeCasts()}>
+          {(option) => (
+            <Chip variant="outline" class="max-w-full text-xs text-muted-foreground">
+              <span class="truncate">
+                {option.free!.sourceName} {option.free!.remaining}/{option.free!.total}
+                <span class="sr-only"> free {option.free!.cost > 1 ? "charges" : "casts"} left</span>
+              </span>
+            </Chip>
+          )}
+        </For>
+      </div>
+    </Show>
+  )
+
   const hasStatList = () => !!(props.trigger || props.range)
   const statList = () => (
     <Show when={hasStatList()}>
@@ -407,10 +477,10 @@ export function ActionCard(props: ActionCardProps) {
             }
           >
           <Show when={hasSlotSelect()}>
-            <Select options={slotOptions()} value={String(selectedLevel())} onValueChange={(v) => setChosenLevel(Number(v))}>
-              {/* No visible label: the design gives the select only the levels (ACCESSIBILITY.md §11),
+            <Select options={castSelectOptions()} value={selectedOption()?.value ?? ""} onValueChange={setChosenOption}>
+              {/* No visible label: the design gives the select only what Cast spends (ACCESSIBILITY.md §11),
                   so it is named for its spell, which tells it apart from the other cards' selects */}
-              <SelectTrigger class="w-auto shrink-0 gap-1 px-1.5" aria-label={`Cast ${props.name} at level`} data-test={hook("slot-select", inExpanded)}>
+              <SelectTrigger class="w-auto shrink-0 gap-1 px-1.5" aria-label={`Cast ${props.name} using`} data-test={hook("slot-select", inExpanded)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent />
@@ -522,6 +592,8 @@ export function ActionCard(props: ActionCardProps) {
           </div>
         </Show>
 
+        {freeCastChips(false)}
+
         <Show
           when={props.highlights}
           fallback={<Show when={props.description}><div class="text-xs line-clamp-2">{props.description}</div></Show>}
@@ -593,17 +665,18 @@ export function ActionCard(props: ActionCardProps) {
 
           {statBadges(true)}
 
-          <Show when={props.concentration || durationLabel() || props.ritual || props.freeCast}>
+          <Show when={props.concentration || durationLabel() || props.ritual}>
             <div class="flex flex-wrap gap-1">
               {statusChips(true)}
               <Show when={props.ritual}><Chip variant="outline" class="text-xs text-muted-foreground">Ritual</Chip></Show>
-              <Show when={props.freeCast}><Chip variant="outline" class="text-xs text-muted-foreground">Free Cast</Chip></Show>
             </div>
           </Show>
 
+          {freeCastChips(true)}
+
           <div class="space-y-1 text-xs">
             <Show when={props.spellSchool}>{detailRow("School", props.spellSchool)}</Show>
-            <Show when={props.grantedBy}>{detailRow("Granted By", props.grantedBy)}</Show>
+            <Show when={(props.grantedBy ?? []).length > 0}>{detailRow("Granted By", props.grantedBy!.join(", "))}</Show>
             <Show when={props.atLevel}>{detailRow("At Level", props.atLevel)}</Show>
             <Show when={props.rarity}>{detailRow("Rarity", props.rarity)}</Show>
             <Show when={props.requiresAttunement}>{detailRow("Attunement", props.attuned ? "Attuned" : "Required, not attuned")}</Show>

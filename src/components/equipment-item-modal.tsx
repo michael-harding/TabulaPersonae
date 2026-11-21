@@ -3,7 +3,8 @@ import { createStore, reconcile, unwrap } from "solid-js/store"
 import Save from "lucide-solid/icons/save"
 import Gem from "lucide-solid/icons/gem"
 
-import type { AbilityScores, ActionKind, Equipment, ItemModifiers, ItemRarity, SenseType, Skills } from "@/lib/character-types"
+import type { AbilityScores, ActionKind, Equipment, ItemModifiers, ItemRarity, ItemSpellGrant, SenseType, Skills, Spell } from "@/lib/character-types"
+import { spellNameResolver } from "@/lib/feature-effect-lines"
 import {
   DAMAGE_TYPE_OPTIONS,
   CONDITIONS,
@@ -114,6 +115,7 @@ interface EquipmentFormData {
   modifierProficiencies: string[]
   modifierSkillAdvantage: (keyof Skills)[]
   modifierSkillDisadvantage: (keyof Skills)[]
+  modifierGrantedSpells: ItemSpellGrant[]
 }
 
 const defaultEquipmentForm: EquipmentFormData = {
@@ -162,6 +164,7 @@ const defaultEquipmentForm: EquipmentFormData = {
   modifierProficiencies: [],
   modifierSkillAdvantage: [],
   modifierSkillDisadvantage: [],
+  modifierGrantedSpells: [],
 }
 
 interface EquipmentFormProps {
@@ -169,6 +172,8 @@ interface EquipmentFormProps {
   onSubmit: (data: EquipmentFormData) => void
   onCancel: () => void
   editing: boolean
+  /** The character's spells, which the item's Granted Spells pick from. */
+  spells: readonly Spell[]
 }
 
 function anyAbilityNonZero(record: Record<keyof AbilityScores, number>): boolean {
@@ -256,6 +261,13 @@ function EquipmentForm(props: EquipmentFormProps) {
   const [openSkillEffects, setOpenSkillEffects] = createSignal(hasSkillEffectValues(props.initialData))
   const [openCombatBonuses, setOpenCombatBonuses] = createSignal(hasCombatBonusValues(props.initialData))
   const [openUses, setOpenUses] = createSignal(hasChargesValues(props.initialData))
+  const [openGrantedSpells, setOpenGrantedSpells] = createSignal(props.initialData.modifierGrantedSpells.length > 0)
+  const spellName = () => spellNameResolver(props.spells)
+  // An item with charges spends them on a cast; one without casts its spells for free
+  const tracksCharges = () => formData.magic && formData.maxUses > 0
+  // A spell added here starts castable from the item, for one charge when the item has them
+  const setGrantedSpellIds = (ids: string[]) => setFormData("modifierGrantedSpells", ids.map((spellId) =>
+    formData.modifierGrantedSpells.find((grant) => grant.spellId === spellId) ?? { spellId, charges: tracksCharges() ? 1 : 0 }))
   const validation = useFormValidation(() => [requiredText("item-name", "Item Name", formData.name)])
   createEffect(
     on(
@@ -621,6 +633,52 @@ function EquipmentForm(props: EquipmentFormProps) {
               </Show>
             </ModifierGroup>
 
+            <ModifierGroup label="Granted Spells" data-test="modifier-group-granted-spells" open={openGrantedSpells()} onOpenChange={setOpenGrantedSpells}>
+              <ChipListEditor
+                label="Spells"
+                itemLabel="spell"
+                data-test="modifier-granted-spells"
+                values={formData.modifierGrantedSpells.map((grant) => grant.spellId)}
+                options={props.spells.map((spell) => spell.id)}
+                optionLabel={spellName()}
+                emptyText={props.spells.length === 0 ? "Add spells on the Spells tab first" : undefined}
+                onChange={setGrantedSpellIds}
+              />
+              {/* How each spell is cast from the item. Adding and removing stays on the chips above */}
+              <For each={formData.modifierGrantedSpells}>
+                {(grant, i) => (
+                  <div class="flex flex-wrap items-center gap-x-4 gap-y-1" data-test={`modifier-granted-spell-${grant.spellId}`}>
+                    <span class="min-w-24 flex-1 text-sm font-medium">{spellName()(grant.spellId)}</span>
+                    <Checkbox
+                      data-test={`modifier-granted-spell-${grant.spellId}-cast-from-item`}
+                      checked={grant.charges != null}
+                      onChange={(checked: boolean) => setFormData("modifierGrantedSpells", i(), "charges", checked ? (tracksCharges() ? 1 : 0) : undefined)}
+                      // Named for its spell: every row has one
+                      label={<>Cast<span class="sr-only"> {spellName()(grant.spellId)}</span> from item</>}
+                      labelClass="text-sm cursor-pointer"
+                      containerClass="gap-2 min-h-[44px]"
+                    />
+                    <Show when={grant.charges != null && tracksCharges()}>
+                      <div class="flex items-center gap-2">
+                        <Label for={`modifier-granted-spell-${grant.spellId}-charges`} class="text-xs whitespace-nowrap">
+                          <span class="sr-only">{spellName()(grant.spellId)} </span>Charges per cast
+                        </Label>
+                        <NumericInput
+                          id={`modifier-granted-spell-${grant.spellId}-charges`}
+                          data-test={`modifier-granted-spell-${grant.spellId}-charges`}
+                          class="w-20"
+                          min={0}
+                          max={formData.maxUses}
+                          value={grant.charges ?? 0}
+                          onChange={(v) => setFormData("modifierGrantedSpells", i(), "charges", v)}
+                        />
+                      </div>
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </ModifierGroup>
+
             <ModifierGroup label="Combat Bonuses" data-test="modifier-group-combat-bonuses" open={openCombatBonuses()} onOpenChange={setOpenCombatBonuses}>
               <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -915,6 +973,7 @@ function formDataFromItem(item: Equipment | null): EquipmentFormData {
     modifierProficiencies: item.modifiers?.proficiencies ?? [],
     modifierSkillAdvantage: item.modifiers?.skillAdvantage ?? [],
     modifierSkillDisadvantage: item.modifiers?.skillDisadvantage ?? [],
+    modifierGrantedSpells: item.modifiers?.grantedSpells ?? [],
   }
 }
 
@@ -969,6 +1028,12 @@ function buildModifiers(formData: EquipmentFormData): ItemModifiers | undefined 
 
     if (formData.modifierLanguages.length > 0) modifiers.languages = formData.modifierLanguages
     if (formData.modifierProficiencies.length > 0) modifiers.proficiencies = formData.modifierProficiencies
+
+    // A cast from an item without charges spends none, whatever the field held while it had them
+    const tracksCharges = formData.maxUses > 0
+    const grantedSpells = formData.modifierGrantedSpells.map(({ spellId, charges }): ItemSpellGrant =>
+      charges == null ? { spellId } : { spellId, charges: tracksCharges ? Math.max(0, charges) : 0 })
+    if (grantedSpells.length > 0) modifiers.grantedSpells = grantedSpells
   }
 
   return Object.keys(modifiers).length > 0 ? modifiers : undefined
@@ -1013,6 +1078,8 @@ function magicFields(formData: EquipmentFormData) {
 interface EquipmentItemModalProps {
   open: boolean
   editingItem: Equipment | null
+  /** The character's spells, which the item's Granted Spells pick from. */
+  spells: readonly Spell[]
   onSave: (item: Equipment) => void
   onCancel: () => void
 }
@@ -1049,6 +1116,7 @@ export function EquipmentItemModal(props: EquipmentItemModalProps) {
           onSubmit={handleSubmit}
           onCancel={props.onCancel}
           editing={!!props.editingItem}
+          spells={props.spells}
         />
       </ModalContent>
     </Modal>

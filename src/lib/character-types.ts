@@ -108,6 +108,22 @@ export interface ItemModifiers {
   // other field above, which is gated to magic items only (see isItemModifierActive).
   skillAdvantage?: (keyof Skills)[]
   skillDisadvantage?: (keyof Skills)[]
+  /** Spells the item gives while its modifiers apply (see isItemModifierActive). Magic items only. */
+  grantedSpells?: ItemSpellGrant[]
+}
+
+/**
+ * A spell a magic item gives. The spell itself is an ordinary entry of `character.spells`; this only
+ * names it. Casting it with the character's own slots still depends on the spell being prepared:
+ * the item adds only the casts paid for by the item.
+ */
+export interface ItemSpellGrant {
+  spellId: string
+  /**
+   * How a cast from the item is paid for. Absent: it can't be cast from the item (the item is only
+   * listed as a source). 0: cast from the item for free. N: spends N of the item's charges.
+   */
+  charges?: number
 }
 
 // Top-level damage and gain apply to a non-weapon item used as an action (e.g. Alchemist's Fire, a
@@ -164,8 +180,6 @@ export interface Spell extends CharacterEntry, DamageFields, GainFields {
   gainPerLevel?: string;
   concentration?: boolean;
   ritual?: boolean;
-  grantedBy?: string;
-  freeCast?: boolean;
 }
 
 export type FeatureKind = 'class-feature' | 'species-trait' | 'feat' | 'background'
@@ -233,6 +247,18 @@ export interface FeatureEffects {
    * or another feat, in ascending order. Set once for the whole feature, on its single tier.
    */
   abilityScoreImprovementLevels?: number[]
+  /**
+   * 'Spells': the ids of the spells (entries of `character.spells`) this tier gives. Tiers add up;
+   * a spell named again in a later tier takes that tier's settings below (see getSpellGrantSources).
+   */
+  grantedSpells?: string[]
+  /** 'Spells': this tier's spells can be cast with the character's spell slots, and are always prepared. */
+  grantedSpellsSlots?: boolean
+  /**
+   * 'Spells': how many times each of this tier's spells can be cast without a slot, per the
+   * feature's rechargeOn. Each spell has its own count (see Feature.spellCastsSpent).
+   */
+  grantedSpellsFreeCasts?: number
 }
 
 export interface FeatureLevelEffect {
@@ -252,7 +278,7 @@ export type FeatureTypeValue =
   | 'Custom' | 'Action' | 'Spellcasting' | 'Prepared Spells' | 'Hit Points' | 'Ability Score Improvement' | 'Size' | 'Creature Type'
   | 'Saving Throw Proficiency' | 'Skill Proficiency' | 'Other Proficiency'
   | 'Speed' | 'Senses' | 'Damage Resistance/Immunity/Vulnerability' | 'Condition Immunity' | 'Language' | 'Carrying Capacity'
-  | 'Ability Scores' | 'Max HP Bonus'
+  | 'Ability Scores' | 'Max HP Bonus' | 'Spells'
   | `${RequiredFeatureType} (legacy)`
 
 /** How a feature's max uses are counted; absent means 'flat'. */
@@ -282,6 +308,11 @@ export interface Feature extends UseableEntry, DamageFields, GainFields {
   // getActiveFeatureEffects — not just the highest one. A tier at level 1 and another at level 4
   // both apply once the character is level 4 or higher (see getQualifyingLevelEffects).
   levelEffects?: FeatureLevelEffect[]
+  /**
+   * 'Spells': free casts spent since the feature last recharged, by spell id. Reset by a rest
+   * matching rechargeOn, like `uses`. Ids of spells the feature no longer gives are ignored.
+   */
+  spellCastsSpent?: Record<string, number>
 }
 
 interface ActionBase extends UseableEntry, DamageFields, GainFields {
