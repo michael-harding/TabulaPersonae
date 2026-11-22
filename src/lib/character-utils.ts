@@ -1619,6 +1619,11 @@ export interface SpellGrantSource {
   sourceId: string
   /** The name tooltips and chips show: the feature's name and kind, or the item's name. */
   name: string
+  /**
+   * The feature's or item's own name, without the kind: what a spell card's cast choice shows,
+   * where the card already says where the spell comes from.
+   */
+  shortName: string
   /** Whether the source gives the spell now: the feature tier is reached, or the item's modifiers apply. */
   active: boolean
   /** A feature tier not reached yet: the level it's gained at. */
@@ -1651,6 +1656,7 @@ export function getSpellGrantSources(character: SpellGrantCharacter): Map<string
           kind: "feature",
           sourceId: feature.id,
           name: featureSourceLabel(feature),
+          shortName: feature.name,
           active: grant.active,
           ...(grant.active ? {} : { fromLevel: grant.level }),
           alwaysPrepared: grant.slots,
@@ -1677,6 +1683,7 @@ export function getSpellGrantSources(character: SpellGrantCharacter): Map<string
         kind: "item",
         sourceId: item.id,
         name: item.name,
+        shortName: item.name,
         active: isItemModifierActive(item),
         alwaysPrepared: false,
         ...(free ? { free } : {}),

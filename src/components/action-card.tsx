@@ -1,5 +1,4 @@
 import { createEffect, createSignal, For, on, onCleanup, Show, type JSX } from "solid-js"
-import Gift from "lucide-solid/icons/gift"
 import RefreshCw from "lucide-solid/icons/refresh-cw"
 import WandSparkles from "lucide-solid/icons/wand-sparkles"
 import X from "lucide-solid/icons/x"
@@ -73,12 +72,9 @@ export function defaultCastOption(options: readonly CastOption[], spellLevel: nu
     ?? options[0]
 }
 
-/** The list-only line under a free option: its source, its cost, and what's left. */
-function freeCastDetail(free: NonNullable<CastOption["free"]>): string {
-  const parts = [free.sourceName]
-  if (free.cost > 1) parts.push(`${free.cost} charges`)
-  if (free.remaining != null) parts.push(`${free.remaining} left`)
-  return parts.join(" · ")
+/** What's left of a free cast's uses, in parentheses so it reads as a count, not part of the name. */
+function freeCastCount(free: NonNullable<CastOption["free"]>): string | undefined {
+  return free.remaining != null ? `(${free.remaining}/${free.total})` : undefined
 }
 
 // What a click on the card itself ignores: anything the user can operate or focus. Not data-sem,
@@ -234,8 +230,9 @@ export function ActionCard(props: ActionCardProps) {
   const selectedLevel = () => selectedOption()?.level ?? props.spellLevel ?? 0
   const hasSlotSelect = () => hasCastButton() && castChoices().length > 1
   const canCast = () => castChoices().length > 0 ? !!selectedOption()?.available : !!props.castable?.()
-  // The read-only counts of the spell's free casts; their trackers are on the feature or item card
-  const countedFreeCasts = () => castChoices().filter((option) => option.free?.remaining != null)
+  // The read-only counts of the spell's free casts, where no cast choice already shows them; their
+  // trackers are on the feature or item card
+  const countedFreeCasts = () => hasSlotSelect() ? [] : castChoices().filter((option) => option.free?.remaining != null)
   const cast = () => {
     // A second press while the first one's feedback shows is ignored, so a double tap spends one slot
     if (justCast()) return
@@ -270,14 +267,16 @@ export function ActionCard(props: ActionCardProps) {
   }
   const castStatus = () => (justCast() ? `${props.name} cast` : justEnded() ? `${props.name} ended` : "")
 
-  // The trigger shows what Cast will spend: "Free" or a slot level. Which source pays for a free
-  // cast, and what's left, is in the list.
+  // The trigger shows what Cast will spend: the feature or item that pays, with what's left of it, or
+  // a slot level. An item's cost per cast, when more than one charge, is in the list. A free choice
+  // has no icon: its count shows when none are left.
   const castSelectOptions = (): SelectOption[] => castChoices().map((option) => option.free
     ? {
         value: option.value,
-        label: "Free",
-        detail: freeCastDetail(option.free),
-        ...(option.available ? { icon: Gift } : { muted: true, srHint: "none left" }),
+        label: option.free.sourceName,
+        ...(freeCastCount(option.free) ? { suffix: freeCastCount(option.free) } : {}),
+        ...(option.free.cost > 1 ? { detail: `${option.free.cost} charges per cast` } : {}),
+        ...(option.available ? {} : { muted: true, srHint: "none left" }),
       }
     : {
         value: option.value,
@@ -406,7 +405,7 @@ export function ActionCard(props: ActionCardProps) {
           {(option) => (
             <Chip variant="outline" class="max-w-full text-xs text-muted-foreground">
               <span class="truncate">
-                {option.free!.sourceName} {option.free!.remaining}/{option.free!.total}
+                {option.free!.sourceName} {freeCastCount(option.free!)}
                 <span class="sr-only"> free {option.free!.cost > 1 ? "charges" : "casts"} left</span>
               </span>
             </Chip>
@@ -481,7 +480,8 @@ export function ActionCard(props: ActionCardProps) {
               {/* No visible label: the design gives the select only what Cast spends (ACCESSIBILITY.md §11),
                   so it is named for its spell, which tells it apart from the other cards' selects */}
               <SelectTrigger class="w-auto shrink-0 gap-1 px-1.5" aria-label={`Cast ${props.name} using`} data-test={hook("slot-select", inExpanded)}>
-                <SelectValue />
+                {/* A long source name is cut short here, never its count; the list shows it in full */}
+                <SelectValue labelClass="inline-block max-w-[10ch] truncate align-bottom" />
               </SelectTrigger>
               <SelectContent />
             </Select>

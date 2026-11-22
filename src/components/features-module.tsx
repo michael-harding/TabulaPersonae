@@ -120,9 +120,11 @@ const TIERED_EFFECT_TYPES: FeatureTypeValue[] = [
 // (see getActiveFeatureEffects), and a new tier starts as a copy of the row before it.
 const TABLE_EFFECT_TYPES: FeatureTypeValue[] = ['Spellcasting', 'Prepared Spells']
 // Required types aren't offered: every character already has its one feature of each (see
-// required-features.ts), and that feature's type is locked. Custom, a feature with no mechanical
-// effect, comes first: it's what a new feature starts as.
-const FEATURE_TYPES: FeatureTypeValue[] = (['Custom', 'Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES] as FeatureTypeValue[]).filter((t) => !isRequiredFeatureType(t))
+// required-features.ts), and that feature's type is locked. Listed alphabetically; a new feature
+// still starts as Custom, a feature with no mechanical effect (see defaultFeatureForm).
+const FEATURE_TYPES: FeatureTypeValue[] = (['Custom', 'Action', ...SINGLE_EFFECT_TYPES, ...TIERED_EFFECT_TYPES] as FeatureTypeValue[])
+  .filter((t) => !isRequiredFeatureType(t))
+  .sort((a, b) => a.localeCompare(b))
 const FEATURE_TYPE_OPTIONS = FEATURE_TYPES.map((t) => ({ value: t, label: t }))
 // The levels an Ability Score Improvement can be gained at, for its "+ Add" menu
 const CHARACTER_LEVEL_OPTIONS = Array.from({ length: 20 }, (_, i) => String(i + 1))
@@ -1433,8 +1435,9 @@ export function FeaturesModule(props: FeaturesModuleProps) {
                             {(grant) => {
                               const spent = () => Math.min(grant.freeCasts, featureSpellCastsSpent(feature, grant.spellId))
                               return (
-                                <div class="flex flex-wrap items-center justify-between gap-2" data-test={`feature-spell-casts-${feature.id}-${grant.spellId}`}>
-                                  <span class="text-xs text-muted-foreground">{spellName()(grant.spellId)}</span>
+                                // The spell's name above its tracker, on the left like every other tracker on the card
+                                <div class="space-y-1" data-test={`feature-spell-casts-${feature.id}-${grant.spellId}`}>
+                                  <div class="text-xs text-muted-foreground">{spellName()(grant.spellId)}</div>
                                   <Show
                                     when={grant.freeCasts <= 5}
                                     fallback={

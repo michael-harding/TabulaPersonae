@@ -791,7 +791,7 @@ describe("ActionsModule", () => {
 
     it("spends the feature's free cast first, not a slot, then defaults to a slot", () => {
       const { character } = renderLive({ feats: [feyTouched()] })
-      expect(select()).toHaveTextContent("Free")
+      expect(select()).toHaveTextContent("Fey Touched (1/1)")
       cast()
       expect(character().feats![0].spellCastsSpent).toEqual({ misty: 1 })
       expect(getSpellSlots(character())[2].used).toBe(0)
@@ -810,9 +810,11 @@ describe("ActionsModule", () => {
       expect(character().feats![0].spellCastsSpent).toBeUndefined()
     })
 
-    it("shows what's left of the free casts on the card", () => {
+    // The card already names the feat in Granted By, so the choice doesn't repeat its kind
+    it("names the feature by its own name in the cast choice", () => {
       renderLive({ feats: [feyTouched()] })
-      expect(screen.getByTestId("action-card-bonus-spell-misty-free-casts")).toHaveTextContent("Fey Touched Feat 1/1")
+      expect(select()).toHaveTextContent("Fey Touched (1/1)")
+      expect(select()).not.toHaveTextContent("Feat")
     })
 
     it("casts a spell given only free casts without a select, and without offering slots", () => {
@@ -829,7 +831,7 @@ describe("ActionsModule", () => {
         maxUses: 10, charges: 2, rechargeOn: "long-rest", modifiers: { grantedSpells: [{ spellId: "misty", charges: 3 }] },
       }
       const { character } = renderLive({ equipment: [staff] })
-      expect(screen.getByTestId("action-card-bonus-spell-misty-free-casts")).toHaveTextContent("Staff of Teleportation 8/10")
+      expect(screen.getByTestId("action-card-bonus-spell-misty-free-casts")).toHaveTextContent("Staff of Teleportation (8/10)")
       cast()
       expect(character().equipment[0].charges).toBe(5)
     })

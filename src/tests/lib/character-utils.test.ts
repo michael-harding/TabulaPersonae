@@ -2582,8 +2582,8 @@ describe("spells granted by features and items", () => {
         equipment: [wand()],
       }))
       expect(sources.get("cure")).toEqual([
-        { key: "feature:life", kind: "feature", sourceId: "life", name: "Life Domain Class Feature", active: true, alwaysPrepared: true },
-        { key: "item:wand", kind: "item", sourceId: "wand", name: "Wand of Healing", active: true, alwaysPrepared: false, free: { cost: 2, total: 7, remaining: 5 } },
+        { key: "feature:life", kind: "feature", sourceId: "life", name: "Life Domain Class Feature", shortName: "Life Domain", active: true, alwaysPrepared: true },
+        { key: "item:wand", kind: "item", sourceId: "wand", name: "Wand of Healing", shortName: "Wand of Healing", active: true, alwaysPrepared: false, free: { cost: 2, total: 7, remaining: 5 } },
       ])
     })
 
@@ -2624,7 +2624,7 @@ describe("spells granted by features and items", () => {
 
   describe("readiness", () => {
     const spell = { level: 1, known: true, prepared: false }
-    const active = { key: "feature:x", kind: "feature" as const, sourceId: "x", name: "X", active: true, alwaysPrepared: false }
+    const active = { key: "feature:x", kind: "feature" as const, sourceId: "x", name: "X Feat", shortName: "X", active: true, alwaysPrepared: false }
 
     it("readies a spell an active feature keeps prepared, and one with an active free cast, spent or not", () => {
       expect(isSpellReady(spell, [{ ...active, alwaysPrepared: true }])).toBe(true)

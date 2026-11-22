@@ -851,6 +851,18 @@ describe("FeaturesModule", () => {
   })
 
   describe("mechanical effect fields (Feature Type)", () => {
+    it("lists the feature types alphabetically, a new feature starting as Custom", () => {
+      render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
+      fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))
+      const modal = screen.getByRole("dialog")
+      const typeSelect = within(modal).getByRole("combobox", { name: /feature type/i })
+      fireEvent.click(typeSelect)
+      const types = screen.getAllByRole("option").map((option) => option.textContent ?? "")
+      expect(types).toEqual([...types].sort((a, b) => a.localeCompare(b)))
+      expect(types).toContain("Spells")
+      expect(within(screen.getByRole("option", { selected: true })).getByText("Custom")).toBeInTheDocument()
+    })
+
     it("shows no effect fields until a mechanical Feature Type is selected", () => {
       render(() => <FeaturesModule character={makeCharacter()} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: /add class feature/i }))

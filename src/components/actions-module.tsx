@@ -227,7 +227,7 @@ function createSpellAccessors(
     value: freeCastValue(source),
     level: spell.level,
     available: canAffordFreeCast(source.free),
-    free: { sourceName: source.name, cost: source.free.cost, remaining: source.free.remaining, total: source.free.total },
+    free: { sourceName: source.shortName, cost: source.free.cost, remaining: source.free.remaining, total: source.free.total },
   }))
   // While the spell is prepared: a slot of its own level, spent or not, and each higher level the
   // character has slots of. Any spell of 1st level or higher can be cast with a higher slot, gaining

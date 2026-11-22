@@ -821,30 +821,45 @@ describe("ActionCard", () => {
     const renderMistyStep = (overrides: Partial<ActionCardProps> = {}) => render(() => (
       <ActionCard {...makeProps({
         name: "Misty Step", spellLevel: 2,
-        castOptions: () => [freeCast("Fey Touched Feat", 2, { remaining: 1, total: 1 }), ...slots({ 2: 2, 3: 1 })()],
+        castOptions: () => [freeCast("Fey Touched", 2, { remaining: 1, total: 1 }), ...slots({ 2: 2, 3: 1 })()],
         ...overrides,
       })} />
     ))
     const select = () => screen.getByRole("combobox", { name: "Cast Misty Step using" })
 
-    it("defaults to a free cast while one is left, so the trigger says what Cast spends", () => {
+    it("defaults to a free cast while one is left, the trigger naming its source and what's left", () => {
       renderMistyStep({ onCast: vi.fn() })
-      expect(select()).toHaveTextContent("Free")
+      expect(select()).toHaveTextContent("Fey Touched (1/1)")
     })
 
-    it("lists free casts first, with their source and what's left in the list only", () => {
+    it("lists free casts first, by their source's name and count", () => {
       renderMistyStep({ onCast: vi.fn() })
-      expect(within(select()).queryByTestId("select-option-detail")).not.toBeInTheDocument()
       fireEvent.click(select())
       const options = screen.getAllByRole("option")
-      expect(options.map((o) => o.textContent)).toEqual(["FreeFey Touched Feat · 1 left", "2nd", "3rd"])
-      expect(options[0].querySelector(".lucide-gift")).not.toBeNull()
+      expect(options.map((o) => o.textContent)).toEqual(["Fey Touched (1/1)", "2nd", "3rd"])
+      // Its only icon is the selected option's check mark: a free cast has no icon of its own
+      expect([...options[0].querySelectorAll("svg")].map((svg) => svg.getAttribute("class"))).toEqual([expect.stringContaining("lucide-check")])
+      expect(screen.queryByTestId("select-option-detail")).not.toBeInTheDocument()
     })
 
-    it("names an item's charge cost when a cast takes more than one", () => {
+    it("names an item's charge cost in the list only, when a cast takes more than one", () => {
       renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Staff of Fire", 2, { cost: 3, remaining: 7, total: 10 }), ...slots({ 2: 1 })()] })
+      expect(select()).toHaveTextContent("Staff of Fire (7/10)")
+      expect(within(select()).queryByTestId("select-option-detail")).not.toBeInTheDocument()
       fireEvent.click(select())
-      expect(screen.getAllByRole("option")[0]).toHaveTextContent("Staff of Fire · 3 charges · 7 left")
+      expect(screen.getAllByRole("option")[0]).toHaveTextContent("Staff of Fire (7/10)3 charges per cast")
+    })
+
+    // The trigger sits beside the Cast button, so a long name is cut short there; its count never is
+    it("cuts a long source name short in the trigger only, keeping its count and its full name for screen readers", () => {
+      renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Staff of Teleportation", 2, { remaining: 7, total: 10 }), ...slots({ 2: 1 })()] })
+      const label = within(select()).getByTestId("select-value-label")
+      expect(label).toHaveTextContent("Staff of Teleportation")
+      expect(label).toHaveClass("truncate", "max-w-[10ch]")
+      expect(label).not.toHaveTextContent("(7/10)")
+      expect(select()).toHaveTextContent("Staff of Teleportation (7/10)")
+      fireEvent.click(select())
+      expect(within(screen.getByRole("listbox")).queryByTestId("select-value-label")).not.toBeInTheDocument()
     })
 
     it("passes the chosen free cast to onCast, then returns to the default", () => {
@@ -857,20 +872,20 @@ describe("ActionCard", () => {
       expect(select()).toHaveTextContent("3rd")
       fireEvent.click(screen.getByRole("button", { name: "Cast Misty Step" }))
       expect(onCast).toHaveBeenLastCalledWith(expect.objectContaining({ value: "slot:3" }))
-      expect(select()).toHaveTextContent("Free")
+      expect(select()).toHaveTextContent("Fey Touched (1/1)")
       // Past the cast feedback, which ignores presses
       vi.advanceTimersByTime(CAST_FEEDBACK_MS)
       fireEvent.click(screen.getByRole("button", { name: "Cast Misty Step" }))
-      expect(onCast).toHaveBeenLastCalledWith(expect.objectContaining({ value: "free:Fey Touched Feat", free: expect.objectContaining({ sourceName: "Fey Touched Feat" }) }))
+      expect(onCast).toHaveBeenLastCalledWith(expect.objectContaining({ value: "free:Fey Touched", free: expect.objectContaining({ sourceName: "Fey Touched" }) }))
     })
 
     it("defaults to a slot of the spell's own level once the free casts are spent, and mutes them", () => {
-      renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Fey Touched Feat", 2, { remaining: 0, total: 1 }), ...slots({ 2: 2 })()] })
+      renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Fey Touched", 2, { remaining: 0, total: 1 }), ...slots({ 2: 2 })()] })
       expect(select()).toHaveTextContent("2nd")
       fireEvent.click(select())
       const spent = screen.getAllByRole("option")[0]
       expect(spent).toHaveClass("text-muted-foreground")
-      expect(spent).toHaveTextContent("none left")
+      expect(spent).toHaveTextContent("Fey Touched (0/1) none left")
       fireEvent.click(spent)
       expect(screen.getByRole("button", { name: "Cast Misty Step" })).toBeDisabled()
     })
@@ -882,7 +897,7 @@ describe("ActionCard", () => {
       render(() => (
         <ActionCard {...makeProps({
           name: "Darkness", spellLevel: 2, onCast: () => setRemaining(0),
-          castOptions: () => [freeCast("Drow Magic Species Trait", 2, { remaining: remaining(), total: 1 })],
+          castOptions: () => [freeCast("Drow Magic", 2, { remaining: remaining(), total: 1 })],
         })} />
       ))
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
@@ -893,13 +908,19 @@ describe("ActionCard", () => {
       expect(screen.getByRole("button", { name: "Cast Darkness" })).toBeDisabled()
     })
 
-    it("shows each counted free cast as read-only text on the card and in the expanded view", () => {
-      renderMistyStep({ onCast: vi.fn() })
+    // Where there's no cast choice to show it: a spell cast only for free, or a read-only sheet
+    it("shows a counted free cast with no cast choice as read-only text, on the card and in the expanded view", () => {
+      render(() => <ActionCard {...makeProps({ name: "Darkness", spellLevel: 2, onCast: vi.fn(), castOptions: () => [freeCast("Drow Magic", 2, { remaining: 1, total: 1 })] })} />)
       const chips = screen.getByTestId("action-card-test-free-casts")
-      expect(chips).toHaveTextContent("Fey Touched Feat 1/1 free casts left")
+      expect(chips).toHaveTextContent("Drow Magic (1/1) free casts left")
       expect(within(chips).queryByRole("button")).not.toBeInTheDocument()
-      expand("Misty Step")
-      expect(screen.getByTestId("action-card-test-expanded-free-casts")).toHaveTextContent("Fey Touched Feat 1/1")
+      expand("Darkness")
+      expect(screen.getByTestId("action-card-test-expanded-free-casts")).toHaveTextContent("Drow Magic (1/1)")
+    })
+
+    it("doesn't repeat the count beside a cast choice that already shows it", () => {
+      renderMistyStep({ onCast: vi.fn() })
+      expect(screen.queryByTestId("action-card-test-free-casts")).not.toBeInTheDocument()
     })
 
     it("leaves out uncounted free casts (an item that spends no charges)", () => {

@@ -218,6 +218,47 @@ describe("Select", () => {
       const results = await axe(container)
       expect(results.violations).toHaveLength(0)
     })
+
+    describe("suffix, detail and a cut-short label", () => {
+      const SOURCES: SelectOption[] = [
+        { value: "staff", label: "Staff of Teleportation", suffix: "(7/10)", detail: "3 charges per cast" },
+        { value: "1", label: "1st" },
+      ]
+      const renderSources = (labelClass?: string) => render(() => (
+        <Select options={SOURCES} value="staff">
+          <SelectTrigger aria-label="Cast using"><SelectValue labelClass={labelClass} /></SelectTrigger>
+          <SelectContent />
+        </Select>
+      ))
+
+      it("shows the suffix after the label, in the trigger and in the list", () => {
+        renderSources()
+        expect(screen.getByRole("combobox")).toHaveTextContent("Staff of Teleportation (7/10)")
+        fireEvent.click(screen.getByRole("combobox"))
+        expect(screen.getByRole("option", { name: /^Staff of Teleportation \(7\/10\)/ })).toBeInTheDocument()
+      })
+
+      it("shows the detail in the list only", () => {
+        renderSources()
+        expect(screen.queryByTestId("select-option-detail")).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole("combobox"))
+        expect(screen.getByTestId("select-option-detail")).toHaveTextContent("3 charges per cast")
+      })
+
+      it("applies labelClass to the trigger's label alone, never its suffix or the list", () => {
+        renderSources("truncate")
+        const label = screen.getByTestId("select-value-label")
+        expect(label).toHaveClass("truncate")
+        expect(label).toHaveTextContent(/^Staff of Teleportation$/)
+        fireEvent.click(screen.getByRole("combobox"))
+        expect(screen.getAllByTestId("select-value-label")).toHaveLength(1)
+      })
+
+      it("wraps nothing in the trigger without a labelClass", () => {
+        renderSources()
+        expect(screen.queryByTestId("select-value-label")).not.toBeInTheDocument()
+      })
+    })
   })
 
   // The list must stay where it can be seen. jsdom has no layout, so the viewport's size and the

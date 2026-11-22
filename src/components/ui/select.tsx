@@ -26,6 +26,11 @@ export interface SelectOption {
   value: string
   /** What the list and the trigger show. Plain text, so it can appear in both places at once. */
   label: string
+  /**
+   * Shown right after the label, in the list and in the trigger, e.g. a count. Never cut short with
+   * the label when the trigger limits its width (SelectValue's labelClass).
+   */
+  suffix?: string
   /** Shown after the label, in the list and in the trigger. Decorative, so hidden from assistive technology. */
   icon?: SelectIcon
   /** Dims the option, in the list and in the trigger. Pair it with an icon or srHint: color alone carries no meaning. */
@@ -217,11 +222,17 @@ export function SelectTrigger(props: ComponentProps<"button">) {
   )
 }
 
-/** An option's label, screen-reader hint and icon, shared by the list item and the trigger. */
-function OptionContent(props: { option: SelectOption }) {
+/**
+ * An option's label, suffix, screen-reader hint and icon, shared by the list item and the trigger.
+ * labelClass styles the label alone, e.g. to cut a long one short in a narrow trigger.
+ */
+function OptionContent(props: { option: SelectOption; labelClass?: string }) {
   return (
     <>
-      {props.option.label}
+      <Show when={props.labelClass} fallback={props.option.label}>
+        <span class={props.labelClass} data-test="select-value-label">{props.option.label}</span>
+      </Show>
+      <Show when={props.option.suffix}>{(suffix) => <> {suffix()}</>}</Show>
       <Show when={props.option.srHint}>{(hint) => <span class="sr-only"> {hint()}</span>}</Show>
       <Show when={props.option.icon}>
         {(icon) => <Dynamic component={icon()} class="ml-1 inline-block h-3.5 w-3.5 align-[-0.125em]" aria-hidden="true" />}
@@ -230,7 +241,12 @@ function OptionContent(props: { option: SelectOption }) {
   )
 }
 
-export function SelectValue(props: { placeholder?: string }) {
+/**
+ * The chosen option, shown in the trigger. labelClass styles its label only, never the suffix:
+ * a trigger that must stay narrow can cut the label short while its count stays readable. CSS
+ * truncation keeps the whole label in the DOM, so it's still read in full.
+ */
+export function SelectValue(props: { placeholder?: string; labelClass?: string }) {
   const ctx = useSelect()
   const selected = () => ctx.optionFor(ctx.value())
   return (
@@ -242,7 +258,7 @@ export function SelectValue(props: { placeholder?: string }) {
         // option lists (e.g. imported data) is shown as-is rather than hidden by the placeholder.
         fallback={ctx.value() || props.placeholder || ctx.placeholder() || ""}
       >
-        {(option) => <OptionContent option={option()} />}
+        {(option) => <OptionContent option={option()} labelClass={props.labelClass} />}
       </Show>
     </span>
   )

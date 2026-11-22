@@ -24,7 +24,7 @@ function makeSpell(overrides: Partial<Spell> = {}): Spell {
 }
 
 function makeSource(overrides: Partial<SpellGrantSource> = {}): SpellGrantSource {
-  return { key: "feature:life", kind: "feature", sourceId: "life", name: "Life Domain Class Feature", active: true, alwaysPrepared: true, ...overrides }
+  return { key: "feature:life", kind: "feature", sourceId: "life", name: "Life Domain Class Feature", shortName: "Life Domain", active: true, alwaysPrepared: true, ...overrides }
 }
 
 function makeForm(overrides: Partial<SpellFormData> = {}): SpellFormData {
@@ -206,7 +206,7 @@ describe("SpellEditModal", () => {
   describe("granted spells", () => {
     const sources = [
       makeSource(),
-      makeSource({ key: "item:wand", kind: "item", sourceId: "wand", name: "Wand of Healing", active: false, alwaysPrepared: false }),
+      makeSource({ key: "item:wand", kind: "item", sourceId: "wand", name: "Wand of Healing", shortName: "Wand of Healing", active: false, alwaysPrepared: false }),
     ]
 
     it("shows no Granted By for a spell nothing gives", () => {
