@@ -49,6 +49,7 @@ import { StepperInput } from "@/components/ui/stepper-input"
 import { useReadOnly } from "@/lib/read-only-context"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { EquipmentItemModal, hasOtherModifierFields } from "@/components/equipment-item-modal"
+import { spellNameResolver } from "@/lib/feature-effect-lines"
 
 const roundToOneDecimal = (n: number): number => Math.round(n * 10) / 10
 
@@ -403,6 +404,9 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
                           <Show when={(item.modifiers?.proficiencies?.length ?? 0) > 0}>
                             <span>Proficiencies: {item.modifiers!.proficiencies!.join(", ")}</span>
                           </Show>
+                          <Show when={(item.modifiers?.grantedSpells?.length ?? 0) > 0}>
+                            <span>Spells: {item.modifiers!.grantedSpells!.map((grant) => spellNameResolver(props.character.spells)(grant.spellId)).join(", ")}</span>
+                          </Show>
                           <Show when={!isItemModifierActive(item)}>
                             <span>(inactive)</span>
                           </Show>
@@ -666,6 +670,7 @@ export function EquipmentInventoryModule(props: EquipmentInventoryModuleProps) {
       </CardContent>
 
       <EquipmentItemModal
+        spells={props.character.spells ?? []}
         open={modalOpen()}
         editingItem={editingItem()}
         onSave={handleSaveItem}

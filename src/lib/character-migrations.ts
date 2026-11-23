@@ -1,4 +1,4 @@
-import type { Character, Equipment, Feature, SenseType, SpellSlotLevel } from "./character-types"
+import type { Character, Equipment, Feature, ItemSpellGrant, SenseType, Spell, SpellSlotLevel } from "./character-types"
 import { ABILITY_KEYS, calculateEquippedAC, clampCharacterLevel, EXHAUSTION, getActiveFeatureEffects, getEffectiveMovementSpeeds, getEffectiveSenses, givesSpellSlots, hasChargesTracking, inferFeatureType, makeSizeTrait, makeSpellcastingFeature, normalizeDamageTypes, parseHitDiceSize, safeFeatures, SENSE_TYPES, SPELL_SLOT_LEVELS, SPELLCASTING_FEATURE_NAME } from "./character-utils"
 import { ensureRequiredFeatures, FEATURE_LIST_FIELDS, type FeatureListField } from "./required-features"
 
@@ -223,6 +223,54 @@ function backfillEquipmentUses(equipment: Equipment[]): Equipment[] | undefined 
   return changed ? next : undefined
 }
 
+/** What a spell stored before items and features named the spells they give. */
+type SpellWithItemLink = Spell & { grantedBy?: unknown; freeCast?: unknown }
+
+/**
+ * A spell used to name the magic item that gave it (`grantedBy`, an item id) and whether casting it
+ * spent no slot (`freeCast`). The item now names the spells cast from it (`modifiers.grantedSpells`).
+ * A free cast from an item that still exists moves there as a cast that spends no charges. Any other
+ * link is dropped: it never let the spell be cast from the item, and the item now names only the
+ * spells that are, so the spell keeps working as before, cast with slots while it's prepared, just no
+ * longer showing the item. A link to a deleted item, which nothing showed, is dropped too. The retired
+ * fields leave every spell. Runs while any spell still has either field, the proof that it was stored
+ * before the move.
+ *
+ * Not every old free cast keeps working. One used to spend no slot whatever state the item was in;
+ * a grant now only applies while the item is magic, equipped and (if it needs it) attuned, like the
+ * item's other modifiers. A grant moved onto an item that is no longer magic is never shown and is
+ * dropped the next time the item is saved. Losing those is accepted.
+ */
+function moveItemSpellGrants(spells: Spell[], equipment: Equipment[]): { spells: Spell[]; equipment: Equipment[] } | undefined {
+  const linked = spells as SpellWithItemLink[]
+  if (!linked.some((spell) => "grantedBy" in spell || "freeCast" in spell)) return undefined
+  const additions = new Map<string, ItemSpellGrant[]>()
+  for (const spell of linked) {
+    if (spell.freeCast !== true || typeof spell.grantedBy !== "string" || spell.grantedBy === "") continue
+    const item = equipment.find((candidate) => candidate.id === spell.grantedBy)
+    if (!item) continue
+    const list = additions.get(item.id) ?? []
+    list.push({ spellId: spell.id, charges: 0 })
+    additions.set(item.id, list)
+  }
+  const nextEquipment = equipment.map((item) => {
+    const added = additions.get(item.id)
+    if (!added) return item
+    const existing = item.modifiers?.grantedSpells ?? []
+    const fresh = added.filter((grant) => !existing.some((other) => other.spellId === grant.spellId))
+    if (fresh.length === 0) return item
+    return { ...item, modifiers: { ...item.modifiers, grantedSpells: [...existing, ...fresh] } }
+  })
+  const nextSpells = linked.map((spell) => {
+    if (!("grantedBy" in spell) && !("freeCast" in spell)) return spell
+    const rest = { ...spell }
+    delete rest.grantedBy
+    delete rest.freeCast
+    return rest as Spell
+  })
+  return { spells: nextSpells, equipment: nextEquipment }
+}
+
 /**
  * Flags introduced after launch default to "calculated" for brand-new characters (see
  * createDefaultCharacter), but characters saved before a given flag existed have no such key in
@@ -316,6 +364,15 @@ export function migrateCharacter(raw: unknown): Character {
   if (Array.isArray(raw.equipment)) {
     const backfilledEquipment = backfillEquipmentUses(raw.equipment)
     if (backfilledEquipment) patch.equipment = backfilledEquipment
+  }
+
+  if (Array.isArray(raw.spells)) {
+    const equipment = (patch.equipment as Equipment[] | undefined) ?? (Array.isArray(raw.equipment) ? raw.equipment : [])
+    const moved = moveItemSpellGrants(raw.spells, equipment)
+    if (moved) {
+      patch.spells = moved.spells
+      if (moved.equipment.some((item, i) => item !== equipment[i])) patch.equipment = moved.equipment
+    }
   }
 
   for (const field of DAMAGE_TYPE_LIST_FIELDS) {

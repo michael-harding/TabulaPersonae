@@ -9,7 +9,7 @@ import Backpack from "lucide-solid/icons/backpack"
 
 import { createPersistedSetSignal } from "@/lib/persisted-signal"
 import type { Character, ActionKind, ActionType, ActionSectionKey, ActionSectionLayout, Attack, Equipment, Feature, Spell, SpellSlotLevel, OtherAction } from "@/lib/character-types"
-import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, ACTION_KIND_LABELS, RECHARGE_ON_OPTIONS, activeSpells, isSustainedSpell, withSpellActivated, withSpellEnded, withSpells, isSpellReady, getSpellSlots, withSpentSpellSlots, withFeatureSaved, featureListField, SPELL_SLOT_LEVELS, type SpellSlotState, getEffectiveProficiencyBonus } from "@/lib/character-utils"
+import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpellSaveDCTooltip, getEffectiveSpellAttackTooltip, spellSaveLabel, safeFeatures, getEquippedWeaponAttacks, effectiveMaxUses, effectiveEquipmentMaxUses, effectiveEquipmentUses, hasChargesTracking, FEATURE_KIND_LABELS, ACTION_KIND_LABELS, RECHARGE_ON_OPTIONS, activeSpells, isSustainedSpell, withSpellActivated, withSpellEnded, withSpells, isSpellReady, getSpellSlots, getSpellGrantSources, freeCastSources, canAffordFreeCast, canCastWithSlots, withFreeCastSpent, type SpellGrantSource, withSpentSpellSlots, withFeatureSaved, featureListField, SPELL_SLOT_LEVELS, type SpellSlotState, getEffectiveProficiencyBonus } from "@/lib/character-utils"
 import { EditableModule } from "@/components/editable-module"
 import { useModuleEdit } from "@/hooks/use-module-edit"
 import { Button } from "@/components/ui/button"
@@ -26,7 +26,7 @@ import { Combobox } from "@/components/ui/combobox"
 import { Chip } from "@/components/ui/chip"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { SpellSlotTracker } from "@/components/spell-slot-tracker"
-import { ActionCard, ActionCardList, type ActionCardReorder, type SlotLevel } from "@/components/action-card"
+import { ActionCard, ActionCardList, type ActionCardReorder, type CastOption } from "@/components/action-card"
 import { SortableGroup, SortableHandle, SortableList, SortableMoveButton, createSortableItem, type SortablePosition } from "@/components/ui/sortable"
 import { actionCardKey, earlierPosition, laterPosition, moveCard, resolveLayout, type ActionCardPosition, type ActionKeyLayout } from "@/lib/action-layout"
 import { SpellEditModal } from "@/components/spell-edit-modal"
@@ -212,23 +212,37 @@ function ActionForm(props: ActionFormProps) {
 }
 
 /** The character's list a feature is stored in. */
+/** A free cast option's value: the source that pays for it. */
+const freeCastValue = (source: Pick<SpellGrantSource, "key">) => `free:${source.key}`
+
 // Each accessor reads the spell's level when called: an edit keeps the same spell object (the store
 // reconciles by id), so the card isn't redrawn when the level changes.
-function createSpellAccessors(spell: Spell, spellSlots: () => Record<SpellSlotLevel, SpellSlotState>) {
-  const slots = () => spellSlots()[spell.level as SpellSlotLevel] as SpellSlotState | undefined
-  // A cantrip or a free cast spends no slot
-  const canCast = () => spell.level === 0 || !!spell.freeCast || (!!slots() && slots()!.used < slots()!.total)
-  const higherLevels = () => SPELL_SLOT_LEVELS
-    .filter(l => l > spell.level)
-    .filter(l => spellSlots()[l].total > 0)
-  // Whether the character has any slot level above the spell's, spent or not
-  const hasHigherSlots = () => higherLevels().length > 0
-  // The spell's own level and each higher level the character has slots of, with what's left
-  const slotLevels = (): SlotLevel[] => [spell.level, ...higherLevels()].map((level) => {
-    const s = spellSlots()[level as SpellSlotLevel] as SpellSlotState | undefined
-    return { level, remaining: s ? Math.max(0, s.total - s.used) : 0 }
-  })
-  return { canCast, slotLevels, hasHigherSlots }
+function createSpellAccessors(
+  spell: Spell,
+  spellSlots: () => Record<SpellSlotLevel, SpellSlotState>,
+  sources: () => SpellGrantSource[] | undefined,
+) {
+  // A cantrip spends nothing, so it has nothing to choose from
+  const freeOptions = (): CastOption[] => spell.level === 0 ? [] : freeCastSources(sources()).map((source) => ({
+    value: freeCastValue(source),
+    level: spell.level,
+    available: canAffordFreeCast(source.free),
+    free: { sourceName: source.shortName, cost: source.free.cost, remaining: source.free.remaining, total: source.free.total },
+  }))
+  // While the spell is prepared: a slot of its own level, spent or not, and each higher level the
+  // character has slots of. Any spell of 1st level or higher can be cast with a higher slot, gaining
+  // something or not.
+  const slotOptions = (): CastOption[] => {
+    if (!canCastWithSlots(spell, sources())) return []
+    return SPELL_SLOT_LEVELS
+      .filter((level) => level === spell.level || (level > spell.level && spellSlots()[level].total > 0))
+      .map((level) => {
+        const slots = spellSlots()[level]
+        return { value: `slot:${level}`, level, available: slots.used < slots.total }
+      })
+  }
+  const castOptions = (): CastOption[] => [...freeOptions(), ...slotOptions()]
+  return { castOptions }
 }
 
 type ActionSection = 'actions' | 'bonus-actions' | 'reactions' | 'other'
@@ -504,17 +518,21 @@ export function ActionsModule(props: ActionsModuleProps) {
     return { actions, bonuses, reactions, others }
   })
 
+  // Which features and items give each spell, and what's left of their free casts
+  const grantSources = createMemo(() => getSpellGrantSources(props.character))
+  const spellReady = (spell: Spell) => isSpellReady(spell, grantSources().get(spell.id))
+
   const attackSpells = createMemo(() => safeSpells().filter((spell) =>
-    isSpellReady(spell) &&
+    spellReady(spell) &&
     spell.castingTime.toLowerCase().includes("1 action") &&
     !spell.castingTime.toLowerCase().includes("bonus") &&
     !spell.castingTime.toLowerCase().includes("reaction")
   ))
   const bonusActionSpells = createMemo(() => safeSpells().filter((spell) =>
-    isSpellReady(spell) && spell.castingTime.toLowerCase().includes("bonus")
+    spellReady(spell) && spell.castingTime.toLowerCase().includes("bonus")
   ))
   const reactionSpells = createMemo(() => safeSpells().filter((spell) =>
-    isSpellReady(spell) && spell.castingTime.toLowerCase().includes("reaction")
+    spellReady(spell) && spell.castingTime.toLowerCase().includes("reaction")
   ))
 
   const spellSlots = createMemo(() => getSpellSlots(props.character))
@@ -522,16 +540,22 @@ export function ActionsModule(props: ActionsModuleProps) {
     props.onUpdate(withSpentSpellSlots(props.character, level, used))
   }
 
-  // Casting spends a slot of the chosen level (a cantrip or a free cast spends none) and puts a spell
-  // that lasts in effect. One update: two would each start from the same character, and the second
-  // would undo the first.
-  const castSpell = (spell: Spell, level: number) => {
-    const spendsSlot = spell.level > 0 && !spell.freeCast
+  // Casting spends what the chosen option pays with: a slot of its level, or one of a feature's free
+  // casts or an item's charges (a cantrip spends nothing). A spell that lasts is put in effect. One
+  // update: two would each start from the same character, and the second would undo the first.
+  const castSpell = (spell: Spell, option: CastOption | undefined) => {
     const sustained = isSustainedSpell(spell)
-    const slots = spellSlots()[level as SpellSlotLevel] as SpellSlotState | undefined
-    if (spendsSlot && (!slots || slots.used >= slots.total)) return
-    if (!spendsSlot && !sustained) return
-    const spent = spendsSlot ? withSpentSpellSlots(props.character, level as SpellSlotLevel, slots!.used + 1) : props.character
+    let spent = props.character
+    if (option?.free) {
+      const source = freeCastSources(grantSources().get(spell.id)).find((candidate) => freeCastValue(candidate) === option.value)
+      if (!source || !canAffordFreeCast(source.free)) return
+      spent = withFreeCastSpent(props.character, source, spell.id)
+    } else if (option) {
+      const slots = spellSlots()[option.level as SpellSlotLevel] as SpellSlotState | undefined
+      if (!slots || slots.used >= slots.total) return
+      spent = withSpentSpellSlots(props.character, option.level as SpellSlotLevel, slots.used + 1)
+    }
+    if (spent === props.character && !sustained) return
     props.onUpdate({
       ...spent,
       ...(sustained ? { activeSpellIds: withSpellActivated(props.character, spell) } : {}),
@@ -646,7 +670,7 @@ export function ActionsModule(props: ActionsModuleProps) {
   // A spell cast as "1 bonus action or 1 reaction" is listed in both sections, so the section keeps
   // its test hooks apart from the other copy
   const renderSpell = (spell: Spell, section: 'action' | 'bonus' | 'reaction', reorder?: ActionCardReorder) => {
-    const { canCast, slotLevels, hasHigherSlots } = createSpellAccessors(spell, spellSlots)
+    const { castOptions } = createSpellAccessors(spell, spellSlots, () => grantSources().get(spell.id))
     return (
       <ActionCard
         data-test={`action-card-${section}-spell-${spell.id}`}
@@ -666,8 +690,8 @@ export function ActionsModule(props: ActionsModuleProps) {
         range={spell.range}
         components={spell.components}
         atHigherLevel={spell.atHigherLevel}
-        grantedBy={spell.grantedBy ? equipmentById(spell.grantedBy)?.name : undefined}
-        freeCast={spell.freeCast}
+        // Only the sources giving it now: the card is about casting it now
+        grantedBy={(grantSources().get(spell.id) ?? []).filter((source) => source.active).map((source) => source.name)}
         damage={spell.damage}
         damageType={spell.damageType}
         damageRecurring={spell.damageRecurring}
@@ -678,14 +702,13 @@ export function ActionsModule(props: ActionsModuleProps) {
         gainPerLevel={spell.gainPerLevel}
         highlights={spell.highlights}
         description={spell.description}
-        castable={canCast}
+        // A cantrip has no cast options and spends nothing
+        castable={() => spell.level === 0}
         // A cantrip is only cast here when it lasts, to put it in effect
-        onCast={spell.level > 0 || isSustainedSpell(spell) ? (level) => castSpell(spell, level) : undefined}
+        onCast={spell.level > 0 || isSustainedSpell(spell) ? (option) => castSpell(spell, option) : undefined}
         active={activeSpellIds().has(spell.id)}
         onEnd={() => endSpell(spell.id)}
-        // Any spell of 1st level or higher can be cast with a higher slot, gaining something or not.
-        // A free cast spends no slot, so there's no level to choose.
-        slotLevels={spell.level > 0 && !spell.freeCast && hasHigherSlots() ? slotLevels : undefined}
+        castOptions={spell.level > 0 ? castOptions : undefined}
         onEdit={() => setEditingSpell(spell)}
         reorder={reorder}
       />
@@ -1009,7 +1032,7 @@ export function ActionsModule(props: ActionsModuleProps) {
       <SpellEditModal
         open={editingSpell() != null}
         spell={editingSpell()}
-        magicItems={(props.character.equipment ?? []).filter((item) => item.magic)}
+        grantSources={editingSpell() ? grantSources().get(editingSpell()!.id) ?? [] : []}
         onSave={handleSaveSpell}
         onCancel={() => setEditingSpell(null)}
       />
@@ -1019,10 +1042,12 @@ export function ActionsModule(props: ActionsModuleProps) {
         feature={editingFeature()}
         characterLevel={props.character.level ?? 1}
         proficiencyBonus={getEffectiveProficiencyBonus(props.character)}
+        spells={props.character.spells ?? []}
         onSave={handleSaveFeature}
         onCancel={() => setEditingFeature(null)}
       />
       <EquipmentItemModal
+        spells={props.character.spells ?? []}
         open={editingItem() != null}
         editingItem={editingItem()}
         onSave={handleSaveItem}

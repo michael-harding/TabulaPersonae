@@ -40,7 +40,7 @@ import {
   withFeatureSaved,
   type CustomizableValueKey,
 } from "./character-utils"
-import { formatFeatureEffectsLine } from "./feature-effect-lines"
+import { formatFeatureEffectsLine, spellNameResolver } from "./feature-effect-lines"
 import { effectFeatureType, FEATURE_LIST_FIELDS } from "./required-features"
 
 /** The levels a level up from `from` to `to` gains, in order: from + 1 through to. */
@@ -360,6 +360,7 @@ function handEnteredAttacks(character: Character): LevelUpManualValue[] {
 
 function gainedFeatures(character: Character, fromLevel: number, toLevel: number): LevelUpGainedFeature[] {
   const gainedAt = (level: number) => level > fromLevel && level <= toLevel
+  const spellName = spellNameResolver(character.spells)
   const gained: LevelUpGainedFeature[] = []
   for (const field of FEATURE_LIST_FIELDS) {
     for (const feature of safeFeatures(character[field])) {
@@ -369,7 +370,7 @@ function gainedFeatures(character: Character, fromLevel: number, toLevel: number
       const type = effectFeatureType(feature.featureType ?? "Custom")
       for (const tier of feature.levelEffects ?? []) {
         if (!gainedAt(tier.level)) continue
-        gains.push({ level: tier.level, text: formatFeatureEffectsLine(type, tier.effects) || "New benefits" })
+        gains.push({ level: tier.level, text: formatFeatureEffectsLine(type, tier.effects, spellName) || "New benefits" })
       }
       if (gains.length === 0) continue
       gained.push({ id: feature.id, name: feature.name, kind: FEATURE_KIND_LABELS[feature.source], gains: gains.sort((a, b) => a.level - b.level) })

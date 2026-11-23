@@ -133,28 +133,28 @@ export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").r
 export const featureTypeBaseline = (type: string) => `feature-add-type-${slug(type)}`
 
 // Every feature type the Add menu offers, in the order of FEATURE_TYPES in
-// src/components/features-module.tsx (the required types are not offered: see the feature-edit-*
-// modals above for their forms), mapped to
-// the baseline that shows its form: null for a form with a layout of its own, which gets its own
+// src/components/features-module.tsx, which is alphabetical (the required types are not offered:
+// see the feature-edit-* modals above for their forms), mapped to the baseline that shows its form: null for a form with a layout of its own, which gets its own
 // baseline, or the name of a baseline that already shows the same layout (TESTING.md §9). The
 // "lists every feature type" test (tests/e2e/character-sheet.spec.ts) fails when this and the app's
 // list drift, so a new type can't ship until it is given a baseline or mapped to one.
 const FEATURE_TYPE_COVERED_BY: Record<string, string | null> = {
-  "Custom": "feature-add", // a new feature starts as Custom
+  "Ability Scores": null,
   "Action": "feature-edit", // the edit case opens an Action feature
+  "Carrying Capacity": featureTypeBaseline("Speed"),
+  "Condition Immunity": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"),
+  "Custom": "feature-add", // a new feature starts as Custom
+  "Damage Resistance/Immunity/Vulnerability": null,
+  "Language": null,
   "Max HP Bonus": null,
-  "Spellcasting": "spell-slots", // the Edit Slots case opens the fixture's Spellcasting feature
+  "Other Proficiency": featureTypeBaseline("Language"), // a text input and Add per level
   "Prepared Spells": null,
   "Saving Throw Proficiency": null,
-  "Skill Proficiency": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"), // a chip-list row per level
-  "Other Proficiency": featureTypeBaseline("Language"), // a text input and Add per level
-  "Speed": null,
   "Senses": featureTypeBaseline("Speed"), // a grid of number inputs per level
-  "Damage Resistance/Immunity/Vulnerability": null,
-  "Condition Immunity": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"),
-  "Language": null,
-  "Carrying Capacity": featureTypeBaseline("Speed"),
-  "Ability Scores": null,
+  "Skill Proficiency": featureTypeBaseline("Damage Resistance/Immunity/Vulnerability"), // a chip-list row per level
+  "Speed": null,
+  "Spellcasting": "spell-slots", // the Edit Slots case opens the fixture's Spellcasting feature
+  "Spells": null, // a spell chip list, a slots checkbox and a free casts count per level
 }
 
 export const FEATURE_TYPES = Object.keys(FEATURE_TYPE_COVERED_BY)

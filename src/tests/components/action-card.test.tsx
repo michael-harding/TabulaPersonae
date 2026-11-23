@@ -2,13 +2,24 @@ import { createSignal, type JSX } from "solid-js"
 import { axe } from "vitest-axe"
 
 import { ActionCard, ActionCardList, CAST_FEEDBACK_MS } from "@/components/action-card"
-import type { ActionCardProps } from "@/components/action-card"
+import type { ActionCardProps, CastOption } from "@/components/action-card"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
 import { render as renderUi, screen, fireEvent, waitFor, within, cleanup, cleanupPortals, finishClosing } from "../test-utils"
 
 // A card is a list item, so every test renders it in the list it always sits in
 const render = (ui: () => JSX.Element) => renderUi(() => <ActionCardList>{ui()}</ActionCardList>)
+
+/** Slot cast options: each level and how many of its slots are left. */
+function slots(remaining: Record<number, number>): () => CastOption[] {
+  return () => Object.entries(remaining).map(([level, left]) => ({ value: `slot:${level}`, level: Number(level), available: left > 0 }))
+}
+
+/** A free cast option from a source, at the spell's level. */
+function freeCast(sourceName: string, level: number, free: Partial<NonNullable<CastOption["free"]>> = {}): CastOption {
+  const option = { sourceName, cost: 1, ...free }
+  return { value: `free:${sourceName}`, level, available: option.remaining == null || option.remaining >= option.cost, free: option }
+}
 
 function makeProps(overrides: Partial<ActionCardProps> = {}): ActionCardProps {
   return {
@@ -438,13 +449,18 @@ describe("ActionCard", () => {
       expect(within(expandedView()).queryByText(/3rd level/)).not.toBeInTheDocument()
     })
 
-    it("shows a spell's school, the item granting it, and a free cast", () => {
-      render(() => <ActionCard {...makeProps({ spellLevel: 1, spellSchool: "Abjuration", grantedBy: "Ring of Shielding", freeCast: true })} />)
+    it("shows a spell's school and every source granting it", () => {
+      render(() => <ActionCard {...makeProps({ spellLevel: 1, spellSchool: "Abjuration", grantedBy: ["Ring of Shielding", "Fey Touched Feat"] })} />)
       expand()
       const view = expandedView()
       expect(within(view).getByText("School:").parentElement).toHaveTextContent("School: Abjuration")
-      expect(within(view).getByText("Granted By:").parentElement).toHaveTextContent("Granted By: Ring of Shielding")
-      expect(within(view).getByText("Free Cast")).toBeInTheDocument()
+      expect(within(view).getByText("Granted By:").parentElement).toHaveTextContent("Granted By: Ring of Shielding, Fey Touched Feat")
+    })
+
+    it("leaves out Granted By for a spell no source grants", () => {
+      render(() => <ActionCard {...makeProps({ spellLevel: 1, grantedBy: [] })} />)
+      expand()
+      expect(within(expandedView()).queryByText("Granted By:")).not.toBeInTheDocument()
     })
 
     it("shows the level a feature is gained at", () => {
@@ -567,26 +583,32 @@ describe("ActionCard", () => {
 
     it("casts at the spell's own level", () => {
       const onCast = vi.fn()
-      render(() => <ActionCard {...makeProps({ spellLevel: 2, onCast, castable: () => true })} />)
+      render(() => <ActionCard {...makeProps({ spellLevel: 2, onCast, castOptions: slots({ 2: 1 }) })} />)
       fireEvent.click(screen.getByRole("button", { name: "Cast Test Action" }))
-      expect(onCast).toHaveBeenCalledWith(2)
+      expect(onCast).toHaveBeenCalledWith(expect.objectContaining({ value: "slot:2", level: 2 }))
+    })
+
+    it("casts a spell with no cast options (a cantrip) with none", () => {
+      const onCast = vi.fn()
+      render(() => <ActionCard {...makeProps({ spellLevel: 0, onCast, castable: () => true })} />)
+      fireEvent.click(screen.getByRole("button", { name: "Cast Test Action" }))
+      expect(onCast).toHaveBeenCalledWith(undefined)
     })
   })
 
   describe("slot-level select", () => {
-    const levels = (remaining: Record<number, number>) => () => Object.entries(remaining).map(([level, r]) => ({ level: Number(level), remaining: r }))
     const renderFireball = (overrides: Partial<ActionCardProps> = {}) => render(() => (
-      <ActionCard {...makeProps({ name: "Fireball", spellLevel: 3, castable: () => true, slotLevels: levels({ 3: 1, 4: 0, 5: 2 }), ...overrides })} />
+      <ActionCard {...makeProps({ name: "Fireball", spellLevel: 3, castOptions: slots({ 3: 1, 4: 0, 5: 2 }), ...overrides })} />
     ))
-    const select = () => screen.getByRole("combobox", { name: "Cast Fireball at level" })
+    const select = () => screen.getByRole("combobox", { name: "Cast Fireball using" })
 
     it("is hidden with only the spell's own level to choose", () => {
-      renderFireball({ onCast: vi.fn(), slotLevels: levels({ 3: 1 }) })
+      renderFireball({ onCast: vi.fn(), castOptions: slots({ 3: 1 }) })
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
     })
 
-    it("is hidden without slot levels", () => {
-      renderFireball({ onCast: vi.fn(), slotLevels: undefined })
+    it("is hidden without cast options", () => {
+      renderFireball({ onCast: vi.fn(), castOptions: undefined, castable: () => true })
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
     })
 
@@ -611,7 +633,7 @@ describe("ActionCard", () => {
       fireEvent.click(select())
       fireEvent.click(screen.getByRole("option", { name: "5th" }))
       fireEvent.click(screen.getByRole("button", { name: "Cast Fireball" }))
-      expect(onCast).toHaveBeenCalledWith(5)
+      expect(onCast).toHaveBeenCalledWith(expect.objectContaining({ value: "slot:5", level: 5 }))
       expect(select()).toHaveTextContent("3rd")
     })
 
@@ -625,7 +647,7 @@ describe("ActionCard", () => {
 
     // A higher slot is never spent without being chosen
     it("keeps the spell's own level selected, with Cast disabled, when its slots are used up", () => {
-      renderFireball({ onCast: vi.fn(), slotLevels: levels({ 3: 0, 5: 2 }) })
+      renderFireball({ onCast: vi.fn(), castOptions: slots({ 3: 0, 5: 2 }) })
       expect(select()).toHaveTextContent("3rd")
       expect(screen.getByRole("button", { name: "Cast Fireball" })).toBeDisabled()
       fireEvent.click(select())
@@ -704,7 +726,7 @@ describe("ActionCard", () => {
     beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }))
     afterEach(() => vi.useRealTimers())
 
-    const levels = () => [{ level: 1, remaining: 1 }, { level: 2, remaining: 1 }]
+    const levels = slots({ 1: 1, 2: 1 })
     const spellProps = (overrides: Partial<ActionCardProps> = {}) => makeProps({
       name: "Bless", spellLevel: 1, concentration: true, onCast: vi.fn(), castable: () => true, onEnd: vi.fn(), ...overrides,
     })
@@ -712,12 +734,12 @@ describe("ActionCard", () => {
     const flush = () => new Promise<void>((resolve) => queueMicrotask(resolve))
 
     it("replaces Cast and the slot select with an end button, on the card and in the expanded view", () => {
-      render(() => <ActionCard {...spellProps({ active: true, slotLevels: levels })} />)
+      render(() => <ActionCard {...spellProps({ active: true, castOptions: levels })} />)
       expect(endButton()).toHaveAttribute("data-test", "action-card-test-end-button")
       expect(endButton()).toHaveClass("h-11", "w-11")
       expect(endButton().querySelector(".lucide-x")).not.toBeNull()
       expect(screen.queryByRole("button", { name: "Cast Bless" })).not.toBeInTheDocument()
-      expect(screen.queryByRole("combobox", { name: "Cast Bless at level" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("combobox", { name: "Cast Bless using" })).not.toBeInTheDocument()
       expand("Bless")
       expect(within(expandedView()).getByRole("button", { name: "End Bless" })).toHaveAttribute("data-test", "action-card-test-expanded-end-button")
       expect(within(expandedView()).queryByRole("button", { name: "Cast Bless" })).not.toBeInTheDocument()
@@ -795,17 +817,137 @@ describe("ActionCard", () => {
     })
   })
 
+  describe("free casts", () => {
+    const renderMistyStep = (overrides: Partial<ActionCardProps> = {}) => render(() => (
+      <ActionCard {...makeProps({
+        name: "Misty Step", spellLevel: 2,
+        castOptions: () => [freeCast("Fey Touched", 2, { remaining: 1, total: 1 }), ...slots({ 2: 2, 3: 1 })()],
+        ...overrides,
+      })} />
+    ))
+    const select = () => screen.getByRole("combobox", { name: "Cast Misty Step using" })
+
+    it("defaults to a free cast while one is left, the trigger naming its source and what's left", () => {
+      renderMistyStep({ onCast: vi.fn() })
+      expect(select()).toHaveTextContent("Fey Touched (1/1)")
+    })
+
+    it("lists free casts first, by their source's name and count", () => {
+      renderMistyStep({ onCast: vi.fn() })
+      fireEvent.click(select())
+      const options = screen.getAllByRole("option")
+      expect(options.map((o) => o.textContent)).toEqual(["Fey Touched (1/1)", "2nd", "3rd"])
+      // Its only icon is the selected option's check mark: a free cast has no icon of its own
+      expect([...options[0].querySelectorAll("svg")].map((svg) => svg.getAttribute("class"))).toEqual([expect.stringContaining("lucide-check")])
+      expect(screen.queryByTestId(/^action-card-test-slot-select-option-.*-detail$/)).not.toBeInTheDocument()
+    })
+
+    it("names an item's charge cost in the list only, when a cast takes more than one", () => {
+      renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Staff of Fire", 2, { cost: 3, remaining: 7, total: 10 }), ...slots({ 2: 1 })()] })
+      expect(select()).toHaveTextContent("Staff of Fire (7/10)")
+      expect(within(select()).queryByTestId(/^action-card-test-slot-select-option-.*-detail$/)).not.toBeInTheDocument()
+      fireEvent.click(select())
+      expect(screen.getAllByRole("option")[0]).toHaveTextContent("Staff of Fire (7/10)3 charges per cast")
+    })
+
+    // The trigger sits beside the Cast button, so a long name is cut short there; its count never is
+    it("cuts a long source name short in the trigger only, keeping its count and its full name for screen readers", () => {
+      renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Staff of Teleportation", 2, { remaining: 7, total: 10 }), ...slots({ 2: 1 })()] })
+      const label = within(select()).getByTestId("action-card-test-slot-select-value-label")
+      expect(label).toHaveTextContent("Staff of Teleportation")
+      expect(label).toHaveClass("truncate", "max-w-[10ch]")
+      expect(label).not.toHaveTextContent("(7/10)")
+      expect(select()).toHaveTextContent("Staff of Teleportation (7/10)")
+      fireEvent.click(select())
+      expect(within(screen.getByRole("listbox")).queryByTestId("action-card-test-slot-select-value-label")).not.toBeInTheDocument()
+    })
+
+    it("passes the chosen free cast to onCast, then returns to the default", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+      onTestFinished(() => { vi.useRealTimers() })
+      const onCast = vi.fn()
+      renderMistyStep({ onCast })
+      fireEvent.click(select())
+      fireEvent.click(screen.getByRole("option", { name: "3rd" }))
+      expect(select()).toHaveTextContent("3rd")
+      fireEvent.click(screen.getByRole("button", { name: "Cast Misty Step" }))
+      expect(onCast).toHaveBeenLastCalledWith(expect.objectContaining({ value: "slot:3" }))
+      expect(select()).toHaveTextContent("Fey Touched (1/1)")
+      // Past the cast feedback, which ignores presses
+      vi.advanceTimersByTime(CAST_FEEDBACK_MS)
+      fireEvent.click(screen.getByRole("button", { name: "Cast Misty Step" }))
+      expect(onCast).toHaveBeenLastCalledWith(expect.objectContaining({ value: "free:Fey Touched", free: expect.objectContaining({ sourceName: "Fey Touched" }) }))
+    })
+
+    it("defaults to a slot of the spell's own level once the free casts are spent, and mutes them", () => {
+      renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Fey Touched", 2, { remaining: 0, total: 1 }), ...slots({ 2: 2 })()] })
+      expect(select()).toHaveTextContent("2nd")
+      fireEvent.click(select())
+      const spent = screen.getAllByRole("option")[0]
+      expect(spent).toHaveClass("text-muted-foreground")
+      expect(spent).toHaveTextContent("Fey Touched (0/1) none left")
+      fireEvent.click(spent)
+      expect(screen.getByRole("button", { name: "Cast Misty Step" })).toBeDisabled()
+    })
+
+    it("shows a bare Cast button for a spell cast only for free, disabled once spent", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+      onTestFinished(() => { vi.useRealTimers() })
+      const [remaining, setRemaining] = createSignal(1)
+      render(() => (
+        <ActionCard {...makeProps({
+          name: "Darkness", spellLevel: 2, onCast: () => setRemaining(0),
+          castOptions: () => [freeCast("Drow Magic", 2, { remaining: remaining(), total: 1 })],
+        })} />
+      ))
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+      const cast = screen.getByRole("button", { name: "Cast Darkness" })
+      expect(cast).toBeEnabled()
+      fireEvent.click(cast)
+      vi.advanceTimersByTime(CAST_FEEDBACK_MS)
+      expect(screen.getByRole("button", { name: "Cast Darkness" })).toBeDisabled()
+    })
+
+    // Where there's no cast choice to show it: a spell cast only for free, or a read-only sheet
+    it("shows a counted free cast with no cast choice as read-only text, on the card and in the expanded view", () => {
+      render(() => <ActionCard {...makeProps({ name: "Darkness", spellLevel: 2, onCast: vi.fn(), castOptions: () => [freeCast("Drow Magic", 2, { remaining: 1, total: 1 })] })} />)
+      const chips = screen.getByTestId("action-card-test-free-casts")
+      expect(chips).toHaveTextContent("Drow Magic (1/1) free casts left")
+      expect(within(chips).queryByRole("button")).not.toBeInTheDocument()
+      expand("Darkness")
+      expect(screen.getByTestId("action-card-test-expanded-free-casts")).toHaveTextContent("Drow Magic (1/1)")
+    })
+
+    it("doesn't repeat the count beside a cast choice that already shows it", () => {
+      renderMistyStep({ onCast: vi.fn() })
+      expect(screen.queryByTestId("action-card-test-free-casts")).not.toBeInTheDocument()
+    })
+
+    it("leaves out uncounted free casts (an item that spends no charges)", () => {
+      renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Wand of Wonder", 2, { cost: 0 }), ...slots({ 2: 1 })()] })
+      expect(screen.queryByTestId("action-card-test-free-casts")).not.toBeInTheDocument()
+      fireEvent.click(select())
+      expect(screen.getAllByRole("option")[0]).toHaveTextContent("Wand of Wonder")
+    })
+
+    it("has no accessibility violations while the choice is open", async () => {
+      const { container } = renderMistyStep({ onCast: vi.fn() })
+      fireEvent.click(select())
+      expect((await axe(container)).violations).toHaveLength(0)
+    })
+  })
+
   describe("upcast scaling", () => {
-    const levels = () => [{ level: 3, remaining: 1 }, { level: 4, remaining: 1 }, { level: 5, remaining: 2 }]
+    const levels = slots({ 3: 1, 4: 1, 5: 2 })
     const renderSpell = (overrides: Partial<ActionCardProps> = {}) => render(() => (
       <ActionCard {...makeProps({
-        name: "Fireball", spellLevel: 3, onCast: vi.fn(), castable: () => true, slotLevels: levels,
+        name: "Fireball", spellLevel: 3, onCast: vi.fn(), castOptions: levels,
         damage: "8d6", damageType: "Fire", damagePerLevel: "1d6", gain: "2d8+3", gainType: "Healing", gainPerLevel: "1d8",
         ...overrides,
       })} />
     ))
     const choose = (level: string) => {
-      fireEvent.click(screen.getByRole("combobox", { name: "Cast Fireball at level" }))
+      fireEvent.click(screen.getByRole("combobox", { name: "Cast Fireball using" }))
       fireEvent.click(screen.getByRole("option", { name: level }))
     }
 
@@ -887,7 +1029,7 @@ describe("ActionCard", () => {
     })
 
     it("does not render the Cast button or the slot select", () => {
-      renderReadOnly({ onCast: vi.fn(), castable: () => true, spellLevel: 1, slotLevels: () => [{ level: 1, remaining: 1 }, { level: 2, remaining: 1 }] })
+      renderReadOnly({ onCast: vi.fn(), spellLevel: 1, castOptions: slots({ 1: 1, 2: 1 }) })
       expect(screen.queryByRole("button", { name: /^cast /i })).not.toBeInTheDocument()
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
     })

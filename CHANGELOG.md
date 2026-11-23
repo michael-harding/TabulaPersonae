@@ -5,6 +5,19 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.11.0] - 2026-11-23
+
+### Added
+- **Spells feature type** — a feature can now grant spells from the character's spell list, by level tier, either cast with spell slots (always prepared) or with a number of free casts per spell. Free casts recharge on the rest picked in the form, Long Rest by default, and are tracked on the feature card under each spell's name
+- **Spells granted by magic items** — a magic item's new Granted Spells group names the spells that can be cast from it. An item with charges spends a set number of them per cast, never more than its Max Charges; one without charges casts its spells for free. Like the item's other modifiers, a grant applies only while the item is magic, equipped and, if it needs it, attuned
+- **Choosing what pays for a cast** — a spell's action card offers a choice of a free cast from a feature or item, named with what's left (e.g. "Fey Touched (1/1)"), or a spell slot of the spell's level or higher. Free casts are picked before slots by default
+- Spells show every feature and item that grants them as chips. Always-prepared spells lock their Known and Prepared checkboxes, with a tooltip naming the source, and don't count against the prepared-spell limit
+
+### Changed
+- The spell editor's Granted By and Free Cast fields are gone; grants are set on the feature or item instead. On existing characters, a free cast from an item moves onto that item as a cast that spends no charges. Other item links are dropped, and the spell is still cast with slots while prepared
+- Feature types are listed alphabetically in the Feature Type menu. A new feature still starts as Custom
+- Deleting a spell also removes it from the features and items that granted it, and a spell that can no longer be cast stops being in effect
+
 ## [v1.10.0] - 2026-11-19
 
 ### Added

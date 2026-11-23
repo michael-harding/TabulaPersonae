@@ -2,6 +2,7 @@ import {
   createContext,
   createEffect,
   createMemo,
+  createRenderEffect,
   createSignal,
   createUniqueId,
   useContext,
@@ -26,12 +27,22 @@ export interface SelectOption {
   value: string
   /** What the list and the trigger show. Plain text, so it can appear in both places at once. */
   label: string
+  /**
+   * Shown right after the label, in the list and in the trigger, e.g. a count. Never cut short with
+   * the label when the trigger limits its width (SelectValue's labelClass).
+   */
+  suffix?: string
   /** Shown after the label, in the list and in the trigger. Decorative, so hidden from assistive technology. */
   icon?: SelectIcon
   /** Dims the option, in the list and in the trigger. Pair it with an icon or srHint: color alone carries no meaning. */
   muted?: boolean
   /** Read by screen readers after the label, e.g. why the option is muted. */
   srHint?: string
+  /**
+   * A second line in the list only, never in the trigger, e.g. where a choice comes from and how
+   * many are left. Read with the option, so it's real text, not decoration.
+   */
+  detail?: string
 }
 
 interface SelectContextType {
@@ -58,6 +69,15 @@ interface SelectContextType {
   // The element wrapping the trigger and the popup, for telling inside clicks from outside ones.
   // Held as a ref because `data-sem` is stripped from production builds and can't be queried.
   rootEl: () => HTMLDivElement | undefined
+  // The trigger's data-test, which the hooks of the select's parts are named after so they stay
+  // unique on a page with many selects (TESTING.md §6). None without one, as in production builds.
+  testId: () => string | undefined
+  setTestId: (id: string | undefined) => void
+}
+
+/** A test hook named after the select's own, or none when the select has no hook. */
+function partHook(testId: string | undefined, part: string) {
+  return testId ? `${testId}-${part}` : undefined
 }
 
 const SelectContext = createContext<SelectContextType>()
@@ -85,6 +105,7 @@ export function Select(props: SelectRootProps) {
   const [listEl, setListEl] = createSignal<HTMLUListElement>()
   const [rootEl, setRootEl] = createSignal<HTMLDivElement>()
   const [triggerEl, setTriggerEl] = createSignal<HTMLButtonElement>()
+  const [testId, setTestId] = createSignal<string>()
   const baseId = createUniqueId()
   const value = () => props.value ?? internalValue()
 
@@ -117,7 +138,7 @@ export function Select(props: SelectRootProps) {
 
   // Scoped to this select: several selects on a page can share option values. Option values can
   // also contain spaces (e.g. "Saving Throw Proficiency"), which HTML5 id attributes may not.
-  const optionId = (v: string) => `${baseId}-option-${v.replace(/\s+/g, "-")}`
+  const optionId = (v: string) => `${baseId}-option-${optionSlug(v)}`
 
   return (
     <SelectContext.Provider value={{
@@ -127,6 +148,7 @@ export function Select(props: SelectRootProps) {
       activeValue, setActiveValue: setExplicitActive, optionId,
       listEl, setListEl, rootEl,
       listId: `${baseId}-list`, triggerEl, setTriggerEl,
+      testId, setTestId,
     }}>
       <div ref={setRootEl} data-sem="select" class="relative">
         {props.children}
@@ -135,10 +157,16 @@ export function Select(props: SelectRootProps) {
   )
 }
 
-export function SelectTrigger(props: ComponentProps<"button">) {
-  const [local, others] = splitProps(props, ["class", "children", "id"])
+/** An option value as it can appear in an id or a test hook: without spaces. */
+function optionSlug(value: string) {
+  return value.replace(/\s+/g, "-")
+}
+
+export function SelectTrigger(props: ComponentProps<"button"> & { "data-test"?: string }) {
+  const [local, others] = splitProps(props, ["class", "children", "id", "data-test"])
   const ctx = useSelect()
   const fallbackId = createUniqueId()
+  createRenderEffect(() => ctx.setTestId(local["data-test"]))
 
   const moveActive = (delta: number) => {
     const options = ctx.options()
@@ -193,6 +221,7 @@ export function SelectTrigger(props: ComponentProps<"button">) {
       type="button"
       role="combobox"
       id={local.id ?? fallbackId}
+      data-test={local["data-test"]}
       aria-expanded={ctx.open()}
       aria-haspopup="listbox"
       aria-controls={ctx.open() ? ctx.listId : undefined}
@@ -212,11 +241,18 @@ export function SelectTrigger(props: ComponentProps<"button">) {
   )
 }
 
-/** An option's label, screen-reader hint and icon, shared by the list item and the trigger. */
-function OptionContent(props: { option: SelectOption }) {
+/**
+ * An option's label, suffix, screen-reader hint and icon, shared by the list item and the trigger.
+ * labelClass styles the label alone, e.g. to cut a long one short in a narrow trigger.
+ */
+function OptionContent(props: { option: SelectOption; labelClass?: string }) {
+  const ctx = useSelect()
   return (
     <>
-      {props.option.label}
+      <Show when={props.labelClass} fallback={props.option.label}>
+        <span class={props.labelClass} data-test={partHook(ctx.testId(), "value-label")}>{props.option.label}</span>
+      </Show>
+      <Show when={props.option.suffix}>{(suffix) => <> {suffix()}</>}</Show>
       <Show when={props.option.srHint}>{(hint) => <span class="sr-only"> {hint()}</span>}</Show>
       <Show when={props.option.icon}>
         {(icon) => <Dynamic component={icon()} class="ml-1 inline-block h-3.5 w-3.5 align-[-0.125em]" aria-hidden="true" />}
@@ -225,7 +261,12 @@ function OptionContent(props: { option: SelectOption }) {
   )
 }
 
-export function SelectValue(props: { placeholder?: string }) {
+/**
+ * The chosen option, shown in the trigger. labelClass styles its label only, never the suffix:
+ * a trigger that must stay narrow can cut the label short while its count stays readable. CSS
+ * truncation keeps the whole label in the DOM, so it's still read in full.
+ */
+export function SelectValue(props: { placeholder?: string; labelClass?: string }) {
   const ctx = useSelect()
   const selected = () => ctx.optionFor(ctx.value())
   return (
@@ -237,7 +278,7 @@ export function SelectValue(props: { placeholder?: string }) {
         // option lists (e.g. imported data) is shown as-is rather than hidden by the placeholder.
         fallback={ctx.value() || props.placeholder || ctx.placeholder() || ""}
       >
-        {(option) => <OptionContent option={option()} />}
+        {(option) => <OptionContent option={option()} labelClass={props.labelClass} />}
       </Show>
     </span>
   )
@@ -348,7 +389,12 @@ function SelectItem(props: { option: SelectOption }) {
           <Check class="h-4 w-4" aria-hidden="true" />
         </span>
       )}
-      <span><OptionContent option={props.option} /></span>
+      <span>
+        <OptionContent option={props.option} />
+        <Show when={props.option.detail}>
+          {(detail) => <span class="block text-xs text-muted-foreground" data-test={partHook(ctx.testId(), `option-${optionSlug(props.option.value)}-detail`)}>{detail()}</span>}
+        </Show>
+      </span>
     </li>
   )
 }

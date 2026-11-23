@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event"
 import { ActionsModule } from "@/components/actions-module"
 import { CAST_FEEDBACK_MS } from "@/components/action-card"
 import { createDefaultCharacter } from "@/lib/character-types"
-import type { Character, Attack, BonusAction, Reaction, Spell, Feature, Equipment, ActionType } from "@/lib/character-types"
+import type { Character, Attack, BonusAction, Reaction, Spell, Feature, FeatureEffects, Equipment, ActionType } from "@/lib/character-types"
 import { getSpellSlots } from "@/lib/character-utils"
 import { ReadOnlyProvider } from "@/lib/read-only-context"
 
@@ -26,6 +26,15 @@ function makeAttack(overrides: Partial<Attack> = {}): Attack {
     damageType: "slashing",
     range: "5 ft",
     description: "",
+    ...overrides,
+  }
+}
+
+/** An equipped magic ring that casts the spell for free, spending no charges. */
+function freeCastRing(spellId: string, overrides: Partial<Equipment> = {}): Equipment {
+  return {
+    id: "ring-1", name: "Ring of Spells", quantity: 1, weight: 0, description: "", equipped: true, type: "other", magic: true,
+    modifiers: { grantedSpells: [{ spellId, charges: 0 }] },
     ...overrides,
   }
 }
@@ -504,20 +513,20 @@ describe("ActionsModule", () => {
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ spentSpellSlots: { 1: 1 } }))
     })
 
-    // Regression: freeCast spells (item-granted, no-slot-cost) previously used the same
-    // canCast/onCast path as normal spells, so they gated on and consumed a real slot
-    // exactly like any other prepared spell.
-    it("keeps a freeCast spell castable even when all slots at its level are used", () => {
-      const spell = makeSpell({ id: "sp-free", name: "Free Fireball", level: 1, castingTime: "1 action", prepared: true, known: true, freeCast: true })
-      render(() => <ActionsModule character={withSpellSlots(makeCharacter({ spells: [spell] }), { 1: { total: 1, used: 1 } })} onUpdate={vi.fn()} />)
-      expect(screen.getByRole("button", { name: /cast/i })).not.toBeDisabled()
+    // A free cast is paid for by its item, not a slot: it stays castable with the slots spent
+    it("keeps a spell an item casts for free castable even when all slots at its level are used", () => {
+      const spell = makeSpell({ id: "sp-free", name: "Free Fireball", level: 1, castingTime: "1 action", prepared: true, known: true })
+      const character = withSpellSlots(makeCharacter({ spells: [spell], equipment: [freeCastRing("sp-free")] }), { 1: { total: 1, used: 1 } })
+      render(() => <ActionsModule character={character} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: "Cast Free Fireball" })).toBeEnabled()
     })
 
-    it("does not consume a spell slot when casting a freeCast spell", () => {
+    it("spends nothing when an item that uses no charges casts a spell that doesn't last", () => {
       const onUpdate = vi.fn()
-      const spell = makeSpell({ id: "sp-free", name: "Free Fireball", level: 1, castingTime: "1 action", prepared: true, known: true, freeCast: true })
-      render(() => <ActionsModule character={withSpellSlots(makeCharacter({ spells: [spell] }), { 1: { total: 1, used: 1 } })} onUpdate={onUpdate} />)
-      fireEvent.click(screen.getByRole("button", { name: /cast/i }))
+      const spell = makeSpell({ id: "sp-free", name: "Free Fireball", level: 1, castingTime: "1 action", prepared: true, known: true })
+      const character = withSpellSlots(makeCharacter({ spells: [spell], equipment: [freeCastRing("sp-free")] }), { 1: { total: 1, used: 1 } })
+      render(() => <ActionsModule character={character} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: "Cast Free Fireball" }))
       expect(onUpdate).not.toHaveBeenCalled()
     })
   })
@@ -585,7 +594,7 @@ describe("ActionsModule", () => {
     })
 
     it("puts a free cast spell in effect without spending a slot", () => {
-      const { character } = renderLive({ spells: [{ ...mageArmor, freeCast: true }] }, { 1: { total: 1, used: 1 } })
+      const { character } = renderLive({ spells: [mageArmor], equipment: [freeCastRing("mage-armor")] }, { 1: { total: 1, used: 1 } })
       cast("Mage Armor")
       expect(character().spentSpellSlots).toEqual({ 1: 1 })
       expect(character().activeSpellIds).toEqual(["mage-armor"])
@@ -640,7 +649,7 @@ describe("ActionsModule", () => {
       })
     }
 
-    const slotSelect = () => screen.getByRole("combobox", { name: "Cast Magic Missile at level" })
+    const slotSelect = () => screen.getByRole("combobox", { name: "Cast Magic Missile using" })
     const castButton = () => screen.getByRole("button", { name: "Cast Magic Missile" })
 
     it("shows At Higher Levels in the spell's expanded view", () => {
@@ -688,12 +697,14 @@ describe("ActionsModule", () => {
 
     it("offers no slot-level select when the character has no higher-level spell slots", () => {
       render(() => <ActionsModule character={makeCharacterWithUpcast({ level2Total: 0 })} onUpdate={vi.fn()} />)
-      expect(screen.queryByRole("combobox", { name: /at level/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("combobox", { name: /using/i })).not.toBeInTheDocument()
     })
 
-    it("offers no slot-level select for a free cast", () => {
-      render(() => <ActionsModule character={makeCharacterWithUpcast({ spellOverrides: { grantedBy: "item-1", freeCast: true } })} onUpdate={vi.fn()} />)
-      expect(screen.queryByRole("combobox", { name: /at level/i })).not.toBeInTheDocument()
+    it("offers no select for a spell an item casts for free that isn't prepared", () => {
+      const char = { ...makeCharacterWithUpcast({ spellOverrides: { prepared: false } }), equipment: [freeCastRing("sp-upcast")] }
+      render(() => <ActionsModule character={char} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("combobox", { name: /using/i })).not.toBeInTheDocument()
+      expect(castButton()).toBeEnabled()
     })
 
     it("defaults the select to the spell's own level and casts with that slot", () => {
@@ -744,6 +755,94 @@ describe("ActionsModule", () => {
       fireEvent.click(screen.getByRole("option", { name: "2nd" }))
       expect(bonusSelect).toHaveTextContent("2nd")
       expect(reactionSelect).toHaveTextContent("1st")
+    })
+  })
+
+  describe("spells granted by features and items", () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }))
+    afterEach(() => vi.useRealTimers())
+
+    const mistyStep = makeSpell({ id: "misty", name: "Misty Step", level: 2, castingTime: "1 bonus action" })
+    const feyTouched = (effects: FeatureEffects = {}, overrides: Partial<Feature> = {}): Feature => ({
+      id: "fey", name: "Fey Touched", description: "", source: "feat", featureType: "Spells", rechargeOn: "long-rest",
+      levelEffects: [{ level: 1, effects: { grantedSpells: ["misty"], grantedSpellsSlots: true, grantedSpellsFreeCasts: 1, ...effects } }],
+      ...overrides,
+    })
+    function renderLive(overrides: Partial<Character> = {}, slots: Parameters<typeof withSpellSlots>[1] = { 2: { total: 2 } }) {
+      const [character, setCharacter] = createSignal(withSpellSlots(makeCharacter({ level: 3, spells: [mistyStep], ...overrides }), slots))
+      render(() => <ActionsModule character={character()} onUpdate={setCharacter} />)
+      return { character }
+    }
+    const select = () => screen.getByRole("combobox", { name: "Cast Misty Step using" })
+    const cast = () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cast Misty Step" }))
+      vi.advanceTimersByTime(CAST_FEEDBACK_MS)
+    }
+
+    it("lists a spell a feature keeps prepared, though its own Prepared box is clear", () => {
+      renderLive({ feats: [feyTouched()] })
+      expect(screen.getByRole("button", { name: "Cast Misty Step" })).toBeInTheDocument()
+    })
+
+    it("leaves out an unprepared spell whose feature tier isn't reached yet", () => {
+      renderLive({ level: 2, feats: [feyTouched({}, { levelEffects: [{ level: 3, effects: { grantedSpells: ["misty"], grantedSpellsSlots: true } }] })] })
+      expect(screen.queryByRole("button", { name: "Cast Misty Step" })).not.toBeInTheDocument()
+    })
+
+    it("spends the feature's free cast first, not a slot, then defaults to a slot", () => {
+      const { character } = renderLive({ feats: [feyTouched()] })
+      expect(select()).toHaveTextContent("Fey Touched (1/1)")
+      cast()
+      expect(character().feats![0].spellCastsSpent).toEqual({ misty: 1 })
+      expect(getSpellSlots(character())[2].used).toBe(0)
+      expect(select()).toHaveTextContent("2nd")
+      cast()
+      expect(getSpellSlots(character())[2].used).toBe(1)
+      expect(character().feats![0].spellCastsSpent).toEqual({ misty: 1 })
+    })
+
+    it("spends a slot instead when one is chosen, leaving the free cast", () => {
+      const { character } = renderLive({ feats: [feyTouched()] })
+      fireEvent.click(select())
+      fireEvent.click(screen.getByRole("option", { name: "2nd" }))
+      cast()
+      expect(getSpellSlots(character())[2].used).toBe(1)
+      expect(character().feats![0].spellCastsSpent).toBeUndefined()
+    })
+
+    // The card already names the feat in Granted By, so the choice doesn't repeat its kind
+    it("names the feature by its own name in the cast choice", () => {
+      renderLive({ feats: [feyTouched()] })
+      expect(select()).toHaveTextContent("Fey Touched (1/1)")
+      expect(select()).not.toHaveTextContent("Feat")
+    })
+
+    it("casts a spell given only free casts without a select, and without offering slots", () => {
+      const { character } = renderLive({ feats: [feyTouched({ grantedSpellsSlots: undefined })] })
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+      cast()
+      expect(character().feats![0].spellCastsSpent).toEqual({ misty: 1 })
+      expect(screen.getByRole("button", { name: "Cast Misty Step" })).toBeDisabled()
+    })
+
+    it("spends the item's charges for its cost per cast", () => {
+      const staff: Equipment = {
+        id: "staff", name: "Staff of Teleportation", quantity: 1, weight: 4, description: "", equipped: true, type: "other", magic: true,
+        maxUses: 10, charges: 2, rechargeOn: "long-rest", modifiers: { grantedSpells: [{ spellId: "misty", charges: 3 }] },
+      }
+      const { character } = renderLive({ equipment: [staff] })
+      expect(screen.getByTestId("action-card-bonus-spell-misty-free-casts")).toHaveTextContent("Staff of Teleportation (8/10)")
+      cast()
+      expect(character().equipment[0].charges).toBe(5)
+    })
+
+    it("offers no free cast from an item that isn't equipped", () => {
+      const ring = freeCastRing("misty", { equipped: false })
+      renderLive({ spells: [{ ...mistyStep, prepared: true }], equipment: [ring] })
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("action-card-bonus-spell-misty-free-casts")).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole("button", { name: "Misty Step" }))
+      expect(within(screen.getByRole("dialog")).queryByText("Granted By:")).not.toBeInTheDocument()
     })
   })
 
@@ -1357,14 +1456,12 @@ describe("ActionsModule", () => {
       expect(within(screen.getByRole("dialog")).getByText("School:").parentElement).toHaveTextContent("School: Evocation")
     })
 
-    it("names the item that grants a spell, and its free cast", () => {
-      const ring: Equipment = { id: "ring-1", name: "Ring of Shielding", quantity: 1, weight: 0, description: "", equipped: true, type: "other", magic: true }
-      const spell = makeSpell({ name: "Shield", level: 1, castingTime: "1 reaction", prepared: true, grantedBy: "ring-1", freeCast: true })
-      render(() => <ActionsModule character={makeCharacter({ spells: [spell], equipment: [ring] })} onUpdate={vi.fn()} />)
+    it("names the item that grants a spell", () => {
+      const spell = makeSpell({ id: "shield", name: "Shield", level: 1, castingTime: "1 reaction", prepared: true })
+      render(() => <ActionsModule character={makeCharacter({ spells: [spell], equipment: [freeCastRing("shield")] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByRole("button", { name: "Shield" }))
       const view = screen.getByRole("dialog")
-      expect(within(view).getByText("Granted By:").parentElement).toHaveTextContent("Granted By: Ring of Shielding")
-      expect(within(view).getByText("Free Cast")).toBeInTheDocument()
+      expect(within(view).getByText("Granted By:").parentElement).toHaveTextContent("Granted By: Ring of Spells")
     })
 
     it("shows the level a feature is gained at", () => {

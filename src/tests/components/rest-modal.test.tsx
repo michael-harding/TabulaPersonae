@@ -131,6 +131,18 @@ describe("RestModal", () => {
       expect(updated.attacks![0].uses).toBe(0)
     })
 
+    it("leaves a long-rest Spells feature's free casts spent on a short rest", () => {
+      const onRest = vi.fn()
+      const fey: Feature = {
+        id: "fey", name: "Fey Touched", description: "", source: "feat", featureType: "Spells", rechargeOn: "long-rest", spellCastsSpent: { misty: 1 },
+        levelEffects: [{ level: 1, effects: { grantedSpells: ["misty"], grantedSpellsFreeCasts: 1 } }],
+      }
+      openModal(makeCharacter({ feats: [fey] }), onRest)
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.feats![0].spellCastsSpent).toEqual({ misty: 1 })
+    })
+
     it("does not change HP when 0 dice are selected", () => {
       const onRest = vi.fn()
       openModal(makeCharacter({ hitPoints: { current: 10, maximum: 24, temporary: 0 } }), onRest)
@@ -333,6 +345,20 @@ describe("RestModal", () => {
       const dialog = getDialog()
       expect(within(dialog).getByText("Quick Strike")).toBeInTheDocument()
       expect(within(dialog).getByText("Arcane Recovery")).toBeInTheDocument()
+    })
+
+    it("restores a Spells feature's free casts with its uses, on its own rest only", () => {
+      const onRest = vi.fn()
+      const spells = (id: string, rechargeOn: Feature["rechargeOn"]): Feature => ({
+        id, name: id, description: "", source: "feat", featureType: "Spells", rechargeOn, spellCastsSpent: { misty: 1 },
+        levelEffects: [{ level: 1, effects: { grantedSpells: ["misty"], grantedSpellsFreeCasts: 1 } }],
+      })
+      openModal(makeCharacter({ feats: [spells("fey", "long-rest"), spells("never", undefined)] }), onRest)
+      switchToLong()
+      fireEvent.click(within(getDialog()).getByRole("button", { name: /confirm rest/i }))
+      const updated: Character = onRest.mock.calls[0][0]
+      expect(updated.feats![0]).not.toHaveProperty("spellCastsSpent")
+      expect(updated.feats![1].spellCastsSpent).toEqual({ misty: 1 })
     })
 
     it("calls onRest with HP restored to maximum", () => {

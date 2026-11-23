@@ -3,7 +3,7 @@ import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Dices from "lucide-solid/icons/dices"
 
 import type { Character, Equipment } from "@/lib/character-types"
-import { getAbilityModifier, formatModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest, activeSpellIdsAfterRest, spellsEndedByRest, RECHARGE_ON_LABELS } from "@/lib/character-utils"
+import { getAbilityModifier, formatModifier, getEffectiveAbilityScore, getEffectiveHitDiceSize, rollHitDice, safeFeatures, getEffectiveMaxHp, reconcileEquipmentRest, activeSpellIdsAfterRest, spellsEndedByRest, RECHARGE_ON_LABELS, withSpellCastsRecharged } from "@/lib/character-utils"
 import { type DieSize } from "@/lib/dice"
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
@@ -33,8 +33,9 @@ export function RestModal(props: RestModalProps) {
   const availableHitDice = () => totalHitDice() - spentHitDice()
   const conMod = () => getAbilityModifier(getEffectiveAbilityScore(props.character, "constitution"))
 
-  const resetMatching = <T extends { rechargeOn?: string }>(actions: T[], ...types: string[]): T[] =>
-    actions.map((a) => (a.rechargeOn && types.includes(a.rechargeOn) ? { ...a, uses: 0 } : a))
+  // A feature's spells' free casts recharge with its uses (see Feature.spellCastsSpent)
+  const resetMatching = <T extends { rechargeOn?: string; spellCastsSpent?: Record<string, number> }>(actions: T[], ...types: string[]): T[] =>
+    actions.map((a) => (a.rechargeOn && types.includes(a.rechargeOn) ? withSpellCastsRecharged({ ...a, uses: 0 }) : a))
 
   const rechargingFeatures = () => {
     const all = [

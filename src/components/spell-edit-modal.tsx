@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js"
 import Save from "lucide-solid/icons/save"
 
-import type { Spell, Equipment, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
+import type { Spell, DamageFields as DamageValues, GainFields as GainValues } from "@/lib/character-types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,7 +12,9 @@ import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/
 import { Combobox } from "@/components/ui/combobox"
 import { Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { DamageFields, GainFields } from "@/components/effect-fields"
-import { ABILITY_ABBREVIATIONS } from "@/lib/character-utils"
+import { ABILITY_ABBREVIATIONS, isAlwaysPrepared, type SpellGrantSource } from "@/lib/character-utils"
+import { Tooltip } from "@/components/ui/tooltip"
+import { alwaysPreparedTooltip, SpellGrantChips } from "@/components/spell-grant-chips"
 import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
 
 export interface SpellFormData extends DamageValues, GainValues {
@@ -34,8 +36,6 @@ export interface SpellFormData extends DamageValues, GainValues {
   known: boolean
   concentration?: boolean
   ritual?: boolean
-  grantedBy: string
-  freeCast: boolean
 }
 
 const SPELL_SCHOOLS = ["Abjuration","Conjuration","Divination","Enchantment","Evocation","Illusion","Necromancy","Transmutation"]
@@ -84,8 +84,6 @@ export const defaultSpellForm: SpellFormData = {
   known: true,
   concentration: false,
   ritual: false,
-  grantedBy: "",
-  freeCast: false,
 }
 
 interface SpellFormProps {
@@ -93,20 +91,28 @@ interface SpellFormProps {
   onSubmit: (data: SpellFormData) => void
   onCancel: () => void
   editing: boolean
-  magicItems: Equipment[]
+  /** The features and items that give the spell: shown, never edited, here. */
+  grantSources: readonly SpellGrantSource[]
 }
 
 export function SpellForm(props: SpellFormProps) {
   const [formData, setFormData] = createSignal<SpellFormData>(props.initialData)
-  const grantedByName = () => props.magicItems.find((item) => item.id === formData().grantedBy)?.name
-  const grantedByOptions = () => [
-    { value: "", label: "Not item-granted" },
-    ...props.magicItems.map((item) => ({ value: item.id, label: item.name })),
-  ]
+  // An active feature giving the spell with slots keeps it prepared (a cantrip: known), whatever its
+  // own box says: the box shows checked and can't be changed until no feature does
+  const alwaysPrepared = () => isAlwaysPrepared(props.grantSources)
+  const lockedTooltip = () => alwaysPreparedTooltip(props.grantSources, formData().level === 0)
   const validation = useFormValidation(() => [requiredText("spell-name", "Spell Name", formData().name)])
 
   return (
     <div class="space-y-4">
+      <Show when={props.grantSources.length > 0}>
+        <div class="space-y-1" data-test="spell-granted-by">
+          <div class="text-sm font-medium">Granted By</div>
+          <div class="flex flex-wrap gap-1">
+            <SpellGrantChips data-test="spell-granted-by-chip" sources={props.grantSources} />
+          </div>
+        </div>
+      </Show>
       <RequiredLegend />
       <FormErrorSummary validation={validation} />
       <div>
@@ -187,25 +193,43 @@ export function SpellForm(props: SpellFormProps) {
         <Textarea id="description" data-test="spell-description" value={formData().description} onInput={(e) => setFormData((p) => ({ ...p, description: e.currentTarget.value }))} placeholder="Spell description and effects" rows={4} />
       </div>
 
-      <Checkbox
-        data-test="spell-known-checkbox"
-        checked={formData().known}
-        onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
-        label="Known"
-        labelClass="text-sm font-medium leading-none cursor-pointer"
-        containerClass="gap-3 min-h-[44px]"
-      />
+      <Show
+        when={alwaysPrepared() && formData().level === 0}
+        fallback={
+          <Checkbox
+            data-test="spell-known-checkbox"
+            checked={formData().known}
+            onChange={(checked: boolean) => setFormData((p) => ({ ...p, known: checked, prepared: checked ? p.prepared : false }))}
+            label="Known"
+            labelClass="text-sm font-medium leading-none cursor-pointer"
+            containerClass="gap-3 min-h-[44px]"
+          />
+        }
+      >
+        <Tooltip content={lockedTooltip()} triggerFocusable triggerLabel={`Known, ${lockedTooltip()}`}>
+          <Checkbox data-test="spell-known-checkbox" checked disabled label="Known" labelClass="text-sm font-medium leading-none" containerClass="gap-3 min-h-[44px]" />
+        </Tooltip>
+      </Show>
 
       <Show when={formData().level > 0}>
-        <Checkbox
-          data-test="spell-prepared-checkbox"
-          checked={formData().prepared}
-          disabled={!formData().known}
-          onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
-          label="Prepared"
-          labelClass={`text-sm font-medium leading-none ${formData().known ? "cursor-pointer" : "cursor-not-allowed"}`}
-          containerClass={`gap-3 min-h-[44px] ${formData().known ? "" : "opacity-50 cursor-not-allowed"}`}
-        />
+        <Show
+          when={alwaysPrepared()}
+          fallback={
+            <Checkbox
+              data-test="spell-prepared-checkbox"
+              checked={formData().prepared}
+              disabled={!formData().known}
+              onChange={(checked: boolean) => setFormData((p) => ({ ...p, prepared: checked }))}
+              label="Prepared"
+              labelClass={`text-sm font-medium leading-none ${formData().known ? "cursor-pointer" : "cursor-not-allowed"}`}
+              containerClass={`gap-3 min-h-[44px] ${formData().known ? "" : "opacity-50 cursor-not-allowed"}`}
+            />
+          }
+        >
+          <Tooltip content={lockedTooltip()} triggerFocusable triggerLabel={`Prepared, ${lockedTooltip()}`}>
+            <Checkbox data-test="spell-prepared-checkbox" checked disabled label="Prepared" labelClass="text-sm font-medium leading-none" containerClass="gap-3 min-h-[44px]" />
+          </Tooltip>
+        </Show>
       </Show>
 
       <div class="flex flex-wrap gap-x-6 gap-y-2">
@@ -226,33 +250,6 @@ export function SpellForm(props: SpellFormProps) {
           containerClass="gap-3 min-h-[44px]"
         />
       </div>
-
-      <Show when={props.magicItems.length > 0}>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <Label for="spell-granted-by">Granted By (optional)</Label>
-            <Select
-              options={grantedByOptions()}
-              // An item that has since been removed is no longer granting anything
-              value={grantedByName() ? formData().grantedBy : ""}
-              onValueChange={(id) => setFormData((p) => ({ ...p, grantedBy: id }))}
-            >
-              <SelectTrigger id="spell-granted-by" data-test="spell-granted-by-select"><SelectValue /></SelectTrigger>
-              <SelectContent />
-            </Select>
-          </div>
-          <Show when={formData().grantedBy}>
-            <Checkbox
-              data-test="spell-free-cast-checkbox"
-              checked={formData().freeCast}
-              onChange={(checked: boolean) => setFormData((p) => ({ ...p, freeCast: checked }))}
-              label="Free Cast (no slot)"
-              labelClass="text-sm font-medium leading-none cursor-pointer"
-              containerClass="gap-3 min-h-[44px] mt-auto"
-            />
-          </Show>
-        </div>
-      </Show>
 
       <ModalFooter>
         <Button data-test="spell-form-cancel" variant="outline" onClick={props.onCancel}>Cancel</Button>
@@ -293,8 +290,6 @@ export function spellToForm(spell: Spell): SpellFormData {
     gainPerLevel: spell.gainPerLevel || "",
     concentration: spell.concentration ?? false,
     ritual: spell.ritual ?? false,
-    grantedBy: spell.grantedBy || "",
-    freeCast: spell.freeCast ?? false,
   }
 }
 
@@ -331,8 +326,6 @@ export function spellFromForm(form: SpellFormData, base?: Spell): Spell {
     gainPerLevel: form.gainPerLevel.trim() || undefined,
     concentration: form.concentration,
     ritual: form.ritual,
-    grantedBy: form.grantedBy || undefined,
-    freeCast: form.grantedBy && form.freeCast ? true : undefined,
   }
 }
 
@@ -340,7 +333,8 @@ interface SpellEditModalProps {
   open: boolean
   /** The spell to edit, or null to add a new one. */
   spell: Spell | null
-  magicItems: Equipment[]
+  /** The features and items that give the spell (see getSpellGrantSources). */
+  grantSources: readonly SpellGrantSource[]
   onSave: (spell: Spell) => void
   onCancel: () => void
 }
@@ -357,7 +351,7 @@ export function SpellEditModal(props: SpellEditModalProps) {
           onSubmit={handleSubmit}
           onCancel={props.onCancel}
           editing={!!props.spell}
-          magicItems={props.magicItems}
+          grantSources={props.grantSources}
         />
       </ModalContent>
     </Modal>

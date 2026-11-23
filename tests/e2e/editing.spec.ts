@@ -175,11 +175,11 @@ test.describe("Combat tab", () => {
     await open(page)
     // Ensnaring Strike is 1st level; testCharacter has 2nd-level slots, none spent
     const card = actionCard(page, "bonus-spell-sp2")
-    await card.getByRole("combobox", { name: "Cast Ensnaring Strike at level" }).click()
+    await card.getByRole("combobox", { name: "Cast Ensnaring Strike using" }).click()
     await page.getByRole("option", { name: "2nd" }).click()
     await card.getByRole("button", { name: "Cast Ensnaring Strike" }).click()
     // The choice is for that cast only
-    await expect(card.getByRole("combobox", { name: "Cast Ensnaring Strike at level" })).toHaveText("1st")
+    await expect(card.getByRole("combobox", { name: "Cast Ensnaring Strike using" })).toHaveText("1st")
 
     await reload(page)
     expect((await storedCharacter(page, id)).spentSpellSlots).toEqual({ ...testCharacter.spentSpellSlots, 2: 1 })

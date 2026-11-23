@@ -9,6 +9,7 @@ import Settings from "lucide-solid/icons/settings"
 import { useDocumentTitle } from "@/hooks/use-document-title"
 import { useSheetColor } from "@/hooks/use-sheet-color"
 import { type Character } from "@/lib/character-types"
+import { withActiveSpellsReconciled } from "@/lib/character-utils"
 import { useStorageManager } from "@/lib/storage-manager"
 import { useAuth } from "@/lib/auth-context"
 import { subscribeToCharacter } from "@/lib/firebase-storage"
@@ -91,7 +92,9 @@ export default function CharacterSheet() {
   // None of these wait for the save before showing its result: offline, a signed-in user's write
   // stays pending until the server answers (see notifyIfFailed).
   const updateCharacter = (updated: Character) => {
-    let next = updated
+    // Any change to spells, features, equipment or level can leave a spell in effect that can no
+    // longer be cast, and so has no action card to end it from
+    let next = withActiveSpellsReconciled(updated)
     if (next.hitPoints.current === 1) {
       next = { ...next, deathSaves: { successes: 0, failures: 0 } }
     }
