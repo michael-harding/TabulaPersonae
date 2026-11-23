@@ -1,11 +1,12 @@
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
+import { createSignal } from "solid-js"
 import { createStore } from "solid-js/store"
 
 import { EquipmentItemModal, hasOtherModifierFields } from "@/components/equipment-item-modal"
 import type { Equipment, ItemModifiers, Spell } from "@/lib/character-types"
 
-import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, waitFor, within, cleanupPortals } from "../test-utils"
 
 function makeItem(overrides: Partial<Equipment> = {}): Equipment {
   return {
@@ -452,7 +453,6 @@ describe("EquipmentItemModal", () => {
       fireEvent.click(screen.getByTestId("modifier-group-granted-spells"))
       await pick(user, "Burning Hands")
       await pick(user, "Fireball")
-      expect(screen.getByRole("checkbox", { name: "Cast Fireball from item" })).toBeChecked()
       setNumericValue(screen.getByRole("spinbutton", { name: "Fireball Charges per cast" }), "3")
       fireEvent.click(screen.getByTestId("equipment-modal-submit"))
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
@@ -460,13 +460,10 @@ describe("EquipmentItemModal", () => {
       }))
     })
 
-    it("saves a spell not cast from the item as a source only", () => {
-      const onSave = vi.fn()
-      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }] } })} onSave={onSave} onCancel={vi.fn()} />)
-      fireEvent.click(screen.getByRole("checkbox", { name: "Cast Fireball from item" }))
-      expect(screen.queryByRole("spinbutton", { name: "Fireball Charges per cast" })).not.toBeInTheDocument()
-      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
-      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ modifiers: { grantedSpells: [{ spellId: "fireball" }] } }))
+    it("casts every spell on the item from the item, with no choice to opt out", () => {
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }] } })} onSave={vi.fn()} onCancel={vi.fn()} />)
+      expect(screen.getByRole("spinbutton", { name: "Fireball Charges per cast" })).toHaveValue(3)
+      expect(within(screen.getByTestId("modifier-granted-spell-fireball")).queryByRole("checkbox")).not.toBeInTheDocument()
     })
 
     it("casts for free from an item without charges, with no cost to set", async () => {
@@ -496,8 +493,41 @@ describe("EquipmentItemModal", () => {
       expect(onSave.mock.calls[0][0].modifiers).toBeUndefined()
     })
 
+    it("lowers a spell's charges per cast along with Max Charges, so it can still be cast from the item", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 5 }, { spellId: "burning", charges: 1 }] } })} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("modifier-group-charges"))
+      setNumericValue(screen.getByTestId("item-max-uses"), "3")
+      expect(screen.getByRole("spinbutton", { name: "Fireball Charges per cast" })).toHaveValue(3)
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+        maxUses: 3,
+        modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }, { spellId: "burning", charges: 1 }] },
+      }))
+    })
+
+    it("never saves charges per cast above Max Charges, even from an item already stored that way", () => {
+      const onSave = vi.fn()
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ maxUses: 3, modifiers: { grantedSpells: [{ spellId: "fireball", charges: 5 }] } })} onSave={onSave} onCancel={vi.fn()} />)
+      fireEvent.click(screen.getByTestId("equipment-modal-submit"))
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }] } }))
+    })
+
+    it("opens the Granted Spells group for an item with granted spells when the item changes, and closes it for one without", async () => {
+      const [item, setItem] = createSignal<Equipment>(staff())
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={item()} onSave={vi.fn()} onCancel={vi.fn()} />)
+      const group = () => screen.getByTestId("modifier-group-granted-spells")
+      expect(group()).toHaveAttribute("aria-expanded", "false")
+
+      setItem(staff({ id: "other", modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }] } }))
+      await waitFor(() => expect(group()).toHaveAttribute("aria-expanded", "true"))
+
+      setItem(staff({ id: "plain" }))
+      await waitFor(() => expect(group()).toHaveAttribute("aria-expanded", "false"))
+    })
+
     it("has no accessibility violations with spells granted", async () => {
-      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }, { spellId: "burning" }] } })} onSave={vi.fn()} onCancel={vi.fn()} />)
+      render(() => <EquipmentItemModal spells={spells} open={true} editingItem={staff({ modifiers: { grantedSpells: [{ spellId: "fireball", charges: 3 }, { spellId: "burning", charges: 1 }] } })} onSave={vi.fn()} onCancel={vi.fn()} />)
       expect((await axe(screen.getByRole("dialog"))).violations).toHaveLength(0)
     })
   })

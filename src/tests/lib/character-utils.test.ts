@@ -66,6 +66,7 @@ import {
   withSpellActivated,
   withSpellEnded,
   withSpells,
+  withActiveSpellsReconciled,
   isSpellReady,
   getFeatureSpellGrants,
   getSpellGrantSources,
@@ -2611,11 +2612,6 @@ describe("spells granted by features and items", () => {
       expect(getSpellGrantSources(character({ equipment: [wand({ magic: false })] })).get("cure")).toBeUndefined()
     })
 
-    it("lists an item spell that can't be cast from the item with no free cast", () => {
-      const sources = getSpellGrantSources(character({ equipment: [wand({ modifiers: { grantedSpells: [{ spellId: "cure" }] } })] }))
-      expect(sources.get("cure")![0].free).toBeUndefined()
-    })
-
     it("doesn't count the casts of an item spell that spends no charges, or of an item without charges", () => {
       expect(getSpellGrantSources(character({ equipment: [wand({ modifiers: { grantedSpells: [{ spellId: "cure", charges: 0 }] } })] })).get("cure")![0].free).toEqual({ cost: 0 })
       expect(getSpellGrantSources(character({ equipment: [wand({ maxUses: undefined, charges: undefined })] })).get("cure")![0].free).toEqual({ cost: 0 })
@@ -2726,6 +2722,61 @@ describe("withSpells", () => {
     const life: Feature = { id: "life", name: "Life Domain", description: "", source: "class-feature", featureType: "Spells", levelEffects: [{ level: 1, effects: { grantedSpells: ["bless"], grantedSpellsSlots: true } }] }
     const before = character({ spells: [prepared(bless)], classFeatures: [life], activeSpellIds: ["bless"] })
     expect(withSpells(before, [{ ...bless, prepared: false }]).activeSpellIds).toEqual(["bless"])
+  })
+})
+
+describe("withActiveSpellsReconciled", () => {
+  const character = (overrides: Partial<Character> = {}): Character => ({ ...createDefaultCharacter(), level: 3, ...overrides })
+  // Bless unprepared, castable only from the ring, which spends no charges
+  const ring = (overrides: Partial<Equipment> = {}): Equipment => ({
+    id: "ring", name: "Ring of Blessing", quantity: 1, weight: 0, description: "", equipped: true, type: "other", magic: true,
+    modifiers: { grantedSpells: [{ spellId: "bless", charges: 0 }] }, ...overrides,
+  })
+  const life = (level: number): Feature => ({
+    id: "life", name: "Life Domain", description: "", source: "class-feature", featureType: "Spells",
+    levelEffects: [{ level, effects: { grantedSpells: ["bless"], grantedSpellsSlots: true } }],
+  })
+  const unpreparedBless: Spell = { ...bless, prepared: false }
+
+  it("keeps a spell in effect while its item still lets it be cast, returning the same character", () => {
+    const before = character({ spells: [unpreparedBless], equipment: [ring()], activeSpellIds: ["bless"] })
+    expect(withActiveSpellsReconciled(before)).toBe(before)
+  })
+
+  it.each([
+    ["unequipped", { equipped: false }],
+    ["no longer attuned", { requiresAttunement: true, attuned: false }],
+    ["no longer magic", { magic: false }],
+  ])("ends a spell only castable from an item that is %s", (_label, overrides) => {
+    const before = character({ spells: [unpreparedBless, { ...mageArmor, prepared: true }], equipment: [ring(overrides)], activeSpellIds: ["bless", "mage-armor"] })
+    expect(withActiveSpellsReconciled(before).activeSpellIds).toEqual(["mage-armor"])
+  })
+
+  it("ends a spell only castable from an item that was deleted", () => {
+    const before = character({ spells: [unpreparedBless], equipment: [], activeSpellIds: ["bless"] })
+    expect(withActiveSpellsReconciled(before).activeSpellIds).toEqual([])
+  })
+
+  it("ends a spell a feature kept prepared once the feature is removed or its tier is no longer reached", () => {
+    const withFeature = character({ spells: [unpreparedBless], classFeatures: [life(3)], activeSpellIds: ["bless"] })
+    expect(withActiveSpellsReconciled(withFeature)).toBe(withFeature)
+    expect(withActiveSpellsReconciled({ ...withFeature, classFeatures: [] }).activeSpellIds).toEqual([])
+    expect(withActiveSpellsReconciled({ ...withFeature, level: 2 }).activeSpellIds).toEqual([])
+  })
+
+  it("keeps a prepared spell in effect after its item is unequipped", () => {
+    const before = character({ spells: [{ ...bless, prepared: true }], equipment: [ring({ equipped: false })], activeSpellIds: ["bless"] })
+    expect(withActiveSpellsReconciled(before)).toBe(before)
+  })
+
+  it("drops the id of a deleted spell", () => {
+    const before = character({ spells: [], activeSpellIds: ["bless"] })
+    expect(withActiveSpellsReconciled(before).activeSpellIds).toEqual([])
+  })
+
+  it("leaves a character with nothing in effect untouched", () => {
+    const before = character({ spells: [unpreparedBless] })
+    expect(withActiveSpellsReconciled(before)).toBe(before)
   })
 })
 

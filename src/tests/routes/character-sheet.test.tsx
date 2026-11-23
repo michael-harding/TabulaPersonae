@@ -22,7 +22,7 @@ import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
 
 import { useAuth } from "@/lib/auth-context"
-import { createDefaultCharacter, type Character } from "@/lib/character-types"
+import { createDefaultCharacter, type Character, type Equipment, type Spell } from "@/lib/character-types"
 import { subscribeToCharacter, type CharacterSyncSnapshot } from "@/lib/firebase-storage"
 import { useSyncState } from "@/lib/sync-context"
 import { useTabConfig } from "@/lib/tab-config-context"
@@ -290,6 +290,25 @@ describe("CharacterSheet saving", () => {
 
     await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledOnce())
     expect(savedCharacter().deathSaves).toEqual({ successes: 2, failures: 1 })
+  })
+
+  // Every module's change comes through here, so a spell that can no longer be cast (its item
+  // unequipped, its feature removed, the level lowered) never stays in effect with no card to end it
+  it("ends a spell in effect that can no longer be cast, whatever the change", async () => {
+    const bless: Spell = {
+      id: "bless", name: "Bless", description: "", level: 1, school: "Enchantment", castingTime: "1 action", range: "30 ft",
+      components: "V, S, M", duration: "Concentration, up to 1 minute", concentration: true, prepared: false, known: true,
+    }
+    const ring: Equipment = {
+      id: "ring", name: "Ring", quantity: 1, weight: 0, description: "", type: "other", magic: true, equipped: false,
+      modifiers: { grantedSpells: [{ spellId: "bless", charges: 0 }] },
+    }
+    await renderWith({ spells: [bless], equipment: [ring], activeSpellIds: ["bless"], heroicInspiration: false })
+
+    fireEvent.click(screen.getByTestId("toggle-heroic-inspiration"))
+
+    await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledOnce())
+    expect(savedCharacter()).toMatchObject({ heroicInspiration: true, activeSpellIds: [] })
   })
 
   it("tells the user when the save fails", async () => {

@@ -199,6 +199,11 @@ export function featureToForm(feature: Feature): FeatureFormData {
  * field the form doesn't show), or a new feature of base's source when base has no id. An Action
  * feature's own fields are kept only while it has an action kind; blank ones are omitted.
  */
+/** Whether any of a Spells feature's tiers gives free casts. */
+export function hasSpellFreeCasts(levelEffects: readonly FeatureLevelEffect[]): boolean {
+  return levelEffects.some((tier) => (tier.effects.grantedSpellsFreeCasts ?? 0) > 0)
+}
+
 export function featureFromForm(form: FeatureFormData, base: Partial<Feature> & Pick<Feature, 'source'>): Feature {
   const action = !!form.actionKind
   const spells = form.featureType === 'Spells'
@@ -225,8 +230,9 @@ export function featureFromForm(form: FeatureFormData, base: Partial<Feature> & 
     maxUses: (action && form.maxUsesMode === 'flat' && form.maxUses) ? form.maxUses : undefined,
     maxUsesMode: (action && form.maxUsesMode !== 'flat') ? form.maxUsesMode : undefined,
     maxUsesPerLevel: (action && form.maxUsesMode === 'per-level' && form.maxUsesPerLevel) ? form.maxUsesPerLevel : undefined,
-    // A Spells feature's free casts recharge on its rest, like an Action feature's uses
-    rechargeOn: ((action || spells) && form.rechargeOn) ? form.rechargeOn : undefined,
+    // A Spells feature's free casts recharge on its rest, like an Action feature's uses. One without
+    // free casts has nothing to recharge (and its form hides the field)
+    rechargeOn: ((action || (spells && hasSpellFreeCasts(form.levelEffects))) && form.rechargeOn) ? form.rechargeOn : undefined,
     levelEffects: form.levelEffects.length > 0 ? form.levelEffects : undefined,
     spellCastsSpent: spells ? base.spellCastsSpent : undefined,
   }
@@ -792,7 +798,14 @@ function FeatureForm(props: FeatureFormProps) {
   })
 
   const updateLevelEffect = (index: number, patch: Partial<FeatureLevelEffect>) => {
-    setFormData((d) => ({ ...d, levelEffects: d.levelEffects.map((t, i) => (i === index ? { ...t, ...patch } : t)) }))
+    setFormData((d) => {
+      const levelEffects = d.levelEffects.map((t, i) => (i === index ? { ...t, ...patch } : t))
+      // A Spells feature's free casts recharge on a Long Rest unless picked otherwise: the default
+      // applies when the first free cast appears, so a None picked later is kept
+      const firstFreeCasts = d.featureType === 'Spells' && d.rechargeOn === ''
+        && !hasSpellFreeCasts(d.levelEffects) && hasSpellFreeCasts(levelEffects)
+      return { ...d, levelEffects, ...(firstFreeCasts ? { rechargeOn: 'long-rest' as const } : {}) }
+    })
   }
 
   // Ability Score subsections (Bonus/Floor/Max Cap/Base Max) are individually collapsible.
@@ -1190,7 +1203,7 @@ function FeatureForm(props: FeatureFormProps) {
               <Plus class="h-3 w-3" aria-hidden="true" />
               Add Level
             </Button>
-            <Show when={effectType() === 'Spells' && formData().levelEffects.some((tier) => (tier.effects.grantedSpellsFreeCasts ?? 0) > 0)}>
+            <Show when={effectType() === 'Spells' && hasSpellFreeCasts(formData().levelEffects)}>
               <div class="space-y-1">
                 <Label for="feature-spells-recharge">Free Casts Recharge On</Label>
                 <Select options={RECHARGE_ON_OPTIONS} value={formData().rechargeOn} onValueChange={(v) => setFormData((d) => ({ ...d, rechargeOn: v as '' | 'short-rest' | 'long-rest' }))}>

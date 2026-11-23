@@ -1671,13 +1671,10 @@ export function getSpellGrantSources(character: SpellGrantCharacter): Map<string
   for (const item of character.equipment ?? []) {
     if (!item.magic) continue
     for (const grant of item.modifiers?.grantedSpells ?? []) {
-      let free: FreeCast | undefined
-      if (grant.charges != null) {
-        const cost = Math.max(0, Math.floor(Number(grant.charges)))
-        free = hasChargesTracking(item) && cost > 0
-          ? { cost, total: item.maxUses ?? 0, remaining: Math.max(0, (item.maxUses ?? 0) - (item.charges ?? 0)) }
-          : { cost: 0 }
-      }
+      const cost = Math.max(0, Math.floor(Number(grant.charges)))
+      const free: FreeCast = hasChargesTracking(item) && cost > 0
+        ? { cost, total: item.maxUses ?? 0, remaining: Math.max(0, (item.maxUses ?? 0) - (item.charges ?? 0)) }
+        : { cost: 0 }
       add(grant.spellId, {
         key: `item:${item.id}`,
         kind: "item",
@@ -1686,7 +1683,7 @@ export function getSpellGrantSources(character: SpellGrantCharacter): Map<string
         shortName: item.name,
         active: isItemModifierActive(item),
         alwaysPrepared: false,
-        ...(free ? { free } : {}),
+        free,
       })
     }
   }
@@ -1768,10 +1765,25 @@ export function withSpellCastsRecharged<T extends Pick<Feature, "spellCastsSpent
  * longer known ends, so it isn't left in effect with no card to end it from.
  */
 export function withSpells(character: Character, spells: Spell[]): Character {
-  if (!character.activeSpellIds) return { ...character, spells }
+  return withActiveSpellsReconciled({ ...character, spells })
+}
+
+/**
+ * The character with every spell in effect that is no longer ready ended: one that was deleted,
+ * unprepared, or only castable from a feature or item that no longer gives it (a feature removed or
+ * its tier no longer reached, an item unequipped or unattuned). Without this a spell could stay in
+ * effect with no action card to end it from. Returns the same object when nothing ends.
+ */
+export function withActiveSpellsReconciled(character: Character): Character {
+  const ids = character.activeSpellIds
+  if (!ids || ids.length === 0) return character
   const sources = getSpellGrantSources(character)
-  const ready = new Set(spells.filter((spell) => isSpellReady(spell, sources.get(spell.id))).map((spell) => spell.id))
-  return { ...character, spells, activeSpellIds: character.activeSpellIds.filter((id) => ready.has(id)) }
+  const spellsById = new Map((character.spells ?? []).map((spell) => [spell.id, spell]))
+  const kept = ids.filter((id) => {
+    const spell = spellsById.get(id)
+    return !!spell && isSpellReady(spell, sources.get(id))
+  })
+  return kept.length === ids.length ? character : { ...character, activeSpellIds: kept }
 }
 
 /**

@@ -103,7 +103,7 @@ test.describe("A character saved by an older version", () => {
     expect(saved).not.toHaveProperty("useCalculatedSize")
   })
 
-  test("with spells linked to a magic item moves each link onto the item", async ({ page }) => {
+  test("with spells linked to a magic item moves each free cast onto the item and drops the other links", async ({ page }) => {
     // As saved before items named their spells: the spell named the item, and whether it was free
     const ring = { id: "ring-1", name: "Ring of Spell Storing", quantity: 1, weight: 0, description: "", equipped: true, type: "other", magic: true }
     const spell = (id: string, name: string, link: Record<string, unknown>) => ({
@@ -118,12 +118,14 @@ test.describe("A character saved by an older version", () => {
     // Every spell level starts expanded
     await openSheet(page, character.id, "Spells")
     await expect(page.locator(`[data-test="spell-granted-shield-item:ring-1"]`)).toHaveText("Granted: Ring of Spell Storing")
-    await expect(page.locator(`[data-test="spell-granted-absorb-item:ring-1"]`)).toHaveText("Granted: Ring of Spell Storing")
+    // Never castable from the ring, so the ring no longer lists it; the spell itself stays
+    await expect(page.locator(`[data-test^="spell-granted-absorb-"]`)).toHaveCount(0)
 
     await makeAnEdit(page)
     await reload(page)
     const saved = await storedCharacter(page, character.id)
-    expect(saved.equipment[0].modifiers).toEqual({ grantedSpells: [{ spellId: "shield", charges: 0 }, { spellId: "absorb" }] })
+    expect(saved.equipment[0].modifiers).toEqual({ grantedSpells: [{ spellId: "shield", charges: 0 }] })
+    expect(saved.spells.map((s: { id: string }) => s.id)).toEqual(["shield", "absorb", "lost"])
     for (const savedSpell of saved.spells) {
       expect(savedSpell).not.toHaveProperty("grantedBy")
       expect(savedSpell).not.toHaveProperty("freeCast")

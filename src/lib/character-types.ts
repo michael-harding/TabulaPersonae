@@ -113,17 +113,14 @@ export interface ItemModifiers {
 }
 
 /**
- * A spell a magic item gives. The spell itself is an ordinary entry of `character.spells`; this only
- * names it. Casting it with the character's own slots still depends on the spell being prepared:
- * the item adds only the casts paid for by the item.
+ * A spell a magic item lets its wearer cast from the item. The spell itself is an ordinary entry of
+ * `character.spells`; this only names it. Casting it with the character's own slots still depends on
+ * the spell being prepared: the item adds only the casts paid for by the item.
  */
 export interface ItemSpellGrant {
   spellId: string
-  /**
-   * How a cast from the item is paid for. Absent: it can't be cast from the item (the item is only
-   * listed as a source). 0: cast from the item for free. N: spends N of the item's charges.
-   */
-  charges?: number
+  /** What a cast from the item spends: 0 is free, N spends N of the item's charges. */
+  charges: number
 }
 
 // Top-level damage and gain apply to a non-weapon item used as an action (e.g. Alchemist's Fire, a

@@ -265,7 +265,7 @@ function EquipmentForm(props: EquipmentFormProps) {
   const spellName = () => spellNameResolver(props.spells)
   // An item with charges spends them on a cast; one without casts its spells for free
   const tracksCharges = () => formData.magic && formData.maxUses > 0
-  // A spell added here starts castable from the item, for one charge when the item has them
+  // A spell added here is cast from the item, for one charge when the item has them
   const setGrantedSpellIds = (ids: string[]) => setFormData("modifierGrantedSpells", ids.map((spellId) =>
     formData.modifierGrantedSpells.find((grant) => grant.spellId === spellId) ?? { spellId, charges: tracksCharges() ? 1 : 0 }))
   const validation = useFormValidation(() => [requiredText("item-name", "Item Name", formData.name)])
@@ -284,6 +284,7 @@ function EquipmentForm(props: EquipmentFormProps) {
         setOpenSkillEffects(hasSkillEffectValues(init))
         setOpenCombatBonuses(hasCombatBonusValues(init))
         setOpenUses(hasChargesValues(init))
+        setOpenGrantedSpells(init.modifierGrantedSpells.length > 0)
       }
     )
   )
@@ -613,7 +614,14 @@ function EquipmentForm(props: EquipmentFormProps) {
                 <div>
                   <Label for="item-max-uses">Max Charges (0 = none)</Label>
                   <NumericInput id="item-max-uses" data-test="item-max-uses" min={0} value={formData.maxUses}
-                    onChange={(v) => setFormData({ maxUses: v, charges: Math.min(formData.charges, v) })} />
+                    onChange={(v) => setFormData({
+                      maxUses: v,
+                      charges: Math.min(formData.charges, v),
+                      // A spell's charges per cast follow Max Charges down, as buildModifiers saves them.
+                      // At 0 the item stops tracking charges, and the field is hidden and saved as 0
+                      modifierGrantedSpells: formData.modifierGrantedSpells.map((grant) =>
+                        v > 0 && grant.charges > v ? { ...grant, charges: v } : grant),
+                    })} />
                 </div>
               </div>
               <Show when={formData.maxUses > 0}>
@@ -644,21 +652,12 @@ function EquipmentForm(props: EquipmentFormProps) {
                 emptyText={props.spells.length === 0 ? "Add spells on the Spells tab first" : undefined}
                 onChange={setGrantedSpellIds}
               />
-              {/* How each spell is cast from the item. Adding and removing stays on the chips above */}
-              <For each={formData.modifierGrantedSpells}>
-                {(grant, i) => (
-                  <div class="flex flex-wrap items-center gap-x-4 gap-y-1" data-test={`modifier-granted-spell-${grant.spellId}`}>
-                    <span class="min-w-24 flex-1 text-sm font-medium">{spellName()(grant.spellId)}</span>
-                    <Checkbox
-                      data-test={`modifier-granted-spell-${grant.spellId}-cast-from-item`}
-                      checked={grant.charges != null}
-                      onChange={(checked: boolean) => setFormData("modifierGrantedSpells", i(), "charges", checked ? (tracksCharges() ? 1 : 0) : undefined)}
-                      // Named for its spell: every row has one
-                      label={<>Cast<span class="sr-only"> {spellName()(grant.spellId)}</span> from item</>}
-                      labelClass="text-sm cursor-pointer"
-                      containerClass="gap-2 min-h-[44px]"
-                    />
-                    <Show when={grant.charges != null && tracksCharges()}>
+              {/* What each spell's cast spends, once the item has charges. Adding and removing stays on the chips above */}
+              <Show when={tracksCharges()}>
+                <For each={formData.modifierGrantedSpells}>
+                  {(grant, i) => (
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1" data-test={`modifier-granted-spell-${grant.spellId}`}>
+                      <span class="min-w-24 flex-1 text-sm font-medium">{spellName()(grant.spellId)}</span>
                       <div class="flex items-center gap-2">
                         <Label for={`modifier-granted-spell-${grant.spellId}-charges`} class="text-xs whitespace-nowrap">
                           <span class="sr-only">{spellName()(grant.spellId)} </span>Charges per cast
@@ -669,14 +668,14 @@ function EquipmentForm(props: EquipmentFormProps) {
                           class="w-20"
                           min={0}
                           max={formData.maxUses}
-                          value={grant.charges ?? 0}
+                          value={grant.charges}
                           onChange={(v) => setFormData("modifierGrantedSpells", i(), "charges", v)}
                         />
                       </div>
-                    </Show>
-                  </div>
-                )}
-              </For>
+                    </div>
+                  )}
+                </For>
+              </Show>
             </ModifierGroup>
 
             <ModifierGroup label="Combat Bonuses" data-test="modifier-group-combat-bonuses" open={openCombatBonuses()} onOpenChange={setOpenCombatBonuses}>
@@ -1029,10 +1028,11 @@ function buildModifiers(formData: EquipmentFormData): ItemModifiers | undefined 
     if (formData.modifierLanguages.length > 0) modifiers.languages = formData.modifierLanguages
     if (formData.modifierProficiencies.length > 0) modifiers.proficiencies = formData.modifierProficiencies
 
-    // A cast from an item without charges spends none, whatever the field held while it had them
+    // A cast from an item without charges spends none, whatever the field held while it had them. One
+    // never costs more than the item's Max Charges, or it could never be cast from the item
     const tracksCharges = formData.maxUses > 0
     const grantedSpells = formData.modifierGrantedSpells.map(({ spellId, charges }): ItemSpellGrant =>
-      charges == null ? { spellId } : { spellId, charges: tracksCharges ? Math.max(0, charges) : 0 })
+      ({ spellId, charges: tracksCharges ? Math.min(formData.maxUses, Math.max(0, charges)) : 0 }))
     if (grantedSpells.length > 0) modifiers.grantedSpells = grantedSpells
   }
 

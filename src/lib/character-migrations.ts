@@ -228,24 +228,29 @@ type SpellWithItemLink = Spell & { grantedBy?: unknown; freeCast?: unknown }
 
 /**
  * A spell used to name the magic item that gave it (`grantedBy`, an item id) and whether casting it
- * spent no slot (`freeCast`). The item now names its spells (`modifiers.grantedSpells`). Each link to
- * an item that still exists moves there: a free cast becomes a cast from the item that spends no
- * charges, exactly what it did; any other link only names the item as the spell's source, its slot
- * casting still following the spell's own Prepared box. A link to a deleted item, which nothing
- * showed, is dropped. The retired fields leave every spell. Runs while any spell still has either
- * field, the proof that it was stored before the move.
+ * spent no slot (`freeCast`). The item now names the spells cast from it (`modifiers.grantedSpells`).
+ * A free cast from an item that still exists moves there as a cast that spends no charges. Any other
+ * link is dropped: it never let the spell be cast from the item, and the item now names only the
+ * spells that are, so the spell keeps working as before, cast with slots while it's prepared, just no
+ * longer showing the item. A link to a deleted item, which nothing showed, is dropped too. The retired
+ * fields leave every spell. Runs while any spell still has either field, the proof that it was stored
+ * before the move.
+ *
+ * Not every old free cast keeps working. One used to spend no slot whatever state the item was in;
+ * a grant now only applies while the item is magic, equipped and (if it needs it) attuned, like the
+ * item's other modifiers. A grant moved onto an item that is no longer magic is never shown and is
+ * dropped the next time the item is saved. Losing those is accepted.
  */
 function moveItemSpellGrants(spells: Spell[], equipment: Equipment[]): { spells: Spell[]; equipment: Equipment[] } | undefined {
   const linked = spells as SpellWithItemLink[]
   if (!linked.some((spell) => "grantedBy" in spell || "freeCast" in spell)) return undefined
   const additions = new Map<string, ItemSpellGrant[]>()
   for (const spell of linked) {
-    if (typeof spell.grantedBy !== "string" || spell.grantedBy === "") continue
+    if (spell.freeCast !== true || typeof spell.grantedBy !== "string" || spell.grantedBy === "") continue
     const item = equipment.find((candidate) => candidate.id === spell.grantedBy)
     if (!item) continue
-    const grant: ItemSpellGrant = spell.freeCast === true ? { spellId: spell.id, charges: 0 } : { spellId: spell.id }
     const list = additions.get(item.id) ?? []
-    list.push(grant)
+    list.push({ spellId: spell.id, charges: 0 })
     additions.set(item.id, list)
   }
   const nextEquipment = equipment.map((item) => {

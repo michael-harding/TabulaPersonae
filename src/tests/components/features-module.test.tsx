@@ -1689,14 +1689,53 @@ describe("FeaturesModule", () => {
         expect(within(modal).queryByTestId("feature-spells-recharge-select")).not.toBeInTheDocument()
         setFreeCasts(modal, 0, "1")
         fireEvent.click(within(modal).getByTestId("feature-spells-recharge-select"))
-        fireEvent.click(screen.getByRole("option", { name: "Long Rest" }))
+        fireEvent.click(screen.getByRole("option", { name: "Short Rest" }))
         fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
         expect(saved(onUpdate)).toEqual(expect.objectContaining({
           name: "Fey Touched",
           featureType: "Spells",
-          rechargeOn: "long-rest",
+          rechargeOn: "short-rest",
           levelEffects: [{ level: 1, effects: { grantedSpells: ["bless", "cure"], grantedSpellsSlots: true, grantedSpellsFreeCasts: 1 } }],
         }))
+      })
+
+      it("recharges free casts on a Long Rest unless another rest is picked", () => {
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter({ spells })} onUpdate={onUpdate} />)
+        const modal = pickSpells()
+        setFreeCasts(modal, 0, "1")
+        expect(within(modal).getByTestId("feature-spells-recharge-select")).toHaveTextContent("Long Rest")
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate).rechargeOn).toBe("long-rest")
+      })
+
+      it("keeps None once picked, when the free casts change again", () => {
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter({ spells })} onUpdate={onUpdate} />)
+        const modal = pickSpells()
+        setFreeCasts(modal, 0, "1")
+        fireEvent.click(within(modal).getByTestId("feature-spells-recharge-select"))
+        fireEvent.click(screen.getByRole("option", { name: "None" }))
+        setFreeCasts(modal, 0, "2")
+        expect(within(modal).getByTestId("feature-spells-recharge-select")).toHaveTextContent("None")
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate).rechargeOn).toBeUndefined()
+      })
+
+      it("drops the recharge once no level gives free casts", () => {
+        const onUpdate = vi.fn()
+        render(() => <FeaturesModule character={makeCharacter({ spells })} onUpdate={onUpdate} />)
+        const modal = pickSpells()
+        setFreeCasts(modal, 0, "1")
+        setFreeCasts(modal, 0, "0")
+        expect(within(modal).queryByTestId("feature-spells-recharge-select")).not.toBeInTheDocument()
+        fireEvent.click(within(modal).getByRole("button", { name: /save/i }))
+        expect(saved(onUpdate).rechargeOn).toBeUndefined()
+      })
+
+      it("saves no recharge for a Spells feature stored with one but no free casts", () => {
+        const base = makeFeature({ featureType: "Spells", rechargeOn: "long-rest", levelEffects: [{ level: 1, effects: { grantedSpells: ["bless"], grantedSpellsSlots: true } }] })
+        expect(featureFromForm(featureToForm(base), base).rechargeOn).toBeUndefined()
       })
 
       it("lists each level's spells on the card, by name", () => {

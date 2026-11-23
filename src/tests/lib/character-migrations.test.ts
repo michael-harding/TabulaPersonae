@@ -613,16 +613,19 @@ describe("migrateCharacter", () => {
       expect(migrated.spells[0]).not.toHaveProperty("freeCast")
     })
 
-    // Not castable from the item: casting it with slots still follows the spell's own Prepared box
-    it("moves any other link onto the item as a source only", () => {
+    // It was never castable from the item, which now names only the spells that are. The spell itself
+    // is untouched: casting it with slots still follows its own Prepared box
+    it("drops any other link, leaving the spell as it was", () => {
       const raw = { ...createDefaultCharacter(), equipment: [ring], spells: [spell({ grantedBy: "ring" }), spell({ id: "aid", grantedBy: "ring", freeCast: false })] }
-      expect(migrateCharacter(raw).equipment[0].modifiers).toEqual({ grantedSpells: [{ spellId: "shield" }, { spellId: "aid" }] })
+      const migrated = migrateCharacter(raw)
+      expect(migrated.equipment[0]).toEqual(ring)
+      expect(migrated.spells).toEqual([spell({}), spell({ id: "aid" })])
     })
 
     it("keeps the item's other modifiers and grants, adding no second grant of a spell it already names", () => {
       const withGrants = { ...ring, modifiers: { armorClass: 1, grantedSpells: [{ spellId: "shield", charges: 1 }] } }
-      const raw = { ...createDefaultCharacter(), equipment: [withGrants], spells: [spell({ grantedBy: "ring", freeCast: true }), spell({ id: "aid", grantedBy: "ring" })] }
-      expect(migrateCharacter(raw).equipment[0].modifiers).toEqual({ armorClass: 1, grantedSpells: [{ spellId: "shield", charges: 1 }, { spellId: "aid" }] })
+      const raw = { ...createDefaultCharacter(), equipment: [withGrants], spells: [spell({ grantedBy: "ring", freeCast: true }), spell({ id: "aid", grantedBy: "ring", freeCast: true })] }
+      expect(migrateCharacter(raw).equipment[0].modifiers).toEqual({ armorClass: 1, grantedSpells: [{ spellId: "shield", charges: 1 }, { spellId: "aid", charges: 0 }] })
     })
 
     // The old sheet showed nothing for a link to a deleted item, so there's nothing to keep

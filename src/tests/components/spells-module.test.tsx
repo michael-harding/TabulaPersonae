@@ -709,7 +709,7 @@ describe("SpellsModule", () => {
     })
 
     it("dims a source that doesn't give the spell now, with a tooltip saying why", () => {
-      const ring = makeMagicItem({ equipped: false, modifiers: { grantedSpells: [{ spellId: "shield" }] } })
+      const ring = makeMagicItem({ equipped: false, modifiers: { grantedSpells: [{ spellId: "shield", charges: 0 }] } })
       render(() => <SpellsModule character={makeCharacter({ spells: [shield], equipment: [ring] })} onUpdate={vi.fn()} />)
       fireEvent.click(screen.getByText("1st Level"))
       const chip = screen.getByTestId("spell-granted-shield-inactive-item:item-1")
