@@ -222,11 +222,12 @@ describe("Select", () => {
     describe("suffix, detail and a cut-short label", () => {
       const SOURCES: SelectOption[] = [
         { value: "staff", label: "Staff of Teleportation", suffix: "(7/10)", detail: "3 charges per cast" },
+        { value: "wand of fire", label: "Wand of Fire", detail: "2 charges per cast" },
         { value: "1", label: "1st" },
       ]
-      const renderSources = (labelClass?: string) => render(() => (
+      const renderSources = (labelClass?: string, testId: string | null = "cast-using") => render(() => (
         <Select options={SOURCES} value="staff">
-          <SelectTrigger aria-label="Cast using"><SelectValue labelClass={labelClass} /></SelectTrigger>
+          <SelectTrigger aria-label="Cast using" data-test={testId ?? undefined}><SelectValue labelClass={labelClass} /></SelectTrigger>
           <SelectContent />
         </Select>
       ))
@@ -240,23 +241,53 @@ describe("Select", () => {
 
       it("shows the detail in the list only", () => {
         renderSources()
-        expect(screen.queryByTestId("select-option-detail")).not.toBeInTheDocument()
+        expect(screen.queryByTestId("cast-using-option-staff-detail")).not.toBeInTheDocument()
         fireEvent.click(screen.getByRole("combobox"))
-        expect(screen.getByTestId("select-option-detail")).toHaveTextContent("3 charges per cast")
+        expect(screen.getByTestId("cast-using-option-staff-detail")).toHaveTextContent("3 charges per cast")
       })
 
       it("applies labelClass to the trigger's label alone, never its suffix or the list", () => {
         renderSources("truncate")
-        const label = screen.getByTestId("select-value-label")
+        const label = screen.getByTestId("cast-using-value-label")
         expect(label).toHaveClass("truncate")
         expect(label).toHaveTextContent(/^Staff of Teleportation$/)
         fireEvent.click(screen.getByRole("combobox"))
-        expect(screen.getAllByTestId("select-value-label")).toHaveLength(1)
+        expect(screen.getAllByTestId("cast-using-value-label")).toHaveLength(1)
       })
 
       it("wraps nothing in the trigger without a labelClass", () => {
         renderSources()
-        expect(screen.queryByTestId("select-value-label")).not.toBeInTheDocument()
+        expect(screen.queryByTestId("cast-using-value-label")).not.toBeInTheDocument()
+      })
+
+      // TESTING.md §6: a page holds many selects (one per action card), and a list many details
+      it("names its parts' test hooks after its own, so each is unique on the page", () => {
+        render(() => (
+          <>
+            <Select options={SOURCES} value="staff">
+              <SelectTrigger aria-label="First" data-test="first"><SelectValue labelClass="truncate" /></SelectTrigger>
+              <SelectContent />
+            </Select>
+            <Select options={SOURCES} value="staff">
+              <SelectTrigger aria-label="Second" data-test="second"><SelectValue labelClass="truncate" /></SelectTrigger>
+              <SelectContent />
+            </Select>
+          </>
+        ))
+        expect(screen.getByTestId("first-value-label")).toHaveTextContent("Staff of Teleportation")
+        expect(screen.getByTestId("second-value-label")).toHaveTextContent("Staff of Teleportation")
+        fireEvent.click(screen.getByRole("combobox", { name: "First" }))
+        expect(screen.getByTestId("first-option-staff-detail")).toHaveTextContent("3 charges per cast")
+        // An option value's spaces become dashes, as in its id
+        expect(screen.getByTestId("first-option-wand-of-fire-detail")).toHaveTextContent("2 charges per cast")
+        const hooks = [...document.querySelectorAll("[data-test]")].map((el) => el.getAttribute("data-test"))
+        expect(new Set(hooks).size).toBe(hooks.length)
+      })
+
+      it("gives its parts no test hooks when it has none itself", () => {
+        renderSources("truncate", null)
+        fireEvent.click(screen.getByRole("combobox"))
+        expect(screen.getByRole("listbox").closest("[data-sem=select]")!.querySelector("[data-test]")).toBeNull()
       })
     })
   })

@@ -839,13 +839,13 @@ describe("ActionCard", () => {
       expect(options.map((o) => o.textContent)).toEqual(["Fey Touched (1/1)", "2nd", "3rd"])
       // Its only icon is the selected option's check mark: a free cast has no icon of its own
       expect([...options[0].querySelectorAll("svg")].map((svg) => svg.getAttribute("class"))).toEqual([expect.stringContaining("lucide-check")])
-      expect(screen.queryByTestId("select-option-detail")).not.toBeInTheDocument()
+      expect(screen.queryByTestId(/^action-card-test-slot-select-option-.*-detail$/)).not.toBeInTheDocument()
     })
 
     it("names an item's charge cost in the list only, when a cast takes more than one", () => {
       renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Staff of Fire", 2, { cost: 3, remaining: 7, total: 10 }), ...slots({ 2: 1 })()] })
       expect(select()).toHaveTextContent("Staff of Fire (7/10)")
-      expect(within(select()).queryByTestId("select-option-detail")).not.toBeInTheDocument()
+      expect(within(select()).queryByTestId(/^action-card-test-slot-select-option-.*-detail$/)).not.toBeInTheDocument()
       fireEvent.click(select())
       expect(screen.getAllByRole("option")[0]).toHaveTextContent("Staff of Fire (7/10)3 charges per cast")
     })
@@ -853,13 +853,13 @@ describe("ActionCard", () => {
     // The trigger sits beside the Cast button, so a long name is cut short there; its count never is
     it("cuts a long source name short in the trigger only, keeping its count and its full name for screen readers", () => {
       renderMistyStep({ onCast: vi.fn(), castOptions: () => [freeCast("Staff of Teleportation", 2, { remaining: 7, total: 10 }), ...slots({ 2: 1 })()] })
-      const label = within(select()).getByTestId("select-value-label")
+      const label = within(select()).getByTestId("action-card-test-slot-select-value-label")
       expect(label).toHaveTextContent("Staff of Teleportation")
       expect(label).toHaveClass("truncate", "max-w-[10ch]")
       expect(label).not.toHaveTextContent("(7/10)")
       expect(select()).toHaveTextContent("Staff of Teleportation (7/10)")
       fireEvent.click(select())
-      expect(within(screen.getByRole("listbox")).queryByTestId("select-value-label")).not.toBeInTheDocument()
+      expect(within(screen.getByRole("listbox")).queryByTestId("action-card-test-slot-select-value-label")).not.toBeInTheDocument()
     })
 
     it("passes the chosen free cast to onCast, then returns to the default", () => {
