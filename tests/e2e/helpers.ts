@@ -91,6 +91,8 @@ export async function openSidebar(page: Page): Promise<Locator> {
   await page.locator('[data-test="sidebar-menu-trigger"]').click()
   const sidebar = page.locator('[data-test="sidebar-menu"]')
   await expect(sidebar).toBeVisible()
+  // Until it has slid in, a forced click (as a switch's hidden checkbox needs) can land off-screen
+  await sidebar.evaluate((el) => Promise.all(el.getAnimations().map((animation) => animation.finished.catch(() => {}))))
   return sidebar
 }
 

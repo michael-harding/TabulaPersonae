@@ -353,8 +353,8 @@ test.describe("Character tab", () => {
   })
 
   // Any sheet colour is shown as a shade readable on the theme (src/lib/sheet-color.ts). Checked
-  // in both themes by the chromium and chromium-dark projects, on every tab, for every preset and
-  // for custom colours at both extremes.
+  // in both themes by the chromium and chromium-dark projects, in the sidebar menu it is chosen in
+  // and on every tab, for every preset and for custom colours at both extremes.
   const sheetColours = [
     ...SHEET_COLOR_PRESETS.map(({ name }) => ({ name, choose: (page: Page) => page.locator(`[data-test="sheet-color-preset-${name.toLowerCase()}"]`).click() })),
     ...["#ffff00", "#f2f2f2", "#141414"].map((hex) => ({ name: `custom ${hex}`, choose: (page: Page) => page.locator('[data-test="sheet-color-custom-input"]').fill(hex) })),
@@ -362,8 +362,13 @@ test.describe("Character tab", () => {
   for (const { name, choose } of sheetColours) {
     test(`sheet colour ${name} keeps the sheet's text readable`, async ({ page }) => {
       await open(page, "Character")
+      await openSidebar(page)
       await choose(page)
       await expect(page.locator("[data-sheet-color]")).toHaveCount(1)
+      const sidebar = await axeBuilder(page).include('[data-test="sidebar-menu"]').withRules(["color-contrast"]).analyze()
+      expect(sidebar.violations, "sidebar menu").toEqual([])
+      await page.keyboard.press("Escape")
+      await expect(page.locator('[data-test="sidebar-menu"]')).toHaveCount(0)
       for (const tab of ["Character", "Combat", "Spells", "Features", "Inventory"]) {
         await page.getByRole("tab", { name: tab }).click()
         await finishAnimations(page)

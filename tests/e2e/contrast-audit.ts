@@ -208,9 +208,19 @@ export const SCENES: Scene[] = [
     within: DIALOG,
     open: async (page) => {
       await openGuestSheet(page, "Combat")
-      await page.locator('[data-test="sidebar-menu-trigger"]').click()
-      await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name: "Import Character" }).click()
-      await expect(page.getByRole("dialog")).toBeVisible()
+      await (await openSidebar(page)).getByRole("button", { name: "Import Character" }).click()
+      // It opens once the sidebar has closed, which is a dialog too until then
+      await expect(page.locator('[data-test="sidebar-menu"]')).toHaveCount(0)
+      await expect(page.locator('[data-test="import-dialog"]')).toBeVisible()
+    },
+  },
+  {
+    // With the open character's sheet settings in it
+    name: "sidebar menu",
+    within: DIALOG,
+    open: async (page) => {
+      await openGuestSheet(page, "Combat")
+      await openSidebar(page)
     },
   },
   {
