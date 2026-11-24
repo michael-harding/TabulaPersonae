@@ -199,11 +199,13 @@ test.describe("Touch targets", () => {
     expectAccessibleTouchTargets([...withCharacters, ...await auditTouchTargets(page)])
   })
 
-  test("@mobile header menu, open", async ({ page }) => {
+  // With the open character's settings in it
+  test("@mobile sidebar menu, open", async ({ page }) => {
     await openSheet(page, testCharacter.id)
-    await page.locator('[data-test="header-menu-trigger"]').click()
-    await expect(page.locator('[data-test="header-menu-account"]')).toBeVisible()
-    expectAccessibleTouchTargets(await auditTouchTargets(page, "[role=menu]"))
+    await page.locator('[data-test="sidebar-menu-trigger"]').click()
+    await expect(page.locator('[data-test="sidebar-menu-account"]')).toBeVisible()
+    await finishAnimations(page)
+    expectAccessibleTouchTargets(await auditTouchTargets(page, '[data-test="sidebar-menu"]'))
   })
 
   // Every kind of popup list: a menu, a combobox's options and a select's options

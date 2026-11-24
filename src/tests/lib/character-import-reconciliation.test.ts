@@ -213,7 +213,7 @@ describe("reconcileImportedCharacter", () => {
 
     it("falls back to the non-caster calculation when spellcastingAbility is entirely missing", () => {
       // A file missing a required field only reaches reconciliation through migrateCharacter,
-      // which is where untyped file contents become a `Character` (see header-menu.tsx).
+      // which is where untyped file contents become a `Character` (see sidebar-menu.tsx).
       const fileContents: Partial<Character> = { ...createDefaultCharacter(), spellSaveDC: 8, spellAttackBonus: 0 }
       delete fileContents.spellcastingAbility
       const result = reconcileImportedCharacter(migrateCharacter(fileContents))

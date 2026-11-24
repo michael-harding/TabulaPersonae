@@ -1,9 +1,9 @@
 import { axe } from "vitest-axe"
 
-import { StatsBar } from "@/components/stats-bar"
+import { StatsBar, STATS_BAR_HEIGHT_VAR } from "@/components/stats-bar"
 import { createDefaultCharacter, type Spell } from "@/lib/character-types"
 
-import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
+import { cleanup, render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 
 function makeCharacter(current: number, maximum: number) {
   return {
@@ -274,5 +274,46 @@ describe("StatsBar", () => {
       // WIS 18+2=20 → +5, Prof +3 → Hit +8, DC 16
       expect(screen.getByRole("tooltip")).toHaveTextContent(/^Spell Hit: \+5 \(Wis\) \+ 3 \(Prof\) · DC: 8 \+ 3 \(Prof\) \+ 5 \(Wis\)$/)
     })
+  })
+})
+
+// What sits just below the sticky bar, the sidebar menu button on large screens, follows its height
+describe("StatsBar height variable", () => {
+  let resize: () => void = () => {}
+  const disconnect = vi.fn()
+
+  beforeEach(() => {
+    disconnect.mockReset()
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: () => void) { resize = callback }
+      observe() {}
+      disconnect() { disconnect() }
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const height = () => document.documentElement.style.getPropertyValue(STATS_BAR_HEIGHT_VAR)
+
+  it("publishes the bar's height on the root element", () => {
+    render(() => <StatsBar character={makeCharacter(8, 10)} />)
+    expect(height()).toBe("0px")
+  })
+
+  it("updates it when the bar changes size", () => {
+    render(() => <StatsBar character={makeCharacter(8, 10)} />)
+    const bar = screen.getByTestId("stats-bar")
+    Object.defineProperty(bar, "offsetHeight", { configurable: true, value: 72 })
+    resize()
+    expect(height()).toBe("72px")
+  })
+
+  it("removes it, and stops observing, when the bar goes away", () => {
+    render(() => <StatsBar character={makeCharacter(8, 10)} />)
+    cleanup()
+    expect(height()).toBe("")
+    expect(disconnect).toHaveBeenCalledOnce()
   })
 })

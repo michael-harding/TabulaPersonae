@@ -186,3 +186,55 @@ test.describe("Add Feature dialog", () => {
     await expect(page.getByRole("dialog").getByRole("option")).toHaveText(FEATURE_TYPES)
   })
 })
+
+// The menu button: fixed below the stats bar where the screen has room, in the header otherwise
+test.describe("Sidebar menu button", () => {
+  const trigger = (page: import("@playwright/test").Page) => page.locator('[data-test="sidebar-menu-trigger"]')
+  const statsBar = (page: import("@playwright/test").Page) => page.locator('[data-test="stats-bar"]')
+
+  async function scrollDown(page: import("@playwright/test").Page) {
+    // The Combat tab is taller than the viewport
+    await page.mouse.wheel(0, 600)
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200)
+  }
+
+  test.describe("on a large screen", () => {
+    test.use({ viewport: { width: 1280, height: 720 } })
+
+    test("stays just below the stats bar while the page scrolls, clear of the content", async ({ page }) => {
+      await seedGuest(page, testCharacter)
+      await openSheet(page, testCharacter.id)
+      const barBottom = async () => (await statsBar(page).boundingBox())!.height
+      const top = async () => (await trigger(page).boundingBox())!.y
+
+      expect(await top()).toBeCloseTo((await barBottom()) + 16, 0)
+      await scrollDown(page)
+      expect(await top()).toBeCloseTo((await barBottom()) + 16, 0)
+
+      // The tabs leave it a gutter, so it never covers a card
+      const button = (await trigger(page).boundingBox())!
+      const content = (await page.getByRole("tabpanel").boundingBox())!
+      expect(button.x + button.width).toBeLessThanOrEqual(content.x)
+    })
+  })
+
+  test.describe("on a phone", () => {
+    test.use({ viewport: { width: 390, height: 844 } })
+
+    test("sits in the header and scrolls away with it", async ({ page }) => {
+      await seedGuest(page, testCharacter)
+      await openSheet(page, testCharacter.id)
+      const before = (await trigger(page).boundingBox())!.y
+      await scrollDown(page)
+      expect((await trigger(page).boundingBox())!.y).toBeLessThan(before - 200)
+    })
+  })
+
+  test("@mobile opens the sidebar, whose Tab Settings link goes to the tab settings", async ({ page }) => {
+    await seedGuest(page, testCharacter)
+    await openSheet(page, testCharacter.id)
+    await trigger(page).click()
+    await page.locator('[data-test="sidebar-tab-settings-link"]').click()
+    await expect(page).toHaveURL("/settings/tabs")
+  })
+})

@@ -135,8 +135,8 @@ test.describe("A character saved by an older version", () => {
   test("in an import file is brought up to date when it is imported", async ({ page }) => {
     await seedGuest(page, [])
     await page.goto("/")
-    await page.locator('[data-test="header-menu-trigger"]').click()
-    await page.getByRole("menuitem", { name: "Import" }).click()
+    await page.locator('[data-test="sidebar-menu-trigger"]').click()
+    await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name: "Import" }).click()
     await page.locator('[data-test="import-json-input"]').setInputFiles({
       name: "bram.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(legacy)),
     })

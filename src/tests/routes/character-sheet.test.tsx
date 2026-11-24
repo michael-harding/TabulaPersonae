@@ -30,7 +30,7 @@ import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
 import { sheetColorShades } from "@/lib/sheet-color"
 import CharacterSheet from "@/routes/CharacterSheet"
 
-import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor } from "../test-utils"
+import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor, within, finishDrawerClosing } from "../test-utils"
 import { createMockAuth, createTestUser } from "../mocks/auth"
 import { mockNavigate } from "../mocks/router"
 import { mockStorageManager } from "../mocks/storage-manager"
@@ -360,7 +360,7 @@ describe("CharacterSheet colour", () => {
 
   it("goes back to the theme's own colour when the sheet colour is reset", async () => {
     const sheet = await renderWithColour("#eab308")
-    fireEvent.click(screen.getByRole("tab", { name: "Character" }))
+    fireEvent.click(screen.getByTestId("sidebar-menu-trigger"))
     fireEvent.click(await screen.findByTestId("sheet-color-reset-button"))
     await waitFor(() => expect(sheet).not.toHaveAttribute("data-sheet-color"))
     expect(sheet.style.getPropertyValue("--sheet-primary-light")).toBe("")
@@ -390,20 +390,57 @@ describe("CharacterSheet header actions", () => {
     expect(await screen.findByTestId("rest-confirm-button")).toBeInTheDocument()
   })
 
-  it("returns to the character list from the menu's All Characters item", async () => {
+  it("links to the character list and the tab settings from the sidebar menu", async () => {
     const user = userEvent.setup()
     await renderAndLoad()
-    await user.click(screen.getByTestId("header-menu-trigger"))
-    await user.click(await screen.findByRole("menuitem", { name: "All Characters" }))
-    expect(mockNavigate).toHaveBeenCalledWith("/")
+    await user.click(screen.getByTestId("sidebar-menu-trigger"))
+    expect(await screen.findByTestId("sidebar-all-characters-link")).toHaveAttribute("href", "/")
+    expect(screen.getByTestId("sidebar-tab-settings-link")).toHaveAttribute("href", "/settings/tabs")
+  })
+
+  it("keeps the Configure tabs button alongside the sidebar's Tab Settings link", async () => {
+    await renderAndLoad()
+    expect(screen.getByTestId("configure-tabs-button")).toBeInTheDocument()
+  })
+
+  it("offers the open character's sheet settings and sharing in the sidebar menu", async () => {
+    const user = userEvent.setup()
+    await renderAndLoad()
+    await user.click(screen.getByTestId("sidebar-menu-trigger"))
+    const menu = within(await screen.findByTestId("sidebar-menu"))
+    expect(menu.getByTestId("switch-button-sheet-settings-edition-switch")).toBeInTheDocument()
+    expect(menu.getByTestId("sheet-color-swatches")).toBeInTheDocument()
+  })
+
+  it("saves a setting changed in the sidebar menu", async () => {
+    const user = userEvent.setup()
+    await renderAndLoad()
+    await user.click(screen.getByTestId("sidebar-menu-trigger"))
+    await user.click(await screen.findByTestId("sheet-color-preset-purple"))
+    await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledWith(expect.objectContaining({ sheetColor: "#8b5cf6" })))
+  })
+
+  it("no longer shows sheet settings on the Character tab", async () => {
+    await renderAndLoad()
+    fireEvent.click(screen.getByRole("tab", { name: "Character" }))
+    expect(screen.queryByTestId("sheet-color-swatches")).not.toBeInTheDocument()
+  })
+
+  // Fixed below the stats bar on large screens; in the header, scrolling with it, on smaller ones
+  it("fixes the menu button below the stats bar on large screens only", async () => {
+    await renderAndLoad()
+    const button = screen.getByTestId("sidebar-menu-trigger")
+    expect(button).toHaveClass("lg:fixed", "lg:top-[calc(var(--stats-bar-height,0px)+1rem)]")
+    expect(button).not.toHaveClass("fixed")
   })
 
   describe("importing from the menu", () => {
     async function importJson(content: unknown) {
       const user = userEvent.setup()
       await renderAndLoad()
-      await user.click(screen.getByTestId("header-menu-trigger"))
-      await user.click(await screen.findByRole("menuitem", { name: /import character/i }))
+      await user.click(screen.getByTestId("sidebar-menu-trigger"))
+      await user.click(await screen.findByRole("button", { name: /import character/i }))
+      finishDrawerClosing(screen.getByTestId("sidebar-menu"))
       const file = new File([JSON.stringify(content)], "import.json", { type: "application/json" })
       await user.upload(await screen.findByLabelText(/choose json file/i), file)
     }

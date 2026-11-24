@@ -9,8 +9,8 @@ import { test, expect } from "./test"
 // changes the account has not received. Against the Firebase emulators.
 
 async function signOut(page: Page) {
-  await page.locator('[data-test="header-menu-trigger"]').click()
-  await page.getByRole("menuitem", { name: "Sign Out" }).click()
+  await page.locator('[data-test="sidebar-menu-trigger"]').click()
+  await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name: "Sign Out" }).click()
 }
 
 const appKeys = (page: Page) =>

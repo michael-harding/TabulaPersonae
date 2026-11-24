@@ -22,7 +22,7 @@ import { createDefaultCharacter, type Character } from "@/lib/character-types"
 import { sheetColorShades } from "@/lib/sheet-color"
 import Home from "@/routes/Home"
 
-import { cleanup, cleanupPortals, render, screen, waitFor, fireEvent, confirmClick } from "../test-utils"
+import { cleanup, cleanupPortals, render, screen, waitFor, fireEvent, confirmClick, finishDrawerClosing } from "../test-utils"
 import { createMockAuth, createTestUser } from "../mocks/auth"
 import { mockNavigate } from "../mocks/router"
 import { mockStorageManager } from "../mocks/storage-manager"
@@ -251,8 +251,9 @@ describe("Home importing from the menu", () => {
   async function importJson(content: unknown) {
     const user = userEvent.setup()
     render(() => <Home />)
-    await user.click(await screen.findByTestId("header-menu-trigger"))
-    await user.click(await screen.findByRole("menuitem", { name: /import character/i }))
+    await user.click(await screen.findByTestId("sidebar-menu-trigger"))
+    await user.click(await screen.findByRole("button", { name: /import character/i }))
+    finishDrawerClosing(screen.getByTestId("sidebar-menu"))
     const file = new File([JSON.stringify(content)], "import.json", { type: "application/json" })
     await user.upload(await screen.findByLabelText(/choose json file/i), file)
   }
@@ -328,5 +329,12 @@ describe("Home deleting a character — failure", () => {
     await waitFor(() => expect(screen.queryByText("Testy")).not.toBeInTheDocument())
     expect(mockToast).not.toHaveBeenCalled()
     expect(mockStorageManager.getCharacters).toHaveBeenCalledOnce()
+  })
+})
+
+describe("Home menu button", () => {
+  it("is fixed at the top left of the page", async () => {
+    render(() => <Home />)
+    expect(await screen.findByTestId("sidebar-menu-trigger")).toHaveClass("fixed", "left-4", "top-4")
   })
 })

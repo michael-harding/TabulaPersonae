@@ -119,8 +119,8 @@ export const MODALS: ModalCase[] = [
   },
   {
     name: "import", open: async (page) => {
-      await click(page, "header-menu-trigger")
-      await page.getByRole("menuitem", { name: "Import Character" }).click()
+      await click(page, "sidebar-menu-trigger")
+      await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name: "Import Character" }).click()
     },
   },
 ]
@@ -193,9 +193,10 @@ export interface OverlayCase {
 
 export const OVERLAYS: OverlayCase[] = [
   {
-    name: "header-menu", open: async (page) => {
-      await byTest(page, "header-menu-trigger").click()
-      return page.getByRole("menu")
+    // The sidebar menu, with the open character's settings in it
+    name: "sidebar-menu", open: async (page) => {
+      await byTest(page, "sidebar-menu-trigger").click()
+      return byTest(page, "sidebar-menu")
     },
   },
   {
@@ -253,8 +254,8 @@ export const OVERLAYS: OverlayCase[] = [
   {
     // A toast dismisses itself after 5s; the screenshot is taken well within it.
     name: "toast", open: async (page) => {
-      await byTest(page, "header-menu-trigger").click()
-      await page.getByRole("menuitem", { name: `Export ${testCharacter.name}` }).click()
+      await byTest(page, "sidebar-menu-trigger").click()
+      await byTest(page, "sidebar-menu").getByRole("button", { name: `Export ${testCharacter.name}` }).click()
       return page.locator('[data-sem="toast"]')
     },
   },

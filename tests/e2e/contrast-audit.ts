@@ -3,7 +3,7 @@ import { type Page, type TestInfo } from "@playwright/test"
 import { publicCharacter, secondCharacter, testCharacter } from "../visual/fixtures"
 import type { Character } from "../../src/lib/character-types"
 import { blockFirestore, createUser, seedCharacter, signIn, withUniqueId } from "./emulator"
-import { openSheet, seedGuest } from "./helpers"
+import { openSheet, openSidebar, seedGuest } from "./helpers"
 import { expect } from "./test"
 
 // What contrast.spec.ts and focus-visible.spec.ts have in common: the colour arithmetic they run
@@ -208,8 +208,8 @@ export const SCENES: Scene[] = [
     within: DIALOG,
     open: async (page) => {
       await openGuestSheet(page, "Combat")
-      await page.locator('[data-test="header-menu-trigger"]').click()
-      await page.getByRole("menuitem", { name: "Import Character" }).click()
+      await page.locator('[data-test="sidebar-menu-trigger"]').click()
+      await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name: "Import Character" }).click()
       await expect(page.getByRole("dialog")).toBeVisible()
     },
   },
@@ -270,8 +270,8 @@ export const SCENES: Scene[] = [
       await blockFirestore(page)
       await page.locator('[data-test="hp-increase-button"]').click()
       await expect(page.locator('[data-test="current-hp"]')).toHaveText("39")
-      await page.locator('[data-test="header-menu-trigger"]').click()
-      await page.getByRole("menuitem", { name: "Sign Out" }).click()
+      await page.locator('[data-test="sidebar-menu-trigger"]').click()
+      await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name: "Sign Out" }).click()
       await expect(page.locator('[data-test="sign-out-dialog"]')).toBeVisible()
     },
   },
@@ -282,7 +282,8 @@ export const SCENES: Scene[] = [
       const character = withUniqueId(testCharacter)
       await seedCharacter(user.uid, character)
       await signIn(page, user)
-      await openSheet(page, character.id, "Character")
+      await openSheet(page, character.id)
+      await openSidebar(page)
       await page.locator('[data-test="switch-button-sheet-settings-share-switch"]').check({ force: true })
       await expect(page.locator('[data-test="share-url-input"]')).toBeVisible()
     },

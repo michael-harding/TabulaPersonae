@@ -11,7 +11,7 @@ import { byName, featureTypeBaseline, FEATURE_TYPES_WITH_BASELINE, MODALS, PHONE
 //
 // Not covered: the sign-out dialog. It needs a signed-in Firebase user — guest mode shows
 // "Back to Login" in its place — and tests may not make real network calls (TESTING.md §5).
-// src/tests/components/header-menu.test.tsx covers it.
+// src/tests/components/sidebar-menu.test.tsx covers it.
 
 test.describe("Modals — desktop", () => {
   test.use({ viewport: TALL })

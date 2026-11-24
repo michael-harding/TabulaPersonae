@@ -201,6 +201,30 @@ describe("TabConfigProvider — authenticated user", () => {
   })
 })
 
+describe("TabConfigProvider — retired modules", () => {
+  const savedWithSheetSettings = {
+    tabs: [{ id: "mine", label: "Mine", modules: ["character-info", "sheet-settings"] }],
+  }
+
+  it("keeps a local config's tabs, without the retired Sheet Settings module", async () => {
+    localStorage.setItem(TAB_CONFIG_KEY, JSON.stringify(savedWithSheetSettings))
+    let ctx!: ReturnType<typeof useTabConfig>
+    renderProvider((c) => { ctx = c })
+    await waitFor(() => {
+      expect(ctx.tabConfig().tabs).toEqual([{ id: "mine", label: "Mine", modules: ["character-info"] }])
+    })
+  })
+
+  it("migrates such a local config to the account without the retired module on sign-in", async () => {
+    mockUser = { uid: "user-123" }
+    localStorage.setItem(TAB_CONFIG_KEY, JSON.stringify(savedWithSheetSettings))
+    renderProvider(() => {})
+    await waitFor(() => {
+      expect(mockSaveTabConfig).toHaveBeenCalledWith({ tabs: [{ id: "mine", label: "Mine", modules: ["character-info"] }] }, "user-123")
+    })
+  })
+})
+
 describe("TabConfigProvider — invalid localStorage data", () => {
   it("falls back to DEFAULT_TAB_CONFIG when localStorage contains malformed JSON", async () => {
     localStorage.setItem(TAB_CONFIG_KEY, "{{not valid json{{")

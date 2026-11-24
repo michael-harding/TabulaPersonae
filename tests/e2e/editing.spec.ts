@@ -2,7 +2,7 @@ import { type Locator, type Page } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
 import { SHEET_COLOR_PRESETS } from "../../src/lib/sheet-color"
-import { confirmClick, openSheet, reload, seedGuest, storedCharacter } from "./helpers"
+import { confirmClick, openSheet, openSidebar, reload, seedGuest, storedCharacter } from "./helpers"
 import { axeBuilder, finishAnimations, test, expect } from "./test"
 
 // Every change made on the sheet must still be there after a reload. Each scenario changes one
@@ -333,20 +333,22 @@ test.describe("Character tab", () => {
     expect((await storedCharacter(page, id)).notes).toBe("Owes the ferryman two silver.")
   })
 
+  // In the sidebar menu, not on a tab
   test("sheet colour and edition", async ({ page }) => {
-    await open(page, "Character")
-    await page.locator('[data-test="sheet-color-preset-purple"]').click()
+    await open(page)
+    const sidebar = await openSidebar(page)
+    await sidebar.locator('[data-test="sheet-color-preset-purple"]').click()
     // The edition switch is a checkbox labelled by both editions; 2024 is the checked side
-    await page.locator('[data-test="switch-button-sheet-settings-edition-switch"]').uncheck({ force: true })
+    await sidebar.locator('[data-test="switch-button-sheet-settings-edition-switch"]').uncheck({ force: true })
 
-    await reload(page, "Character")
+    await reload(page)
     const stored = await storedCharacter(page, id)
     expect(stored.sheetColor).toBe("#8b5cf6")
     expect(stored.edition).toBe("2014")
 
     // Reset returns the sheet to the theme's own colour
-    await page.locator('[data-test="sheet-color-reset-button"]').click()
-    await reload(page, "Character")
+    await (await openSidebar(page)).locator('[data-test="sheet-color-reset-button"]').click()
+    await reload(page)
     expect((await storedCharacter(page, id)).sheetColor).toBeUndefined()
   })
 
