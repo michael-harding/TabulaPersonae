@@ -1,4 +1,4 @@
-import { Show, For, createMemo } from "solid-js"
+import { Show, For, createMemo, onCleanup, onMount } from "solid-js"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Zap from "lucide-solid/icons/zap"
 import Sword from "lucide-solid/icons/sword"
@@ -9,6 +9,13 @@ import { getEffectiveSpellSaveDC, getEffectiveSpellAttackBonus, getEffectiveSpel
 import { Tooltip } from "@/components/ui/tooltip"
 import { useHpDisplay } from "@/hooks/use-hp-display"
 import { cn, SPELL_EFFECT_COLOR, TEMP_HP_COLOR } from "@/lib/utils"
+
+/**
+ * The stats bar's current height, kept on the root element as this CSS variable, so that what sits
+ * just below the sticky bar (the sidebar menu button on large screens) can follow it as conditions
+ * and spells in effect wrap it onto more lines.
+ */
+export const STATS_BAR_HEIGHT_VAR = "--stats-bar-height"
 
 // The status pills: spells in effect and conditions
 const PILL = "inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full"
@@ -31,8 +38,21 @@ export function StatsBar(props: StatsBarProps) {
   const conditions = createMemo(() => displayedConditions(props.character))
   const spellEffects = createMemo(() => activeSpells(props.character))
 
+  let barRef!: HTMLDivElement
+  onMount(() => {
+    const root = document.documentElement
+    const publish = () => root.style.setProperty(STATS_BAR_HEIGHT_VAR, `${barRef.offsetHeight}px`)
+    publish()
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(publish)
+      observer.observe(barRef)
+      onCleanup(() => observer.disconnect())
+    }
+    onCleanup(() => root.style.removeProperty(STATS_BAR_HEIGHT_VAR))
+  })
+
   return (
-    <div data-sem="stats-bar" class="sticky top-0 z-50 backdrop-blur contrast-more:bg-background border-b">
+    <div ref={barRef} data-sem="stats-bar" data-test="stats-bar" class="sticky top-0 z-50 backdrop-blur contrast-more:bg-background border-b">
       {/* HP progress bar */}
       <div class="relative h-1.5 w-full overflow-hidden">
         <div

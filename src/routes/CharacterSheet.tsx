@@ -19,10 +19,17 @@ import { useTabConfig } from "@/lib/tab-config-context"
 import { MODULE_REGISTRY } from "@/lib/module-registry"
 import { Tooltip } from "@/components/ui/tooltip"
 import { RestModal } from "@/components/rest-modal"
-import { HeaderMenu } from "@/components/header-menu"
+import { SidebarMenu } from "@/components/sidebar-menu"
 import { StatsBar } from "@/components/stats-bar"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
+
+// Large screens have room to keep the menu button in view: it is fixed at the left, just below the
+// stats bar, in a gutter the header and tabs leave for it. Smaller screens keep it in the header,
+// where it scrolls away with the page. The variable is STATS_BAR_HEIGHT_VAR, spelled out because
+// Tailwind only generates classes it finds written whole in the source.
+const MENU_BUTTON_FIXED = "lg:fixed lg:left-4 lg:top-[calc(var(--stats-bar-height,0px)+1rem)] lg:z-40"
+const MENU_GUTTER = "lg:pl-16"
 
 export default function CharacterSheet() {
   const params = useParams()
@@ -131,9 +138,19 @@ export default function CharacterSheet() {
             <StatsBar character={getChar()} />
 
             <header class="border-b bg-card">
-              <div class="max-w-7xl mx-auto px-4 py-4">
+              <div class={cn("max-w-7xl mx-auto px-4 py-4", MENU_GUTTER)}>
                 <div class="flex items-center justify-between gap-2">
                   <div class="flex items-center gap-4">
+                    {/* No box of its own on large screens, where the button is fixed */}
+                    <div class="shrink-0 lg:contents">
+                      <SidebarMenu
+                        characters={characters()}
+                        onImport={handleImport}
+                        currentCharacter={charStore.data ?? undefined}
+                        onUpdateCharacter={updateCharacter}
+                        class={MENU_BUTTON_FIXED}
+                      />
+                    </div>
                     <Scroll class="h-8 w-8 text-primary" aria-hidden="true" />
                     <div class="flex items-center gap-3">
                       <div>
@@ -169,18 +186,11 @@ export default function CharacterSheet() {
                       </Tooltip>
                     </div>
                   </div>
-
-                  <HeaderMenu
-                    characters={characters()}
-                    onImport={handleImport}
-                    onAllCharacters={() => navigate("/")}
-                    currentCharacter={charStore.data ?? undefined}
-                  />
                 </div>
               </div>
             </header>
 
-            <div class="max-w-7xl mx-auto px-1 pb-4">
+            <div class={cn("max-w-7xl mx-auto px-1 pb-4", MENU_GUTTER)}>
               <TabsRoot value={activeTab()} onChange={_setActiveTab}>
                 <div class="flex items-center border-b border-border">
                   <TabsList class="border-b-0 flex-1">

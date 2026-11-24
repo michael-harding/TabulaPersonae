@@ -11,7 +11,6 @@ import { FeaturesModule } from '@/components/features-module'
 import { EquipmentInventoryModule } from '@/components/equipment-inventory-module'
 import { CharacterBasicInfoModule } from '@/components/character-basic-info-module'
 import { CharacterNotesModule } from '@/components/character-notes-module'
-import { SheetSettingsModule } from '@/components/sheet-settings-module'
 
 export interface ModuleProps {
   character: Character
@@ -79,12 +78,6 @@ export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
     description: 'Personality traits, ideals, bonds, flaws, backstory, and notes',
     publicSafe: true,
     render: (props) => <CharacterNotesModule {...props} />,
-  },
-  'sheet-settings': {
-    label: 'Sheet Settings',
-    description: 'Edition (2014/2024) and sheet color theme',
-    publicSafe: false,
-    render: (props) => <SheetSettingsModule {...props} />,
   },
 }
 

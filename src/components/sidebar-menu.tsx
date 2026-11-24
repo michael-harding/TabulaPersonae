@@ -1,6 +1,8 @@
-import { createSignal, Match, Switch } from "solid-js"
+import { createSignal, Match, Show, Switch } from "solid-js"
 import { Dynamic } from "solid-js/web"
+import { A } from "@solidjs/router"
 import Menu from "lucide-solid/icons/menu"
+import Settings from "lucide-solid/icons/settings"
 import Users from "lucide-solid/icons/users"
 import Upload from "lucide-solid/icons/upload"
 import Download from "lucide-solid/icons/download"
@@ -13,15 +15,9 @@ import LogIn from "lucide-solid/icons/log-in"
 import FileText from "lucide-solid/icons/file-text"
 
 import { Modal, ModalContent, ModalDescription, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { SharingSection, SheetSettingsSection } from "@/components/sheet-settings"
 import { theme, setTheme } from "@/lib/theme"
 import { useAuth } from "@/lib/auth-context"
 import { hasUnsyncedChanges } from "@/lib/firebase-storage"
@@ -32,22 +28,49 @@ import { reconcileImportedCharacter, reconcileImportedCharacters, freshenCalcula
 import { migrateCharacter, migrateCharacters } from "@/lib/character-migrations"
 import { distinguishImportedNames } from "@/lib/character-names"
 import type { Character } from "@/lib/character-types"
+import { cn } from "@/lib/utils"
 
-interface HeaderMenuProps {
+// One row of the menu: a link or a button, full width, 44px tall
+const ROW =
+  "flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
+const GROUP = "flex flex-col gap-0.5 border-t p-2"
+
+interface SidebarMenuProps {
   characters: Character[]
   /**
    * Saves the imported characters and opens the first. Resolves whether every one was saved, and
    * tells the user itself when one was not (see saveImportedCharacters).
    */
   onImport: (characters: Character[]) => Promise<boolean>
-  onAllCharacters: () => void
+  /** The open character. With onUpdateCharacter, the menu also shows its settings and sharing. */
   currentCharacter?: Character
+  onUpdateCharacter?: (character: Character) => void
+  /** Classes for the menu button, which each page places itself */
+  class?: string
 }
 
-export function HeaderMenu(props: HeaderMenuProps) {
+/**
+ * The app menu: a button that opens a sidebar from the left with navigation, import and export, the
+ * theme, the open character's settings, and signing out.
+ */
+export function SidebarMenu(props: SidebarMenuProps) {
   const { user, logout } = useAuth()
   const { toast } = useToast()
   const [isOpen, setIsOpen] = createSignal(false)
+  // A modal opened from the sidebar waits until the sidebar has finished closing and handed focus
+  // back to the menu button (see onCloseAutoFocus). Opened sooner, that hand-back would pull focus
+  // out of the modal; opened after it, the modal returns focus to the menu button when it closes.
+  let afterClose: (() => void) | undefined
+  const closeThen = (next: () => void) => {
+    afterClose = next
+    setIsOpen(false)
+  }
+  const handleDrawerCloseAutoFocus = () => {
+    const next = afterClose
+    afterClose = undefined
+    // After the drawer's own focus hand-back, which follows this handler
+    if (next) queueMicrotask(next)
+  }
   const [isImportOpen, setIsImportOpen] = createSignal(false)
   const [isPdfParsing, setIsPdfParsing] = createSignal(false)
   // "unsynced": asking whether to discard changes the account has not received.
@@ -65,6 +88,13 @@ export function HeaderMenu(props: HeaderMenuProps) {
   const handleSignOutDialogOpenChange = (open: boolean) => {
     if (!open && signOutDialog() === "failed") window.location.reload()
     else setIsSignOutDialogOpen(open)
+  }
+  let triggerRef: HTMLButtonElement | undefined
+  // The Import and Sign-out dialogs have no trigger of their own: they open from the sidebar, which
+  // has closed by then, so they hand focus back to the menu button.
+  const returnFocusToMenuButton = (e: Event) => {
+    e.preventDefault()
+    triggerRef?.focus({ preventScroll: true })
   }
   let fileInputRef!: HTMLInputElement
   let pdfInputRef!: HTMLInputElement
@@ -198,14 +228,13 @@ export function HeaderMenu(props: HeaderMenuProps) {
 
   // Signing out removes all of the user's data from this device, which would silently discard
   // anything the account has not received yet, so that case asks first.
-  const handleSignOut = async () => {
-    setIsOpen(false)
+  const handleSignOut = () => closeThen(async () => {
     if (hasLocalDataAwaitingUpload() || await hasUnsyncedChanges()) {
       showSignOutDialog("unsynced")
     } else {
       await signOutNow()
     }
-  }
+  })
 
   const handleBackToLogin = async () => {
     localStorage.removeItem("dnd-skip-auth")
@@ -225,63 +254,82 @@ export function HeaderMenu(props: HeaderMenuProps) {
       : "Export All Characters"
 
   return (
-    <div data-sem="header-menu" class="flex items-center gap-2">
-      <DropdownMenu open={isOpen()} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger data-test="header-menu-trigger" aria-label="Open menu" class={buttonVariants({ variant: "outline", size: "icon" })}>
+    <>
+      <Drawer open={isOpen()} onOpenChange={setIsOpen}>
+        <DrawerTrigger
+          ref={triggerRef}
+          data-sem="sidebar-menu-trigger"
+          data-test="sidebar-menu-trigger"
+          aria-label="Open menu"
+          class={buttonVariants({ variant: "outline", size: "icon", class: cn("bg-background", props.class) })}
+        >
           <Menu class="h-4 w-4" aria-hidden="true" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" class="w-56">
-          {/* Who the characters belong to: information, not an action, so a label rather than an
-              item. Without an account they are kept only on this device. */}
-          <DropdownMenuLabel
-            data-test="header-menu-account"
-            title={user()?.email ?? undefined}
-            class="flex items-center gap-2 font-normal text-muted-foreground"
-          >
-            <User class="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span class="truncate">{user() ? (user()!.email ?? "Signed In") : "Not Logged In"}</span>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={props.onAllCharacters}>
-            <Users class="h-4 w-4 mr-2" aria-hidden="true" />
-            All Characters
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => { setIsOpen(false); setIsImportOpen(true) }}>
-            <Upload class="h-4 w-4 mr-2" aria-hidden="true" />
-            Import Character
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={handleExport}>
-            <Download class="h-4 w-4 mr-2 shrink-0" aria-hidden="true" />
-            <span class="truncate">{exportLabel()}</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setTheme(theme() === "dark" ? "light" : "dark")}>
-            <Dynamic component={themeIcon()} class="h-4 w-4" aria-hidden="true" data-test={`theme-icon-${theme()}`} />
-            <span class="ml-2">Toggle Theme</span>
-          </DropdownMenuItem>
-          {user() ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={handleSignOut}>
-                <LogOut class="h-4 w-4 mr-2" aria-hidden="true" />
+        </DrawerTrigger>
+        <DrawerContent data-test="sidebar-menu" onCloseAutoFocus={handleDrawerCloseAutoFocus}>
+          <DrawerHeader>
+            <DrawerTitle>Menu</DrawerTitle>
+            {/* Who the characters belong to: information, not an action. Without an account they
+                are kept only on this device. */}
+            <p
+              data-test="sidebar-menu-account"
+              title={user()?.email ?? undefined}
+              class="flex min-w-0 items-center gap-2 text-sm text-muted-foreground"
+            >
+              <User class="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span class="truncate">{user() ? (user()!.email ?? "Signed In") : "Not Logged In"}</span>
+            </p>
+          </DrawerHeader>
+
+          <nav aria-label="Main" class={GROUP}>
+            <A href="/" data-test="sidebar-all-characters-link" class={ROW} onClick={() => setIsOpen(false)}>
+              <Users aria-hidden="true" />
+              All Characters
+            </A>
+            <A href="/settings/tabs" data-test="sidebar-tab-settings-link" class={ROW} onClick={() => setIsOpen(false)}>
+              <Settings aria-hidden="true" />
+              Tab Settings
+            </A>
+          </nav>
+
+          <div class={GROUP}>
+            <button type="button" class={ROW} onClick={() => closeThen(() => setIsImportOpen(true))}>
+              <Upload aria-hidden="true" />
+              Import Character
+            </button>
+            <button type="button" class={ROW} onClick={() => { setIsOpen(false); handleExport() }}>
+              <Download aria-hidden="true" />
+              <span class="truncate">{exportLabel()}</span>
+            </button>
+            <button type="button" class={ROW} onClick={() => setTheme(theme() === "dark" ? "light" : "dark")}>
+              <Dynamic component={themeIcon()} aria-hidden="true" data-test={`theme-icon-${theme()}`} />
+              Toggle Theme
+            </button>
+          </div>
+
+          <Show when={props.currentCharacter && props.onUpdateCharacter}>
+            <SheetSettingsSection character={props.currentCharacter!} onUpdate={(c) => props.onUpdateCharacter!(c)} />
+            <SharingSection character={props.currentCharacter!} onUpdate={(c) => props.onUpdateCharacter!(c)} />
+          </Show>
+
+          {/* At the foot of the sidebar, apart from everything else */}
+          <div class={cn(GROUP, "mt-auto")}>
+            {user() ? (
+              <button type="button" class={ROW} onClick={handleSignOut}>
+                <LogOut aria-hidden="true" />
                 Sign Out
-              </DropdownMenuItem>
-            </>
-          ) : (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={handleBackToLogin}>
-                <LogIn class="h-4 w-4 mr-2" aria-hidden="true" />
+              </button>
+            ) : (
+              <button type="button" class={ROW} onClick={handleBackToLogin}>
+                <LogIn aria-hidden="true" />
                 Back to Login
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              </button>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       <Modal open={isImportOpen()} onOpenChange={setIsImportOpen}>
-        <ModalContent data-test="import-dialog">
+        <ModalContent data-test="import-dialog" onCloseAutoFocus={returnFocusToMenuButton}>
           <ModalHeader>
             <ModalTitle>Import Characters</ModalTitle>
           </ModalHeader>
@@ -330,7 +378,7 @@ export function HeaderMenu(props: HeaderMenuProps) {
       </Modal>
 
       <Modal open={isSignOutDialogOpen()} onOpenChange={handleSignOutDialogOpenChange}>
-        <ModalContent data-test="sign-out-dialog">
+        <ModalContent data-test="sign-out-dialog" onCloseAutoFocus={returnFocusToMenuButton}>
           <Switch>
             <Match when={signOutDialog() === "unsynced"}>
               <ModalHeader>
@@ -360,6 +408,6 @@ export function HeaderMenu(props: HeaderMenuProps) {
           </Switch>
         </ModalContent>
       </Modal>
-    </div>
+    </>
   )
 }

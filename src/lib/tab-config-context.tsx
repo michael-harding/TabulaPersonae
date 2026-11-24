@@ -1,7 +1,7 @@
 import { createContext, useContext, createSignal, createEffect, onCleanup, ParentComponent } from 'solid-js'
 
 import { useAuth } from '@/lib/auth-context'
-import { DEFAULT_TAB_CONFIG, isValidTabConfig } from '@/lib/tab-config-types'
+import { DEFAULT_TAB_CONFIG, parseTabConfig } from '@/lib/tab-config-types'
 import type { UserTabConfig } from '@/lib/tab-config-types'
 import { saveTabConfigToFirebase, getTabConfigFromFirebase } from '@/lib/firebase-storage'
 import { LOCAL_TAB_CONFIG_KEY } from '@/lib/local-user-data'
@@ -22,8 +22,7 @@ export function useTabConfig() {
 
 function parseLocalConfig(raw: string): UserTabConfig {
   try {
-    const parsed = JSON.parse(raw)
-    return isValidTabConfig(parsed) ? parsed : DEFAULT_TAB_CONFIG
+    return parseTabConfig(JSON.parse(raw)) ?? DEFAULT_TAB_CONFIG
   } catch {
     return DEFAULT_TAB_CONFIG
   }
