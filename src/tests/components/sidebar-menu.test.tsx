@@ -819,7 +819,7 @@ describe("SidebarMenu character settings", () => {
     await openMenu({ currentCharacter: char1, onUpdateCharacter })
     const menu = within(await screen.findByRole("dialog", { name: "Menu" }))
     expect(menu.getByRole("region", { name: "Sheet Settings" })).toBeInTheDocument()
-    expect(menu.getByRole("region", { name: "Public Sharing" })).toBeInTheDocument()
+    expect(menu.getByRole("region", { name: "Sheet Sharing" })).toBeInTheDocument()
   })
 
   it("saves a change through onUpdateCharacter", async () => {
@@ -832,7 +832,7 @@ describe("SidebarMenu character settings", () => {
     await openMenu()
     await screen.findByRole("dialog", { name: "Menu" })
     expect(screen.queryByRole("region", { name: "Sheet Settings" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("region", { name: "Public Sharing" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("region", { name: "Sheet Sharing" })).not.toBeInTheDocument()
   })
 
   it("shows no settings when the character cannot be saved from here", async () => {
@@ -846,6 +846,6 @@ describe("SidebarMenu character settings", () => {
     await openMenu({ currentCharacter: char1, onUpdateCharacter })
     await screen.findByRole("dialog", { name: "Menu" })
     expect(screen.getByRole("region", { name: "Sheet Settings" })).toBeInTheDocument()
-    expect(screen.queryByRole("region", { name: "Public Sharing" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("region", { name: "Sheet Sharing" })).not.toBeInTheDocument()
   })
 })

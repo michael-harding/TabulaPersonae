@@ -1,6 +1,6 @@
 import { Dialog as DialogPrimitive } from "@kobalte/core/dialog"
 import { ComponentProps, JSX, splitProps } from "solid-js"
-import X from "lucide-solid/icons/x"
+import PanelLeftClose from "lucide-solid/icons/panel-left-close"
 
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -60,7 +60,7 @@ export function DrawerContent(props: ComponentProps<typeof DialogPrimitive.Conte
           aria-label="Close"
           class={cn(buttonVariants({ variant: "outline", size: "icon" }), "absolute left-4 top-3 h-8 w-8 bg-background")}
         >
-          <X class="h-4 w-4" aria-hidden="true" />
+          <PanelLeftClose class="h-4 w-4" aria-hidden="true" />
         </DialogPrimitive.CloseButton>
         {local.children}
       </DialogPrimitive.Content>

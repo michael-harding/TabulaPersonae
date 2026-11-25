@@ -1,7 +1,7 @@
 import { createSignal, Match, Show, Switch } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import { A } from "@solidjs/router"
-import Menu from "lucide-solid/icons/menu"
+import PanelLeftOpen from "lucide-solid/icons/panel-left-open"
 import Settings from "lucide-solid/icons/settings"
 import Users from "lucide-solid/icons/users"
 import Upload from "lucide-solid/icons/upload"
@@ -269,7 +269,7 @@ export function SidebarMenu(props: SidebarMenuProps) {
           // fixed) replaces the relative that buttonVariants' TOUCH_TARGET sets, instead of losing to it
           class={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-8 w-8 bg-background", props.class)}
         >
-          <Menu class="h-4 w-4" aria-hidden="true" />
+          <PanelLeftOpen class="h-4 w-4" aria-hidden="true" />
         </DrawerTrigger>
         <DrawerContent data-test="sidebar-menu" onCloseAutoFocus={handleDrawerCloseAutoFocus}>
           <DrawerHeader>

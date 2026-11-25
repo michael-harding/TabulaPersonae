@@ -198,7 +198,7 @@ describe("Sheet settings sections", () => {
 
     it("does not offer public sharing", () => {
       render(() => <SheetSettings character={charPrivate} onUpdate={vi.fn()} />)
-      expect(screen.queryByText("Public Sharing")).not.toBeInTheDocument()
+      expect(screen.queryByText("Sheet Sharing")).not.toBeInTheDocument()
       expect(screen.queryByText("Share publicly")).not.toBeInTheDocument()
       expect(screen.queryByRole("checkbox", { name: /off on/i })).not.toBeInTheDocument()
     })
@@ -227,7 +227,7 @@ describe("Sheet settings sections", () => {
     it("names each section by its heading", () => {
       render(() => <SheetSettings character={baseCharacter} onUpdate={vi.fn()} />)
       expect(screen.getByRole("region", { name: "Sheet Settings" })).toBeInTheDocument()
-      expect(screen.getByRole("region", { name: "Public Sharing" })).toBeInTheDocument()
+      expect(screen.getByRole("region", { name: "Sheet Sharing" })).toBeInTheDocument()
     })
 
     it("leaves out the sharing section, heading and all, without a signed-in user", () => {
