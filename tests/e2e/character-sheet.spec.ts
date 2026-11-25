@@ -229,6 +229,23 @@ test.describe("Sidebar menu button", () => {
         await page.goto("/settings/tabs")
         expect(await position(page)).toEqual(onSheet)
       })
+
+      // The sidebar's close button opens where the menu button is, so the pointer need not move
+      test("opens the sidebar, and closes it, with two clicks in the same spot", async ({ page }) => {
+        await seedGuest(page, testCharacter)
+        await openSheet(page, testCharacter.id)
+        const menu = (await trigger(page).boundingBox())!
+        const spot = { x: menu.x + menu.width / 2, y: menu.y + menu.height / 2 }
+
+        await page.mouse.click(spot.x, spot.y)
+        const sidebar = page.locator('[data-test="sidebar-menu"]')
+        await expect(sidebar).toBeVisible()
+        await sidebar.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+        expect(await page.locator('[data-test="drawer-close"]').boundingBox()).toEqual(menu)
+
+        await page.mouse.click(spot.x, spot.y)
+        await expect(sidebar).toHaveCount(0)
+      })
     })
   }
 

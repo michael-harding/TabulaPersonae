@@ -273,7 +273,8 @@ export function SidebarMenu(props: SidebarMenuProps) {
         </DrawerTrigger>
         <DrawerContent data-test="sidebar-menu" onCloseAutoFocus={handleDrawerCloseAutoFocus}>
           <DrawerHeader>
-            <DrawerTitle>Menu</DrawerTitle>
+            {/* Names the dialog for assistive tech; on screen the close button and account say enough */}
+            <DrawerTitle class="sr-only">Menu</DrawerTitle>
             {/* Who the characters belong to: information, not an action. Without an account they
                 are kept only on this device. */}
             <p

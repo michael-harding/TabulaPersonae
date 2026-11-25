@@ -763,6 +763,20 @@ describe("SidebarMenu drawer", () => {
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass("h-8", "w-8", "after:h-11", "after:w-11")
   })
 
+  // The close button takes the title's place, beside the account
+  it("names the dialog Menu for assistive tech only", async () => {
+    await openMenu()
+    const dialog = await screen.findByRole("dialog", { name: "Menu" })
+    expect(within(dialog).getByText("Menu")).toHaveClass("sr-only")
+  })
+
+  it("shows the account in the header, beside the close button", async () => {
+    await openMenu()
+    const dialog = await screen.findByRole("dialog", { name: "Menu" })
+    const account = within(dialog).getByTestId("sidebar-menu-account")
+    expect(account.parentElement).toHaveClass("pl-16")
+  })
+
   it("places the menu button with the classes it is given", () => {
     render(() => <SidebarMenu {...defaultProps} class="fixed left-4 top-3" />)
     const button = screen.getByRole("button", { name: "Open menu" })

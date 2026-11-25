@@ -73,13 +73,26 @@ describe("Drawer", () => {
     await waitFor(() => expect(screen.getByTestId("example-trigger")).toHaveFocus())
   })
 
-  // Kobalte names its close button "Dismiss"
-  it("closes from its visible close button, a 44px target", async () => {
+  it("closes from its visible close button", async () => {
     const { user, drawer } = await openDrawer()
-    const close = within(drawer).getByRole("button", { name: "Dismiss" })
-    expect(close).toHaveClass("h-11", "w-11")
-    await user.click(close)
+    await user.click(within(drawer).getByRole("button", { name: "Close" }))
     expect(drawer).not.toHaveAttribute("data-expanded")
+  })
+
+  // Where every page puts the menu button that opens it (MENU_BUTTON_FLOATING), and as large: a
+  // second click in the same spot closes it. The e2e tests compare the two positions.
+  it("has its close button at the top left, a 32px button with a 44px hit area", async () => {
+    const { drawer } = await openDrawer()
+    const close = within(drawer).getByRole("button", { name: "Close" })
+    expect(close).toHaveClass("absolute", "left-4", "top-3", "h-8", "w-8", "after:h-11", "after:w-11")
+    // Its own relative would otherwise win over absolute in the stylesheet
+    expect(close).not.toHaveClass("relative")
+  })
+
+  it("puts the close button first in the tab order, as it is on screen", async () => {
+    const { drawer } = await openDrawer()
+    const close = within(drawer).getByRole("button", { name: "Close" })
+    expect(close.compareDocumentPosition(within(drawer).getByRole("link", { name: "First link" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it("hides the page behind it from assistive tech while open", async () => {

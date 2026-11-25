@@ -2,6 +2,7 @@ import { Dialog as DialogPrimitive } from "@kobalte/core/dialog"
 import { ComponentProps, JSX, splitProps } from "solid-js"
 import X from "lucide-solid/icons/x"
 
+import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 /**
@@ -10,6 +11,10 @@ import { cn } from "@/lib/utils"
  * Built on Kobalte's Dialog, so it is a modal dialog. Focus is intentionally trapped inside the
  * panel while it is open (ACCESSIBILITY.md §4), and Escape, a click on the overlay, or the visible
  * close button closes it and returns focus to whatever opened it.
+ *
+ * The close button is at the panel's top left, exactly where every page puts the menu button that
+ * opens it (MENU_BUTTON_FLOATING in stats-bar.tsx), and looks like it: a second click without
+ * moving the pointer closes the drawer.
  *
  * Named "drawer" rather than "sheet": a sheet here is a character sheet.
  */
@@ -48,21 +53,27 @@ export function DrawerContent(props: ComponentProps<typeof DialogPrimitive.Conte
         )}
         {...others}
       >
-        {local.children}
-        {/* A 44×44 hit area (ACCESSIBILITY.md touch targets), as ModalContent's */}
-        <DialogPrimitive.CloseButton data-test="drawer-close" class="absolute right-0.5 top-0.5 inline-flex h-11 w-11 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+        {/* First, so it is first in the tab order as it is on screen. 32px, like the menu button,
+            with buttonVariants' 44px hit area; merged with cn so absolute replaces its relative. */}
+        <DialogPrimitive.CloseButton
+          data-test="drawer-close"
+          aria-label="Close"
+          class={cn(buttonVariants({ variant: "outline", size: "icon" }), "absolute left-4 top-3 h-8 w-8 bg-background")}
+        >
           <X class="h-4 w-4" aria-hidden="true" />
-          <span class="sr-only">Close</span>
         </DialogPrimitive.CloseButton>
+        {local.children}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   )
 }
 
+/**
+ * The row beside the close button: its content starts to the button's right and is centred on it.
+ */
 export function DrawerHeader(props: ComponentProps<"div">) {
   const [local, others] = splitProps(props, ["class"])
-  // Right padding keeps the title clear of the close button
-  return <div class={cn("flex flex-col gap-1 py-4 pl-4 pr-12", local.class)} {...others} />
+  return <div class={cn("flex min-h-14 items-center gap-2 py-3 pl-16 pr-4", local.class)} {...others} />
 }
 
 export function DrawerTitle(props: ComponentProps<typeof DialogPrimitive.Title>) {
