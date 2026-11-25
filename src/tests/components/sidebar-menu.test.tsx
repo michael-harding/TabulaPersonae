@@ -2,6 +2,7 @@ import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
 
 import { SidebarMenu } from "@/components/sidebar-menu"
+import { DRAWER_TOGGLE } from "@/components/ui/drawer"
 import { useAuth } from "@/lib/auth-context"
 import { hasUnsyncedChanges } from "@/lib/firebase-storage"
 import { createDefaultCharacter } from "@/lib/character-types"
@@ -775,6 +776,12 @@ describe("SidebarMenu drawer", () => {
     const dialog = await screen.findByRole("dialog", { name: "Menu" })
     const account = within(dialog).getByTestId("sidebar-menu-account")
     expect(account.parentElement).toHaveClass("pl-16")
+  })
+
+  // So the close button, which opens over it, looks the same
+  it("styles the menu button as the drawer's close button", () => {
+    render(() => <SidebarMenu {...defaultProps} />)
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass(...DRAWER_TOGGLE.split(" "))
   })
 
   it("places the menu button with the classes it is given", () => {

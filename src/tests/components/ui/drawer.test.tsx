@@ -2,7 +2,7 @@ import { createSignal } from "solid-js"
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
 
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DRAWER_TOGGLE } from "@/components/ui/drawer"
 
 import { cleanup, cleanupPortals, finishDrawerClosing, render, screen, waitFor, within } from "../../test-utils"
 
@@ -87,6 +87,21 @@ describe("Drawer", () => {
     expect(close).toHaveClass("absolute", "left-4", "top-3", "h-8", "w-8", "after:h-11", "after:w-11")
     // Its own relative would otherwise win over absolute in the stylesheet
     expect(close).not.toHaveClass("relative")
+  })
+
+  // The app's global navigation control: its icon carries the meaning, so it is large and unboxed
+  it("styles its open and close buttons with a large icon and no border", () => {
+    const classes = DRAWER_TOGGLE.split(" ")
+    expect(classes).toContain("[&_svg]:size-6")
+    expect(classes).not.toContain("[&_svg]:size-4")
+    expect(classes).not.toContain("border")
+  })
+
+  // All but relative, which its absolute position replaces
+  it("gives its close button that style", async () => {
+    const { drawer } = await openDrawer()
+    const style = DRAWER_TOGGLE.split(" ").filter((c) => c !== "relative")
+    expect(within(drawer).getByRole("button", { name: "Close" })).toHaveClass(...style)
   })
 
   it("puts the close button first in the tab order, as it is on screen", async () => {

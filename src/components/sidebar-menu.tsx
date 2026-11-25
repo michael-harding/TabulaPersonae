@@ -15,7 +15,7 @@ import LogIn from "lucide-solid/icons/log-in"
 import FileText from "lucide-solid/icons/file-text"
 
 import { Modal, ModalContent, ModalDescription, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DRAWER_TOGGLE } from "@/components/ui/drawer"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { SharingSection, SheetSettingsSection } from "@/components/sheet-settings"
 import { theme, setTheme } from "@/lib/theme"
@@ -263,13 +263,11 @@ export function SidebarMenu(props: SidebarMenuProps) {
           data-sem="sidebar-menu-trigger"
           data-test="sidebar-menu-trigger"
           aria-label="Open menu"
-          // 32px to keep the bar slim; buttonVariants' TOUCH_TARGET makes its hit area 44px, which
-          // the bar's padding has room for
-          // Merged with cn, not passed to buttonVariants, so a position given here (MENU_BUTTON_FLOATING's
-          // fixed) replaces the relative that buttonVariants' TOUCH_TARGET sets, instead of losing to it
-          class={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-8 w-8 bg-background", props.class)}
+          // Matches the drawer's close button, which opens over it. Its 44px hit area fits in the
+          // stats bar's padding.
+          class={cn(DRAWER_TOGGLE, props.class)}
         >
-          <PanelLeftOpen class="h-4 w-4" aria-hidden="true" />
+          <PanelLeftOpen aria-hidden="true" />
         </DrawerTrigger>
         <DrawerContent data-test="sidebar-menu" onCloseAutoFocus={handleDrawerCloseAutoFocus}>
           <DrawerHeader>

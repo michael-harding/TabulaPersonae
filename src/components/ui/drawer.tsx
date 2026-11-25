@@ -18,6 +18,14 @@ import { cn } from "@/lib/utils"
  *
  * Named "drawer" rather than "sheet": a sheet here is a character sheet.
  */
+/**
+ * The look of the buttons that open and close the drawer: the app's global navigation control, so
+ * a large icon (24px) with no border, highlighted on hover. 32px, with buttonVariants' 44px hit
+ * area. Both buttons use it so they match exactly, one over the other. Merge more classes with cn,
+ * so that a position (fixed, absolute) replaces the relative that buttonVariants' TOUCH_TARGET sets.
+ */
+export const DRAWER_TOGGLE = cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 bg-background [&_svg]:size-6")
+
 export const Drawer = DialogPrimitive
 export const DrawerTrigger = DialogPrimitive.Trigger
 export const DrawerClose = DialogPrimitive.CloseButton
@@ -53,14 +61,13 @@ export function DrawerContent(props: ComponentProps<typeof DialogPrimitive.Conte
         )}
         {...others}
       >
-        {/* First, so it is first in the tab order as it is on screen. 32px, like the menu button,
-            with buttonVariants' 44px hit area; merged with cn so absolute replaces its relative. */}
+        {/* First, so it is first in the tab order as it is on screen */}
         <DialogPrimitive.CloseButton
           data-test="drawer-close"
           aria-label="Close"
-          class={cn(buttonVariants({ variant: "outline", size: "icon" }), "absolute left-4 top-3 h-8 w-8 bg-background")}
+          class={cn(DRAWER_TOGGLE, "absolute left-4 top-3")}
         >
-          <PanelLeftClose class="h-4 w-4" aria-hidden="true" />
+          <PanelLeftClose aria-hidden="true" />
         </DialogPrimitive.CloseButton>
         {local.children}
       </DialogPrimitive.Content>
