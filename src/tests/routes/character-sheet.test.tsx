@@ -426,12 +426,10 @@ describe("CharacterSheet header actions", () => {
     expect(screen.queryByTestId("sheet-color-swatches")).not.toBeInTheDocument()
   })
 
-  // Fixed below the stats bar on large screens; in the header, scrolling with it, on smaller ones
-  it("fixes the menu button below the stats bar on large screens only", async () => {
+  // The sticky stats bar keeps it in view on every screen size, without covering the sheet
+  it("puts the menu button in the stats bar", async () => {
     await renderAndLoad()
-    const button = screen.getByTestId("sidebar-menu-trigger")
-    expect(button).toHaveClass("lg:fixed", "lg:top-[calc(var(--stats-bar-height,0px)+1rem)]")
-    expect(button).not.toHaveClass("fixed")
+    expect(screen.getByTestId("stats-bar")).toContainElement(screen.getByTestId("sidebar-menu-trigger"))
   })
 
   describe("importing from the menu", () => {

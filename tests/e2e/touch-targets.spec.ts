@@ -176,7 +176,8 @@ test.describe("Touch targets", () => {
     expectAccessibleTouchTargets(await auditTouchTargets(page))
   })
 
-  test("tab settings page", async ({ page }) => {
+  // On a phone too, where the floating menu button sits above the Back button
+  test("@mobile tab settings page", async ({ page }) => {
     await page.goto("/settings/tabs")
     await expect(page.locator('[data-test^="tab-toggle-"]').first()).toBeVisible()
     for (const toggle of await page.locator('[data-test^="tab-toggle-"]').all()) {

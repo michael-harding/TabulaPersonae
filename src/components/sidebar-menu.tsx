@@ -45,13 +45,15 @@ interface SidebarMenuProps {
   /** The open character. With onUpdateCharacter, the menu also shows its settings and sharing. */
   currentCharacter?: Character
   onUpdateCharacter?: (character: Character) => void
-  /** Classes for the menu button, which each page places itself */
+  /** Classes for the menu button: MENU_BUTTON_FLOATING on pages without a stats bar */
   class?: string
 }
 
 /**
  * The app menu: a button that opens a sidebar from the left with navigation, import and export, the
- * theme, the open character's settings, and signing out.
+ * theme, the open character's settings, and signing out. The button is in the same place on every
+ * page: at the left of the stats bar on a character sheet, and floating there (MENU_BUTTON_FLOATING)
+ * on pages without one.
  */
 export function SidebarMenu(props: SidebarMenuProps) {
   const { user, logout } = useAuth()
@@ -261,7 +263,11 @@ export function SidebarMenu(props: SidebarMenuProps) {
           data-sem="sidebar-menu-trigger"
           data-test="sidebar-menu-trigger"
           aria-label="Open menu"
-          class={buttonVariants({ variant: "outline", size: "icon", class: cn("bg-background", props.class) })}
+          // 32px to keep the bar slim; buttonVariants' TOUCH_TARGET makes its hit area 44px, which
+          // the bar's padding has room for
+          // Merged with cn, not passed to buttonVariants, so a position given here (MENU_BUTTON_FLOATING's
+          // fixed) replaces the relative that buttonVariants' TOUCH_TARGET sets, instead of losing to it
+          class={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-8 w-8 bg-background", props.class)}
         >
           <Menu class="h-4 w-4" aria-hidden="true" />
         </DrawerTrigger>

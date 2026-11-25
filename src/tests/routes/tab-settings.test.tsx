@@ -1,5 +1,7 @@
 vi.mock("@/lib/theme", () => ({ theme: () => "system", setTheme: vi.fn() }))
 
+vi.mock("@/hooks/use-toast", async () => (await import("../mocks/toast")).toastModuleMock)
+
 // Each sortable list the page renders: the ids it holds and the drop handler of the
 // DragDropProvider around it, so a test can deliver a drop to the right list (see `drop`).
 const sortableLists = vi.hoisted(() => [] as { ids: () => (string | number)[]; onDragEnd: (event: DropEvent) => void }[])
@@ -72,10 +74,12 @@ import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
 import type { ParentProps } from "solid-js"
 
+import { createDefaultCharacter, type Character } from "@/lib/character-types"
 import TabSettings from "@/routes/TabSettings"
 
-import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor, confirmClick } from "../test-utils"
+import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor, confirmClick, finishDrawerClosing } from "../test-utils"
 import { mockNavigate } from "../mocks/router"
+import { mockStorageManager } from "../mocks/storage-manager"
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -507,6 +511,39 @@ describe("TabSettings page — leaving and cancelling", () => {
     expect(screen.getByText("Combat")).toBeInTheDocument()
     fireEvent.click(screen.getByTestId("tab-rename-tab-combat"))
     expect(screen.getByTestId("tab-rename-input-tab-combat")).toHaveValue("Combat")
+  })
+})
+
+// Where the character sheet's stats bar holds it (the e2e tests compare the two positions)
+describe("TabSettings page — menu", () => {
+  it("floats the menu button at the top left", () => {
+    render(() => <TabSettings />)
+    expect(screen.getByTestId("sidebar-menu-trigger")).toHaveClass("fixed", "left-4", "top-3")
+  })
+
+  it("loads the characters, so the menu can export them all", async () => {
+    const user = userEvent.setup()
+    mockStorageManager.getCharacters.mockResolvedValueOnce([{ ...createDefaultCharacter(), id: "char-1", name: "Testy" }])
+    render(() => <TabSettings />)
+    await waitFor(() => expect(mockStorageManager.getCharacters).toHaveBeenCalledOnce())
+    await user.click(screen.getByTestId("sidebar-menu-trigger"))
+    expect(await screen.findByRole("button", { name: "Export All Characters" })).toBeInTheDocument()
+  })
+
+  it("saves a character imported from the menu and opens it", async () => {
+    const user = userEvent.setup()
+    mockStorageManager.saveCharacter.mockResolvedValue(true)
+    render(() => <TabSettings />)
+    await user.click(screen.getByTestId("sidebar-menu-trigger"))
+    await user.click(await screen.findByRole("button", { name: /import character/i }))
+    finishDrawerClosing(screen.getByTestId("sidebar-menu"))
+    const file = new File([JSON.stringify({ ...createDefaultCharacter(), id: "id-from-file", name: "Imported" })], "import.json", { type: "application/json" })
+    await user.upload(await screen.findByLabelText(/choose json file/i), file)
+
+    await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledOnce())
+    const saved: Character = mockStorageManager.saveCharacter.mock.calls[0][0]
+    expect(saved.name).toBe("Imported")
+    expect(mockNavigate).toHaveBeenCalledWith(`/character/${saved.id}`)
   })
 })
 

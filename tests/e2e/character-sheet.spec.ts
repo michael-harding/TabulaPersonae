@@ -187,48 +187,50 @@ test.describe("Add Feature dialog", () => {
   })
 })
 
-// The menu button: fixed below the stats bar where the screen has room, in the header otherwise
+// The menu button: at the start of the bar stuck to the top of every page (the stats bar on a sheet)
 test.describe("Sidebar menu button", () => {
-  const trigger = (page: import("@playwright/test").Page) => page.locator('[data-test="sidebar-menu-trigger"]')
-  const statsBar = (page: import("@playwright/test").Page) => page.locator('[data-test="stats-bar"]')
+  type Page = import("@playwright/test").Page
+  const trigger = (page: Page) => page.locator('[data-test="sidebar-menu-trigger"]')
+  const position = async (page: Page) => {
+    await expect(trigger(page)).toBeVisible()
+    const { x, y } = (await trigger(page).boundingBox())!
+    return { x, y }
+  }
 
-  async function scrollDown(page: import("@playwright/test").Page) {
+  async function scrollDown(page: Page) {
     // The Combat tab is taller than the viewport
     await page.mouse.wheel(0, 600)
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200)
   }
 
-  test.describe("on a large screen", () => {
-    test.use({ viewport: { width: 1280, height: 720 } })
+  const screens = [
+    { name: "a large screen", viewport: { width: 1280, height: 720 } },
+    { name: "a phone", viewport: { width: 390, height: 844 } },
+  ]
+  for (const { name, viewport } of screens) {
+    test.describe(`on ${name}`, () => {
+      test.use({ viewport })
 
-    test("stays just below the stats bar while the page scrolls, clear of the content", async ({ page }) => {
-      await seedGuest(page, testCharacter)
-      await openSheet(page, testCharacter.id)
-      const barBottom = async () => (await statsBar(page).boundingBox())!.height
-      const top = async () => (await trigger(page).boundingBox())!.y
+      test("stays in the stats bar, in place, while the page scrolls", async ({ page }) => {
+        await seedGuest(page, testCharacter)
+        await openSheet(page, testCharacter.id)
+        await expect(page.locator('[data-test="stats-bar"]').locator('[data-test="sidebar-menu-trigger"]')).toBeVisible()
+        const before = await position(page)
+        await scrollDown(page)
+        expect(await position(page)).toEqual(before)
+      })
 
-      expect(await top()).toBeCloseTo((await barBottom()) + 16, 0)
-      await scrollDown(page)
-      expect(await top()).toBeCloseTo((await barBottom()) + 16, 0)
-
-      // The tabs leave it a gutter, so it never covers a card
-      const button = (await trigger(page).boundingBox())!
-      const content = (await page.getByRole("tabpanel").boundingBox())!
-      expect(button.x + button.width).toBeLessThanOrEqual(content.x)
+      test("is in the same place on every page", async ({ page }) => {
+        await seedGuest(page, testCharacter)
+        await openSheet(page, testCharacter.id)
+        const onSheet = await position(page)
+        await page.goto("/")
+        expect(await position(page)).toEqual(onSheet)
+        await page.goto("/settings/tabs")
+        expect(await position(page)).toEqual(onSheet)
+      })
     })
-  })
-
-  test.describe("on a phone", () => {
-    test.use({ viewport: { width: 390, height: 844 } })
-
-    test("sits in the header and scrolls away with it", async ({ page }) => {
-      await seedGuest(page, testCharacter)
-      await openSheet(page, testCharacter.id)
-      const before = (await trigger(page).boundingBox())!.y
-      await scrollDown(page)
-      expect((await trigger(page).boundingBox())!.y).toBeLessThan(before - 200)
-    })
-  })
+  }
 
   test("@mobile opens the sidebar, whose Tab Settings link goes to the tab settings", async ({ page }) => {
     await seedGuest(page, testCharacter)

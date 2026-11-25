@@ -332,9 +332,10 @@ describe("Home deleting a character — failure", () => {
   })
 })
 
+// Where the character sheet's stats bar holds it (the e2e tests compare the two positions)
 describe("Home menu button", () => {
-  it("is fixed at the top left of the page", async () => {
+  it("floats at the top left", async () => {
     render(() => <Home />)
-    expect(await screen.findByTestId("sidebar-menu-trigger")).toHaveClass("fixed", "left-4", "top-4")
+    expect(await screen.findByTestId("sidebar-menu-trigger")).toHaveClass("fixed", "left-4", "top-3")
   })
 })

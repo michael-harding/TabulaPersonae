@@ -1,9 +1,9 @@
 import { axe } from "vitest-axe"
 
-import { StatsBar, STATS_BAR_HEIGHT_VAR } from "@/components/stats-bar"
+import { StatsBar } from "@/components/stats-bar"
 import { createDefaultCharacter, type Spell } from "@/lib/character-types"
 
-import { cleanup, render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, waitFor, cleanupPortals } from "../test-utils"
 
 function makeCharacter(current: number, maximum: number) {
   return {
@@ -277,43 +277,18 @@ describe("StatsBar", () => {
   })
 })
 
-// What sits just below the sticky bar, the sidebar menu button on large screens, follows its height
-describe("StatsBar height variable", () => {
-  let resize: () => void = () => {}
-  const disconnect = vi.fn()
-
-  beforeEach(() => {
-    disconnect.mockReset()
-    vi.stubGlobal("ResizeObserver", class {
-      constructor(callback: () => void) { resize = callback }
-      observe() {}
-      disconnect() { disconnect() }
-    })
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
-  const height = () => document.documentElement.style.getPropertyValue(STATS_BAR_HEIGHT_VAR)
-
-  it("publishes the bar's height on the root element", () => {
-    render(() => <StatsBar character={makeCharacter(8, 10)} />)
-    expect(height()).toBe("0px")
-  })
-
-  it("updates it when the bar changes size", () => {
-    render(() => <StatsBar character={makeCharacter(8, 10)} />)
+describe("StatsBar menu", () => {
+  it("puts the menu it is given at the start of the bar", () => {
+    render(() => <StatsBar character={makeCharacter(8, 10)} menu={<button type="button">Open menu</button>} />)
     const bar = screen.getByTestId("stats-bar")
-    Object.defineProperty(bar, "offsetHeight", { configurable: true, value: 72 })
-    resize()
-    expect(height()).toBe("72px")
+    const menu = screen.getByRole("button", { name: "Open menu" })
+    expect(bar).toContainElement(menu)
+    // Before the stats in reading order
+    expect(menu.compareDocumentPosition(screen.getByText("AC")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it("removes it, and stops observing, when the bar goes away", () => {
+  it("has no menu on the public sheet, where it is given none", () => {
     render(() => <StatsBar character={makeCharacter(8, 10)} />)
-    cleanup()
-    expect(height()).toBe("")
-    expect(disconnect).toHaveBeenCalledOnce()
+    expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument()
   })
 })

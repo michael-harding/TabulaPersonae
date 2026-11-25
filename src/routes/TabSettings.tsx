@@ -7,6 +7,9 @@ import Trash2 from "lucide-solid/icons/trash-2"
 import X from "lucide-solid/icons/x"
 
 import { useTabConfig } from "@/lib/tab-config-context"
+import { useStorageManager } from "@/lib/storage-manager"
+import { saveImportedCharacters } from "@/lib/save-feedback"
+import type { Character } from "@/lib/character-types"
 import { MODULE_REGISTRY, ALL_MODULE_IDS } from "@/lib/module-registry"
 import type { TabConfig, ModuleId } from "@/lib/tab-config-types"
 import { cn, HOVER_ACCENT, TOUCH_TARGET_BOX } from "@/lib/utils"
@@ -17,6 +20,8 @@ import { ChipButton } from "@/components/ui/chip-button"
 import { Input } from "@/components/ui/input"
 import { FieldError } from "@/components/ui/form-validation"
 import { requiredText, useFormValidation } from "@/hooks/use-form-validation"
+import { SidebarMenu } from "@/components/sidebar-menu"
+import { MENU_BUTTON_FLOATING } from "@/components/stats-bar"
 import { SortableGroup, SortableHandle, SortableList, SortableMoveButton, createSortableItem, moveItem, type SortableItem } from "@/components/ui/sortable"
 
 /**
@@ -311,6 +316,20 @@ function SortableTabRow(props: SortableTabRowProps) {
 export default function TabSettings() {
   const navigate = useNavigate()
   const { tabConfig, saveTabConfig } = useTabConfig()
+  const storageManager = useStorageManager()
+
+  // For the menu: exporting them all, and the names an import must not repeat
+  const [characters, setCharacters] = createSignal<Character[]>([])
+  createEffect(() => {
+    storageManager().getCharacters()
+      .then(setCharacters)
+      .catch((err) => console.error("Failed to load characters:", err))
+  })
+  const handleImport = (toImport: Character[]) => {
+    const { imported, saved } = saveImportedCharacters(toImport, storageManager().saveCharacter)
+    if (imported.length > 0) navigate(`/character/${imported[0].id}`)
+    return saved
+  }
 
   const [expandedTabs, setExpandedTabs] = createSignal<Set<string>>(new Set())
   createEffect(() => {
@@ -390,95 +409,101 @@ export default function TabSettings() {
   }
 
   return (
-    <div data-sem="tab-settings-route" class="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          // 44px tall; the negative margin offsets the padding so "‹ Back" stays where it was.
-          class="-mx-2 -my-3 flex min-h-11 items-center gap-1 px-2 text-sm text-primary hover:underline"
-          data-test="back-button"
-        >
-          <ChevronLeft class="h-4 w-4" aria-hidden="true" />
-          Back
-        </button>
-      </div>
+    <div data-sem="tab-settings-route">
+      <SidebarMenu characters={characters()} onImport={handleImport} class={MENU_BUTTON_FLOATING} />
 
-      <div>
-        <h1 class="text-2xl font-bold">Tab Settings</h1>
-        <p class="text-sm text-muted-foreground mt-1">
-          Configure the tabs on your character sheet. Reorder tabs, or modules within a tab, by dragging their handle or choosing a move from its menu.
-        </p>
-      </div>
+      {/* Below md the column reaches the left edge, so it starts below the floating menu button
+          rather than putting the Back button under it */}
+      <div class="max-w-2xl mx-auto px-4 pt-16 pb-8 md:pt-8 space-y-6">
+        <div>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            // 44px tall; the negative margin offsets the padding so "‹ Back" stays where it was.
+            class="-mx-2 -my-3 flex min-h-11 items-center gap-1 px-2 text-sm text-primary hover:underline"
+            data-test="back-button"
+          >
+            <ChevronLeft class="h-4 w-4" aria-hidden="true" />
+            Back
+          </button>
+        </div>
 
-      {/* Tab list — outer sortable */}
-      <SortableGroup onMove={onTabMove} describe={describeTab} data-test="tabs">
-        <SortableList id="tabs" ids={tabIds()} class="space-y-2">
-          <For each={tabs()}>
-            {(tab, index) => (
-              <SortableTabRow
-                tab={tab}
-                index={index()}
-                count={tabs().length}
-                onMove={(to) => moveTab(index(), to)}
-                expanded={expandedTabs().has(tab.id)}
-                onToggle={(open) => toggleExpanded(tab.id, open)}
-                onRename={(label) => renameTab(tab.id, label)}
-                onDelete={() => deleteTab(tab.id)}
-                onAddModule={(moduleId) => addModule(tab.id, moduleId)}
-                onRemoveModule={(moduleId) => removeModule(tab.id, moduleId)}
-                onReorderModules={(from, to) => reorderModules(tab.id, from, to)}
-                disableDelete={tabs().length <= 1}
-              />
-            )}
-          </For>
-        </SortableList>
-      </SortableGroup>
+        <div>
+          <h1 class="text-2xl font-bold">Tab Settings</h1>
+          <p class="text-sm text-muted-foreground mt-1">
+            Configure the tabs on your character sheet. Reorder tabs, or modules within a tab, by dragging their handle or choosing a move from its menu.
+          </p>
+        </div>
 
-      {/* Add tab */}
-      <Show
-        when={addingTab()}
-        fallback={
-          <Button variant="outline" onClick={() => setAddingTab(true)} data-test="add-tab-button">
-            <Plus class="h-4 w-4 mr-2" aria-hidden="true" />
-            Add Tab
-          </Button>
-        }
-      >
-        {/* A single field: the lighter validation form (see FieldError). noValidate keeps the
-            browser's own required-field popup out of the way. */}
-        <form
-          onSubmit={(e) => { e.preventDefault(); addTab() }}
-          noValidate
-        >
-          <div class="flex gap-2">
-            {/* aria-label: the row's design has no visible label (the placeholder says what it is),
-                like the rename field (ACCESSIBILITY.md §11) */}
-            <Input
-              ref={newTabInput}
-              id="new-tab-name"
-              placeholder="Tab name"
-              aria-label="New tab name"
-              value={newTabLabel()}
-              onInput={(e) => setNewTabLabel(e.currentTarget.value)}
-              autofocus
-              required
-              {...addTabValidation.controlProps("new-tab-name")}
-              data-test="new-tab-name-input"
-            />
-            <Button type="submit" data-test="add-tab-submit">Add</Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => { setAddingTab(false); setNewTabLabel("") }}
-              data-test="add-tab-cancel"
-            >
-              Cancel
+        {/* Tab list — outer sortable */}
+        <SortableGroup onMove={onTabMove} describe={describeTab} data-test="tabs">
+          <SortableList id="tabs" ids={tabIds()} class="space-y-2">
+            <For each={tabs()}>
+              {(tab, index) => (
+                <SortableTabRow
+                  tab={tab}
+                  index={index()}
+                  count={tabs().length}
+                  onMove={(to) => moveTab(index(), to)}
+                  expanded={expandedTabs().has(tab.id)}
+                  onToggle={(open) => toggleExpanded(tab.id, open)}
+                  onRename={(label) => renameTab(tab.id, label)}
+                  onDelete={() => deleteTab(tab.id)}
+                  onAddModule={(moduleId) => addModule(tab.id, moduleId)}
+                  onRemoveModule={(moduleId) => removeModule(tab.id, moduleId)}
+                  onReorderModules={(from, to) => reorderModules(tab.id, from, to)}
+                  disableDelete={tabs().length <= 1}
+                />
+              )}
+            </For>
+          </SortableList>
+        </SortableGroup>
+
+        {/* Add tab */}
+        <Show
+          when={addingTab()}
+          fallback={
+            <Button variant="outline" onClick={() => setAddingTab(true)} data-test="add-tab-button">
+              <Plus class="h-4 w-4 mr-2" aria-hidden="true" />
+              Add Tab
             </Button>
-          </div>
-          <FieldError validation={addTabValidation} fieldId="new-tab-name" announce />
-        </form>
-      </Show>
+          }
+        >
+          {/* A single field: the lighter validation form (see FieldError). noValidate keeps the
+              browser's own required-field popup out of the way. */}
+          <form
+            onSubmit={(e) => { e.preventDefault(); addTab() }}
+            noValidate
+          >
+            <div class="flex gap-2">
+              {/* aria-label: the row's design has no visible label (the placeholder says what it is),
+                  like the rename field (ACCESSIBILITY.md §11) */}
+              <Input
+                ref={newTabInput}
+                id="new-tab-name"
+                placeholder="Tab name"
+                aria-label="New tab name"
+                value={newTabLabel()}
+                onInput={(e) => setNewTabLabel(e.currentTarget.value)}
+                autofocus
+                required
+                {...addTabValidation.controlProps("new-tab-name")}
+                data-test="new-tab-name-input"
+              />
+              <Button type="submit" data-test="add-tab-submit">Add</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setAddingTab(false); setNewTabLabel("") }}
+                data-test="add-tab-cancel"
+              >
+                Cancel
+              </Button>
+            </div>
+            <FieldError validation={addTabValidation} fieldId="new-tab-name" announce />
+          </form>
+        </Show>
+      </div>
     </div>
   )
 }

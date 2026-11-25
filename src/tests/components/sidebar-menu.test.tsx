@@ -757,9 +757,18 @@ describe("SidebarMenu drawer", () => {
     expect(screen.getByTestId("sidebar-menu-trigger")).toHaveAttribute("aria-expanded", "true")
   })
 
+  // Small enough for the slim bar it sits in, with an invisible hit area that makes it a 44px target
+  it("is a 32px menu button with a 44px hit area", () => {
+    render(() => <SidebarMenu {...defaultProps} />)
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass("h-8", "w-8", "after:h-11", "after:w-11")
+  })
+
   it("places the menu button with the classes it is given", () => {
-    render(() => <SidebarMenu {...defaultProps} class="fixed left-4 top-4" />)
-    expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass("fixed", "left-4", "top-4")
+    render(() => <SidebarMenu {...defaultProps} class="fixed left-4 top-3" />)
+    const button = screen.getByRole("button", { name: "Open menu" })
+    expect(button).toHaveClass("fixed", "left-4", "top-3", "h-8")
+    // Its own relative would otherwise win over fixed in the stylesheet
+    expect(button).not.toHaveClass("relative")
   })
 
   it("returns focus to the menu button when closed", async () => {
