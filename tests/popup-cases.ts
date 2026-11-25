@@ -123,6 +123,8 @@ export const MODALS: ModalCase[] = [
       await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name: "Import Character" }).click()
     },
   },
+  // From the footer, which every page shows
+  { name: "attribution", open: (page) => click(page, "attribution-link") },
 ]
 
 export const byName = (name: string) => MODALS.find((m) => m.name === name)!
@@ -178,7 +180,7 @@ for (const [name, coveredBy] of coverage) {
 }
 
 /** The modals also checked at phone width. The visual suite's modal shell baselines show rest-short. */
-export const PHONE_MODALS = ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "level-up", "import"]
+export const PHONE_MODALS = ["feature-add", "feature-add-type-open", "item-edit-weapon", "spell-add", "rest-short", "level-up", "import", "attribution"]
 
 const byTest = (page: Page, dataTest: string) => page.locator(`[data-test="${dataTest}"]`)
 

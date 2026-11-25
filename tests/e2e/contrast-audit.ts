@@ -233,6 +233,15 @@ export const SCENES: Scene[] = [
     },
   },
   {
+    name: "attribution dialog",
+    within: DIALOG,
+    open: async (page) => {
+      await page.goto("/terms")
+      await page.locator('[data-test="attribution-link"]').click()
+      await expect(page.getByRole("dialog", { name: "Attribution" })).toBeVisible()
+    },
+  },
+  {
     name: "character list",
     open: async (page) => {
       await seedGuest(page, testCharacter)

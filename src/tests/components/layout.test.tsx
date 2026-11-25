@@ -5,7 +5,7 @@ import Layout from "@/components/layout"
 import { useSyncState } from "@/lib/sync-context"
 
 import pkg from "../../../package.json"
-import { render, screen, cleanupPortals } from "../test-utils"
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
 // The shared router mock in setup.tsx returns a fixed location; route-change focus needs one
 // that can change, so this file backs `pathname` with a signal the tests drive.
@@ -76,6 +76,12 @@ describe("Layout", () => {
     expect(link).toHaveAttribute("target", "_blank")
     expect(link).toHaveAttribute("rel", "noopener noreferrer")
     expect(link).toHaveTextContent("GitHub")
+  })
+
+  it("opens the Attribution dialog from the footer", () => {
+    render(() => <Layout>{null}</Layout>)
+    fireEvent.click(within(screen.getByRole("contentinfo")).getByRole("button", { name: "Attribution" }))
+    expect(screen.getByRole("dialog", { name: "Attribution" })).toBeInTheDocument()
   })
 
   it("shows the package.json version, linked to that version's GitHub release", () => {

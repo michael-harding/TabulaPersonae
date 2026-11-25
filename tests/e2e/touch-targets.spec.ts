@@ -252,6 +252,14 @@ test.describe("Touch targets, signed out", () => {
     expectAccessibleTouchTargets(await auditTouchTargets(page, "[role=dialog]"))
   })
 
+  // Its links are URLs too long for a phone's line, so they wrap within their boxes
+  test("@mobile attribution dialog", async ({ page }) => {
+    await page.goto("/terms")
+    await page.locator('[data-test="attribution-link"]').click()
+    await expect(page.getByRole("dialog", { name: "Attribution" })).toBeVisible()
+    expectAccessibleTouchTargets(await auditTouchTargets(page, "[role=dialog]"))
+  })
+
   for (const path of ["/terms", "/privacy", "/418", "/no-such-page"]) {
     test(`@mobile static page ${path}`, async ({ page }) => {
       await page.goto(path)

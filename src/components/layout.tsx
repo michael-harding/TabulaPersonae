@@ -4,6 +4,7 @@ import { useLocation } from '@solidjs/router'
 
 import { SyncContext, type CharacterSyncState } from '@/lib/sync-context'
 
+import { AttributionModal } from './attribution-modal'
 import { OfflineIndicator } from './offline-indicator'
 
 const REPOSITORY_URL = 'https://github.com/michael-harding/TabulaPersonae'
@@ -32,6 +33,10 @@ export default function Layout(props: ParentProps) {
       <footer class="flex flex-wrap items-center justify-center border-t bg-card px-6 text-center text-sm text-muted-foreground *:inline-flex *:min-h-11 *:items-center">
         <span>© 2026 Michael Harding</span>
         <span class="mx-2">·</span>
+        <AttributionModal />
+        <span class="mx-2">·</span>
+        <span>AGPLv3</span>
+        <span class="mx-2">·</span>
         <a
           data-test="source-link"
           href={REPOSITORY_URL}
@@ -41,8 +46,6 @@ export default function Layout(props: ParentProps) {
         >
           GitHub
         </a>
-        <span class="mx-2">·</span>
-        <span>AGPLv3</span>
         <span class="mx-2">·</span>
         <a
           data-test="release-link"
