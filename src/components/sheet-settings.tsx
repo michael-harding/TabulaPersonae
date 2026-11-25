@@ -142,7 +142,7 @@ function SharingContent(props: SettingsSectionProps) {
     <section data-sem="sharing-section" aria-labelledby={headingId} class={SECTION}>
       <h3 id={headingId} class={HEADING}>
         <Share2 class="h-4 w-4 text-primary" aria-hidden="true" />
-        Public Sharing
+        Sheet Sharing
       </h3>
       <div class="flex items-center gap-3">
         <Label class="text-sm whitespace-nowrap">Share publicly</Label>
