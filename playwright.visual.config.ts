@@ -10,7 +10,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:5175",
     trace: "on-first-retry",
   },
   projects: [
@@ -34,8 +34,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:5173",
+    // Its own mode and port: the visual mode pins the footer's version (vite.config.ts), and a
+    // separate port means an ordinary `pnpm dev` server, showing the real version, is never reused.
+    command: "pnpm dev:visual",
+    url: "http://localhost:5175",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

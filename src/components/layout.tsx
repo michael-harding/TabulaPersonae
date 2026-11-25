@@ -6,6 +6,8 @@ import { SyncContext, type CharacterSyncState } from '@/lib/sync-context'
 
 import { OfflineIndicator } from './offline-indicator'
 
+const REPOSITORY_URL = 'https://github.com/michael-harding/TabulaPersonae'
+
 export default function Layout(props: ParentProps) {
   const [syncState, setSyncState] = createSignal<CharacterSyncState>(null)
   const location = useLocation()
@@ -25,21 +27,33 @@ export default function Layout(props: ParentProps) {
     <div data-sem="page-layout" class="flex min-h-dvh flex-col">
       <main ref={mainRef} tabIndex={-1} class="flex flex-1 flex-col focus:outline-none">{props.children}</main>
       <OfflineIndicator />
-      <footer class="border-t bg-card px-6 py-3 text-center text-sm text-muted-foreground">
+      {/* Every item is 44px tall, so the links get full-size touch targets and, when the footer
+          wraps on a narrow screen, each row is 44px tall and the links on different rows don't overlap. */}
+      <footer class="flex flex-wrap items-center justify-center border-t bg-card px-6 text-center text-sm text-muted-foreground *:inline-flex *:min-h-11 *:items-center">
         <span>© 2026 Michael Harding</span>
         <span class="mx-2">·</span>
         <a
           data-test="source-link"
-          href="https://github.com/michael-harding/TabulaPersonae"
+          href={REPOSITORY_URL}
           target="_blank"
           rel="noopener noreferrer"
-          // 44px-tall hit area; the negative margin keeps the footer's height unchanged.
-          class="-my-3 inline-flex min-h-11 items-center underline-offset-4 hover:underline"
+          class="underline-offset-4 hover:underline"
         >
-          Source on GitHub
+          GitHub
         </a>
         <span class="mx-2">·</span>
         <span>AGPLv3</span>
+        <span class="mx-2">·</span>
+        <a
+          data-test="release-link"
+          href={`${REPOSITORY_URL}/releases/tag/v${__APP_VERSION__}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`v${__APP_VERSION__} release notes`}
+          class="underline-offset-4 hover:underline"
+        >
+          v{__APP_VERSION__}
+        </a>
       </footer>
     </div>
     </SyncContext.Provider>
