@@ -1,52 +1,26 @@
-import { contrastRatio, oklchToHex, parseHex, readableOn, SHEET_COLOR_PRESETS, sheetColorAttributes, sheetColorShades, THEME_SURFACES, toOklch } from "@/lib/sheet-color"
+import { contrastRatio, normalizeHex, parseHex, readableOn, SHEET_COLOR_PRESETS, sheetColorAttributes, sheetColorShades, toOklch } from "@/lib/sheet-color"
 
-import { themeToken } from "./theme-tokens"
-
-// WCAG 1.4.3: text needs 4.5:1. A sheet colour is used as text on the page's surfaces and as the
-// fill behind text in the surface colour, so each shade must reach 4.5:1 against every surface.
+// The presets' contrast on every theme and preset background is checked in theme-contrast.test.ts
 const AA = 4.5
 
-function worstContrast(hex: string, theme: "light" | "dark") {
-  return Math.min(...THEME_SURFACES[theme].map((surface) => contrastRatio(hex, oklchToHex(surface))))
-}
-
 describe("sheetColorShades", () => {
-  const colours = [
-    ...SHEET_COLOR_PRESETS.map((preset) => [preset.name, preset.hex] as const),
-    ["white", "#ffffff"], ["black", "#000000"], ["pure yellow", "#ffff00"], ["pure blue", "#0000ff"],
-    ["near-white grey", "#f2f2f2"], ["near-black grey", "#141414"], ["mid grey", "#777777"],
-  ] as const
+  it.each(SHEET_COLOR_PRESETS)("gives the $name preset its own shade for each theme", (preset) => {
+    expect(sheetColorShades(preset.value)).toEqual({ light: preset.light, dark: preset.dark })
+  })
 
-  for (const [name, hex] of colours) {
-    it(`makes ${name} readable in both themes`, () => {
-      const shades = sheetColorShades(hex)!
-      expect(worstContrast(shades.light, "light")).toBeGreaterThanOrEqual(AA)
-      expect(worstContrast(shades.dark, "dark")).toBeGreaterThanOrEqual(AA)
-    })
-  }
+  it("recognises a preset however its hex is written", () => {
+    expect(sheetColorShades("#EAB308")).toEqual(sheetColorShades("#eab308"))
+  })
 
-  it("keeps the chosen hue", () => {
-    for (const { hex } of SHEET_COLOR_PRESETS) {
-      const { light, dark } = sheetColorShades(hex)!
-      const hue = toOklch(parseHex(hex)!).h
-      for (const shade of [light, dark]) {
-        const shifted = Math.abs(toOklch(parseHex(shade)!).h - hue)
-        expect(Math.min(shifted, 360 - shifted)).toBeLessThan(6)
-      }
+  it("uses a picked colour exactly as picked, in both themes", () => {
+    // Colours the presets used to turn into other shades, and ones no theme can read
+    for (const hex of ["#123456", "#ffff00", "#f2f2f2", "#141414", "#22c55f"]) {
+      expect(sheetColorShades(hex)).toEqual({ light: hex, dark: hex })
     }
   })
 
-  it("changes a colour only as far as it needs to", () => {
-    // Already dark enough for the light theme, and light enough for the dark theme: both unchanged
-    expect(sheetColorShades("#1d4ed8")!.light).toBe("#1d4ed8")
-    expect(sheetColorShades("#fde68a")!.dark).toBe("#fde68a")
-    // Adjusted, but only to just past the threshold rather than to black or white
-    const light = sheetColorShades("#22c55e")!.light
-    expect(worstContrast(light, "light")).toBeLessThan(AA + 0.5)
-  })
-
-  it("accepts short and upper-case hex", () => {
-    expect(sheetColorShades("#ABC")).toEqual(sheetColorShades("#aabbcc"))
+  it("accepts short and upper-case hex, as its six-digit form", () => {
+    expect(sheetColorShades("#ABC")).toEqual({ light: "#aabbcc", dark: "#aabbcc" })
   })
 
   it("returns null for anything that is not a hex colour, so the default theme applies", () => {
@@ -56,18 +30,48 @@ describe("sheetColorShades", () => {
   })
 })
 
+describe("SHEET_COLOR_PRESETS", () => {
+  // Characters store the value, and those stored before presets became pairs hold these
+  it("keeps the values characters already store", () => {
+    expect(SHEET_COLOR_PRESETS.map((p) => p.value)).toEqual(["#22c55e", "#8b5cf6", "#ef4444", "#3b82f6", "#f97316", "#eab308"])
+  })
+
+  it("keeps each preset's hue in both its shades", () => {
+    for (const { value, light, dark } of SHEET_COLOR_PRESETS) {
+      const hue = toOklch(parseHex(value)!).h
+      for (const shade of [light, dark]) {
+        const shifted = Math.abs(toOklch(parseHex(shade)!).h - hue)
+        expect(Math.min(shifted, 360 - shifted)).toBeLessThan(6)
+      }
+    }
+  })
+
+  it("holds every value as six-digit lower-case hex, which is what lookups compare", () => {
+    for (const { value, light, dark } of SHEET_COLOR_PRESETS) {
+      for (const hex of [value, light, dark]) expect(normalizeHex(hex)).toBe(hex)
+    }
+  })
+})
+
 describe("sheetColorAttributes", () => {
   it("gives a sheet the shade for each theme, and the attribute globals.css applies them through", () => {
-    const shades = sheetColorShades("#8b5cf6")!
     expect(sheetColorAttributes("#8b5cf6")).toEqual({
       "data-sheet-color": "",
-      style: { "--sheet-primary-light": shades.light, "--sheet-primary-dark": shades.dark },
+      style: { "--sheet-primary-light": "#7a47e0", "--sheet-primary-dark": "#9c78ff" },
     })
   })
 
   it("gives nothing, so the theme's own colour applies, without a usable sheet colour", () => {
     expect(sheetColorAttributes(undefined)).toEqual({})
     expect(sheetColorAttributes("not a colour")).toEqual({})
+  })
+})
+
+describe("normalizeHex", () => {
+  it("writes a hex colour in six-digit lower case, and rejects anything else", () => {
+    expect(normalizeHex("#ABC")).toBe("#aabbcc")
+    expect(normalizeHex(" #A1B2C3 ")).toBe("#a1b2c3")
+    expect(normalizeHex("red")).toBeNull()
   })
 })
 
@@ -88,15 +92,5 @@ describe("contrastRatio", () => {
   it("matches the WCAG definition at its extremes", () => {
     expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 5)
     expect(contrastRatio("#777777", "#777777")).toBeCloseTo(1, 5)
-  })
-})
-
-// The surfaces checked against must be the ones the themes actually use
-describe("THEME_SURFACES", () => {
-  it("holds the background, card and popover lightness of each theme in globals.css", () => {
-    for (const theme of ["light", "dark"] as const) {
-      const expected = ["background", "card", "popover"].map((variable) => themeToken(theme, variable).l).sort()
-      expect(THEME_SURFACES[theme].map((surface) => surface.l).sort()).toEqual(expected)
-    }
   })
 })

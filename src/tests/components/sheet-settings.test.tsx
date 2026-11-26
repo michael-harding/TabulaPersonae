@@ -3,8 +3,10 @@ import { axe } from "vitest-axe"
 import { SharingSection, SheetSettingsSection } from "@/components/sheet-settings"
 import { useAuth } from "@/lib/auth-context"
 import { createDefaultCharacter, type Character } from "@/lib/character-types"
+import { SHEET_BACKGROUND_PRESETS } from "@/lib/sheet-background"
+import { SHEET_COLOR_PRESETS } from "@/lib/sheet-color"
 
-import { render, screen, fireEvent } from "../test-utils"
+import { cleanup, render, screen, fireEvent } from "../test-utils"
 import { createMockAuth, createTestUser } from "../mocks/auth"
 
 vi.mock("@/lib/auth-context", () => ({
@@ -143,6 +145,93 @@ describe("Sheet settings sections", () => {
       render(() => <SheetSettings character={charWithColor} onUpdate={onUpdate} />)
       fireEvent.click(screen.getByRole("button", { name: /reset sheet color/i }))
       expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ sheetColor: undefined }))
+    })
+  })
+
+  // A preset is a pair of shades; its swatch is the one the current theme applies, so picking it
+  // never shows one colour and gives the sheet another
+  describe("preset swatch colours", () => {
+    it.each(SHEET_COLOR_PRESETS)("shows the $name preset's own shade for each theme", (preset) => {
+      render(() => <SheetSettings character={baseCharacter} onUpdate={vi.fn()} />)
+      const swatch = screen.getByRole("button", { name: `${preset.name} theme color` }).firstElementChild as HTMLElement
+      expect(swatch.style.getPropertyValue("--swatch-light")).toBe(preset.light)
+      expect(swatch.style.getPropertyValue("--swatch-dark")).toBe(preset.dark)
+      expect(swatch).toHaveClass("bg-[color:var(--swatch-light)]", "dark:bg-[color:var(--swatch-dark)]")
+    })
+
+    it("selects a preset stored in another case", () => {
+      render(() => <SheetSettings character={{ ...baseCharacter, sheetColor: "#EF4444" }} onUpdate={vi.fn()} />)
+      expect(screen.getByRole("button", { name: "Red theme color" })).toHaveAttribute("aria-pressed", "true")
+      expect(screen.getByLabelText("Custom theme color")).toBeInTheDocument()
+    })
+  })
+
+  describe("background color", () => {
+    const charWithBackground = { ...baseCharacter, sheetBackground: "#fef9ee" }
+    const charWithCustomBackground = { ...baseCharacter, sheetBackground: "#336699" }
+
+    it("offers each preset background, showing its own colour", () => {
+      render(() => <SheetSettings character={baseCharacter} onUpdate={vi.fn()} />)
+      for (const preset of SHEET_BACKGROUND_PRESETS) {
+        const swatch = screen.getByRole("button", { name: `${preset.name} background color` }).firstElementChild as HTMLElement
+        expect(swatch.style.getPropertyValue("--swatch-light")).toBe(preset.value)
+        expect(swatch.style.getPropertyValue("--swatch-dark")).toBe(preset.value)
+      }
+    })
+
+    it("stores the preset's value when one is clicked", () => {
+      const onUpdate = vi.fn()
+      render(() => <SheetSettings character={baseCharacter} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: "Dark brown background color" }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ sheetBackground: "#180f08" }))
+    })
+
+    it("stores a picked colour as it is", () => {
+      const onUpdate = vi.fn()
+      render(() => <SheetSettings character={baseCharacter} onUpdate={onUpdate} />)
+      fireEvent.input(screen.getByLabelText("Custom background color"), { target: { value: "#ff00ff" } })
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ sheetBackground: "#ff00ff" }))
+    })
+
+    it("marks the selected preset alone", () => {
+      render(() => <SheetSettings character={charWithBackground} onUpdate={vi.fn()} />)
+      const pressed = screen.getAllByRole("button", { name: /background color/i }).filter((b) => b.getAttribute("aria-pressed") === "true")
+      expect(pressed).toHaveLength(1)
+      expect(pressed[0]).toHaveAccessibleName("Warm white background color")
+    })
+
+    it("names the custom input as selected for a custom background", () => {
+      render(() => <SheetSettings character={charWithCustomBackground} onUpdate={vi.fn()} />)
+      expect(screen.getByLabelText("Custom background color, selected")).toBeInTheDocument()
+    })
+
+    it("keeps the background and sheet colour apart", () => {
+      render(() => <SheetSettings character={charWithBackground} onUpdate={vi.fn()} />)
+      for (const button of screen.getAllByRole("button", { name: /theme color/i })) {
+        expect(button).toHaveAttribute("aria-pressed", "false")
+      }
+      expect(screen.queryByRole("button", { name: /reset sheet color/i })).not.toBeInTheDocument()
+    })
+
+    it("offers a reset only once a background is set, which clears it", () => {
+      const onUpdate = vi.fn()
+      render(() => <SheetSettings character={baseCharacter} onUpdate={vi.fn()} />)
+      expect(screen.queryByRole("button", { name: /reset background color/i })).not.toBeInTheDocument()
+      cleanup()
+      render(() => <SheetSettings character={charWithBackground} onUpdate={onUpdate} />)
+      fireEvent.click(screen.getByRole("button", { name: /reset background color/i }))
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ sheetBackground: undefined }))
+    })
+
+    it("lets its swatches wrap onto more lines", () => {
+      render(() => <SheetSettings character={baseCharacter} onUpdate={vi.fn()} />)
+      expect(screen.getByTestId("sheet-background-swatches")).toHaveClass("flex-wrap")
+    })
+
+    it("has no accessibility violations with a background set", async () => {
+      const { container } = render(() => <SheetSettings character={charWithCustomBackground} onUpdate={vi.fn()} />)
+      const results = await axe(container)
+      expect(results.violations).toHaveLength(0)
     })
   })
 

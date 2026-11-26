@@ -1,30 +1,33 @@
 // A character's sheet colour replaces the theme's primary colour on its sheet, where that colour is
-// both text on the page's surfaces and the fill behind text in the surface colour. Any colour a
-// player picks is turned into one shade per theme that reads at WCAG AA (4.5:1) both ways, keeping
-// its hue and as much of its saturation as fits. The chosen colour itself is what is stored.
+// both text on the page's surfaces and the fill behind text in the surface colour. A colour the
+// player picks is used exactly as picked, in both themes: keeping it readable is up to them. Each
+// preset is a fixed pair instead, a shade for each theme, and a unit test holds both shades to
+// WCAG AA (4.5:1) against every preset background (src/lib/sheet-background.ts). What is stored
+// is the picked colour, or for a preset its `value`.
 
-export const SHEET_COLOR_PRESETS = [
-  { name: "Green", hex: "#22c55e" },
-  { name: "Purple", hex: "#8b5cf6" },
-  { name: "Red", hex: "#ef4444" },
-  { name: "Blue", hex: "#3b82f6" },
-  { name: "Orange", hex: "#f97316" },
-  { name: "Gold", hex: "#eab308" },
-] as const
+export type Tone = "light" | "dark"
 
-export interface Oklch { l: number; c: number; h: number }
-
-/**
- * The surfaces of each theme that primary text appears on: --background, --card and --popover in
- * globals.css (a unit test keeps them in step). All are neutral greys, so lightness is enough.
- */
-export const THEME_SURFACES: Record<"light" | "dark", Oklch[]> = {
-  light: [{ l: 1, c: 0, h: 0 }, { l: 0.98, c: 0, h: 0 }, { l: 1, c: 0, h: 0 }],
-  dark: [{ l: 0.1, c: 0, h: 0 }, { l: 0.2, c: 0, h: 0 }, { l: 0.1, c: 0, h: 0 }],
+export interface SheetColorPreset {
+  name: string
+  /** What a character stores when the preset is picked */
+  value: string
+  light: string
+  dark: string
 }
 
-// A little over the 4.5:1 minimum, so rounding to 8-bit hex can never land a shade just under it
-const TARGET_CONTRAST = 4.6
+// The values are the colours these presets were before they became pairs, so characters that
+// already have one keep it. The shades were found once, as the nearest lightness to each value
+// that reaches 4.6:1 (a little over 4.5, against rounding) on every preset background.
+export const SHEET_COLOR_PRESETS: readonly SheetColorPreset[] = [
+  { name: "Green", value: "#22c55e", light: "#007934", dark: "#22c55e" },
+  { name: "Purple", value: "#8b5cf6", light: "#7a47e0", dark: "#9c78ff" },
+  { name: "Red", value: "#ef4444", light: "#ce1b28", dark: "#fe5350" },
+  { name: "Blue", value: "#3b82f6", light: "#1b63d5", dark: "#488eff" },
+  { name: "Orange", value: "#f97316", light: "#ae4b00", dark: "#f97316" },
+  { name: "Gold", value: "#eab308", light: "#846400", dark: "#eab308" },
+]
+
+export interface Oklch { l: number; c: number; h: number }
 
 type Rgb = [number, number, number] // linear sRGB, 0–1
 
@@ -99,36 +102,21 @@ export function readableOn(hex: string): "#000000" | "#ffffff" {
   return contrastRatio(hex, "#000000") >= contrastRatio(hex, "#ffffff") ? "#000000" : "#ffffff"
 }
 
-// The surfaces as rendered, worked out once rather than on every shade search
-const THEME_SURFACE_HEXES = {
-  light: THEME_SURFACES.light.map(oklchToHex),
-  dark: THEME_SURFACES.dark.map(oklchToHex),
-}
-
-function shadeFor(hex: string, color: Oklch, theme: "light" | "dark"): string {
-  const surfaces = THEME_SURFACE_HEXES[theme]
-  const readable = (candidate: string) => surfaces.every((surface) => contrastRatio(candidate, surface) >= TARGET_CONTRAST)
-  if (readable(hex)) return hex
-  // Light surfaces need a darker shade, dark ones a lighter one. Search for the lightness nearest
-  // the chosen colour's that is readable; contrast rises steadily as lightness moves away.
-  let readableL = theme === "light" ? 0 : 1
-  let unreadableL = color.l
-  for (let i = 0; i < 24; i++) {
-    const mid = (readableL + unreadableL) / 2
-    if (readable(oklchToHex({ ...color, l: mid }))) readableL = mid
-    else unreadableL = mid
-  }
-  const shade = oklchToHex({ ...color, l: readableL })
-  return readable(shade) ? shade : theme === "light" ? "#000000" : "#ffffff"
-}
-
-/** The sheet colour's shade for each theme, or null when the stored value is not a hex colour. */
-export function sheetColorShades(hex: string): { light: string; dark: string } | null {
+/** A hex colour in its six-digit lower-case form, or null for anything that is not one. */
+export function normalizeHex(hex: string): string | null {
   const rgb = parseHex(hex)
-  if (rgb == null) return null
-  const normalized = toHex(rgb)
-  const color = toOklch(rgb)
-  return { light: shadeFor(normalized, color, "light"), dark: shadeFor(normalized, color, "dark") }
+  return rgb == null ? null : toHex(rgb)
+}
+
+/**
+ * The colour a stored sheet colour gives each theme: a preset's own pair, or a picked colour as it
+ * is in both. Null when the stored value is not a hex colour.
+ */
+export function sheetColorShades(stored: string): Record<Tone, string> | null {
+  const hex = normalizeHex(stored)
+  if (hex == null) return null
+  const preset = SHEET_COLOR_PRESETS.find((p) => p.value === hex)
+  return preset == null ? { light: hex, dark: hex } : { light: preset.light, dark: preset.dark }
 }
 
 /**

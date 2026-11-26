@@ -6,14 +6,17 @@ vi.mock("@/lib/firebase-storage", () => ({
 vi.mock("@/lib/theme", () => ({
   theme: () => "system",
   setTheme: vi.fn(),
+  setSheetTone: vi.fn(),
 }))
 
 import { axe } from "vitest-axe"
 
 import { createDefaultCharacter } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
-import PublicCharacterSheet from "@/routes/PublicCharacterSheet"
+import { sheetBackground } from "@/lib/sheet-background"
 import { sheetColorShades } from "@/lib/sheet-color"
+import { setSheetTone } from "@/lib/theme"
+import PublicCharacterSheet from "@/routes/PublicCharacterSheet"
 
 import { cleanup, render, screen, waitFor } from "../test-utils"
 
@@ -135,6 +138,17 @@ describe("PublicCharacterSheet", () => {
       cleanup()
       expect(document.body).not.toHaveAttribute("data-sheet-color")
       expect(document.body.style.getPropertyValue("--sheet-primary-light")).toBe("")
+    })
+
+    it("gives the page the character's background and its tone, and takes them away when the sheet closes", async () => {
+      vi.mocked(setSheetTone).mockClear()
+      mockGetPublic.mockResolvedValue({ ...testCharacter, sheetBackground: "#180f08" })
+      await renderAndLoad()
+      expect(document.body.style.getPropertyValue("--background")).toBe(sheetBackground("#180f08")!.style["--background"])
+      expect(setSheetTone).toHaveBeenLastCalledWith("dark")
+      cleanup()
+      expect(document.body.style.getPropertyValue("--background")).toBe("")
+      expect(setSheetTone).toHaveBeenLastCalledWith(null)
     })
   })
 })

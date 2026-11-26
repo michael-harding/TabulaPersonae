@@ -62,6 +62,35 @@ describe("theme", () => {
     expect(isDark()).toBe(false)
   })
 
+  // A sheet background picks light or dark for the open sheet (src/hooks/use-sheet-background.ts)
+  it.each([
+    { stored: "light", tone: "dark", dark: true },
+    { stored: "dark", tone: "light", dark: false },
+  ] as const)("shows the $tone tone of an open sheet's background over the stored $stored theme", async ({ stored, tone, dark }) => {
+    const { setSheetTone } = await loadTheme({ stored })
+    setSheetTone(tone)
+    expect(isDark()).toBe(dark)
+  })
+
+  it("goes back to the player's theme once the sheet's tone is cleared, without storing the tone", async () => {
+    const { setSheetTone, theme } = await loadTheme({ stored: "light" })
+    setSheetTone("dark")
+    expect(localStorage.getItem("theme")).toBe("light")
+    setSheetTone(null)
+    expect(isDark()).toBe(false)
+    expect(theme()).toBe("light")
+  })
+
+  it("keeps the sheet's tone while the player changes theme, applying the change once it clears", async () => {
+    const { setSheetTone, setTheme } = await loadTheme({ stored: "light" })
+    setSheetTone("light")
+    setTheme("dark")
+    expect(isDark()).toBe(false)
+    expect(localStorage.getItem("theme")).toBe("dark")
+    setSheetTone(null)
+    expect(isDark()).toBe(true)
+  })
+
   it("stores the theme whenever it changes, so it survives a reload", async () => {
     const { setTheme } = await loadTheme()
     expect(localStorage.getItem("theme")).toBe("system")

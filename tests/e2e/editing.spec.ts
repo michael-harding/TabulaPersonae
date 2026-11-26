@@ -333,6 +333,30 @@ test.describe("Character tab", () => {
     expect((await storedCharacter(page, id)).notes).toBe("Owes the ferryman two silver.")
   })
 
+  // In the sidebar menu, beside the sheet colour. The background picks the sheet's theme, so a dark
+  // one shows the dark theme in the chromium project, which is otherwise light.
+  test("sheet background", async ({ page }) => {
+    await open(page)
+    const sidebar = await openSidebar(page)
+    await sidebar.locator('[data-test="sheet-background-preset-dark-brown"]').click()
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/)
+
+    await reload(page)
+    expect((await storedCharacter(page, id)).sheetBackground).toBe("#180f08")
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/)
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(24, 15, 8)")
+
+    await (await openSidebar(page)).locator('[data-test="sheet-background-custom-input"]').fill("#336699")
+    await reload(page)
+    expect((await storedCharacter(page, id)).sheetBackground).toBe("#336699")
+
+    // Reset returns the sheet to the theme's own background
+    await (await openSidebar(page)).locator('[data-test="sheet-background-reset-button"]').click()
+    await reload(page)
+    expect((await storedCharacter(page, id)).sheetBackground).toBeUndefined()
+    expect(await page.evaluate(() => document.body.style.getPropertyValue("--background"))).toBe("")
+  })
+
   // In the sidebar menu, not on a tab
   test("sheet colour and edition", async ({ page }) => {
     await open(page)
@@ -352,13 +376,10 @@ test.describe("Character tab", () => {
     expect((await storedCharacter(page, id)).sheetColor).toBeUndefined()
   })
 
-  // Any sheet colour is shown as a shade readable on the theme (src/lib/sheet-color.ts). Checked
+  // Each preset sheet colour has a shade readable on the theme (src/lib/sheet-color.ts). Checked
   // in both themes by the chromium and chromium-dark projects, in the sidebar menu it is chosen in
-  // and on every tab, for every preset and for custom colours at both extremes.
-  const sheetColours = [
-    ...SHEET_COLOR_PRESETS.map(({ name }) => ({ name, choose: (page: Page) => page.locator(`[data-test="sheet-color-preset-${name.toLowerCase()}"]`).click() })),
-    ...["#ffff00", "#f2f2f2", "#141414"].map((hex) => ({ name: `custom ${hex}`, choose: (page: Page) => page.locator('[data-test="sheet-color-custom-input"]').fill(hex) })),
-  ]
+  // and on every tab. A custom colour is used as picked, and its contrast is the player's to keep.
+  const sheetColours = SHEET_COLOR_PRESETS.map(({ name }) => ({ name, choose: (page: Page) => page.locator(`[data-test="sheet-color-preset-${name.toLowerCase()}"]`).click() }))
   for (const { name, choose } of sheetColours) {
     test(`sheet colour ${name} keeps the sheet's text readable`, async ({ page }) => {
       await open(page, "Character")

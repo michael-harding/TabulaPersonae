@@ -3,7 +3,8 @@ import { resolve } from "path"
 
 import { amber } from "tailwindcss/colors"
 
-import { contrastRatio, oklchToHex } from "@/lib/sheet-color"
+import { SHEET_BACKGROUND_PRESETS, sheetBackground } from "@/lib/sheet-background"
+import { contrastRatio, oklchToHex, SHEET_COLOR_PRESETS } from "@/lib/sheet-color"
 import { SPELL_EFFECT_COLOR } from "@/lib/utils"
 
 import tailwindConfig from "../../../tailwind.config"
@@ -16,7 +17,27 @@ const TEXT = 4.5
 const NON_TEXT = 3
 
 const WHITE = "#ffffff"
-const token = (theme: Theme, name: string) => oklchToHex(themeToken(theme, name))
+
+/**
+ * A set of tokens the page can be shown in: a theme as globals.css has it, or a preset sheet
+ * background, which is its tone's theme with the surfaces replaced by shades of the background.
+ */
+interface Palette {
+  name: string
+  theme: Theme
+  surfaces?: Record<string, string>
+}
+
+const palettes: Palette[] = [
+  { name: "light theme", theme: "light" },
+  { name: "dark theme", theme: "dark" },
+  ...SHEET_BACKGROUND_PRESETS.map(({ name, value }) => {
+    const { tone, style } = sheetBackground(value)!
+    return { name: `${name} background`, theme: tone, surfaces: style }
+  }),
+]
+
+const token = (palette: Palette, name: string) => palette.surfaces?.[`--${name}`] ?? oklchToHex(themeToken(palette.theme, name))
 
 const textPairs: [foreground: string, background: string][] = [
   ["foreground", "background"],
@@ -26,6 +47,9 @@ const textPairs: [foreground: string, background: string][] = [
   ["muted-foreground", "background"],
   ["muted-foreground", "card"],
   ["muted-foreground", "popover"],
+  ["primary", "background"],
+  ["primary", "card"],
+  ["primary", "popover"],
   ["primary-foreground", "primary"],
   ["secondary-foreground", "secondary"],
   ["accent-foreground", "accent"],
@@ -38,33 +62,48 @@ const textPairs: [foreground: string, background: string][] = [
 const nonTextTokens = ["input", "ring"]
 const surfaces = ["background", "card", "popover"]
 
-describe.each(["light", "dark"] as const)("%s theme contrast", (theme) => {
+describe.each(palettes)("$name contrast", (palette) => {
   it.each(textPairs)(`%s on %s meets ${TEXT}:1`, (foreground, background) => {
-    expect(contrastRatio(token(theme, foreground), token(theme, background))).toBeGreaterThanOrEqual(TEXT)
+    expect(contrastRatio(token(palette, foreground), token(palette, background))).toBeGreaterThanOrEqual(TEXT)
   })
 
   describe.each(nonTextTokens)("--%s", (name) => {
     it.each(surfaces)(`meets ${NON_TEXT}:1 on %s`, (surface) => {
-      expect(contrastRatio(token(theme, name), token(theme, surface))).toBeGreaterThanOrEqual(NON_TEXT)
+      expect(contrastRatio(token(palette, name), token(palette, surface))).toBeGreaterThanOrEqual(NON_TEXT)
     })
   })
 
   it(`gives the icon on an available pip ${NON_TEXT}:1 on --muted`, () => {
-    expect(contrastRatio(WHITE, token(theme, "muted"))).toBeGreaterThanOrEqual(NON_TEXT)
+    expect(contrastRatio(WHITE, token(palette, "muted"))).toBeGreaterThanOrEqual(NON_TEXT)
+  })
+
+  // A preset sheet colour replaces --primary with its shade for the palette's theme. Text on it is
+  // white in the light theme and the page background in the dark (globals.css, [data-sheet-color]).
+  describe.each(SHEET_COLOR_PRESETS)("with the $name sheet colour", (preset) => {
+    const primary = preset[palette.theme]
+    const onPrimary = palette.theme === "light" ? WHITE : token(palette, "background")
+
+    it.each(surfaces)(`meets ${TEXT}:1 as text on %s`, (surface) => {
+      expect(contrastRatio(primary, token(palette, surface))).toBeGreaterThanOrEqual(TEXT)
+    })
+
+    it(`has text meeting ${TEXT}:1 on it`, () => {
+      expect(contrastRatio(onPrimary, primary)).toBeGreaterThanOrEqual(TEXT)
+    })
   })
 })
 
 // The status bar's spell pills use Tailwind's amber shades, read from their classes: a dark: class
 // overrides the plain one in the dark theme. The bar is see-through over --background.
-describe.each(["light", "dark"] as const)("%s theme spell effect pills", (theme) => {
+describe.each(palettes)("$name spell effect pills", (palette) => {
   const shade = (classes: string, property: "bg" | "text" | "border") => {
     const find = (prefix: string) => classes.split(" ").find((c) => new RegExp(`^${prefix}${property}-amber-\\d+$`).test(c))
-    const found = (theme === "dark" && find("dark:")) || find("")
+    const found = (palette.theme === "dark" && find("dark:")) || find("")
     return found ? amber[found.split("-").pop() as keyof typeof amber] : undefined
   }
 
   describe.each(Object.entries(SPELL_EFFECT_COLOR))("%s", (_, classes) => {
-    const bar = token(theme, "background")
+    const bar = token(palette, "background")
     const fill = shade(classes, "bg") ?? bar
 
     it(`has text meeting ${TEXT}:1 on its fill`, () => {

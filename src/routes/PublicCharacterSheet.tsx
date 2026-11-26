@@ -4,6 +4,7 @@ import Scroll from "lucide-solid/icons/scroll"
 import Lock from "lucide-solid/icons/lock"
 
 import { useDocumentTitle } from "@/hooks/use-document-title"
+import { useSheetBackground } from "@/hooks/use-sheet-background"
 import { useSheetColor } from "@/hooks/use-sheet-color"
 import { type Character } from "@/lib/character-types"
 import { getPublicCharacterFromFirebase } from "@/lib/firebase-storage"
@@ -37,6 +38,7 @@ export default function PublicCharacterSheet() {
   const [activeTab, setActiveTab] = createSignal(initialTab)
 
   useSheetColor(() => character()?.sheetColor)
+  useSheetBackground(() => character()?.sheetBackground)
   useDocumentTitle(() => character()?.name)
 
   const handleTabChange = (tabId: string) => {

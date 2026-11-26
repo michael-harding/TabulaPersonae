@@ -7,6 +7,7 @@ import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Settings from "lucide-solid/icons/settings"
 
 import { useDocumentTitle } from "@/hooks/use-document-title"
+import { useSheetBackground } from "@/hooks/use-sheet-background"
 import { useSheetColor } from "@/hooks/use-sheet-color"
 import { type Character } from "@/lib/character-types"
 import { withActiveSpellsReconciled } from "@/lib/character-utils"
@@ -106,6 +107,7 @@ export default function CharacterSheet() {
   }
 
   useSheetColor(() => charStore.data?.sheetColor)
+  useSheetBackground(() => charStore.data?.sheetBackground)
 
   const handleImport = (toImport: Character[]) => {
     const { imported, saved } = saveImportedCharacters(toImport, storageManager().saveCharacter)

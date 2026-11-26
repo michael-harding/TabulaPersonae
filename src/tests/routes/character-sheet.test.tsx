@@ -16,6 +16,7 @@ vi.mock("@/hooks/use-toast", async () => (await import("../mocks/toast")).toastM
 vi.mock("@/lib/theme", () => ({
   theme: () => "system",
   setTheme: vi.fn(),
+  setSheetTone: vi.fn(),
 }))
 
 import { axe } from "vitest-axe"
@@ -27,7 +28,9 @@ import { subscribeToCharacter, type CharacterSyncSnapshot } from "@/lib/firebase
 import { useSyncState } from "@/lib/sync-context"
 import { useTabConfig } from "@/lib/tab-config-context"
 import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
+import { sheetBackground } from "@/lib/sheet-background"
 import { sheetColorShades } from "@/lib/sheet-color"
+import { setSheetTone } from "@/lib/theme"
 import CharacterSheet from "@/routes/CharacterSheet"
 
 import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor, within, finishDrawerClosing } from "../test-utils"
@@ -342,7 +345,7 @@ describe("CharacterSheet colour", () => {
     return document.body
   }
 
-  it("gives the sheet a readable shade of its colour for each theme", async () => {
+  it("gives the sheet its colour's shade for each theme", async () => {
     const shades = sheetColorShades("#eab308")!
     const sheet = await renderWithColour("#eab308")
     expect(sheet).toHaveAttribute("data-sheet-color")
@@ -374,6 +377,52 @@ describe("CharacterSheet colour", () => {
     expect(sheet).not.toHaveAttribute("data-sheet-color")
     expect(sheet.style.getPropertyValue("--sheet-primary-light")).toBe("")
     expect(sheet.style.getPropertyValue("--sheet-primary-dark")).toBe("")
+  })
+})
+
+// Also on <body>, for the same reason. Its tone goes to theme.ts as the page's light or dark,
+// which theme.test.ts covers.
+describe("CharacterSheet background", () => {
+  const tone = vi.mocked(setSheetTone)
+
+  async function renderWithBackground(sheetBackground: string | undefined) {
+    tone.mockClear()
+    mockStorageManager.getCharacters.mockResolvedValue([{ ...testCharacter, sheetBackground }])
+    await renderAndLoad()
+    return document.body
+  }
+
+  it("gives the page the background and its shades as the surface colours", async () => {
+    const { style } = sheetBackground("#180f08")!
+    const body = await renderWithBackground("#180f08")
+    for (const [name, value] of Object.entries(style)) expect(body.style.getPropertyValue(name), name).toBe(value)
+  })
+
+  it.each([["#180f08", "dark"], ["#fef9ee", "light"]] as const)("shows a %s background in the %s theme", async (hex, expected) => {
+    await renderWithBackground(hex)
+    expect(tone).toHaveBeenLastCalledWith(expected)
+  })
+
+  it("keeps the theme's own surfaces and theme when the character has none", async () => {
+    const body = await renderWithBackground(undefined)
+    expect(body.style.getPropertyValue("--background")).toBe("")
+    expect(tone).not.toHaveBeenCalled()
+  })
+
+  it("goes back to the theme's own when the background is reset", async () => {
+    const body = await renderWithBackground("#180f08")
+    fireEvent.click(screen.getByTestId("sidebar-menu-trigger"))
+    fireEvent.click(await screen.findByTestId("sheet-background-reset-button"))
+    await waitFor(() => expect(body.style.getPropertyValue("--background")).toBe(""))
+    expect(body.style.getPropertyValue("--card")).toBe("")
+    expect(tone).toHaveBeenLastCalledWith(null)
+  })
+
+  it("takes the background away when the sheet closes, so other pages keep the player's theme", async () => {
+    const body = await renderWithBackground("#180f08")
+    cleanup()
+    expect(body.style.getPropertyValue("--background")).toBe("")
+    expect(tone).toHaveBeenLastCalledWith(null)
   })
 })
 

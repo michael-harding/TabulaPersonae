@@ -83,8 +83,9 @@
   --sidebar-ring: oklch(0.45 0 0);
 }
 
-/* A character's sheet colour, as one readable shade per theme (see src/lib/sheet-color.ts). Text
-   on the shade uses the surface colour, which the shade is readable against. */
+/* A character's sheet colour, as a value per theme (see src/lib/sheet-color.ts). Text on it uses
+   the surface colour. A sheet background (src/lib/sheet-background.ts) sets the surface tokens
+   above on <body>, as shades of itself, and its tone picks which of these two applies. */
 [data-sheet-color] {
   --primary: var(--sheet-primary-light);
   --primary-foreground: oklch(1 0 0);
