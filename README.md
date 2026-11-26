@@ -18,7 +18,7 @@ A D&D 5e/5.5e character sheet web app built with SolidJS and Firebase.
 - **Authentication** — Firebase Auth with optional guest/skip mode
 - **Cloud sync** — Firestore-backed storage when signed in, localStorage fallback when offline or unauthenticated
 - **Installable / offline-ready** — PWA with service worker caching
-- **Dark mode** — system-aware theme toggle
+- **Dark mode and sheet colors** — system-aware theme toggle, plus a per-character sheet color and background color (presets or custom), with a light or dark background setting the sheet's theme while it's open
 - **Accessibility** — WCAG 2.1 AA target, enforced with axe-core in component tests and axe-playwright in E2E tests, plus E2E audits of color contrast, touch target size, and visible focus in both themes
 - **Automated testing** — Vitest unit/integration tests with enforced coverage thresholds, Playwright E2E tests against the Firebase Local Emulator Suite, visual regression tests (Chromium + Firefox), and Vitest benchmarks
 
