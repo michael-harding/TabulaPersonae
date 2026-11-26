@@ -1,4 +1,4 @@
-import { Show, For, createMemo, type JSX } from "solid-js"
+import { Show, For, children, createMemo, type JSX } from "solid-js"
 import ShieldIcon from "lucide-solid/icons/shield"
 import Zap from "lucide-solid/icons/zap"
 import Sword from "lucide-solid/icons/sword"
@@ -39,6 +39,9 @@ export function StatsBar(props: StatsBarProps) {
   )
   const conditions = createMemo(() => displayedConditions(props.character))
   const spellEffects = createMemo(() => activeSpells(props.character))
+  // Resolved once: a JSX prop is a getter that builds a new instance of the menu on every read, and
+  // the bar needs it in three places
+  const menu = children(() => props.menu)
 
   return (
     <div data-sem="stats-bar" data-test="stats-bar" class="sticky top-0 z-50 backdrop-blur contrast-more:bg-background border-b">
@@ -58,9 +61,9 @@ export function StatsBar(props: StatsBarProps) {
 
       {/* Stats row. With the menu, at least as tall as the button's 44px target, which stays at the
           top as conditions and spells wrap the row onto more lines. */}
-      <div class={cn("flex items-center gap-4 px-4", props.menu ? "min-h-11 py-1.5" : "py-2")}>
-        <Show when={props.menu}>
-          <div class="shrink-0 self-start">{props.menu}</div>
+      <div class={cn("flex items-center gap-4 px-4", menu() ? "min-h-11 py-1.5" : "py-2")}>
+        <Show when={menu()}>
+          <div class="shrink-0 self-start">{menu()}</div>
         </Show>
         <div class="flex min-w-0 flex-1 items-center justify-between gap-4">
           {/* Left: combat stats + conditions */}

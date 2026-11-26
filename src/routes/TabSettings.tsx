@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, untrack, For, Show } from "solid-js"
+import { createSignal, createEffect, on, onCleanup, untrack, For, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import ChevronLeft from "lucide-solid/icons/chevron-left"
 import Pencil from "lucide-solid/icons/pencil"
@@ -7,6 +7,7 @@ import Trash2 from "lucide-solid/icons/trash-2"
 import X from "lucide-solid/icons/x"
 
 import { useTabConfig } from "@/lib/tab-config-context"
+import { useAuth } from "@/lib/auth-context"
 import { useStorageManager } from "@/lib/storage-manager"
 import { saveImportedCharacters } from "@/lib/save-feedback"
 import type { Character } from "@/lib/character-types"
@@ -317,12 +318,22 @@ export default function TabSettings() {
   const navigate = useNavigate()
   const { tabConfig, saveTabConfig } = useTabConfig()
   const storageManager = useStorageManager()
+  const { user, skipAuth, loading: authLoading } = useAuth()
 
-  // For the menu: exporting them all, and the names an import must not repeat
+  // For the menu: exporting them all, and the names an import must not repeat. Loaded only once
+  // sign-in has settled, as Home does: before that the storage is the device's, not the account's.
   const [characters, setCharacters] = createSignal<Character[]>([])
   createEffect(() => {
+    if (authLoading()) return
+    if (!user() && !skipAuth()) {
+      navigate("/auth")
+      return
+    }
+    // A load the sign-in state has since replaced must not overwrite the one that replaced it
+    let current = true
+    onCleanup(() => { current = false })
     storageManager().getCharacters()
-      .then(setCharacters)
+      .then((chars) => { if (current) setCharacters(chars) })
       .catch((err) => console.error("Failed to load characters:", err))
   })
   const handleImport = (toImport: Character[]) => {

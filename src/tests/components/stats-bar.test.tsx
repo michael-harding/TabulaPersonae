@@ -287,6 +287,17 @@ describe("StatsBar menu", () => {
     expect(menu.compareDocumentPosition(screen.getByText("AC")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
+  it("builds the menu it is given once, though it reads it in more than one place", () => {
+    let built = 0
+    function CountedMenu() {
+      built++
+      return <button type="button">Open menu</button>
+    }
+    render(() => <StatsBar character={makeCharacter(8, 10)} menu={<CountedMenu />} />)
+    expect(screen.getAllByRole("button", { name: "Open menu" })).toHaveLength(1)
+    expect(built).toBe(1)
+  })
+
   it("has no menu on the public sheet, where it is given none", () => {
     render(() => <StatsBar character={makeCharacter(8, 10)} />)
     expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument()

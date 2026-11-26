@@ -2,6 +2,10 @@ vi.mock("@/lib/theme", () => ({ theme: () => "system", setTheme: vi.fn() }))
 
 vi.mock("@/hooks/use-toast", async () => (await import("../mocks/toast")).toastModuleMock)
 
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: vi.fn(),
+}))
+
 // Each sortable list the page renders: the ids it holds and the drop handler of the
 // DragDropProvider around it, so a test can deliver a drop to the right list (see `drop`).
 const sortableLists = vi.hoisted(() => [] as { ids: () => (string | number)[]; onDragEnd: (event: DropEvent) => void }[])
@@ -72,17 +76,24 @@ vi.mock("@/lib/tab-config-context", () => ({
 
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
-import type { ParentProps } from "solid-js"
+import { createSignal, type ParentProps } from "solid-js"
+import type { User } from "firebase/auth"
 
+import { useAuth } from "@/lib/auth-context"
 import { createDefaultCharacter, type Character } from "@/lib/character-types"
 import TabSettings from "@/routes/TabSettings"
 
 import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor, confirmClick, finishDrawerClosing } from "../test-utils"
+import { createMockAuth, createTestUser } from "../mocks/auth"
 import { mockNavigate } from "../mocks/router"
 import { mockStorageManager } from "../mocks/storage-manager"
+import { mockToast } from "../mocks/toast"
+
+const mockUseAuth = vi.mocked(useAuth)
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockUseAuth.mockReturnValue(createMockAuth({ user: () => createTestUser() }))
   cleanup()
   currentConfig = {
     tabs: [
@@ -528,6 +539,69 @@ describe("TabSettings page — menu", () => {
     await waitFor(() => expect(mockStorageManager.getCharacters).toHaveBeenCalledOnce())
     await user.click(screen.getByTestId("sidebar-menu-trigger"))
     expect(await screen.findByRole("button", { name: "Export All Characters" })).toBeInTheDocument()
+  })
+
+  describe("waiting for sign-in", () => {
+    // Exporting downloads a file, which jsdom cannot do
+    let downloadClick: ReturnType<typeof vi.spyOn>
+    beforeEach(() => {
+      globalThis.URL.createObjectURL = vi.fn().mockReturnValue("blob:fake")
+      globalThis.URL.revokeObjectURL = vi.fn()
+      downloadClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+      downloadClick.mockRestore()
+    })
+
+    /** Exports every character from the menu and returns what the toast told the user. */
+    async function exportAll(): Promise<string> {
+      const user = userEvent.setup()
+      await user.click(screen.getByTestId("sidebar-menu-trigger"))
+      await user.click(await screen.findByRole("button", { name: "Export All Characters" }))
+      return mockToast.mock.calls.at(-1)![0].description
+    }
+
+    it("loads nothing while the sign-in state is still unknown, then the account's characters", async () => {
+      const [loading, setLoading] = createSignal(true)
+      mockUseAuth.mockReturnValue(createMockAuth({ loading, user: () => createTestUser() }))
+      render(() => <TabSettings />)
+      expect(mockStorageManager.getCharacters).not.toHaveBeenCalled()
+
+      mockStorageManager.getCharacters.mockResolvedValueOnce([{ ...createDefaultCharacter(), id: "char-1", name: "Testy" }])
+      setLoading(false)
+      await waitFor(() => expect(mockStorageManager.getCharacters).toHaveBeenCalledOnce())
+      expect(await exportAll()).toBe("Exported 1 characters successfully!")
+    })
+
+    it("keeps the latest load's characters when an earlier one answers after it", async () => {
+      const [user, setUser] = createSignal<User | null>(null)
+      mockUseAuth.mockReturnValue(createMockAuth({ user, skipAuth: () => true }))
+      // The first load, made for the device's guest characters, answers last
+      let answerFirst!: (chars: Character[]) => void
+      mockStorageManager.getCharacters.mockReturnValueOnce(new Promise((resolve) => { answerFirst = resolve }))
+      render(() => <TabSettings />)
+      await waitFor(() => expect(mockStorageManager.getCharacters).toHaveBeenCalledOnce())
+
+      mockStorageManager.getCharacters.mockResolvedValueOnce([{ ...createDefaultCharacter(), id: "acct-1", name: "Account" }])
+      setUser(createTestUser())
+      await waitFor(() => expect(mockStorageManager.getCharacters).toHaveBeenCalledTimes(2))
+      answerFirst([
+        { ...createDefaultCharacter(), id: "guest-1", name: "Guest 1" },
+        { ...createDefaultCharacter(), id: "guest-2", name: "Guest 2" },
+      ])
+      await Promise.resolve()
+
+      expect(await exportAll()).toBe("Exported 1 characters successfully!")
+    })
+
+    it("sends a signed-out visitor to the sign-in page without loading any characters", async () => {
+      mockUseAuth.mockReturnValue(createMockAuth())
+      render(() => <TabSettings />)
+
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/auth"))
+      expect(mockStorageManager.getCharacters).not.toHaveBeenCalled()
+    })
   })
 
   it("saves a character imported from the menu and opens it", async () => {

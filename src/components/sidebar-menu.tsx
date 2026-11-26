@@ -67,6 +67,13 @@ export function SidebarMenu(props: SidebarMenuProps) {
     afterClose = next
     setIsOpen(false)
   }
+  // The hand-back comes only once the drawer has finished closing. Reopened before then, it never
+  // finishes, so the action chosen is dropped: otherwise a later, unrelated close (Escape, the
+  // overlay) would run it, signing the user out unasked.
+  const handleOpenChange = (open: boolean) => {
+    if (open) afterClose = undefined
+    setIsOpen(open)
+  }
   const handleDrawerCloseAutoFocus = () => {
     const next = afterClose
     afterClose = undefined
@@ -257,7 +264,7 @@ export function SidebarMenu(props: SidebarMenuProps) {
 
   return (
     <>
-      <Drawer open={isOpen()} onOpenChange={setIsOpen}>
+      <Drawer open={isOpen()} onOpenChange={handleOpenChange}>
         <DrawerTrigger
           ref={triggerRef}
           data-sem="sidebar-menu-trigger"

@@ -9,7 +9,7 @@ import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character } from "@/lib/character-types"
 import { setTheme } from "@/lib/theme"
 
-import { cleanup, render, screen, waitFor, within, cleanupPortals, finishDrawerClosing, finishModalClosing } from "../test-utils"
+import { cleanup, render, screen, waitFor, within, cleanupPortals, finishDrawerClosing, finishModalClosing, fireEvent } from "../test-utils"
 import { createMockAuth, createTestUser } from "../mocks/auth"
 
 const mockUseAuth = vi.mocked(useAuth)
@@ -583,6 +583,31 @@ describe("SidebarMenu account", () => {
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce())
     expect(logout).toHaveBeenCalledOnce()
+    expect(screen.queryByTestId("sign-out-dialog")).not.toBeInTheDocument()
+  })
+
+  it("drops Sign Out when the menu is reopened before it has finished closing, so a later close does not sign out", async () => {
+    const logout = vi.fn().mockResolvedValue(undefined)
+    signedInWith(logout)
+    const user = await openMenu()
+
+    await user.click(await screen.findByRole("button", { name: "Sign Out" }))
+    // Reopened while it is still closing: its exit never finishes, so the sign-out is not started.
+    // Clicked directly, since the closing drawer still holds the page's pointer-events: none.
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }))
+    expect(await screen.findByRole("dialog", { name: "Menu" })).toBeInTheDocument()
+
+    // Closed again, unrelated to signing out
+    await user.keyboard("{Escape}")
+    finishDrawerClosing(screen.getByTestId("sidebar-menu"))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Menu" })).not.toBeInTheDocument())
+    // Past the microtask a queued action would run in
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Sign-out's first step is checking for unsynced changes
+    expect(mockHasUnsyncedChanges).not.toHaveBeenCalled()
+    expect(logout).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
     expect(screen.queryByTestId("sign-out-dialog")).not.toBeInTheDocument()
   })
 
