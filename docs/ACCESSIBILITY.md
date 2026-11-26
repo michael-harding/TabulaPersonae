@@ -111,7 +111,8 @@ This document governs all accessibility requirements for this repository. It exp
 - Links within body text must be distinguishable from surrounding non-link text by more than color alone; an underline or other non-color visual indicator must be present.
 - All new or modified color pairings must be verified against the applicable contrast ratio before merge using a color contrast checker.
 - Trackers whose states differ by color must also differ by an icon. `PipTracker` marks available pips with one (a sparkle unless given another), and a new tracker gets this by default.
-- `src/tests/lib/theme-contrast.test.ts` enforces this section for the theme's color tokens. `tests/e2e/contrast.spec.ts` enforces it on the rendered page, in both themes and with every preset sheet color: control boundaries, placeholders, icon-only controls, pip states, swatches, hovered text, and text axe could not decide, which fails rather than passing unchecked.
+- `src/tests/lib/theme-contrast.test.ts` enforces this section for the theme's color tokens, in both themes and over every preset sheet background, including each preset sheet color's shades. `tests/e2e/contrast.spec.ts` enforces it on the rendered page, in both themes, with every preset sheet color, and over every preset sheet background: control boundaries, placeholders, icon-only controls, pip states, swatches, hovered text, and text axe could not decide, which fails rather than passing unchecked.
+- A sheet color or background the player picks with the custom picker is used exactly as picked, and its contrast is the player's responsibility. Only the presets are held to this section, so every preset must pass it in each theme and over each preset background it can appear with.
 
 ---
 
