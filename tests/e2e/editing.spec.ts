@@ -2,7 +2,7 @@ import { type Locator, type Page } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
 import { SHEET_COLOR_PRESETS } from "../../src/lib/sheet-color"
-import { confirmClick, openSheet, reload, seedGuest, storedCharacter } from "./helpers"
+import { confirmClick, openSheet, openSidebar, reload, seedGuest, storedCharacter } from "./helpers"
 import { axeBuilder, finishAnimations, test, expect } from "./test"
 
 // Every change made on the sheet must still be there after a reload. Each scenario changes one
@@ -333,35 +333,63 @@ test.describe("Character tab", () => {
     expect((await storedCharacter(page, id)).notes).toBe("Owes the ferryman two silver.")
   })
 
-  test("sheet colour and edition", async ({ page }) => {
-    await open(page, "Character")
-    await page.locator('[data-test="sheet-color-preset-purple"]').click()
-    // The edition switch is a checkbox labelled by both editions; 2024 is the checked side
-    await page.locator('[data-test="switch-button-sheet-settings-edition-switch"]').uncheck({ force: true })
+  // In the sidebar menu, beside the sheet colour. The background picks the sheet's theme, so a dark
+  // one shows the dark theme in the chromium project, which is otherwise light.
+  test("sheet background", async ({ page }) => {
+    await open(page)
+    const sidebar = await openSidebar(page)
+    await sidebar.locator('[data-test="sheet-background-preset-dark-brown"]').click()
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/)
 
-    await reload(page, "Character")
+    await reload(page)
+    expect((await storedCharacter(page, id)).sheetBackground).toBe("#180f08")
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/)
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(24, 15, 8)")
+
+    await (await openSidebar(page)).locator('[data-test="sheet-background-custom-input"]').fill("#336699")
+    await reload(page)
+    expect((await storedCharacter(page, id)).sheetBackground).toBe("#336699")
+
+    // Reset returns the sheet to the theme's own background
+    await (await openSidebar(page)).locator('[data-test="sheet-background-reset-button"]').click()
+    await reload(page)
+    expect((await storedCharacter(page, id)).sheetBackground).toBeUndefined()
+    expect(await page.evaluate(() => document.body.style.getPropertyValue("--background"))).toBe("")
+  })
+
+  // In the sidebar menu, not on a tab
+  test("sheet colour and edition", async ({ page }) => {
+    await open(page)
+    const sidebar = await openSidebar(page)
+    await sidebar.locator('[data-test="sheet-color-preset-purple"]').click()
+    // The edition switch is a checkbox labelled by both editions; 2024 is the checked side
+    await sidebar.locator('[data-test="switch-button-sheet-settings-edition-switch"]').uncheck({ force: true })
+
+    await reload(page)
     const stored = await storedCharacter(page, id)
     expect(stored.sheetColor).toBe("#8b5cf6")
     expect(stored.edition).toBe("2014")
 
     // Reset returns the sheet to the theme's own colour
-    await page.locator('[data-test="sheet-color-reset-button"]').click()
-    await reload(page, "Character")
+    await (await openSidebar(page)).locator('[data-test="sheet-color-reset-button"]').click()
+    await reload(page)
     expect((await storedCharacter(page, id)).sheetColor).toBeUndefined()
   })
 
-  // Any sheet colour is shown as a shade readable on the theme (src/lib/sheet-color.ts). Checked
-  // in both themes by the chromium and chromium-dark projects, on every tab, for every preset and
-  // for custom colours at both extremes.
-  const sheetColours = [
-    ...SHEET_COLOR_PRESETS.map(({ name }) => ({ name, choose: (page: Page) => page.locator(`[data-test="sheet-color-preset-${name.toLowerCase()}"]`).click() })),
-    ...["#ffff00", "#f2f2f2", "#141414"].map((hex) => ({ name: `custom ${hex}`, choose: (page: Page) => page.locator('[data-test="sheet-color-custom-input"]').fill(hex) })),
-  ]
+  // Each preset sheet colour has a shade readable on the theme (src/lib/sheet-color.ts). Checked
+  // in both themes by the chromium and chromium-dark projects, in the sidebar menu it is chosen in
+  // and on every tab. A custom colour is used as picked, and its contrast is the player's to keep.
+  const sheetColours = SHEET_COLOR_PRESETS.map(({ name }) => ({ name, choose: (page: Page) => page.locator(`[data-test="sheet-color-preset-${name.toLowerCase()}"]`).click() }))
   for (const { name, choose } of sheetColours) {
     test(`sheet colour ${name} keeps the sheet's text readable`, async ({ page }) => {
       await open(page, "Character")
+      await openSidebar(page)
       await choose(page)
       await expect(page.locator("[data-sheet-color]")).toHaveCount(1)
+      const sidebar = await axeBuilder(page).include('[data-test="sidebar-menu"]').withRules(["color-contrast"]).analyze()
+      expect(sidebar.violations, "sidebar menu").toEqual([])
+      await page.keyboard.press("Escape")
+      await expect(page.locator('[data-test="sidebar-menu"]')).toHaveCount(0)
       for (const tab of ["Character", "Combat", "Spells", "Features", "Inventory"]) {
         await page.getByRole("tab", { name: tab }).click()
         await finishAnimations(page)

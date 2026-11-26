@@ -1,14 +1,15 @@
 import { axe } from "vitest-axe"
 import userEvent from "@testing-library/user-event"
 
-import { HeaderMenu } from "@/components/header-menu"
+import { SidebarMenu } from "@/components/sidebar-menu"
+import { DRAWER_TOGGLE } from "@/components/ui/drawer"
 import { useAuth } from "@/lib/auth-context"
 import { hasUnsyncedChanges } from "@/lib/firebase-storage"
 import { createDefaultCharacter } from "@/lib/character-types"
 import type { Character } from "@/lib/character-types"
 import { setTheme } from "@/lib/theme"
 
-import { cleanup, render, screen, waitFor, within, cleanupPortals } from "../test-utils"
+import { cleanup, render, screen, waitFor, within, cleanupPortals, finishDrawerClosing, finishModalClosing, fireEvent } from "../test-utils"
 import { createMockAuth, createTestUser } from "../mocks/auth"
 
 const mockUseAuth = vi.mocked(useAuth)
@@ -50,14 +51,22 @@ const char2: Character = { ...createDefaultCharacter(), id: "id-2", name: "Arago
 const defaultProps = {
   characters: [char1, char2],
   onImport: vi.fn<(characters: Character[]) => Promise<boolean>>(),
-  onAllCharacters: vi.fn(),
 }
 
-async function openMenu(extraProps: Partial<typeof defaultProps & { currentCharacter?: Character }> = {}) {
+async function openMenu(extraProps: Partial<typeof defaultProps & { currentCharacter?: Character; onUpdateCharacter?: (c: Character) => void; hideThemeToggle?: boolean }> = {}) {
   const user = userEvent.setup()
-  render(() => <HeaderMenu {...defaultProps} {...extraProps} />)
-  await user.click(screen.getByRole("button"))
+  render(() => <SidebarMenu {...defaultProps} {...extraProps} />)
+  await user.click(screen.getByRole("button", { name: "Open menu" }))
   return user
+}
+
+/**
+ * Chooses a sidebar button that opens a modal. The modal waits for the sidebar to finish closing,
+ * which jsdom never does on its own (see finishDrawerClosing).
+ */
+async function chooseFromSidebar(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(await screen.findByRole("button", { name }))
+  finishDrawerClosing(screen.getByTestId("sidebar-menu"))
 }
 
 beforeEach(() => {
@@ -75,7 +84,7 @@ afterEach(() => {
   cleanupPortals()
 })
 
-describe("HeaderMenu export label", () => {
+describe("SidebarMenu export label", () => {
   it("shows 'Export All Characters' when no currentCharacter", async () => {
     await openMenu()
     await waitFor(() => expect(screen.getByText("Export All Characters")).toBeInTheDocument())
@@ -92,7 +101,7 @@ describe("HeaderMenu export label", () => {
   })
 })
 
-describe("HeaderMenu theme icon", () => {
+describe("SidebarMenu theme icon", () => {
   it.each(["light", "dark", "system"] as const)("shows the matching icon for the %s theme", async (theme) => {
     themeControl.set(theme)
     await openMenu()
@@ -108,26 +117,24 @@ describe("HeaderMenu theme icon", () => {
   })
 })
 
-describe("HeaderMenu import modal", () => {
+describe("SidebarMenu import modal", () => {
   it("opens the import modal when Import Character is clicked", async () => {
     const user = await openMenu()
-    await waitFor(() => screen.getByText("Import Character"))
-    await user.click(screen.getByText("Import Character"))
+    await chooseFromSidebar(user, "Import Character")
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument())
     expect(screen.getByText("Import Characters")).toBeInTheDocument()
   })
 
   it("import modal contains JSON and PDF file options", async () => {
     const user = await openMenu()
-    await waitFor(() => screen.getByText("Import Character"))
-    await user.click(screen.getByText("Import Character"))
+    await chooseFromSidebar(user, "Import Character")
     await waitFor(() => screen.getByRole("dialog"))
     expect(screen.getByText(/Choose JSON File/i)).toBeInTheDocument()
     expect(screen.getByText(/Choose PDF File/i)).toBeInTheDocument()
   })
 })
 
-describe("HeaderMenu export download", () => {
+describe("SidebarMenu export download", () => {
   beforeEach(() => {
     globalThis.URL.createObjectURL = vi.fn().mockReturnValue("blob:fake")
     globalThis.URL.revokeObjectURL = vi.fn()
@@ -153,23 +160,28 @@ describe("HeaderMenu export download", () => {
   })
 })
 
-describe("HeaderMenu navigation", () => {
-  it("calls onAllCharacters when All Characters item is clicked", async () => {
+describe("SidebarMenu navigation", () => {
+  it("links to All Characters and Tab Settings", async () => {
+    await openMenu()
+    const nav = within(await screen.findByRole("navigation", { name: "Main" }))
+    expect(nav.getByRole("link", { name: "All Characters" })).toHaveAttribute("href", "/")
+    expect(nav.getByRole("link", { name: "Tab Settings" })).toHaveAttribute("href", "/settings/tabs")
+  })
+
+  it.each(["All Characters", "Tab Settings"])("closes the sidebar when %s is followed", async (name) => {
     const user = await openMenu()
-    await waitFor(() => screen.getByRole("menuitem", { name: "All Characters" }))
-    await user.click(screen.getByRole("menuitem", { name: "All Characters" }))
-    expect(defaultProps.onAllCharacters).toHaveBeenCalled()
+    await user.click(await screen.findByRole("link", { name }))
+    await waitFor(() => expect(screen.getByTestId("sidebar-menu")).not.toHaveAttribute("data-expanded"))
   })
 })
 
-describe("HeaderMenu import reconciliation", () => {
+describe("SidebarMenu import reconciliation", () => {
   // armorClass: 15 doesn't match a default character's calculated AC, so a successful
   // reconcile flips useCalculatedArmorClass to false — a clear signal reconciliation ran,
   // as opposed to the raw imported data being passed straight through.
   async function openImportModal() {
     const user = await openMenu()
-    await waitFor(() => screen.getByText("Import Character"))
-    await user.click(screen.getByText("Import Character"))
+    await chooseFromSidebar(user, "Import Character")
     await waitFor(() => screen.getByRole("dialog"))
     return user
   }
@@ -259,7 +271,7 @@ describe("HeaderMenu import reconciliation", () => {
   })
 })
 
-describe("HeaderMenu export result", () => {
+describe("SidebarMenu export result", () => {
   // jsdom cannot download, so these capture what the menu hands the browser: the Blob given to
   // createObjectURL and the filename on the link it clicks.
   let blobs: Blob[] = []
@@ -330,10 +342,10 @@ describe("HeaderMenu export result", () => {
   })
 })
 
-describe("HeaderMenu import failures", () => {
+describe("SidebarMenu import failures", () => {
   async function importJsonText(text: string) {
     const user = await openMenu()
-    await user.click(await screen.findByText("Import Character"))
+    await chooseFromSidebar(user, "Import Character")
     await user.upload(await screen.findByLabelText(/Choose JSON File/i), new File([text], "import.json", { type: "application/json" }))
   }
 
@@ -376,7 +388,7 @@ describe("HeaderMenu import failures", () => {
 
   it("goes by the open character's current name rather than the one in the list", async () => {
     const user = await openMenu({ currentCharacter: { ...char1, name: "Gandalf the White" } })
-    await user.click(await screen.findByText("Import Character"))
+    await chooseFromSidebar(user, "Import Character")
     await user.upload(await screen.findByLabelText(/Choose JSON File/i), new File([JSON.stringify([
       { ...createDefaultCharacter(), id: "c1", name: "Gandalf" },
       { ...createDefaultCharacter(), id: "c2", name: "Gandalf the White" },
@@ -391,7 +403,7 @@ describe("HeaderMenu import failures", () => {
     vi.mocked(parsePdfCharacterSheet).mockResolvedValueOnce({})
     vi.mocked(mergeWithDefault).mockReturnValueOnce({ ...createDefaultCharacter(), name: "Aragorn" })
     const user = await openMenu()
-    await user.click(await screen.findByText("Import Character"))
+    await chooseFromSidebar(user, "Import Character")
     await user.upload(await screen.findByLabelText(/Choose PDF File/i), new File(["x"], "sheet.pdf", { type: "application/pdf" }))
 
     await waitFor(() => expect(toast).toHaveBeenCalledExactlyOnceWith({ title: "PDF Import Successful", description: "Imported Aragorn the Second from PDF!" }))
@@ -413,7 +425,7 @@ describe("HeaderMenu import failures", () => {
     const { parsePdfCharacterSheet } = await import("@/lib/pdf-parser")
     vi.mocked(parsePdfCharacterSheet).mockRejectedValueOnce(failure)
     const user = await openMenu()
-    await user.click(await screen.findByText("Import Character"))
+    await chooseFromSidebar(user, "Import Character")
 
     await user.upload(await screen.findByLabelText(/Choose PDF File/i), new File(["x"], "sheet.pdf", { type: "application/pdf" }))
 
@@ -429,7 +441,7 @@ describe("HeaderMenu import failures", () => {
   })
 })
 
-describe("HeaderMenu import confirmation", () => {
+describe("SidebarMenu import confirmation", () => {
   const frodo = { ...createDefaultCharacter(), id: "c1", name: "Frodo" }
   const jsonImported = { title: "Import Successful", description: "Imported Frodo successfully!" }
   const pdfImported = { title: "PDF Import Successful", description: "Imported Frodo from PDF!" }
@@ -443,7 +455,7 @@ describe("HeaderMenu import confirmation", () => {
 
   async function importFile(kind: "json" | "pdf") {
     const user = await openMenu()
-    await user.click(await screen.findByText("Import Character"))
+    await chooseFromSidebar(user, "Import Character")
     if (kind === "json") {
       await user.upload(await screen.findByLabelText(/Choose JSON File/i), new File([JSON.stringify(frodo)], "import.json", { type: "application/json" }))
     } else {
@@ -489,7 +501,7 @@ describe("HeaderMenu import confirmation", () => {
   })
 })
 
-describe("HeaderMenu theme toggle", () => {
+describe("SidebarMenu theme toggle", () => {
   it.each([
     { from: "dark", to: "light" },
     { from: "light", to: "dark" },
@@ -497,13 +509,21 @@ describe("HeaderMenu theme toggle", () => {
   ] as const)("switches from $from to $to", async ({ from, to }) => {
     themeControl.set(from)
     const user = await openMenu()
-    await user.click(await screen.findByRole("menuitem", { name: "Toggle Theme" }))
+    await user.click(await screen.findByRole("button", { name: "Toggle Theme" }))
 
     expect(setTheme).toHaveBeenCalledExactlyOnceWith(to)
   })
+
+  it("is left out when asked, as on the character sheet, leaving the rest of the group", async () => {
+    await openMenu({ currentCharacter: char1, hideThemeToggle: true })
+    await waitFor(() => expect(screen.getByText("Export Gandalf")).toBeInTheDocument())
+    expect(screen.queryByRole("button", { name: "Toggle Theme" })).not.toBeInTheDocument()
+    expect(screen.queryByTestId(/^theme-icon-/)).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Import Character" })).toBeInTheDocument()
+  })
 })
 
-describe("HeaderMenu account", () => {
+describe("SidebarMenu account", () => {
   // window.location.reload is non-configurable in jsdom by default — redefine once.
   const reload = vi.fn()
   Object.defineProperty(window, "location", {
@@ -523,33 +543,33 @@ describe("HeaderMenu account", () => {
 
   async function chooseSignOut() {
     const user = await openMenu()
-    await user.click(await screen.findByRole("menuitem", { name: "Sign Out" }))
+    await chooseFromSidebar(user, "Sign Out")
     return user
   }
 
   it("names the signed-in account as the menu's first entry, and offers Sign Out instead of Back to Login", async () => {
     await openMenu()
 
-    const menu = await screen.findByRole("menu")
-    const account = within(menu).getByTestId("header-menu-account")
+    const menu = await screen.findByRole("dialog", { name: "Menu" })
+    const account = within(menu).getByTestId("sidebar-menu-account")
     expect(account).toHaveTextContent("user@test.com")
     expect(account).toHaveAttribute("title", "user@test.com")
     // The first entry, ahead of every action
-    expect(account.compareDocumentPosition(within(menu).getAllByRole("menuitem")[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(await screen.findByRole("menuitem", { name: "Sign Out" })).toBeInTheDocument()
-    expect(screen.queryByRole("menuitem", { name: "Back to Login" })).not.toBeInTheDocument()
+    expect(account.compareDocumentPosition(within(menu).getAllByRole("link")[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(await screen.findByRole("button", { name: "Sign Out" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Back to Login" })).not.toBeInTheDocument()
   })
 
   it("says Not Logged In for characters kept only on this device", async () => {
     mockUseAuth.mockReturnValue(createMockAuth({ user: () => null, skipAuth: () => true }))
     await openMenu()
 
-    expect(within(await screen.findByRole("menu")).getByTestId("header-menu-account")).toHaveTextContent("Not Logged In")
-    expect(await screen.findByRole("menuitem", { name: "Back to Login" })).toBeInTheDocument()
+    expect(within(await screen.findByRole("dialog", { name: "Menu" })).getByTestId("sidebar-menu-account")).toHaveTextContent("Not Logged In")
+    expect(await screen.findByRole("button", { name: "Back to Login" })).toBeInTheDocument()
   })
 
   it("keeps the account out of the header itself, on every screen size", () => {
-    render(() => <HeaderMenu {...defaultProps} />)
+    render(() => <SidebarMenu {...defaultProps} />)
     expect(screen.queryByText("user@test.com")).not.toBeInTheDocument()
     expect(screen.queryByText("Not Logged In")).not.toBeInTheDocument()
   })
@@ -557,9 +577,10 @@ describe("HeaderMenu account", () => {
   it("shows the account as information, not as something to choose", async () => {
     await openMenu()
 
-    const account = within(await screen.findByRole("menu")).getByTestId("header-menu-account")
-    expect(account).not.toHaveAttribute("role", "menuitem")
-    expect(screen.queryByRole("menuitem", { name: /user@test\.com/ })).not.toBeInTheDocument()
+    const account = within(await screen.findByRole("dialog", { name: "Menu" })).getByTestId("sidebar-menu-account")
+    expect(account.tagName).toBe("P")
+    expect(screen.queryByRole("button", { name: /user@test\.com/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: /user@test\.com/ })).not.toBeInTheDocument()
   })
 
   it("signs out and reloads straight away when everything is synced", async () => {
@@ -570,6 +591,31 @@ describe("HeaderMenu account", () => {
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce())
     expect(logout).toHaveBeenCalledOnce()
+    expect(screen.queryByTestId("sign-out-dialog")).not.toBeInTheDocument()
+  })
+
+  it("drops Sign Out when the menu is reopened before it has finished closing, so a later close does not sign out", async () => {
+    const logout = vi.fn().mockResolvedValue(undefined)
+    signedInWith(logout)
+    const user = await openMenu()
+
+    await user.click(await screen.findByRole("button", { name: "Sign Out" }))
+    // Reopened while it is still closing: its exit never finishes, so the sign-out is not started.
+    // Clicked directly, since the closing drawer still holds the page's pointer-events: none.
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }))
+    expect(await screen.findByRole("dialog", { name: "Menu" })).toBeInTheDocument()
+
+    // Closed again, unrelated to signing out
+    await user.keyboard("{Escape}")
+    finishDrawerClosing(screen.getByTestId("sidebar-menu"))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Menu" })).not.toBeInTheDocument())
+    // Past the microtask a queued action would run in
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Sign-out's first step is checking for unsynced changes
+    expect(mockHasUnsyncedChanges).not.toHaveBeenCalled()
+    expect(logout).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
     expect(screen.queryByTestId("sign-out-dialog")).not.toBeInTheDocument()
   })
 
@@ -706,8 +752,8 @@ describe("HeaderMenu account", () => {
     localStorage.setItem("dnd-skip-auth", "true")
     const user = await openMenu()
 
-    expect(screen.queryByRole("menuitem", { name: "Sign Out" })).not.toBeInTheDocument()
-    await user.click(await screen.findByRole("menuitem", { name: "Back to Login" }))
+    expect(screen.queryByRole("button", { name: "Sign Out" })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole("button", { name: "Back to Login" }))
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce())
     expect(localStorage.getItem("dnd-skip-auth")).toBeNull()
@@ -722,17 +768,124 @@ describe("HeaderMenu account", () => {
     localStorage.setItem("dnd-skip-auth", "true")
     const user = await openMenu()
 
-    await user.click(await screen.findByRole("menuitem", { name: "Back to Login" }))
+    await user.click(await screen.findByRole("button", { name: "Back to Login" }))
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce())
     expect(localStorage.getItem("dnd-skip-auth")).toBeNull()
   })
 })
 
-describe("HeaderMenu accessibility", () => {
+describe("SidebarMenu accessibility", () => {
   it("has no accessibility violations", async () => {
-    const { container } = render(() => <HeaderMenu {...defaultProps} />)
+    const { container } = render(() => <SidebarMenu {...defaultProps} />)
     const results = await axe(container)
     expect(results.violations).toHaveLength(0)
+  })
+})
+
+describe("SidebarMenu drawer", () => {
+  it("opens a dialog named Menu from the menu button", async () => {
+    await openMenu()
+    expect(await screen.findByRole("dialog", { name: "Menu" })).toHaveAttribute("data-expanded")
+    // Hidden from assistive tech behind the open dialog, so found by its test hook
+    expect(screen.getByTestId("sidebar-menu-trigger")).toHaveAttribute("aria-expanded", "true")
+  })
+
+  // Small enough for the slim bar it sits in, with an invisible hit area that makes it a 44px target
+  it("is a 32px menu button with a 44px hit area", () => {
+    render(() => <SidebarMenu {...defaultProps} />)
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass("h-8", "w-8", "after:h-11", "after:w-11")
+  })
+
+  // The close button takes the title's place, beside the account
+  it("names the dialog Menu for assistive tech only", async () => {
+    await openMenu()
+    const dialog = await screen.findByRole("dialog", { name: "Menu" })
+    expect(within(dialog).getByText("Menu")).toHaveClass("sr-only")
+  })
+
+  it("shows the account in the header, beside the close button", async () => {
+    await openMenu()
+    const dialog = await screen.findByRole("dialog", { name: "Menu" })
+    const account = within(dialog).getByTestId("sidebar-menu-account")
+    expect(account.parentElement).toHaveClass("pl-16")
+  })
+
+  // So the close button, which opens over it, looks the same
+  it("styles the menu button as the drawer's close button", () => {
+    render(() => <SidebarMenu {...defaultProps} />)
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass(...DRAWER_TOGGLE.split(" "))
+  })
+
+  it("places the menu button with the classes it is given", () => {
+    render(() => <SidebarMenu {...defaultProps} class="fixed left-4 top-3" />)
+    const button = screen.getByRole("button", { name: "Open menu" })
+    expect(button).toHaveClass("fixed", "left-4", "top-3", "h-8")
+    // Its own relative would otherwise win over fixed in the stylesheet
+    expect(button).not.toHaveClass("relative")
+  })
+
+  it("returns focus to the menu button when closed", async () => {
+    const user = await openMenu()
+    await screen.findByRole("dialog", { name: "Menu" })
+    await user.keyboard("{Escape}")
+    finishDrawerClosing(screen.getByTestId("sidebar-menu"))
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open menu" })).toHaveFocus())
+  })
+
+  it("returns focus to the menu button when the Import dialog it opened closes", async () => {
+    const user = await openMenu()
+    await chooseFromSidebar(user, "Import Character")
+    const dialog = await screen.findByRole("dialog", { name: "Import Characters" })
+    await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement))
+
+    await user.keyboard("{Escape}")
+    finishModalClosing(dialog)
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open menu" })).toHaveFocus())
+  })
+
+  it("has no accessibility violations while open", async () => {
+    await openMenu({ currentCharacter: char1, onUpdateCharacter: vi.fn() })
+    const results = await axe(await screen.findByRole("dialog", { name: "Menu" }))
+    expect(results.violations).toHaveLength(0)
+  })
+})
+
+describe("SidebarMenu character settings", () => {
+  const onUpdateCharacter = vi.fn()
+
+  it("shows the open character's sheet settings and sharing", async () => {
+    await openMenu({ currentCharacter: char1, onUpdateCharacter })
+    const menu = within(await screen.findByRole("dialog", { name: "Menu" }))
+    expect(menu.getByRole("region", { name: "Sheet Settings" })).toBeInTheDocument()
+    expect(menu.getByRole("region", { name: "Sheet Sharing" })).toBeInTheDocument()
+  })
+
+  it("saves a change through onUpdateCharacter", async () => {
+    const user = await openMenu({ currentCharacter: char1, onUpdateCharacter })
+    await user.click(await screen.findByRole("button", { name: "Purple theme color" }))
+    expect(onUpdateCharacter).toHaveBeenCalledWith(expect.objectContaining({ id: "id-1", sheetColor: "#8b5cf6" }))
+  })
+
+  it("shows no settings without an open character", async () => {
+    await openMenu()
+    await screen.findByRole("dialog", { name: "Menu" })
+    expect(screen.queryByRole("region", { name: "Sheet Settings" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("region", { name: "Sheet Sharing" })).not.toBeInTheDocument()
+  })
+
+  it("shows no settings when the character cannot be saved from here", async () => {
+    await openMenu({ currentCharacter: char1 })
+    await screen.findByRole("dialog", { name: "Menu" })
+    expect(screen.queryByRole("region", { name: "Sheet Settings" })).not.toBeInTheDocument()
+  })
+
+  it("leaves out sharing without a signed-in user", async () => {
+    mockUseAuth.mockReturnValue(createMockAuth({ user: () => null, skipAuth: () => true }))
+    await openMenu({ currentCharacter: char1, onUpdateCharacter })
+    await screen.findByRole("dialog", { name: "Menu" })
+    expect(screen.getByRole("region", { name: "Sheet Settings" })).toBeInTheDocument()
+    expect(screen.queryByRole("region", { name: "Sheet Sharing" })).not.toBeInTheDocument()
   })
 })

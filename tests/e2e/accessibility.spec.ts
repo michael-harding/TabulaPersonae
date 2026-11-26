@@ -168,7 +168,7 @@ test.describe("Modals", () => {
 
 test.describe("Popups", () => {
   for (const overlay of OVERLAYS) {
-    const tag = overlay.name === "header-menu" ? "@mobile " : ""
+    const tag = overlay.name === "sidebar-menu" ? "@mobile " : ""
     test(`${tag}${overlay.name} has no accessibility violations`, async ({ page }) => {
       await seedGuest(page, overlay.character ?? testCharacter, { expandSections: true })
       await openSheet(page, (overlay.character ?? testCharacter).id, overlay.tab)

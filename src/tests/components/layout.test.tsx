@@ -4,7 +4,8 @@ import { axe } from "vitest-axe"
 import Layout from "@/components/layout"
 import { useSyncState } from "@/lib/sync-context"
 
-import { render, screen, cleanupPortals } from "../test-utils"
+import pkg from "../../../package.json"
+import { render, screen, fireEvent, within, cleanupPortals } from "../test-utils"
 
 // The shared router mock in setup.tsx returns a fixed location; route-change focus needs one
 // that can change, so this file backs `pathname` with a signal the tests drive.
@@ -68,13 +69,31 @@ describe("Layout", () => {
     expect(screen.getByText("AGPLv3")).toBeInTheDocument()
   })
 
-  it("renders a Source on GitHub link pointing at the repository", () => {
+  it("renders a GitHub link pointing at the repository", () => {
     render(() => <Layout>{null}</Layout>)
     const link = screen.getByTestId("source-link")
     expect(link).toHaveAttribute("href", "https://github.com/michael-harding/TabulaPersonae")
     expect(link).toHaveAttribute("target", "_blank")
     expect(link).toHaveAttribute("rel", "noopener noreferrer")
-    expect(link).toHaveTextContent("Source on GitHub")
+    expect(link).toHaveTextContent("GitHub")
+  })
+
+  it("opens the Attribution dialog from the footer", () => {
+    render(() => <Layout>{null}</Layout>)
+    fireEvent.click(within(screen.getByRole("contentinfo")).getByRole("button", { name: "Attribution" }))
+    expect(screen.getByRole("dialog", { name: "Attribution" })).toBeInTheDocument()
+  })
+
+  it("shows the package.json version, linked to that version's GitHub release", () => {
+    render(() => <Layout>{null}</Layout>)
+    const link = screen.getByRole("link", { name: `v${pkg.version} release notes` })
+    expect(link).toHaveTextContent(`v${pkg.version}`)
+    expect(link).toHaveAttribute(
+      "href",
+      `https://github.com/michael-harding/TabulaPersonae/releases/tag/v${pkg.version}`,
+    )
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveAttribute("rel", "noopener noreferrer")
   })
 
   it("wraps children in SyncContext so descendants can read/set sync state", () => {

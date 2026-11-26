@@ -9,13 +9,13 @@ import { openSheet, seedGuest, storedCharacters } from "./helpers"
 import { test, expect } from "./test"
 
 // Exporting characters to a file and importing them back — JSON, and a D&D Beyond PDF — through
-// the header menu, as the browser's file chooser and downloads do it. Without an account.
+// the sidebar menu, as the browser's file chooser and downloads do it. Without an account.
 
 const PDF = path.resolve(__dirname, "../../src/tests/test-for-import.pdf")
 
 async function openMenuItem(page: Page, name: string | RegExp) {
-  await page.locator('[data-test="header-menu-trigger"]').click()
-  await page.getByRole("menuitem", { name }).click()
+  await page.locator('[data-test="sidebar-menu-trigger"]').click()
+  await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name }).click()
 }
 
 async function exportFrom(page: Page, item: string | RegExp): Promise<{ download: Download; json: unknown }> {

@@ -8,7 +8,6 @@ export type ModuleId =
   | 'inventory'
   | 'character-info'
   | 'notes'
-  | 'sheet-settings'
 
 export interface TabConfig {
   id: string
@@ -23,8 +22,14 @@ export interface UserTabConfig {
 const VALID_MODULE_IDS = new Set<string>([
   'actions', 'ability-scores', 'combat-stats', 'skills',
   'spells', 'features', 'inventory', 'character-info',
-  'notes', 'sheet-settings',
+  'notes',
 ] satisfies ModuleId[])
+
+/**
+ * Modules that no longer exist, which configs saved before they were removed may still name.
+ * Sheet Settings moved to the sidebar menu (src/components/sidebar-menu.tsx).
+ */
+const RETIRED_MODULE_IDS = new Set<string>(['sheet-settings'])
 
 export function isValidTabConfig(data: unknown): data is UserTabConfig {
   if (!data || typeof data !== 'object') return false
@@ -45,6 +50,24 @@ export function isValidTabConfig(data: unknown): data is UserTabConfig {
   )
 }
 
+/**
+ * A stored tab config, ready to use: a retired module is dropped from its tab rather than failing
+ * the whole config, which would discard the user's tabs for the default ones. A tab left with no
+ * modules is kept. Null if the data is not a tab config.
+ */
+export function parseTabConfig(data: unknown): UserTabConfig | null {
+  const d = data as { tabs?: unknown } | null
+  if (d && typeof d === 'object' && Array.isArray(d.tabs)) {
+    const tabs = d.tabs.map((tab) => {
+      const t = tab as { modules?: unknown } | null
+      if (!t || typeof t !== 'object' || !Array.isArray(t.modules)) return tab
+      return { ...t, modules: t.modules.filter((m) => !RETIRED_MODULE_IDS.has(m as string)) }
+    })
+    data = { ...d, tabs }
+  }
+  return isValidTabConfig(data) ? data : null
+}
+
 export const DEFAULT_TAB_CONFIG: UserTabConfig = {
   tabs: [
     {
@@ -58,7 +81,7 @@ export const DEFAULT_TAB_CONFIG: UserTabConfig = {
     {
       id: 'default-character',
       label: 'Character',
-      modules: ['character-info', 'notes', 'sheet-settings'],
+      modules: ['character-info', 'notes'],
     },
   ],
 }

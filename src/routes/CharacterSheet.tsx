@@ -7,6 +7,7 @@ import FlameKindling from "lucide-solid/icons/flame-kindling"
 import Settings from "lucide-solid/icons/settings"
 
 import { useDocumentTitle } from "@/hooks/use-document-title"
+import { useSheetBackground } from "@/hooks/use-sheet-background"
 import { useSheetColor } from "@/hooks/use-sheet-color"
 import { type Character } from "@/lib/character-types"
 import { withActiveSpellsReconciled } from "@/lib/character-utils"
@@ -19,7 +20,7 @@ import { useTabConfig } from "@/lib/tab-config-context"
 import { MODULE_REGISTRY } from "@/lib/module-registry"
 import { Tooltip } from "@/components/ui/tooltip"
 import { RestModal } from "@/components/rest-modal"
-import { HeaderMenu } from "@/components/header-menu"
+import { SidebarMenu } from "@/components/sidebar-menu"
 import { StatsBar } from "@/components/stats-bar"
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { cn, TOUCH_TARGET_BOX } from "@/lib/utils"
@@ -106,6 +107,7 @@ export default function CharacterSheet() {
   }
 
   useSheetColor(() => charStore.data?.sheetColor)
+  useSheetBackground(() => charStore.data?.sheetBackground)
 
   const handleImport = (toImport: Character[]) => {
     const { imported, saved } = saveImportedCharacters(toImport, storageManager().saveCharacter)
@@ -128,7 +130,18 @@ export default function CharacterSheet() {
       <Show when={charStore.data}>
         {(getChar) => (
           <div data-sem="character-sheet-route" class="bg-background">
-            <StatsBar character={getChar()} />
+            <StatsBar
+              character={getChar()}
+              menu={
+                <SidebarMenu
+                  characters={characters()}
+                  onImport={handleImport}
+                  currentCharacter={charStore.data ?? undefined}
+                  onUpdateCharacter={updateCharacter}
+                  hideThemeToggle
+                />
+              }
+            />
 
             <header class="border-b bg-card">
               <div class="max-w-7xl mx-auto px-4 py-4">
@@ -169,13 +182,6 @@ export default function CharacterSheet() {
                       </Tooltip>
                     </div>
                   </div>
-
-                  <HeaderMenu
-                    characters={characters()}
-                    onImport={handleImport}
-                    onAllCharacters={() => navigate("/")}
-                    currentCharacter={charStore.data ?? undefined}
-                  />
                 </div>
               </div>
             </header>

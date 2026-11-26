@@ -15,7 +15,8 @@ import { notifyIfFailed, saveImportedCharacters } from "@/lib/save-feedback"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ConfirmButton } from "@/components/ui/confirm-button"
-import { HeaderMenu } from "@/components/header-menu"
+import { SidebarMenu } from "@/components/sidebar-menu"
+import { MENU_BUTTON_FLOATING } from "@/components/stats-bar"
 
 export default function Home() {
   const [characters, setCharacters] = createSignal<Character[]>([])
@@ -82,15 +83,9 @@ export default function Home() {
       }
     >
       <div data-sem="home-route" class="bg-background p-4">
-        <div class="max-w-4xl mx-auto">
-          <div class="flex justify-end mb-4">
-            <HeaderMenu
-              characters={characters()}
-              onImport={handleImport}
-              onAllCharacters={() => navigate("/")}
-            />
-          </div>
+        <SidebarMenu characters={characters()} onImport={handleImport} class={MENU_BUTTON_FLOATING} />
 
+        <div class="max-w-4xl mx-auto">
           <div class="text-center py-12">
             <Scroll class="h-16 w-16 mx-auto mb-6 text-primary" aria-hidden="true" />
             <h1 class="text-4xl font-bold mb-4 text-foreground">TabulaPersonae</h1>

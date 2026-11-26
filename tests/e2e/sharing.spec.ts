@@ -2,7 +2,7 @@ import { type Browser, type Page, type TestInfo } from "@playwright/test"
 
 import { testCharacter } from "../visual/fixtures"
 import { createUser, readCharacter, seedCharacter, signIn, withUniqueId } from "./emulator"
-import { openSheet, reload } from "./helpers"
+import { openSheet, openSidebar, reload } from "./helpers"
 import { axeBuilder, finishAnimations, guardAgainstFirebase, test, expect } from "./test"
 
 // Sharing a character publicly, and who can see what. Against the Firebase emulators, so
@@ -31,12 +31,16 @@ test.describe("Sharing a character", () => {
     await seedCharacter(owner.uid, character)
     await context.grantPermissions(["clipboard-read", "clipboard-write"])
     await signIn(page, owner)
-    await openSheet(page, character.id, "Character")
+    await openSheet(page, character.id)
 
+    // Sharing is in the sidebar menu, which stays open on the owner's page throughout
+    await openSidebar(page)
     await shareSwitch(page).check({ force: true })
     const shareUrl = `${new URL(page.url()).origin}/share/${character.id}`
     await expect(page.locator('[data-test="share-url-input"]')).toHaveValue(shareUrl)
     await expect(page.getByRole("img", { name: "QR code for share link" })).toBeVisible()
+    // The sidebar with sharing on, its link and QR code showing
+    await expectNoViolations(page)
     await page.locator('[data-test="share-url-copy-button"]').click()
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(shareUrl)
     await expect.poll(async () => (await readCharacter(character.id))?.isPublic).toBe(true)

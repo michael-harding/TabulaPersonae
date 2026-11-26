@@ -147,7 +147,7 @@ export async function signIn(page: Page, user: TestUser): Promise<void> {
   await page.locator('[data-test="auth-password-input"]').fill(user.password)
   await page.locator('[data-test="auth-submit-button"]').click()
   await expect(page).toHaveURL("/")
-  await expect(page.locator('[data-test="header-menu-trigger"]')).toBeVisible()
+  await expect(page.locator('[data-test="sidebar-menu-trigger"]')).toBeVisible()
 }
 
 // ── Whole emulator ──────────────────────────────────────────────────────────────────────────────

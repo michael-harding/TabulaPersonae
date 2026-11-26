@@ -1,6 +1,7 @@
 import { type Page } from "@playwright/test"
 import axe from "axe-core"
 
+import { SHEET_BACKGROUND_PRESETS } from "../../src/lib/sheet-background"
 import { SHEET_COLOR_PRESETS } from "../../src/lib/sheet-color"
 import { secondCharacter, testCharacter } from "../visual/fixtures"
 import { SCENES, SHEET_TABS, useContrastHelpers } from "./contrast-audit"
@@ -12,7 +13,7 @@ import { axeBuilder, contrastScan, finishAnimations, STATS_BAR, test, expect } f
 //   - the boundary of each form control, and each placeholder;
 //   - icon-only controls;
 //   - pips, whose used and available states must differ by more than colour;
-//   - the sheet colour swatches, whose own colours can be anything;
+//   - the sheet colour and background swatches, whose own colours can be anything;
 //   - text, with axe, where a result it could not decide also fails;
 //   - text while hovered, with axe.
 
@@ -88,10 +89,10 @@ function auditNonText(page: Page, within?: string): Promise<Finding[]> {
       }
     }
 
-    // Sheet colour swatches: the player's colour may not stand out, so its boundary has to
+    // Sheet colour and background swatches: the colour may not stand out, so its boundary has to
     const swatches = [
-      ...seen("[data-test^='sheet-color-preset-']").map((button) => ({ swatch: button.firstElementChild!, pressed: button.getAttribute("aria-pressed") === "true", button })),
-      ...Array.from(scope.querySelectorAll("[data-test='sheet-color-custom-input']")).map((input) => ({ swatch: input.parentElement!, pressed: null, button: input })),
+      ...seen("[data-test^='sheet-color-preset-'],[data-test^='sheet-background-preset-']").map((button) => ({ swatch: button.firstElementChild!, pressed: button.getAttribute("aria-pressed") === "true", button })),
+      ...Array.from(scope.querySelectorAll("[data-test='sheet-color-custom-input'],[data-test='sheet-background-custom-input']")).map((input) => ({ swatch: input.parentElement!, pressed: null, button: input })),
     ]
     for (const { swatch, pressed, button } of swatches) {
       require(button, "swatch boundary", boundary(swatch), NON_TEXT)
@@ -177,15 +178,30 @@ test.describe("Contrast", () => {
     })
   }
 
-  for (const { name, hex } of SHEET_COLOR_PRESETS) {
+  for (const { name, value } of SHEET_COLOR_PRESETS) {
     test(`sheet colour ${name}, every tab`, async ({ page }) => {
-      await seedGuest(page, { ...testCharacter, sheetColor: hex }, { expandSections: true })
+      await seedGuest(page, { ...testCharacter, sheetColor: value }, { expandSections: true })
       await openSheet(page, testCharacter.id)
       for (const tab of SHEET_TABS) {
         await page.getByRole("tab", { name: tab }).click()
         await expectContrast(page)
       }
     })
+  }
+
+  // A preset background sets the theme too, so each looks the same in both projects. The gold
+  // sheet colour has the least contrast to spare on the light ones, purple on the dark.
+  for (const { name, value } of SHEET_BACKGROUND_PRESETS) {
+    for (const sheetColor of [undefined, "#eab308", "#8b5cf6"]) {
+      test(`background ${name}, sheet colour ${sheetColor ?? "default"}, every tab`, async ({ page }) => {
+        await seedGuest(page, { ...testCharacter, sheetBackground: value, sheetColor }, { expandSections: true })
+        await openSheet(page, testCharacter.id)
+        for (const tab of SHEET_TABS) {
+          await page.getByRole("tab", { name: tab }).click()
+          await expectContrast(page)
+        }
+      })
+    }
   }
 })
 
@@ -221,9 +237,18 @@ test.describe("Stats bar", () => {
   }
 
   // The sheet colour can reach the bar (its links, focus rings and any primary-coloured text)
-  for (const { name, hex } of SHEET_COLOR_PRESETS) {
+  for (const { name, value } of SHEET_COLOR_PRESETS) {
     test(`passes every axe check with sheet colour ${name}`, async ({ page }) => {
-      await seedGuest(page, { ...testCharacter, sheetColor: hex })
+      await seedGuest(page, { ...testCharacter, sheetColor: value })
+      await openSheet(page, testCharacter.id)
+      expect(await scanBar(page)).toEqual({ violations: [], undecided: [] })
+    })
+  }
+
+  // The bar is see-through over the sheet background
+  for (const { name, value } of SHEET_BACKGROUND_PRESETS) {
+    test(`passes every axe check over the ${name} background`, async ({ page }) => {
+      await seedGuest(page, { ...testCharacter, sheetBackground: value })
       await openSheet(page, testCharacter.id)
       expect(await scanBar(page)).toEqual({ violations: [], undecided: [] })
     })
@@ -304,8 +329,8 @@ test.describe("Contrast while hovering", () => {
     await useContrastHelpers(page)
   })
 
-  const colours = [{ name: "default", hex: undefined }, ...SHEET_COLOR_PRESETS.filter(({ name }) => name === "Gold" || name === "Purple")]
-  for (const { name, hex } of colours) {
+  const colours = [{ name: "default", value: undefined }, ...SHEET_COLOR_PRESETS.filter(({ name }) => name === "Gold" || name === "Purple")]
+  for (const { name, value: hex } of colours) {
     for (const tab of SHEET_TABS) {
       test(`${name} sheet colour, ${tab} tab`, async ({ page }) => {
         await seedGuest(page, { ...testCharacter, sheetColor: hex }, { expandSections: true })

@@ -17,8 +17,8 @@ test.describe("Creating characters", () => {
     await expect(page.getByRole("tab").first()).toBeVisible()
     const id = page.url().split("/").at(-1)!
 
-    await page.locator('[data-test="header-menu-trigger"]').click()
-    await page.getByRole("menuitem", { name: "All Characters" }).click()
+    await page.locator('[data-test="sidebar-menu-trigger"]').click()
+    await page.locator('[data-test="sidebar-menu"]').getByRole("link", { name: "All Characters" }).click()
     await expect(page).toHaveURL("/")
     await expect(card(page, "Unnamed Character")).toHaveAttribute("href", `/character/${id}`)
 
@@ -81,8 +81,8 @@ test.describe("Leaving guest mode", () => {
     // Without an account, the menu says so
     await expectAccount(page, "Not Logged In")
 
-    await page.locator('[data-test="header-menu-trigger"]').click()
-    await page.getByRole("menuitem", { name: "Back to Login" }).click()
+    await page.locator('[data-test="sidebar-menu-trigger"]').click()
+    await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name: "Back to Login" }).click()
 
     // Leaving guest mode lands on the sign-in page
     await expect(page.locator('[data-test="auth-skip-button"]')).toBeVisible()

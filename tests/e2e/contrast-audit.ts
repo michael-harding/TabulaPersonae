@@ -3,7 +3,7 @@ import { type Page, type TestInfo } from "@playwright/test"
 import { publicCharacter, secondCharacter, testCharacter } from "../visual/fixtures"
 import type { Character } from "../../src/lib/character-types"
 import { blockFirestore, createUser, seedCharacter, signIn, withUniqueId } from "./emulator"
-import { openSheet, seedGuest } from "./helpers"
+import { openSheet, openSidebar, seedGuest } from "./helpers"
 import { expect } from "./test"
 
 // What contrast.spec.ts and focus-visible.spec.ts have in common: the colour arithmetic they run
@@ -208,9 +208,19 @@ export const SCENES: Scene[] = [
     within: DIALOG,
     open: async (page) => {
       await openGuestSheet(page, "Combat")
-      await page.locator('[data-test="header-menu-trigger"]').click()
-      await page.getByRole("menuitem", { name: "Import Character" }).click()
-      await expect(page.getByRole("dialog")).toBeVisible()
+      await (await openSidebar(page)).getByRole("button", { name: "Import Character" }).click()
+      // It opens once the sidebar has closed, which is a dialog too until then
+      await expect(page.locator('[data-test="sidebar-menu"]')).toHaveCount(0)
+      await expect(page.locator('[data-test="import-dialog"]')).toBeVisible()
+    },
+  },
+  {
+    // With the open character's sheet settings in it
+    name: "sidebar menu",
+    within: DIALOG,
+    open: async (page) => {
+      await openGuestSheet(page, "Combat")
+      await openSidebar(page)
     },
   },
   {
@@ -220,6 +230,15 @@ export const SCENES: Scene[] = [
       await page.goto("/auth")
       await page.locator('[data-test="auth-skip-button"]').click()
       await expect(page.getByRole("dialog", { name: "Terms of Use & Privacy Policy" })).toBeVisible()
+    },
+  },
+  {
+    name: "attribution dialog",
+    within: DIALOG,
+    open: async (page) => {
+      await page.goto("/terms")
+      await page.locator('[data-test="attribution-link"]').click()
+      await expect(page.getByRole("dialog", { name: "Attribution" })).toBeVisible()
     },
   },
   {
@@ -270,8 +289,8 @@ export const SCENES: Scene[] = [
       await blockFirestore(page)
       await page.locator('[data-test="hp-increase-button"]').click()
       await expect(page.locator('[data-test="current-hp"]')).toHaveText("39")
-      await page.locator('[data-test="header-menu-trigger"]').click()
-      await page.getByRole("menuitem", { name: "Sign Out" }).click()
+      await page.locator('[data-test="sidebar-menu-trigger"]').click()
+      await page.locator('[data-test="sidebar-menu"]').getByRole("button", { name: "Sign Out" }).click()
       await expect(page.locator('[data-test="sign-out-dialog"]')).toBeVisible()
     },
   },
@@ -282,7 +301,8 @@ export const SCENES: Scene[] = [
       const character = withUniqueId(testCharacter)
       await seedCharacter(user.uid, character)
       await signIn(page, user)
-      await openSheet(page, character.id, "Character")
+      await openSheet(page, character.id)
+      await openSidebar(page)
       await page.locator('[data-test="switch-button-sheet-settings-share-switch"]').check({ force: true })
       await expect(page.locator('[data-test="share-url-input"]')).toBeVisible()
     },

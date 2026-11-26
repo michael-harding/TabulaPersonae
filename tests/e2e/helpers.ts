@@ -86,13 +86,23 @@ export async function confirmClick(button: Locator): Promise<void> {
   await button.click()
 }
 
+/** Opens the sidebar menu: navigation, import and export, and the open character's settings. */
+export async function openSidebar(page: Page): Promise<Locator> {
+  await page.locator('[data-test="sidebar-menu-trigger"]').click()
+  const sidebar = page.locator('[data-test="sidebar-menu"]')
+  await expect(sidebar).toBeVisible()
+  // Until it has slid in, a forced click (as a switch's hidden checkbox needs) can land off-screen
+  await sidebar.evaluate((el) => Promise.all(el.getAnimations().map((animation) => animation.finished.catch(() => {}))))
+  return sidebar
+}
+
 /**
- * The account the header menu names as its first entry — the signed-in email, or "Not Logged In"
+ * The account the sidebar menu names first — the signed-in email, or "Not Logged In"
  * for characters kept only on this device. Opens the menu to read it and closes it again.
  */
 export async function expectAccount(page: Page, account: string): Promise<void> {
-  await page.locator('[data-test="header-menu-trigger"]').click()
-  await expect(page.locator('[data-test="header-menu-account"]')).toHaveText(account)
+  await page.locator('[data-test="sidebar-menu-trigger"]').click()
+  await expect(page.locator('[data-test="sidebar-menu-account"]')).toHaveText(account)
   await page.keyboard.press("Escape")
-  await expect(page.getByRole("menu")).toHaveCount(0)
+  await expect(page.locator('[data-test="sidebar-menu"]')).toHaveCount(0)
 }

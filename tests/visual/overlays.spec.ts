@@ -27,7 +27,7 @@ for (const theme of ["light", "dark"] as const) {
   })
 }
 
-// Only the overlays whose layout changes at phone width: the header menu's matches its desktop baseline.
+// Only the overlays whose layout changes at phone width: the sidebar menu's matches its desktop baseline (it is 320px wide down to a 376px viewport).
 test.describe("Overlays — phone", () => {
   test.use({ viewport: PHONE })
 

@@ -4,9 +4,15 @@ import { defineConfig } from 'vite'
 import solid from 'vite-plugin-solid'
 import { VitePWA } from 'vite-plugin-pwa'
 
+import pkg from './package.json'
 import { stripDataAttributesBabelPlugin } from './vite-plugins/strip-data-attributes'
 
 export default defineConfig(({ mode }) => ({
+  define: {
+    // The version shown in the footer. The visual regression server (`pnpm dev:visual`) pins it so a
+    // version bump doesn't change every page baseline.
+    __APP_VERSION__: JSON.stringify(mode === 'visual' ? '0.0.0' : pkg.version),
+  },
   plugins: [
     solid({
       babel: { plugins: mode === 'production' ? [stripDataAttributesBabelPlugin] : [] },

@@ -49,6 +49,23 @@ export function finishClosing(el: Element) {
   el.dispatchEvent(end)
 }
 
+/**
+ * Ends a closing Drawer's exit animations (see finishClosing): its panel's, passed in, and its
+ * overlay's. Its portal, and the focus hand-back, wait for both.
+ */
+export function finishDrawerClosing(panel: Element) {
+  finishClosing(panel)
+  const overlay = document.querySelector('[data-test="drawer-overlay"]')
+  if (overlay) finishClosing(overlay)
+}
+
+/** Ends a closing Modal's exit animations: its content's, passed in, and its overlay's. */
+export function finishModalClosing(content: Element) {
+  finishClosing(content)
+  const overlay = document.querySelector('[data-test="modal-overlay"]')
+  if (overlay) finishClosing(overlay)
+}
+
 /** Taps a tooltip-only element (Tooltip's `toggleOnClick`) and asserts the tooltip it shows. */
 export async function expectTapTooltip(el: Element, text: string | RegExp) {
   cleanupPortals()

@@ -21,7 +21,7 @@ import {
 import { getDb } from './firebase';
 import type { Character } from './character-types';
 import { migrateCharacter } from './character-migrations';
-import { isValidTabConfig } from './tab-config-types';
+import { parseTabConfig } from './tab-config-types';
 import type { UserTabConfig } from './tab-config-types';
 
 const CHARACTERS_COLLECTION = 'characters';
@@ -250,7 +250,7 @@ export async function getTabConfigFromFirebase(userId: string): Promise<UserTabC
     if (!snap.exists()) return null;
     const data = snap.data();
     const raw = data?.tabConfig;
-    return isValidTabConfig(raw) ? raw : null;
+    return parseTabConfig(raw);
   } catch (error) {
     const fe = error as { code?: string; message?: string }
     // `unavailable` is an offline cache miss — expected, so there is no error to report.

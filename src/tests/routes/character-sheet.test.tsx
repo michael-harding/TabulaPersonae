@@ -16,6 +16,7 @@ vi.mock("@/hooks/use-toast", async () => (await import("../mocks/toast")).toastM
 vi.mock("@/lib/theme", () => ({
   theme: () => "system",
   setTheme: vi.fn(),
+  setSheetTone: vi.fn(),
 }))
 
 import { axe } from "vitest-axe"
@@ -27,10 +28,12 @@ import { subscribeToCharacter, type CharacterSyncSnapshot } from "@/lib/firebase
 import { useSyncState } from "@/lib/sync-context"
 import { useTabConfig } from "@/lib/tab-config-context"
 import { DEFAULT_TAB_CONFIG } from "@/lib/tab-config-types"
+import { sheetBackground } from "@/lib/sheet-background"
 import { sheetColorShades } from "@/lib/sheet-color"
+import { setSheetTone } from "@/lib/theme"
 import CharacterSheet from "@/routes/CharacterSheet"
 
-import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor } from "../test-utils"
+import { cleanup, cleanupPortals, render, screen, fireEvent, waitFor, within, finishDrawerClosing } from "../test-utils"
 import { createMockAuth, createTestUser } from "../mocks/auth"
 import { mockNavigate } from "../mocks/router"
 import { mockStorageManager } from "../mocks/storage-manager"
@@ -342,7 +345,7 @@ describe("CharacterSheet colour", () => {
     return document.body
   }
 
-  it("gives the sheet a readable shade of its colour for each theme", async () => {
+  it("gives the sheet its colour's shade for each theme", async () => {
     const shades = sheetColorShades("#eab308")!
     const sheet = await renderWithColour("#eab308")
     expect(sheet).toHaveAttribute("data-sheet-color")
@@ -360,7 +363,7 @@ describe("CharacterSheet colour", () => {
 
   it("goes back to the theme's own colour when the sheet colour is reset", async () => {
     const sheet = await renderWithColour("#eab308")
-    fireEvent.click(screen.getByRole("tab", { name: "Character" }))
+    fireEvent.click(screen.getByTestId("sidebar-menu-trigger"))
     fireEvent.click(await screen.findByTestId("sheet-color-reset-button"))
     await waitFor(() => expect(sheet).not.toHaveAttribute("data-sheet-color"))
     expect(sheet.style.getPropertyValue("--sheet-primary-light")).toBe("")
@@ -377,6 +380,60 @@ describe("CharacterSheet colour", () => {
   })
 })
 
+// Also on <body>, for the same reason. Its tone goes to theme.ts as the page's light or dark,
+// which theme.test.ts covers.
+describe("CharacterSheet background", () => {
+  const tone = vi.mocked(setSheetTone)
+
+  async function renderWithBackground(sheetBackground: string | undefined) {
+    tone.mockClear()
+    mockStorageManager.getCharacters.mockResolvedValue([{ ...testCharacter, sheetBackground }])
+    await renderAndLoad()
+    return document.body
+  }
+
+  it("gives the page the background and its shades as the surface colours", async () => {
+    const { style } = sheetBackground("#180f08")!
+    const body = await renderWithBackground("#180f08")
+    for (const [name, value] of Object.entries(style)) expect(body.style.getPropertyValue(name), name).toBe(value)
+  })
+
+  it.each([["#180f08", "dark"], ["#fef9ee", "light"]] as const)("shows a %s background in the %s theme", async (hex, expected) => {
+    await renderWithBackground(hex)
+    expect(tone).toHaveBeenLastCalledWith(expected)
+  })
+
+  it("keeps the theme's own surfaces and theme when the character has none", async () => {
+    const body = await renderWithBackground(undefined)
+    expect(body.style.getPropertyValue("--background")).toBe("")
+    expect(tone).not.toHaveBeenCalled()
+  })
+
+  it("goes back to the theme's own when the background is reset", async () => {
+    const body = await renderWithBackground("#180f08")
+    fireEvent.click(screen.getByTestId("sidebar-menu-trigger"))
+    fireEvent.click(await screen.findByTestId("sheet-background-reset-button"))
+    await waitFor(() => expect(body.style.getPropertyValue("--background")).toBe(""))
+    expect(body.style.getPropertyValue("--card")).toBe("")
+    expect(tone).toHaveBeenLastCalledWith(null)
+  })
+
+  // The background, not the player's theme, can decide light or dark here, so the toggle is left out
+  it("leaves the theme toggle out of the sheet's sidebar menu", async () => {
+    await renderWithBackground(undefined)
+    fireEvent.click(screen.getByTestId("sidebar-menu-trigger"))
+    expect(await screen.findByTestId("sheet-background-swatches")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Toggle Theme" })).not.toBeInTheDocument()
+  })
+
+  it("takes the background away when the sheet closes, so other pages keep the player's theme", async () => {
+    const body = await renderWithBackground("#180f08")
+    cleanup()
+    expect(body.style.getPropertyValue("--background")).toBe("")
+    expect(tone).toHaveBeenLastCalledWith(null)
+  })
+})
+
 describe("CharacterSheet header actions", () => {
   it("opens the tab settings page from the Configure tabs button", async () => {
     await renderAndLoad()
@@ -390,20 +447,55 @@ describe("CharacterSheet header actions", () => {
     expect(await screen.findByTestId("rest-confirm-button")).toBeInTheDocument()
   })
 
-  it("returns to the character list from the menu's All Characters item", async () => {
+  it("links to the character list and the tab settings from the sidebar menu", async () => {
     const user = userEvent.setup()
     await renderAndLoad()
-    await user.click(screen.getByTestId("header-menu-trigger"))
-    await user.click(await screen.findByRole("menuitem", { name: "All Characters" }))
-    expect(mockNavigate).toHaveBeenCalledWith("/")
+    await user.click(screen.getByTestId("sidebar-menu-trigger"))
+    expect(await screen.findByTestId("sidebar-all-characters-link")).toHaveAttribute("href", "/")
+    expect(screen.getByTestId("sidebar-tab-settings-link")).toHaveAttribute("href", "/settings/tabs")
+  })
+
+  it("keeps the Configure tabs button alongside the sidebar's Tab Settings link", async () => {
+    await renderAndLoad()
+    expect(screen.getByTestId("configure-tabs-button")).toBeInTheDocument()
+  })
+
+  it("offers the open character's sheet settings and sharing in the sidebar menu", async () => {
+    const user = userEvent.setup()
+    await renderAndLoad()
+    await user.click(screen.getByTestId("sidebar-menu-trigger"))
+    const menu = within(await screen.findByTestId("sidebar-menu"))
+    expect(menu.getByTestId("switch-button-sheet-settings-edition-switch")).toBeInTheDocument()
+    expect(menu.getByTestId("sheet-color-swatches")).toBeInTheDocument()
+  })
+
+  it("saves a setting changed in the sidebar menu", async () => {
+    const user = userEvent.setup()
+    await renderAndLoad()
+    await user.click(screen.getByTestId("sidebar-menu-trigger"))
+    await user.click(await screen.findByTestId("sheet-color-preset-purple"))
+    await waitFor(() => expect(mockStorageManager.saveCharacter).toHaveBeenCalledWith(expect.objectContaining({ sheetColor: "#8b5cf6" })))
+  })
+
+  it("no longer shows sheet settings on the Character tab", async () => {
+    await renderAndLoad()
+    fireEvent.click(screen.getByRole("tab", { name: "Character" }))
+    expect(screen.queryByTestId("sheet-color-swatches")).not.toBeInTheDocument()
+  })
+
+  // The sticky stats bar keeps it in view on every screen size, without covering the sheet
+  it("puts the menu button in the stats bar", async () => {
+    await renderAndLoad()
+    expect(screen.getByTestId("stats-bar")).toContainElement(screen.getByTestId("sidebar-menu-trigger"))
   })
 
   describe("importing from the menu", () => {
     async function importJson(content: unknown) {
       const user = userEvent.setup()
       await renderAndLoad()
-      await user.click(screen.getByTestId("header-menu-trigger"))
-      await user.click(await screen.findByRole("menuitem", { name: /import character/i }))
+      await user.click(screen.getByTestId("sidebar-menu-trigger"))
+      await user.click(await screen.findByRole("button", { name: /import character/i }))
+      finishDrawerClosing(screen.getByTestId("sidebar-menu"))
       const file = new File([JSON.stringify(content)], "import.json", { type: "application/json" })
       await user.upload(await screen.findByLabelText(/choose json file/i), file)
     }

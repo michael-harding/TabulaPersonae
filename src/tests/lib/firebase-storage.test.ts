@@ -520,6 +520,17 @@ describe('getTabConfigFromFirebase', () => {
     expect(await getTabConfigFromFirebase('user-123')).toEqual(tabConfig)
   })
 
+  // Sheet Settings moved to the sidebar menu; a config saved before then keeps the user's tabs
+  it('drops the retired Sheet Settings module rather than rejecting the stored tabConfig', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    const tabConfig = { tabs: [{ id: 'custom-1', label: 'Custom', modules: ['spells', 'sheet-settings'] }] }
+    mockGetDoc.mockResolvedValue(makeDocSnap(true, { tabConfig }))
+
+    expect(await getTabConfigFromFirebase('user-123')).toEqual({
+      tabs: [{ id: 'custom-1', label: 'Custom', modules: ['spells'] }],
+    })
+  })
+
   it('returns null when the stored tabConfig is malformed', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     mockGetDoc.mockResolvedValue(makeDocSnap(true, { tabConfig: { notATabs: true } }))

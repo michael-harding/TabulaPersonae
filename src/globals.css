@@ -15,7 +15,8 @@
   --secondary: oklch(0.45 0.2 260);
   --secondary-foreground: oklch(1 0 0);
   --muted: oklch(34.07% 0.00004 271.152);
-  --muted-foreground: oklch(0.52 0 0);
+  /* Dark enough to stay 4.5:1 on the Parchment sheet background's well (src/lib/sheet-background.ts) */
+  --muted-foreground: oklch(0.49 0 0);
   /* The hover and highlight shade. Muted text on it is still 4.6:1 (WCAG 1.4.3). */
   --accent: oklch(0.90 0 0);
   --accent-foreground: oklch(0.35 0 0);
@@ -83,8 +84,9 @@
   --sidebar-ring: oklch(0.45 0 0);
 }
 
-/* A character's sheet colour, as one readable shade per theme (see src/lib/sheet-color.ts). Text
-   on the shade uses the surface colour, which the shade is readable against. */
+/* A character's sheet colour, as a value per theme (see src/lib/sheet-color.ts). Text on it uses
+   the surface colour. A sheet background (src/lib/sheet-background.ts) sets the surface tokens
+   above on <body>, as shades of itself, and its tone picks which of these two applies. */
 [data-sheet-color] {
   --primary: var(--sheet-primary-light);
   --primary-foreground: oklch(1 0 0);

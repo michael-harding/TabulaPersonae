@@ -436,6 +436,8 @@ export interface Character {
   heroicInspiration?: boolean
 
   sheetColor?: string
+  /** The sheet's page colour, as hex (see src/lib/sheet-background.ts). Missing: the theme's own. */
+  sheetBackground?: string
 
   // Both editions
   edition?: "2014" | "2024"

@@ -1,4 +1,4 @@
-import { DEFAULT_TAB_CONFIG, isValidTabConfig } from "@/lib/tab-config-types"
+import { DEFAULT_TAB_CONFIG, isValidTabConfig, parseTabConfig } from "@/lib/tab-config-types"
 
 describe("isValidTabConfig", () => {
   it("accepts the default configuration", () => {
@@ -30,5 +30,58 @@ describe("isValidTabConfig", () => {
     ["one invalid tab among valid ones", { tabs: [{ id: "t1", label: "Combat", modules: [] }, { id: "t2" }] }],
   ])("rejects %s", (_label, config) => {
     expect(isValidTabConfig(config)).toBe(false)
+  })
+})
+
+describe("parseTabConfig", () => {
+  it("returns a valid config as it is", () => {
+    expect(parseTabConfig(DEFAULT_TAB_CONFIG)).toEqual(DEFAULT_TAB_CONFIG)
+  })
+
+  // Sheet Settings moved to the sidebar menu. A config saved before then must keep the user's own
+  // tabs, rather than failing validation and falling back to the default ones.
+  it("drops the retired Sheet Settings module and keeps the user's tabs", () => {
+    const saved = {
+      tabs: [
+        { id: "mine", label: "Everything", modules: ["actions", "sheet-settings", "notes"] },
+        { id: "other", label: "Spells", modules: ["spells"] },
+      ],
+    }
+    expect(parseTabConfig(saved)).toEqual({
+      tabs: [
+        { id: "mine", label: "Everything", modules: ["actions", "notes"] },
+        { id: "other", label: "Spells", modules: ["spells"] },
+      ],
+    })
+  })
+
+  it("keeps a tab that held only the retired module, now empty", () => {
+    expect(parseTabConfig({ tabs: [{ id: "s", label: "Settings", modules: ["sheet-settings"] }] })).toEqual({
+      tabs: [{ id: "s", label: "Settings", modules: [] }],
+    })
+  })
+
+  it("does not change the data it was given", () => {
+    const saved = { tabs: [{ id: "s", label: "Settings", modules: ["sheet-settings"] }] }
+    parseTabConfig(saved)
+    expect(saved.tabs[0].modules).toEqual(["sheet-settings"])
+  })
+
+  it("still rejects a module that never existed", () => {
+    expect(parseTabConfig({ tabs: [{ id: "t", label: "T", modules: ["not-a-module"] }] })).toBeNull()
+  })
+
+  it.each([
+    ["null", null],
+    ["a string", "tabs"],
+    ["no tabs list", { notTabs: [] }],
+    ["a tab that is not an object", { tabs: [null] }],
+    ["a tab without a modules list", { tabs: [{ id: "t", label: "T" }] }],
+  ])("returns null for %s", (_label, data) => {
+    expect(parseTabConfig(data)).toBeNull()
+  })
+
+  it("no longer lists Sheet Settings in the default tabs", () => {
+    expect(DEFAULT_TAB_CONFIG.tabs.flatMap((t) => t.modules)).not.toContain("sheet-settings")
   })
 })

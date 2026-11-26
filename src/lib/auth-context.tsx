@@ -77,7 +77,7 @@ export const AuthProvider: ParentComponent = (props) => {
   // Skip auth means we don't wait for Firebase — loading resolves immediately
   const [loading, setLoading] = createSignal(!isSkipAuth)
   // Fixed for the life of the page: the flag is only ever changed together with a reload (see
-  // Auth.tsx and header-menu.tsx).
+  // Auth.tsx and sidebar-menu.tsx).
   const skipAuth = () => isSkipAuth
 
   if (!isSkipAuth) {

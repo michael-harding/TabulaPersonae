@@ -101,7 +101,7 @@ export function freshenCalculatedFields(character: Character): Character {
  * so it can't fight a user's later deliberate toggle changes.
  *
  * Takes a `Character`, not raw file contents: every import path runs migrateCharacter first
- * (see header-menu.tsx), which is where untyped data becomes a `Character`.
+ * (see sidebar-menu.tsx), which is where untyped data becomes a `Character`.
  */
 export function reconcileImportedCharacter(imported: Character): Character {
   try {

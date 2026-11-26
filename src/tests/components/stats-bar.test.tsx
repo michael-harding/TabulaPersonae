@@ -130,7 +130,7 @@ describe("StatsBar", () => {
       render(() => <StatsBar character={withSpells(["armor"])} />)
       const pill = screen.getByTestId("status-duration-armor")
       expect(pill).toHaveTextContent("Active: Mage Armor")
-      expect(pill).toHaveClass("border-amber-600", "text-amber-800")
+      expect(pill).toHaveClass("border-amber-700", "text-amber-800")
       expect(pill).not.toHaveClass("bg-amber-400")
     })
 
@@ -274,5 +274,32 @@ describe("StatsBar", () => {
       // WIS 18+2=20 → +5, Prof +3 → Hit +8, DC 16
       expect(screen.getByRole("tooltip")).toHaveTextContent(/^Spell Hit: \+5 \(Wis\) \+ 3 \(Prof\) · DC: 8 \+ 3 \(Prof\) \+ 5 \(Wis\)$/)
     })
+  })
+})
+
+describe("StatsBar menu", () => {
+  it("puts the menu it is given at the start of the bar", () => {
+    render(() => <StatsBar character={makeCharacter(8, 10)} menu={<button type="button">Open menu</button>} />)
+    const bar = screen.getByTestId("stats-bar")
+    const menu = screen.getByRole("button", { name: "Open menu" })
+    expect(bar).toContainElement(menu)
+    // Before the stats in reading order
+    expect(menu.compareDocumentPosition(screen.getByText("AC")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it("builds the menu it is given once, though it reads it in more than one place", () => {
+    let built = 0
+    function CountedMenu() {
+      built++
+      return <button type="button">Open menu</button>
+    }
+    render(() => <StatsBar character={makeCharacter(8, 10)} menu={<CountedMenu />} />)
+    expect(screen.getAllByRole("button", { name: "Open menu" })).toHaveLength(1)
+    expect(built).toBe(1)
+  })
+
+  it("has no menu on the public sheet, where it is given none", () => {
+    render(() => <StatsBar character={makeCharacter(8, 10)} />)
+    expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument()
   })
 })

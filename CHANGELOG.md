@@ -5,6 +5,23 @@ All notable changes to TabulaPersonae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.12.0] - 2026-11-26
+
+### Added
+- **Sidebar menu** — the header menu is replaced by a sidebar that slides in from the left, opened by a button at the same spot on every page: at the left of the stats bar on the character sheet, and floating in that position on the character list and Tab Settings. Its close button sits exactly over the menu button, so a second click in the same place closes it. It shows who is signed in and holds All Characters, Tab Settings, Import, Export, Toggle Theme and Sign Out. On a character sheet it also holds that character's Sheet Settings (edition, sheet color, background color) and Sheet Sharing. Tab Settings can now import and export characters from the menu too
+- **Sheet background color** — a Background Color setting beside Sheet Color, with four presets (White, Parchment, Dark brown, Black), a custom color picker and a reset. Cards, popovers, wells and borders on the sheet take shades of the background, and a light or dark background switches the sheet to the matching theme while it's open without changing your saved theme. The Toggle Theme item is hidden on the sheet, where the background decides
+- **Attribution** — an Attribution link in the footer opens a dialog with the Creative Commons attribution statements for the System Reference Documents 5.1 and 5.2.1
+- The footer shows the app's version, linked to its release notes on GitHub
+
+### Changed
+- Sheet Settings is no longer a module on a tab; it's in the sidebar menu. Tab layouts that included it keep their other modules and tabs
+- Sheet color presets now use a fixed shade for each of the light and dark themes, and each swatch shows the shade the current theme uses. A custom sheet color is used exactly as picked. Characters keep their saved colors
+- The footer's "Source on GitHub" link is now "GitHub", and the footer wraps on narrow screens with full-size touch targets
+
+### Fixed
+- Reopening the menu while it was still closing no longer leaves a queued action, such as Sign Out, to run on a later, unrelated close
+- Tab Settings waits for sign-in to finish before loading characters, and sends signed-out visitors to the sign-in page
+
 ## [v1.11.0] - 2026-11-23
 
 ### Added

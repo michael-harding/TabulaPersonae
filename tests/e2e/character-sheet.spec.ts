@@ -186,3 +186,74 @@ test.describe("Add Feature dialog", () => {
     await expect(page.getByRole("dialog").getByRole("option")).toHaveText(FEATURE_TYPES)
   })
 })
+
+// The menu button: at the start of the bar stuck to the top of every page (the stats bar on a sheet)
+test.describe("Sidebar menu button", () => {
+  type Page = import("@playwright/test").Page
+  const trigger = (page: Page) => page.locator('[data-test="sidebar-menu-trigger"]')
+  const position = async (page: Page) => {
+    await expect(trigger(page)).toBeVisible()
+    const { x, y } = (await trigger(page).boundingBox())!
+    return { x, y }
+  }
+
+  async function scrollDown(page: Page) {
+    // The Combat tab is taller than the viewport
+    await page.mouse.wheel(0, 600)
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200)
+  }
+
+  const screens = [
+    { name: "a large screen", viewport: { width: 1280, height: 720 } },
+    { name: "a phone", viewport: { width: 390, height: 844 } },
+  ]
+  for (const { name, viewport } of screens) {
+    test.describe(`on ${name}`, () => {
+      test.use({ viewport })
+
+      test("stays in the stats bar, in place, while the page scrolls", async ({ page }) => {
+        await seedGuest(page, testCharacter)
+        await openSheet(page, testCharacter.id)
+        await expect(page.locator('[data-test="stats-bar"]').locator('[data-test="sidebar-menu-trigger"]')).toBeVisible()
+        const before = await position(page)
+        await scrollDown(page)
+        expect(await position(page)).toEqual(before)
+      })
+
+      test("is in the same place on every page", async ({ page }) => {
+        await seedGuest(page, testCharacter)
+        await openSheet(page, testCharacter.id)
+        const onSheet = await position(page)
+        await page.goto("/")
+        expect(await position(page)).toEqual(onSheet)
+        await page.goto("/settings/tabs")
+        expect(await position(page)).toEqual(onSheet)
+      })
+
+      // The sidebar's close button opens where the menu button is, so the pointer need not move
+      test("opens the sidebar, and closes it, with two clicks in the same spot", async ({ page }) => {
+        await seedGuest(page, testCharacter)
+        await openSheet(page, testCharacter.id)
+        const menu = (await trigger(page).boundingBox())!
+        const spot = { x: menu.x + menu.width / 2, y: menu.y + menu.height / 2 }
+
+        await page.mouse.click(spot.x, spot.y)
+        const sidebar = page.locator('[data-test="sidebar-menu"]')
+        await expect(sidebar).toBeVisible()
+        await sidebar.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+        expect(await page.locator('[data-test="drawer-close"]').boundingBox()).toEqual(menu)
+
+        await page.mouse.click(spot.x, spot.y)
+        await expect(sidebar).toHaveCount(0)
+      })
+    })
+  }
+
+  test("@mobile opens the sidebar, whose Tab Settings link goes to the tab settings", async ({ page }) => {
+    await seedGuest(page, testCharacter)
+    await openSheet(page, testCharacter.id)
+    await trigger(page).click()
+    await page.locator('[data-test="sidebar-tab-settings-link"]').click()
+    await expect(page).toHaveURL("/settings/tabs")
+  })
+})
