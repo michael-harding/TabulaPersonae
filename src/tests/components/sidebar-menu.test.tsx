@@ -53,7 +53,7 @@ const defaultProps = {
   onImport: vi.fn<(characters: Character[]) => Promise<boolean>>(),
 }
 
-async function openMenu(extraProps: Partial<typeof defaultProps & { currentCharacter?: Character; onUpdateCharacter?: (c: Character) => void }> = {}) {
+async function openMenu(extraProps: Partial<typeof defaultProps & { currentCharacter?: Character; onUpdateCharacter?: (c: Character) => void; hideThemeToggle?: boolean }> = {}) {
   const user = userEvent.setup()
   render(() => <SidebarMenu {...defaultProps} {...extraProps} />)
   await user.click(screen.getByRole("button", { name: "Open menu" }))
@@ -512,6 +512,14 @@ describe("SidebarMenu theme toggle", () => {
     await user.click(await screen.findByRole("button", { name: "Toggle Theme" }))
 
     expect(setTheme).toHaveBeenCalledExactlyOnceWith(to)
+  })
+
+  it("is left out when asked, as on the character sheet, leaving the rest of the group", async () => {
+    await openMenu({ currentCharacter: char1, hideThemeToggle: true })
+    await waitFor(() => expect(screen.getByText("Export Gandalf")).toBeInTheDocument())
+    expect(screen.queryByRole("button", { name: "Toggle Theme" })).not.toBeInTheDocument()
+    expect(screen.queryByTestId(/^theme-icon-/)).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Import Character" })).toBeInTheDocument()
   })
 })
 

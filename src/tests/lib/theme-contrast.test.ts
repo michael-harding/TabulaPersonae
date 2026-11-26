@@ -47,6 +47,7 @@ const textPairs: [foreground: string, background: string][] = [
   ["muted-foreground", "background"],
   ["muted-foreground", "card"],
   ["muted-foreground", "popover"],
+  ["muted-foreground", "well"],
   ["primary", "background"],
   ["primary", "card"],
   ["primary", "popover"],

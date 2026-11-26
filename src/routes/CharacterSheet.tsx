@@ -138,6 +138,7 @@ export default function CharacterSheet() {
                   onImport={handleImport}
                   currentCharacter={charStore.data ?? undefined}
                   onUpdateCharacter={updateCharacter}
+                  hideThemeToggle
                 />
               }
             />

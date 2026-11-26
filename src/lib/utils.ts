@@ -39,6 +39,6 @@ export const TEMP_HP_COLOR = { bar: "bg-blue-500", border: "border-blue-500" } a
 // light bar the gold fill alone is too pale, so the solid pill gets the outline's darker rim too.
 // theme-contrast.test.ts checks these pairs.
 export const SPELL_EFFECT_COLOR = {
-  concentration: "border border-amber-600 bg-amber-400 text-amber-950 dark:border-amber-400",
-  duration: "border border-amber-600 text-amber-800 dark:border-amber-400 dark:text-amber-300",
+  concentration: "border border-amber-700 bg-amber-400 text-amber-950 dark:border-amber-400",
+  duration: "border border-amber-700 text-amber-800 dark:border-amber-400 dark:text-amber-300",
 } as const

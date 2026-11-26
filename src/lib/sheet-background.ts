@@ -15,12 +15,12 @@ export interface SheetBackgroundPreset {
 }
 
 // White and Black are the light and dark themes' own backgrounds (oklch(1 0 0) and oklch(0.1 0 0)
-// in globals.css), so with the shades below they give exactly those themes. Warm white is as warm
-// as the status bar's amber-600 pill border allows (3:1 against it); Dark brown as warm as the dark
-// theme's input borders allow on its card shade.
+// in globals.css), so with the shades below they give exactly those themes. Parchment and Dark
+// brown are as warm as they can be while the theme's muted text and input borders stay readable on
+// their card shade.
 export const SHEET_BACKGROUND_PRESETS: readonly SheetBackgroundPreset[] = [
   { name: "White", value: "#ffffff" },
-  { name: "Warm white", value: "#fef9ee" },
+  { name: "Parchment", value: "#f8f1e3" },
   { name: "Dark brown", value: "#180f08" },
   { name: "Black", value: "#030303" },
 ]

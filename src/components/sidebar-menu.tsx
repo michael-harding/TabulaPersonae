@@ -45,6 +45,11 @@ interface SidebarMenuProps {
   /** The open character. With onUpdateCharacter, the menu also shows its settings and sharing. */
   currentCharacter?: Character
   onUpdateCharacter?: (character: Character) => void
+  /**
+   * Leaves out the theme toggle: on the character sheet, where a sheet background can decide light
+   * or dark itself (src/hooks/use-sheet-background.ts), so the toggle would seem to do nothing.
+   */
+  hideThemeToggle?: boolean
   /** Classes for the menu button: MENU_BUTTON_FLOATING on pages without a stats bar */
   class?: string
 }
@@ -312,10 +317,12 @@ export function SidebarMenu(props: SidebarMenuProps) {
               <Download aria-hidden="true" />
               <span class="truncate">{exportLabel()}</span>
             </button>
-            <button type="button" class={ROW} onClick={() => setTheme(theme() === "dark" ? "light" : "dark")}>
-              <Dynamic component={themeIcon()} aria-hidden="true" data-test={`theme-icon-${theme()}`} />
-              Toggle Theme
-            </button>
+            <Show when={!props.hideThemeToggle}>
+              <button type="button" class={ROW} onClick={() => setTheme(theme() === "dark" ? "light" : "dark")}>
+                <Dynamic component={themeIcon()} aria-hidden="true" data-test={`theme-icon-${theme()}`} />
+                Toggle Theme
+              </button>
+            </Show>
           </div>
 
           <Show when={props.currentCharacter && props.onUpdateCharacter}>

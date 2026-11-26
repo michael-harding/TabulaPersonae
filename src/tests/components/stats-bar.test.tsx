@@ -130,7 +130,7 @@ describe("StatsBar", () => {
       render(() => <StatsBar character={withSpells(["armor"])} />)
       const pill = screen.getByTestId("status-duration-armor")
       expect(pill).toHaveTextContent("Active: Mage Armor")
-      expect(pill).toHaveClass("border-amber-600", "text-amber-800")
+      expect(pill).toHaveClass("border-amber-700", "text-amber-800")
       expect(pill).not.toHaveClass("bg-amber-400")
     })
 

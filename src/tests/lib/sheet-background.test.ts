@@ -7,7 +7,7 @@ import { themeToken } from "./theme-tokens"
 
 describe("backgroundTone", () => {
   it.each([
-    ["#ffffff", "light"], ["#fef9ee", "light"], ["#f8f1e3", "light"], ["#ffff00", "light"], ["#a0a0a0", "light"],
+    ["#ffffff", "light"], ["#f8f1e3", "light"], ["#ffff00", "light"], ["#a0a0a0", "light"],
     ["#000000", "dark"], ["#180f08", "dark"], ["#00008b", "dark"], ["#505050", "dark"],
   ] as const)("calls %s %s", (hex, tone) => {
     expect(backgroundTone(hex)).toBe(tone)

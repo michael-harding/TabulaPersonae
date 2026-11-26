@@ -167,7 +167,7 @@ describe("Sheet settings sections", () => {
   })
 
   describe("background color", () => {
-    const charWithBackground = { ...baseCharacter, sheetBackground: "#fef9ee" }
+    const charWithBackground = { ...baseCharacter, sheetBackground: "#f8f1e3" }
     const charWithCustomBackground = { ...baseCharacter, sheetBackground: "#336699" }
 
     it("offers each preset background, showing its own colour", () => {
@@ -197,7 +197,7 @@ describe("Sheet settings sections", () => {
       render(() => <SheetSettings character={charWithBackground} onUpdate={vi.fn()} />)
       const pressed = screen.getAllByRole("button", { name: /background color/i }).filter((b) => b.getAttribute("aria-pressed") === "true")
       expect(pressed).toHaveLength(1)
-      expect(pressed[0]).toHaveAccessibleName("Warm white background color")
+      expect(pressed[0]).toHaveAccessibleName("Parchment background color")
     })
 
     it("names the custom input as selected for a custom background", () => {

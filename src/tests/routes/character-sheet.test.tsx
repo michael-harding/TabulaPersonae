@@ -418,6 +418,14 @@ describe("CharacterSheet background", () => {
     expect(tone).toHaveBeenLastCalledWith(null)
   })
 
+  // The background, not the player's theme, can decide light or dark here, so the toggle is left out
+  it("leaves the theme toggle out of the sheet's sidebar menu", async () => {
+    await renderWithBackground(undefined)
+    fireEvent.click(screen.getByTestId("sidebar-menu-trigger"))
+    expect(await screen.findByTestId("sheet-background-swatches")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Toggle Theme" })).not.toBeInTheDocument()
+  })
+
   it("takes the background away when the sheet closes, so other pages keep the player's theme", async () => {
     const body = await renderWithBackground("#180f08")
     cleanup()
